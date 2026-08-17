@@ -8,6 +8,10 @@ venv/
 # Env
 .env
 
+# SSH host keys (auto-generated)
+ssh_host_key
+ssh_host_key.pub
+
 # IDE
 .vscode/
 .idea/

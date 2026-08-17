@@ -14,6 +14,8 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.core.db import close_pool, init_pool
 from app.api.routers.admin import router as admin_router
+from app.core.proxy import TunnelProxyMiddleware
+from app.core.tunnel_registry import init_registry
 
 
 @asynccontextmanager
@@ -22,8 +24,20 @@ async def lifespan(app: FastAPI):
     # before the server starts. Here we just init the pool.
     await init_pool()
     print(f"[{settings.APP_NAME}] DB pool ready on {settings.async_dsn}")
+
+    # Initialize tunnel registry
+    init_registry(settings.TUNNEL_DOMAIN, settings.PROXY_PORT)
+
+    # Start SSH server for tunnels
+    from app.core.ssh_server import start_ssh_server
+    ssh_server = await start_ssh_server()
+
     yield
+
     # Shutdown
+    ssh_server.close()
+    await ssh_server.wait_closed()
+    print(f"[{settings.APP_NAME}] SSH server stopped")
     await close_pool()
     print(f"[{settings.APP_NAME}] DB pool closed")
 
@@ -44,6 +58,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Tunnel proxy — must be added AFTER CORS so it runs before route matching
+app.add_middleware(TunnelProxyMiddleware)
 
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(admin_router)  # /admin panel (no API prefix)

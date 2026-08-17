@@ -32,6 +32,19 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # SSH Tunnel Server
+    SSH_HOST: str = "0.0.0.0"
+    SSH_PORT: int = 2222
+    # Domain for tunnel subdomains (e.g. "pinggy.example.com" → abc123.pinggy.example.com)
+    TUNNEL_DOMAIN: str = "localhost"
+    # Port range for SSH reverse tunnels (allocated dynamically)
+    TUNNEL_PORT_MIN: int = 10000
+    TUNNEL_PORT_MAX: int = 20000
+    # HTTP proxy listen port (for subdomain-based routing; in production use 80/443)
+    PROXY_PORT: int = 8080
+    # Subdomain length (random string)
+    SUBDOMAIN_LENGTH: int = 7
+
     @property
     def async_dsn(self) -> str:
         """psycopg3 async connection string (no +psycopg scheme)."""
