@@ -332,22 +332,27 @@ async function loadUsers() {
       const activeCount = userTunnels.filter(t => t.status === 'active').length;
       const totalRequests = userTunnels.reduce((sum, t) => sum + t.request_count, 0);
       const totalData = userTunnels.reduce((sum, t) => sum + t.bytes_transferred, 0);
+      const isOnline = activeCount > 0;
+      const statusBadge = isOnline
+        ? `<span style="display:inline-flex;align-items:center;gap:.3rem"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 1.5s infinite"></span><span class="badge badge-green">Online</span></span>`
+        : `<span style="display:inline-flex;align-items:center;gap:.3rem"><span style="width:8px;height:8px;border-radius:50%;background:#94a3b8"></span><span class="badge">Offline</span></span>`;
       return `<tr>
         <td>${u.email}</td>
         <td>${u.full_name || '—'}</td>
         <td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td>
         <td class="code" style="font-size:.8rem">${u.tunnel_token || '—'}</td>
+        <td>${statusBadge}</td>
         <td><span class="badge ${activeCount > 0 ? 'badge-green' : ''}">${activeCount}</span></td>
         <td>${totalRequests}</td>
         <td>${(totalData / 1024).toFixed(1)} KB</td>
         <td><button class="btn btn-ghost btn-sm" onclick="viewUser('${u.id}')">View</button></td>
       </tr>`;
     }).join('');
-    if (!rows) rows = '<tr><td colspan="8" class="empty">No users found</td></tr>';
+    if (!rows) rows = '<tr><td colspan="9" class="empty">No users found</td></tr>';
     c.innerHTML = `<div class="card">
       <div class="card-header"><h2>Users (${users.length})</h2><button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">➕ Add User</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>Email</th><th>Full Name</th><th>Role</th><th>Tunnel Token</th><th>Active Tunnels</th><th>Total Requests</th><th>Total Data</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>Email</th><th>Full Name</th><th>Role</th><th>Tunnel Token</th><th>Status</th><th>Active Tunnels</th><th>Total Requests</th><th>Total Data</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
