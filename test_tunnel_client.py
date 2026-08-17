@@ -14,7 +14,7 @@ async def main():
             "localhost",
             port=2222,
             known_hosts=None,
-            username="testuser",
+            username="admin",
         ) as conn:
             print("SSH connected!")
 
