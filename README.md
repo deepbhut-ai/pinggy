@@ -527,3 +527,192 @@ sudo certbot renew --dry-run    # test
 sudo certbot renew              # renew
 sudo systemctl reload nginx     # apply
 ```
+
+---
+
+## Server Management & Restart Guide
+
+### Service Commands
+
+```bash
+# Check if pinggy is running
+sudo systemctl status pinggy
+
+# Start the service
+sudo systemctl start pinggy
+
+# Stop the service
+sudo systemctl stop pinggy
+
+# Restart the service (use after code updates)
+sudo systemctl restart pinggy
+
+# Enable auto-start on server boot
+sudo systemctl enable pinggy
+
+# Disable auto-start on boot
+sudo systemctl disable pinggy
+```
+
+### Viewing Logs
+
+```bash
+# View live logs (follow)
+journalctl -u pinggy -f
+
+# View last 100 lines
+journalctl -u pinggy -n 100
+
+# View logs from today
+journalctl -u pinggy --since today
+
+# View logs with errors only
+journalctl -u pinggy -p err
+
+# View logs between time range
+journalctl -u pinggy --since "2026-08-17 10:00" --until "2026-08-17 12:00"
+```
+
+### Updating the Code
+
+After making changes to the code, deploy updates to the server:
+
+```bash
+# 1. Upload updated files from your local machine
+scp -r app/ root@YOUR_SERVER_IP:/opt/pinggy/
+
+# 2. Restart the service
+ssh root@YOUR_SERVER_IP "systemctl restart pinggy"
+
+# 3. Verify it's running
+ssh root@YOUR_SERVER_IP "systemctl status pinggy --no-pager"
+```
+
+### If the Service Crashes
+
+The systemd service is configured with `Restart=always` and `RestartSec=5`,
+so it will automatically restart within 5 seconds if it crashes.
+
+To check if it's stuck in a restart loop:
+
+```bash
+# Check recent restart count
+systemctl show pinggy --property=NRestarts
+
+# Check if the service keeps failing
+journalctl -u pinggy -n 50 --no-pager
+```
+
+If the service won't start, common causes:
+
+```bash
+# 1. Port 2222 or 8000 already in use?
+ss -tlnp | grep -E '2222|8000'
+
+# 2. PostgreSQL not running?
+systemctl status postgresql
+
+# 3. Database doesn't exist?
+sudo -u postgres psql -l | grep pinggy
+
+# 4. Python venv broken?
+/opt/pinggy/.venv/bin/python -c "import fastapi; print('OK')"
+
+# 5. Check the .env file
+cat /opt/pinggy/.env
+```
+
+### Firewall Management
+
+```bash
+# Check firewall status
+sudo ufw status
+
+# Open ports for pinggy
+sudo ufw allow 8000/tcp    # FastAPI admin panel + API
+sudo ufw allow 2222/tcp    # SSH tunnel server
+
+# If using nginx (port 80/443), those should already be open
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Remove a rule if needed
+sudo ufw delete allow 8000/tcp
+```
+
+### Database Management
+
+```bash
+# Access the pinggy database
+sudo -u postgres psql pinggy
+
+# View all users
+SELECT id, email, role, tunnel_token FROM users;
+
+# View all tunnels
+SELECT * FROM tunnels;
+
+# View active tunnels only
+SELECT * FROM tunnels WHERE status = 'active';
+
+# Reset admin password (if locked out)
+# First get the hashed password from Python:
+# python3 -c "import bcrypt; print(bcrypt.hashpw(b'newpassword', bcrypt.gensalt()).decode())"
+# Then update:
+UPDATE users SET password_hash = 'NEW_HASH' WHERE email = 'admin';
+
+# Reset tunnel token for a user
+UPDATE users SET tunnel_token = 'newtoken123' WHERE email = 'admin';
+```
+
+### Full Server Restart (if everything is broken)
+
+```bash
+# 1. Stop the service
+sudo systemctl stop pinggy
+
+# 2. Kill any leftover processes
+pkill -f "python.*run.py"
+
+# 3. Check ports are free
+ss -tlnp | grep -E '2222|8000'
+
+# 4. Restart the service
+sudo systemctl start pinggy
+
+# 5. Verify
+sleep 3
+sudo systemctl status pinggy --no-pager
+curl -s http://127.0.0.1:8000/health
+```
+
+### Current Deployment Info
+
+| Item | Value |
+|------|-------|
+| Server IP | `13.140.131.204` |
+| App location | `/opt/pinggy` |
+| Python venv | `/opt/pinggy/.venv` |
+| Config file | `/opt/pinggy/.env` |
+| Service name | `pinggy` |
+| Admin panel | `http://13.140.131.204:8000/admin` |
+| SSH tunnel port | `2222` |
+| API port | `8000` |
+| Database | `pinggy` (PostgreSQL) |
+| Default admin | `admin` / `admin` |
+
+### Quick Test After Restart
+
+```bash
+# Check service
+systemctl status pinggy --no-pager
+
+# Check health
+curl -s http://127.0.0.1:8000/health
+
+# Check SSH port
+ss -tlnp | grep 2222
+
+# Test SSH tunnel (from your local machine)
+ssh -p 2222 -R0:localhost:8080 -o StrictHostKeyChecking=no -o ServerAliveInterval=30 YOUR_TOKEN@13.140.131.204
+```

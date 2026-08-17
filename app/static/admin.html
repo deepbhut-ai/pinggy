@@ -626,8 +626,8 @@ function buildSSHCommand() {
   const token = tunnelState.token;
   const domain = info.domain;
   const sshPort = info.ssh_port;
-  // No -N flag: allows the server to send the tunnel URL back to this terminal
-  return `ssh -p ${sshPort} -R0:localhost:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${domain}`;
+  // Use 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
+  return `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${domain}`;
 }
 
 function updateSSHCommand() {

@@ -81,7 +81,7 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                 data = "\n".join(lines) + "\n"
                 if self._chan:
                     self._chan.write(data)
-                    self._chan.flush()
+                    # Don't call flush() — SSHServerChannel doesn't support it
                 self._info_sent = True
                 logger.info("Tunnel info sent to client terminal")
                 return

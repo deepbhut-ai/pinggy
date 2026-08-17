@@ -135,13 +135,15 @@ def _ensure_default_admin() -> None:
                     return
 
                 # Create default admin: username 'admin', password 'admin'
+                import secrets as _secrets
+                tunnel_token = _secrets.token_hex(8)
                 hashed = bcrypt.hashpw(b"admin", bcrypt.gensalt()).decode()
                 cur.execute(
                     """
-                    INSERT INTO users (email, password_hash, full_name, role)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO users (email, password_hash, full_name, role, tunnel_token)
+                    VALUES (%s, %s, %s, %s, %s)
                     """,
-                    ("admin", hashed, "Default Admin", "admin"),
+                    ("admin", hashed, "Default Admin", "admin", tunnel_token),
                 )
                 logger.info("Default admin user created (email='admin', password='admin').")
     except Exception as e:

@@ -85,7 +85,7 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             # Set the host to the tunnel's local host
             forward_headers["host"] = f"localhost:{tunnel.local_port}"
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
                 resp = await client.request(
                     method=request.method,
                     url=target_url,
