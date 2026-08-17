@@ -17,12 +17,12 @@ async def list_users(
     offset: int = 0,
 ):
     cur = await db.execute(
-        "SELECT id, email, full_name, role FROM users ORDER BY created_at DESC LIMIT %s OFFSET %s",
+        "SELECT id, email, full_name, role, tunnel_token FROM users ORDER BY created_at DESC LIMIT %s OFFSET %s",
         (limit, offset),
     )
     rows = await cur.fetchall()
     await cur.close()
-    return [UserOut(id=str(r[0]), email=r[1], full_name=r[2], role=r[3]) for r in rows]
+    return [UserOut(id=str(r[0]), email=r[1], full_name=r[2], role=r[3], tunnel_token=r[4]) for r in rows]
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -32,10 +32,10 @@ async def get_user(
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
-        "SELECT id, email, full_name, role FROM users WHERE id = %s", (user_id,)
+        "SELECT id, email, full_name, role, tunnel_token FROM users WHERE id = %s", (user_id,)
     )
     row = await cur.fetchone()
     await cur.close()
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
-    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3])
+    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4])

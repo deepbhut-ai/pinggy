@@ -326,18 +326,28 @@ async function loadUsers() {
   c.innerHTML = `<div class="card"><div class="card-header"><h2>Users</h2><button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">➕ Add User</button></div><div class="card-body"><p class="empty">Loading...</p></div></div>`;
   try {
     const users = await api('/users');
-    let rows = users.map(u => `<tr>
-      <td class="code">${u.id}</td>
-      <td>${u.email}</td>
-      <td>${u.full_name || '—'}</td>
-      <td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td>
-      <td><button class="btn btn-ghost btn-sm" onclick="viewUser('${u.id}')">View</button></td>
-    </tr>`).join('');
-    if (!rows) rows = '<tr><td colspan="5" class="empty">No users found</td></tr>';
+    const tunnels = await api('/tunnels');
+    let rows = users.map(u => {
+      const userTunnels = tunnels.filter(t => t.user_email === u.email);
+      const activeCount = userTunnels.filter(t => t.status === 'active').length;
+      const totalRequests = userTunnels.reduce((sum, t) => sum + t.request_count, 0);
+      const totalData = userTunnels.reduce((sum, t) => sum + t.bytes_transferred, 0);
+      return `<tr>
+        <td>${u.email}</td>
+        <td>${u.full_name || '—'}</td>
+        <td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td>
+        <td class="code" style="font-size:.8rem">${u.tunnel_token || '—'}</td>
+        <td><span class="badge ${activeCount > 0 ? 'badge-green' : ''}">${activeCount}</span></td>
+        <td>${totalRequests}</td>
+        <td>${(totalData / 1024).toFixed(1)} KB</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="viewUser('${u.id}')">View</button></td>
+      </tr>`;
+    }).join('');
+    if (!rows) rows = '<tr><td colspan="8" class="empty">No users found</td></tr>';
     c.innerHTML = `<div class="card">
       <div class="card-header"><h2>Users (${users.length})</h2><button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">➕ Add User</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>ID</th><th>Email</th><th>Full Name</th><th>Role</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>Email</th><th>Full Name</th><th>Role</th><th>Tunnel Token</th><th>Active Tunnels</th><th>Total Requests</th><th>Total Data</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
@@ -346,15 +356,33 @@ async function loadUsers() {
 async function viewUser(id) {
   try {
     const u = await api(`/users/${id}`);
+    const allTunnels = await api('/tunnels');
+    const userTunnels = allTunnels.filter(t => t.user_email === u.email);
+    let tunnelRows = userTunnels.map(t => `<tr>
+      <td><a href="${t.url}" target="_blank" style="color:var(--primary)">${t.url}</a></td>
+      <td class="code">${t.subdomain}</td>
+      <td>${t.request_count}</td>
+      <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td><span class="badge ${t.status === 'active' ? 'badge-green' : 'badge-red'}">${t.status}</span></td>
+      <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+    </tr>`).join('');
+    if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No tunnels yet</td></tr>';
     document.getElementById('pageContent').innerHTML = `<div class="card">
       <div class="card-header"><h2>User Details</h2><button class="btn btn-ghost btn-sm" onclick="loadUsers()">← Back</button></div>
       <div class="card-body">
         <table>
-          <tr><td>ID</td><td class="code">${u.id}</td></tr>
-          <tr><td>Email</td><td>${u.email}</td></tr>
+          <tr><td style="width:150px">Email</td><td><strong>${u.email}</strong></td></tr>
           <tr><td>Full Name</td><td>${u.full_name || '—'}</td></tr>
           <tr><td>Role</td><td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td></tr>
+          <tr><td>Tunnel Token</td><td class="code" style="font-size:.85rem"><strong>${u.tunnel_token || '—'}</strong> <button class="btn btn-sm" onclick="copyToClipboard('${u.tunnel_token}')" style="margin-left:.5rem">📋 Copy</button></td></tr>
+          <tr><td>SSH Command</td><td class="code" style="font-size:.8rem">ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@13.140.131.204.nip.io</td></tr>
         </table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>Tunnels (${userTunnels.length})</h2></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody>${tunnelRows}</tbody></table>
       </div>
     </div>`;
   } catch (e) { toast(e.message, 'error'); }
@@ -593,7 +621,7 @@ async function loadMyTunnels() {
         </div>
         <div class="tl-card">
           <p style="font-size:.85rem;margin-bottom:.5rem">Open your terminal and run:</p>
-          <div class="cmd-box"><pre>ssh -p ${info.ssh_port} -R0:localhost:8000 ${info.domain}</pre><button class="btn btn-sm" onclick="copyToClipboard('ssh -p ${info.ssh_port} -R0:localhost:8000 ${info.domain}')">📋</button></div>
+          <div class="cmd-box"><pre>ssh -p ${info.ssh_port} -R0:127.0.0.1:8000 ${info.domain}</pre><button class="btn btn-sm" onclick="copyToClipboard('ssh -p ${info.ssh_port} -R0:127.0.0.1:8000 ${info.domain}')">📋</button></div>
           <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-dim)">Replace <span style="color:var(--primary)">8000</span> with the port where your service is running.</p>
         </div>
       </div>
