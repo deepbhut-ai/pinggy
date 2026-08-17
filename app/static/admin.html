@@ -185,7 +185,6 @@
       <a href="#" data-page="mytunnels" onclick="navigate('mytunnels', this)">🔗 My Tunnels</a>
       <a href="#" data-page="users" onclick="navigate('users', this)" id="navUsers" style="display:none">👥 Users</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
-      <a href="#" data-page="tunnels" onclick="navigate('tunnels', this)" id="navTunnels" style="display:none">🔗 All Tunnels</a>
       <a href="#" data-page="api" onclick="navigate('api', this)">🔌 API Explorer</a>
     </div>
     <div class="content" id="pageContent"></div>
@@ -276,7 +275,6 @@ function navigate(page, el) {
   else if (page === 'mytunnels') loadMyTunnels();
   else if (page === 'users') loadUsers();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
-  else if (page === 'tunnels') loadTunnels();
   else if (page === 'api') c.innerHTML = renderApiExplorer();
 }
 
@@ -289,7 +287,6 @@ function renderDashboard() {
       <div class="card-body" style="display:flex;gap:.75rem;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="navigate('users', document.querySelector('[data-page=users]'))">View Users</button>
         <button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">Add User</button>
-        <button class="btn btn-sm" onclick="navigate('tunnels', document.querySelector('[data-page=tunnels]'))">All Tunnels</button>
         <button class="btn btn-sm" onclick="navigate('api', document.querySelector('[data-page=api]'))">API Explorer</button>
       </div>
     </div>` : '';
@@ -425,49 +422,6 @@ async function doRegister() {
 }
 
 // ---- Tunnels ----
-async function loadTunnels() {
-  const c = document.getElementById('pageContent');
-  c.innerHTML = `<div class="card"><div class="card-header"><h2>Active Tunnels</h2><button class="btn btn-sm" onclick="loadTunnels()">🔄 Refresh</button></div><div class="card-body"><p class="empty">Loading...</p></div></div>`;
-  try {
-    const tunnels = await api('/tunnels');
-    let rows = tunnels.map(t => `<tr>
-      <td class="code">${t.tunnel_id}</td>
-      <td><a href="${t.url}" target="_blank">${t.subdomain}</a></td>
-      <td class="code">${t.url}</td>
-      <td>${t.local_port}</td>
-      <td>${t.remote_port}</td>
-      <td>${t.user_email}</td>
-      <td>${t.request_count}</td>
-      <td><span class="badge badge-green">${t.status}</span></td>
-      <td><button class="btn btn-danger btn-sm" onclick="stopTunnel('${t.subdomain}')">Stop</button></td>
-    </tr>`).join('');
-    if (!rows) rows = '<tr><td colspan="9" class="empty">No active tunnels. Connect with: ssh -p 2222 -R0:localhost:PORT localhost</td></tr>';
-    c.innerHTML = `<div class="card">
-      <div class="card-header"><h2>Active Tunnels (${tunnels.length})</h2><button class="btn btn-sm" onclick="loadTunnels()">🔄 Refresh</button></div>
-      <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>ID</th><th>Subdomain</th><th>URL</th><th>Local Port</th><th>Remote Port</th><th>User</th><th>Requests</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header"><h2>How to Create a Tunnel</h2></div>
-      <div class="card-body">
-        <p style="margin-bottom:.5rem">Run this command on any machine with SSH:</p>
-        <pre class="code" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto">ssh -p 2222 -R0:localhost:8080 localhost</pre>
-        <p style="margin-top:.5rem;color:var(--text-dim);font-size:.85rem">Replace <code>8080</code> with your local dev server port. The server will print a public URL.</p>
-      </div>
-    </div>`;
-  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
-}
-
-async function stopTunnel(subdomain) {
-  if (!confirm(`Stop tunnel ${subdomain}?`)) return;
-  try {
-    await api(`/tunnels/${subdomain}`, 'DELETE');
-    toast(`Tunnel ${subdomain} stopped`);
-    loadTunnels();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
 // ---- My Tunnels (user dashboard — pinggy.io style timeline) ----
 
 let tunnelState = {
