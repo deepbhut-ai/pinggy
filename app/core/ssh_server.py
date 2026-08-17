@@ -36,6 +36,69 @@ def _generate_tunnel_id() -> str:
     return "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
 
 
+class TunnelInfoSession(asyncssh.SSHServerSession):
+    """SSH session that sends tunnel info to the user's terminal."""
+
+    def __init__(self, server: "MySSHServer"):
+        self._server = server
+        self._chan: asyncssh.SSHServerChannel | None = None
+        self._info_sent = False
+
+    def connection_made(self, chan: asyncssh.SSHServerChannel) -> None:
+        self._chan = chan
+
+    def shell_requested(self) -> bool:
+        return True
+
+    def exec_requested(self, command: str) -> bool:
+        return False
+
+    def session_started(self) -> None:
+        """Called when the session starts — try to send tunnel info."""
+        # Schedule sending tunnel info (tunnel may not be ready yet)
+        asyncio.create_task(self._send_info_when_ready())
+
+    async def _send_info_when_ready(self) -> None:
+        """Wait for the tunnel to be set up, then send the info to the client."""
+        # Wait for tunnel to be created (retry for up to 10 seconds)
+        for _ in range(20):
+            if self._server._tunnel and not self._info_sent:
+                tunnel = self._server._tunnel
+                url = f"http://{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}:{settings.PROXY_PORT}"
+                lines = [
+                    "",
+                    "  ╔══════════════════════════════════════════════════════╗",
+                    "  ║  pinggy tunnel — ACTIVE                               ║",
+                    f"  ║  URL:  {url:<46s}║",
+                    f"  ║  Remote port: {tunnel.remote_port:<37d}║",
+                    f"  ║  User: {self._server._username:<44s}║",
+                    "  ╚══════════════════════════════════════════════════════╝",
+                    "",
+                    "  Share this URL to access your local service.",
+                    "  Press Ctrl+C to stop the tunnel.",
+                    "",
+                ]
+                data = "\n".join(lines) + "\n"
+                if self._chan:
+                    self._chan.write(data)
+                    self._chan.flush()
+                self._info_sent = True
+                logger.info("Tunnel info sent to client terminal")
+                return
+            await asyncio.sleep(0.5)
+
+    def data_received(self, data: str, datatype: int) -> None:
+        """Ignore data from client — we only send."""
+        pass
+
+    def eof_received(self) -> bool:
+        return True
+
+    def close_received(self) -> None:
+        if self._chan:
+            self._chan.close()
+
+
 class MySSHServer(asyncssh.SSHServer):
     """SSH server that accepts reverse port forwards and creates tunnels."""
 
@@ -97,6 +160,11 @@ class MySSHServer(asyncssh.SSHServer):
     def validate_password(self, username: str, password: str) -> bool:
         """If we get here, the token was invalid. Reject everything."""
         return False
+
+    def session_requested(self) -> bool:
+        """Allow the client to open a session so we can send the tunnel URL
+        back to their terminal (like pinggy.io does)."""
+        return TunnelInfoSession(self)
 
     def _verify_tunnel_token_sync(self, token: str) -> bool:
         """Synchronous DB check — used from begin_auth which is a sync callback."""
@@ -198,6 +266,8 @@ class MySSHServer(asyncssh.SSHServer):
             url = f"http://{subdomain}.{settings.TUNNEL_DOMAIN}:{settings.PROXY_PORT}"
             logger.info("Tunnel created: %s → remote port %d (from %s)",
                         url, remote_port, self._peer)
+
+            # Print to server console
             print(f"\n  ╔══════════════════════════════════════════════════════╗")
             print(f"  ║  pinggy tunnel — ACTIVE                               ║")
             print(f"  ║  URL:  {url:<46s}║")

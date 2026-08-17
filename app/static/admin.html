@@ -71,6 +71,7 @@
   #toast.success { border-color: var(--green); }
   #toast.error { border-color: var(--red); }
   @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 
   .empty { text-align: center; color: var(--text-dim); padding: 2rem; }
   .code { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: .8rem; color: var(--text-dim); }
@@ -267,6 +268,7 @@ async function showApp() {
 
 // ---- Navigation ----
 function navigate(page, el) {
+  stopTunnelPolling();
   document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
   if (el) el.classList.add('active');
   const c = document.getElementById('pageContent');
@@ -441,6 +443,64 @@ let tunnelState = {
   token: '',
   tokenVisible: false,
 };
+let tunnelPollTimer = null;
+
+function startTunnelPolling() {
+  stopTunnelPolling();
+  tunnelPollTimer = setInterval(async () => {
+    // Only poll if on My Tunnels page
+    if (!document.getElementById('sshCommand')) return;
+    try {
+      const tunnels = await api('/tunnels/my');
+      updateTunnelBanner(tunnels);
+      updateTunnelTable(tunnels);
+    } catch {}
+  }, 3000); // Check every 3 seconds
+}
+
+function stopTunnelPolling() {
+  if (tunnelPollTimer) { clearInterval(tunnelPollTimer); tunnelPollTimer = null; }
+}
+
+function updateTunnelBanner(tunnels) {
+  const banner = document.getElementById('tunnelBanner');
+  if (!banner) return;
+  if (tunnels.length > 0) {
+    const t = tunnels[0];
+    banner.style.display = 'block';
+    banner.innerHTML = `
+      <div style="display:flex;align-items:center;gap:1rem">
+        <div style="width:12px;height:12px;border-radius:50%;background:#22c55e;animation:pulse 1.5s infinite"></div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:1.1rem;color:var(--primary)">Tunnel Active!</div>
+          <div style="font-size:.9rem;color:var(--text-dim)">Your tunnel URL:</div>
+        </div>
+        <a href="${t.url}" target="_blank" style="font-size:1.1rem;font-weight:700;color:var(--primary);text-decoration:none;background:var(--bg);padding:.5rem 1rem;border-radius:var(--radius);border:1px solid var(--border)">${t.url}</a>
+        <button class="btn btn-sm" onclick="copyToClipboard('${t.url}')" title="Copy URL">📋 Copy</button>
+      </div>`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function updateTunnelTable(tunnels) {
+  const tbody = document.getElementById('tunnelTableBody');
+  const countEl = document.getElementById('tunnelCount');
+  if (!tbody) return;
+  if (countEl) countEl.textContent = tunnels.length;
+  if (tunnels.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = tunnels.map(t => `<tr>
+    <td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>
+    <td class="code">${t.subdomain}</td>
+    <td>${t.request_count}</td>
+    <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+    <td><span class="badge badge-green">${t.status}</span></td>
+    <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+  </tr>`).join('');
+}
 
 async function loadMyTunnels() {
   const c = document.getElementById('pageContent');
@@ -539,15 +599,22 @@ async function loadMyTunnels() {
       </div>
     </div>
 
+    <!-- Active tunnel banner (auto-updates) -->
+    <div id="tunnelBanner" style="display:none;margin-top:1.5rem;padding:1rem 1.5rem;background:linear-gradient(135deg,rgba(34,197,94,.1),rgba(34,197,94,.05));border:1px solid rgba(34,197,94,.3);border-radius:var(--radius)"></div>
+
     <!-- Active tunnels table -->
     <div class="card" style="margin-top:1.5rem">
-      <div class="card-header"><h2>🔗 My Active Tunnels (${tunnels.length})</h2><button class="btn btn-sm" onclick="loadMyTunnels()">🔄 Refresh</button></div>
+      <div class="card-header"><h2>🔗 My Active Tunnels (<span id="tunnelCount">${tunnels.length}</span>)</h2><button class="btn btn-sm" onclick="loadMyTunnels()">🔄 Refresh</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody>${tunnelRows}</tbody></table>
+        <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody id="tunnelTableBody">${tunnelRows}</tbody></table>
       </div>
     </div>`;
     // Apply current state
     updateSSHCommand();
+    // Show banner if tunnels exist
+    updateTunnelBanner(tunnels);
+    // Start auto-polling for new tunnels
+    startTunnelPolling();
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
@@ -559,6 +626,7 @@ function buildSSHCommand() {
   const token = tunnelState.token;
   const domain = info.domain;
   const sshPort = info.ssh_port;
+  // No -N flag: allows the server to send the tunnel URL back to this terminal
   return `ssh -p ${sshPort} -R0:localhost:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${domain}`;
 }
 
