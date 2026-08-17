@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pinggy Admin</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
+    --border: #475569; --text: #f1f5f9; --text-dim: #94a3b8;
+    --primary: #3b82f6; --primary-hover: #2563eb; --green: #22c55e;
+    --red: #ef4444; --amber: #f59e0b; --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  a { color: var(--primary); text-decoration: none; }
+
+  /* ---- Login ---- */
+  #loginView { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; width: 360px; }
+  .login-card h1 { font-size: 1.5rem; margin-bottom: .25rem; }
+  .login-card p { color: var(--text-dim); font-size: .85rem; margin-bottom: 1.5rem; }
+
+  /* ---- Layout ---- */
+  #appView { display: none; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: .75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 1.25rem; }
+  .topbar .right { display: flex; align-items: center; gap: 1rem; }
+  .topbar .user-info { color: var(--text-dim); font-size: .85rem; }
+
+  .layout { display: flex; min-height: calc(100vh - 57px); }
+  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 1rem 0; flex-shrink: 0; }
+  .sidebar a { display: block; padding: .65rem 1.5rem; color: var(--text-dim); font-size: .9rem; border-left: 3px solid transparent; transition: .15s; }
+  .sidebar a:hover { background: var(--surface2); color: var(--text); }
+  .sidebar a.active { color: var(--primary); border-left-color: var(--primary); background: var(--surface2); }
+  .content { flex: 1; padding: 1.5rem; overflow-y: auto; }
+
+  /* ---- Forms ---- */
+  label { display: block; font-size: .8rem; color: var(--text-dim); margin-bottom: .3rem; }
+  input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .55rem .75rem; color: var(--text); font-size: .9rem; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+  .form-group { margin-bottom: 1rem; }
+  .form-row { display: flex; gap: 1rem; }
+  .form-row .form-group { flex: 1; }
+
+  /* ---- Buttons ---- */
+  .btn { background: var(--primary); color: #fff; border: none; border-radius: var(--radius); padding: .55rem 1.25rem; font-size: .9rem; cursor: pointer; transition: .15s; }
+  .btn:hover { background: var(--primary-hover); }
+  .btn-sm { padding: .3rem .7rem; font-size: .8rem; }
+  .btn-danger { background: var(--red); }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-ghost { background: var(--surface2); }
+  .btn-ghost:hover { background: var(--border); }
+
+  /* ---- Cards / Tables ---- */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1.5rem; }
+  .card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-header h2 { font-size: 1.1rem; }
+  .card-body { padding: 1.25rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: .65rem 1rem; border-bottom: 1px solid var(--border); font-size: .85rem; }
+  th { color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: .75rem; letter-spacing: .03em; }
+  tr:hover td { background: var(--surface2); }
+  .badge { display: inline-block; padding: .15rem .5rem; border-radius: 4px; font-size: .75rem; font-weight: 600; }
+  .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
+  .badge-red { background: rgba(239,68,68,.15); color: var(--red); }
+
+  /* ---- Toast ---- */
+  #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1.25rem; font-size: .85rem; display: none; z-index: 999; }
+  #toast.show { display: block; animation: slideIn .3s; }
+  #toast.success { border-color: var(--green); }
+  #toast.error { border-color: var(--red); }
+  @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .empty { text-align: center; color: var(--text-dim); padding: 2rem; }
+  .code { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: .8rem; color: var(--text-dim); }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+  .stat-card .label { font-size: .75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
+  .stat-card .value { font-size: 1.75rem; font-weight: 700; margin-top: .25rem; }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN VIEW ============ -->
+<div id="loginView">
+  <div class="login-card">
+    <h1>pinggy Admin</h1>
+    <p>Sign in with your account</p>
+    <div id="loginError" style="color:var(--red);font-size:.8rem;margin-bottom:.75rem;display:none;"></div>
+    <div class="form-group">
+      <label>Email / Username</label>
+      <input type="text" id="loginEmail" placeholder="admin" value="admin">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" value="admin">
+    </div>
+    <button class="btn" style="width:100%" onclick="doLogin()">Login</button>
+    <p style="margin-top:.75rem;font-size:.75rem;color:var(--text-dim);text-align:center">Default: <strong>admin</strong> / <strong>admin</strong> (change after first login)</p>
+  </div>
+</div>
+
+<!-- ============ APP VIEW ============ -->
+<div id="appView">
+  <div class="topbar">
+    <h1>⚡ pinggy Admin</h1>
+    <div class="right">
+      <span class="user-info" id="topbarUser"></span>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <a href="#" class="active" data-page="dashboard" onclick="navigate('dashboard', this)">📊 Dashboard</a>
+      <a href="#" data-page="users" onclick="navigate('users', this)">👥 Users</a>
+      <a href="#" data-page="register" onclick="navigate('register', this)">➕ Add User</a>
+      <a href="#" data-page="api" onclick="navigate('api', this)">🔌 API Explorer</a>
+    </div>
+    <div class="content" id="pageContent"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '/api/v1';
+let token = localStorage.getItem('admin_token');
+let currentUser = null;
+
+// ---- Toast ----
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  setTimeout(() => el.className = '', 3000);
+}
+
+// ---- API helper ----
+async function api(path, method = 'GET', body = null) {
+  const opts = { method, headers: { 'Authorization': `Bearer ${token}` } };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const res = await fetch(`${API}${path}`, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+  return data;
+}
+
+// ---- Auth ----
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  try {
+    const res = await fetch(`${API}/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Login failed');
+    token = data.access_token;
+    localStorage.setItem('admin_token', token);
+    currentUser = data.user;
+    showApp();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+function logout() {
+  token = null; currentUser = null;
+  localStorage.removeItem('admin_token');
+  document.getElementById('appView').style.display = 'none';
+  document.getElementById('loginView').style.display = 'flex';
+}
+
+async function showApp() {
+  if (!token) { document.getElementById('loginView').style.display = 'flex'; return; }
+  try {
+    currentUser = await api('/auth/me');
+  } catch {
+    logout(); return;
+  }
+  document.getElementById('loginView').style.display = 'none';
+  document.getElementById('appView').style.display = 'block';
+  document.getElementById('topbarUser').textContent = `${currentUser.email}`;
+  navigate('dashboard', document.querySelector('.sidebar a'));
+}
+
+// ---- Navigation ----
+function navigate(page, el) {
+  document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const c = document.getElementById('pageContent');
+  if (page === 'dashboard') c.innerHTML = renderDashboard();
+  else if (page === 'users') loadUsers();
+  else if (page === 'register') c.innerHTML = renderRegisterForm();
+  else if (page === 'api') c.innerHTML = renderApiExplorer();
+}
+
+// ---- Dashboard ----
+function renderDashboard() {
+  return `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="label">Logged in as</div><div class="value" style="font-size:1rem">${currentUser.email}</div></div>
+      <div class="stat-card"><div class="label">User ID</div><div class="value code" style="font-size:.8rem">${currentUser.id}</div></div>
+      <div class="stat-card"><div class="label">Full Name</div><div class="value" style="font-size:1rem">${currentUser.full_name || '—'}</div></div>
+      <div class="stat-card"><div class="label">Role</div><div class="value" style="font-size:1rem"><span class="badge ${currentUser.role === 'admin' ? 'badge-green' : 'badge-red'}">${currentUser.role}</span></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Quick Actions</h2></div>
+      <div class="card-body" style="display:flex;gap:.75rem;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="navigate('users', document.querySelector('[data-page=users]'))">View Users</button>
+        <button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">Add User</button>
+        <button class="btn btn-sm" onclick="navigate('api', document.querySelector('[data-page=api]'))">API Explorer</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>System Info</h2></div>
+      <div class="card-body">
+        <table>
+          <tr><td>API Base</td><td class="code">${API}</td></tr>
+          <tr><td>Swagger Docs</td><td><a href="/docs" target="_blank">/docs</a></td></tr>
+          <tr><td>ReDoc</td><td><a href="/redoc" target="_blank">/redoc</a></td></tr>
+          <tr><td>Health Check</td><td><a href="/health" target="_blank">/health</a></td></tr>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ---- Users ----
+async function loadUsers() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = `<div class="card"><div class="card-header"><h2>Users</h2><button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">➕ Add User</button></div><div class="card-body"><p class="empty">Loading...</p></div></div>`;
+  try {
+    const users = await api('/users');
+    let rows = users.map(u => `<tr>
+      <td class="code">${u.id}</td>
+      <td>${u.email}</td>
+      <td>${u.full_name || '—'}</td>
+      <td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="viewUser('${u.id}')">View</button></td>
+    </tr>`).join('');
+    if (!rows) rows = '<tr><td colspan="5" class="empty">No users found</td></tr>';
+    c.innerHTML = `<div class="card">
+      <div class="card-header"><h2>Users (${users.length})</h2><button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">➕ Add User</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>ID</th><th>Email</th><th>Full Name</th><th>Role</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function viewUser(id) {
+  try {
+    const u = await api(`/users/${id}`);
+    document.getElementById('pageContent').innerHTML = `<div class="card">
+      <div class="card-header"><h2>User Details</h2><button class="btn btn-ghost btn-sm" onclick="loadUsers()">← Back</button></div>
+      <div class="card-body">
+        <table>
+          <tr><td>ID</td><td class="code">${u.id}</td></tr>
+          <tr><td>Email</td><td>${u.email}</td></tr>
+          <tr><td>Full Name</td><td>${u.full_name || '—'}</td></tr>
+          <tr><td>Role</td><td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td></tr>
+        </table>
+      </div>
+    </div>`;
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Register ----
+function renderRegisterForm() {
+  return `<div class="card" style="max-width:500px">
+    <div class="card-header"><h2>Add New User</h2></div>
+    <div class="card-body">
+      <div class="form-group"><label>Email / Username</label><input type="text" id="regEmail" placeholder="user1"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="regPassword" placeholder="Min 4 characters"></div>
+      <div class="form-group"><label>Full Name</label><input type="text" id="regFullName" placeholder="John Doe"></div>
+      <div class="form-group"><label>Role</label><select id="regRole"><option value="user">user</option><option value="admin">admin</option></select></div>
+      <button class="btn" onclick="doRegister()">Create User</button>
+    </div>
+  </div>`;
+}
+
+async function doRegister() {
+  const email = document.getElementById('regEmail').value;
+  const password = document.getElementById('regPassword').value;
+  const full_name = document.getElementById('regFullName').value || null;
+  const role = document.getElementById('regRole').value;
+  try {
+    const res = await fetch(`${API}/auth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ email, password, full_name, role })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Registration failed');
+    toast(`User ${email} created successfully`);
+    navigate('users', document.querySelector('[data-page=users]'));
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- API Explorer ----
+function renderApiExplorer() {
+  const endpoints = [
+    { method: 'GET',    path: '/health',              auth: false, desc: 'Health check' },
+    { method: 'POST',   path: '/auth/register',       auth: true,  desc: 'Create user (admin only)' },
+    { method: 'POST',   path: '/auth/login',           auth: false, desc: 'Login, get JWT token' },
+    { method: 'GET',    path: '/auth/me',              auth: true,  desc: 'Get current user' },
+    { method: 'GET',    path: '/users',                auth: true,  desc: 'List all users (admin only)' },
+    { method: 'GET',    path: '/users/{user_id}',      auth: true,  desc: 'Get user by ID (admin only)' },
+  ];
+  let rows = endpoints.map(e => `<tr>
+    <td><span class="badge ${e.auth ? 'badge-green' : 'badge-red'}">${e.method}</span></td>
+    <td class="code">${e.path}</td>
+    <td>${e.auth ? '🔒 JWT' : '—'}</td>
+    <td>${e.desc}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="tryEndpoint('${e.method}','${e.path}',${e.auth})">Try</button></td>
+  </tr>`).join('');
+  return `<div class="card">
+    <div class="card-header"><h2>API Explorer</h2></div>
+    <div class="card-body" style="padding:0;overflow-x:auto">
+      <table><thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>
+  </div>
+  <div class="card" id="tryCard" style="display:none">
+    <div class="card-header"><h2 id="tryTitle"></h2><button class="btn btn-ghost btn-sm" onclick="document.getElementById('tryCard').style.display='none'">Close</button></div>
+    <div class="card-body">
+      <div class="form-group"><label>Path (edit {user_id} etc.)</label><input type="text" id="tryPath"></div>
+      <div class="form-group" id="tryBodyGroup" style="display:none"><label>Request Body (JSON)</label><textarea id="tryBody" rows="5" placeholder='{"email":"...","password":"..."}'></textarea></div>
+      <button class="btn" onclick="executeTry()">Send Request</button>
+      <div style="margin-top:1rem"><label>Response</label><pre id="tryResult" class="code" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;max-height:300px;overflow:auto;white-space:pre-wrap"></pre></div>
+    </div>
+  </div>`;
+}
+
+let currentTry = {};
+function tryEndpoint(method, path, needsAuth) {
+  currentTry = { method, needsAuth };
+  document.getElementById('tryCard').style.display = 'block';
+  document.getElementById('tryTitle').textContent = `${method} ${path}`;
+  document.getElementById('tryPath').value = path;
+  document.getElementById('tryBodyGroup').style.display = (method === 'POST') ? 'block' : 'none';
+  if (method === 'POST' && path === '/auth/register') {
+    document.getElementById('tryBody').value = JSON.stringify({ email: 'newuser', password: 'password123', full_name: 'New User', role: 'user' }, null, 2);
+  } else if (method === 'POST' && path === '/auth/login') {
+    document.getElementById('tryBody').value = JSON.stringify({ email: 'admin', password: 'admin' }, null, 2);
+  } else {
+    document.getElementById('tryBody').value = '';
+  }
+  document.getElementById('tryResult').textContent = '';
+}
+
+async function executeTry() {
+  const path = document.getElementById('tryPath').value;
+  const body = document.getElementById('tryBody').value;
+  const resultEl = document.getElementById('tryResult');
+  resultEl.textContent = 'Sending...';
+  try {
+    const opts = { method: currentTry.method, headers: {} };
+    if (currentTry.needsAuth) opts.headers['Authorization'] = `Bearer ${token}`;
+    if (currentTry.method === 'POST' && body) { opts.headers['Content-Type'] = 'application/json'; opts.body = body; }
+    const res = await fetch(`${API}${path}`, opts);
+    const text = await res.text();
+    let formatted = text;
+    try { formatted = JSON.stringify(JSON.parse(text), null, 2); } catch {}
+    resultEl.textContent = `Status: ${res.status} ${res.statusText}\n\n${formatted}`;
+  } catch (e) { resultEl.textContent = `Error: ${e.message}`; }
+}
+
+// ---- Init ----
+if (token) showApp();
+</script>
+</body>
+</html>
