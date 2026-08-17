@@ -1,0 +1,24 @@
+# systemd service file for pinggy
+# Install: sudo cp deploy/pinggy.service /etc/systemd/system/pinggy.service
+#          sudo systemctl daemon-reload
+#          sudo systemctl enable pinggy
+#          sudo systemctl start pinggy
+
+[Unit]
+Description=pinggy Tunnel Service
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/pinggy
+EnvironmentFile=/opt/pinggy/.env
+ExecStart=/opt/pinggy/.venv/bin/python /opt/pinggy/run.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

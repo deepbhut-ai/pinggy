@@ -1,0 +1,71 @@
+# docker-compose.yml for pinggy production deployment
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pinggy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pinggy_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-pinggy}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pinggy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+      - "2222:2222"
+    environment:
+      APP_NAME: pinggy
+      APP_ENV: prod
+      APP_DEBUG: "false"
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      POSTGRES_USER: ${POSTGRES_USER:-pinggy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pinggy_secret}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-pinggy}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pinggy}:${POSTGRES_PASSWORD:-pinggy_secret}@db:5432/${POSTGRES_DB:-pinggy}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      SSH_HOST: 0.0.0.0
+      SSH_PORT: 2222
+      TUNNEL_DOMAIN: ${TUNNEL_DOMAIN:-xyz.com}
+      TUNNEL_PORT_MIN: 10000
+      TUNNEL_PORT_MAX: 20000
+      PROXY_PORT: 8000
+      SUBDOMAIN_LENGTH: 7
+    volumes:
+      - ssh_keys:/app/ssh_host_key_dir
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/pinggy.conf:/etc/nginx/conf.d/pinggy.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+
+volumes:
+  pgdata:
+  ssh_keys:

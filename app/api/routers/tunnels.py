@@ -2,12 +2,60 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from psycopg import AsyncConnection
 
+from app.core.config import settings
 from app.core.db import get_db
-from app.core.deps import get_admin_user
+from app.core.deps import get_admin_user, get_current_user
 from app.core.tunnel_registry import list_tunnels, remove_tunnel
 from app.schemas.tunnel import TunnelOut
 
 router = APIRouter(prefix="/tunnels", tags=["tunnels"])
+
+
+@router.get("/info")
+async def tunnel_info(user: dict = Depends(get_current_user)):
+    """Return SSH connection instructions for the current user.
+    Available to any logged-in user (not just admin)."""
+    return {
+        "domain": settings.TUNNEL_DOMAIN,
+        "ssh_port": settings.SSH_PORT,
+        "ssh_command": f"ssh -p {settings.SSH_PORT} -R0:localhost:PORT {settings.TUNNEL_DOMAIN}",
+        "ssh_command_example": f"ssh -p {settings.SSH_PORT} -R0:localhost:8080 {settings.TUNNEL_DOMAIN}",
+        "url_format": f"https://<unique-code>.{settings.TUNNEL_DOMAIN}",
+        "instructions": [
+            f"1. Start your local service (e.g., on port 8080)",
+            f"2. Run: ssh -p {settings.SSH_PORT} -R0:localhost:8080 {settings.TUNNEL_DOMAIN}",
+            f"3. Server will print your tunnel URL (e.g., https://abc123.{settings.TUNNEL_DOMAIN})",
+            f"4. Share that URL — anyone can access your local service",
+        ],
+    }
+
+
+@router.get("/my", response_model=list[TunnelOut])
+async def my_tunnels(
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """List active tunnels for the current user (by email/username).
+    Available to any logged-in user — sees only their own tunnels."""
+    all_tunnels = await list_tunnels()
+    my = [t for t in all_tunnels if t.user_email == user["email"]]
+    return [
+        TunnelOut(
+            tunnel_id=t.tunnel_id,
+            subdomain=t.subdomain,
+            url=t.url,
+            remote_port=t.remote_port,
+            local_port=t.local_port,
+            protocol=t.protocol,
+            user_email=t.user_email,
+            ssh_peer=t.ssh_peer,
+            status="active" if t.is_alive else "disconnected",
+            request_count=t.request_count,
+            bytes_transferred=t.bytes_transferred,
+            created_at=t.created_at.isoformat(),
+        )
+        for t in my
+    ]
 
 
 @router.get("", response_model=list[TunnelOut])

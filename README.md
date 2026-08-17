@@ -1,7 +1,23 @@
-# pinggy — FastAPI + PostgreSQL
+# pinggy — SSH Tunnel Service
 
-FastAPI project using **psycopg3** (async) for raw SQL access to PostgreSQL,
-with **JWT auth**, **Alembic** migrations (raw SQL), and **pydantic-settings**.
+A **pinggy.io / ngrok alternative** built with FastAPI + PostgreSQL.
+Exposes local development servers to the internet via SSH reverse tunnels.
+
+```
+ssh -p 2222 -R0:localhost:8080 xyz.com
+→ https://k7m3x9a.xyz.com  (auto-generated, HTTPS, live)
+```
+
+**Features:**
+- 🔗 SSH-based tunnels (no custom client — just use `ssh`)
+- 🌐 Auto-generated subdomains with wildcard SSL
+- 🔐 JWT auth with admin/user roles
+- 📊 Admin web panel (dashboard, users, tunnels, API explorer)
+- 🗄️ PostgreSQL with auto-setup (DB + migrations + default admin)
+- 🐳 Docker + docker-compose support
+- 🚀 One-command deployment script
+
+**Tech:** FastAPI · psycopg3 (async) · asyncssh · httpx · Alembic · PyJWT · bcrypt
 
 ## Project structure
 
@@ -9,31 +25,47 @@ with **JWT auth**, **Alembic** migrations (raw SQL), and **pydantic-settings**.
 pinggy/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py              # FastAPI app + lifespan (pool init/close)
+│   ├── main.py              # FastAPI app + lifespan (pool + SSH server)
 │   ├── core/
 │   │   ├── config.py         # pydantic-settings (reads .env)
 │   │   ├── db.py              # psycopg3 AsyncConnectionPool
 │   │   ├── security.py        # bcrypt + PyJWT
-│   │   ├── deps.py            # FastAPI dependencies (get_db, get_current_user_id)
-│   │   └── auto_setup.py      # auto-create DB + run migrations on startup
+│   │   ├── deps.py            # FastAPI dependencies (get_db, admin guard)
+│   │   ├── auto_setup.py      # auto-create DB + migrations + default admin
+│   │   ├── ssh_server.py      # asyncssh SSH server (tunnel connections)
+│   │   ├── tunnel_registry.py # in-memory tunnel state (subdomain → port)
+│   │   └── proxy.py           # HTTP proxy middleware (subdomain routing)
 │   ├── schemas/
-│   │   └── auth.py            # UserCreate / UserLogin / Token / UserOut
+│   │   ├── auth.py            # UserCreate / UserLogin / Token / UserOut
+│   │   └── tunnel.py          # TunnelOut
 │   ├── static/
-│   │   └── admin.html         # Admin web panel (vanilla JS, no build step)
+│   │   └── admin.html         # Admin web panel (vanilla JS)
 │   └── api/
 │       ├── router.py          # aggregates routers
 │       └── routers/
 │           ├── auth.py        # /auth/register /auth/login /auth/me
-│           ├── users.py       # /users /users/{id}  (protected)
+│           ├── users.py       # /users (admin only)
+│           ├── tunnels.py     # /tunnels (admin only)
 │           └── admin.py       # /admin web panel
 ├── alembic/
 │   ├── env.py                # SQLAlchemy engine + psycopg3 driver
 │   ├── script.py.mako
 │   └── versions/
-│       └── 0001_create_users.py
+│       ├── 0001_create_users.py
+│       ├── 0002_add_role_and_admin.py
+│       └── 0003_create_tunnels.py
+├── nginx/
+│   ├── pinggy.conf           # nginx wildcard *.domain config
+│   └── setup-ssl.sh          # Let's Encrypt wildcard cert script
+├── deploy/
+│   └── pinggy.service        # systemd service file
 ├── alembic.ini
 ├── requirements.txt
 ├── run.py                    # dev server: python run.py
+├── deploy.sh                 # one-command deployment script
+├── Dockerfile                # container build
+├── docker-compose.yml        # full stack (app + db + nginx)
+├── test_tunnel_client.py     # test SSH tunnel client
 ├── .env.example
 └── .gitignore
 ```
@@ -366,3 +398,132 @@ alembic upgrade head
   lifespan and shared across requests.
 - `gen_random_uuid()` requires the `pgcrypto` extension (enabled in step 3).
 - JWT uses `PyJWT` (not `python-jose`) — lighter and actively maintained.
+
+---
+
+## Production Deployment
+
+### Option A: One-Command Deploy (Linux Server)
+
+```bash
+# Clone the repo
+git clone https://github.com/deepbhut-ai/pinggy.git
+cd pinggy
+
+# Run the deployment script (installs everything)
+sudo bash deploy.sh xyz.com admin@xyz.com
+```
+
+This script:
+1. Installs Python, PostgreSQL, nginx, certbot
+2. Creates the `pinggy` database + user
+3. Sets up the Python virtualenv + dependencies
+4. Configures nginx with wildcard `*.xyz.com`
+5. Obtains SSL certificate from Let's Encrypt (DNS challenge)
+6. Creates a systemd service for auto-start on boot
+7. Starts everything
+
+After deployment:
+```
+Admin Panel:  https://xyz.com/admin
+SSH Tunnel:   ssh -p 2222 -R0:localhost:PORT xyz.com
+```
+
+### Option B: Docker Compose
+
+```bash
+# 1. Configure .env
+cp .env.example .env
+# Edit: set TUNNEL_DOMAIN=xyz.com, POSTGRES_PASSWORD, JWT_SECRET
+
+# 2. Get SSL certificate (wildcard requires DNS challenge)
+sudo certbot certonly --manual --preferred-challenges dns \
+    -d *.xyz.com -d xyz.com --email admin@xyz.com
+
+# 3. Edit nginx/pinggy.conf — replace xyz.com with your domain
+
+# 4. Start everything
+docker compose up -d
+
+# 5. Run migrations (first time only)
+docker compose exec app alembic upgrade head
+```
+
+### Option C: Manual Setup
+
+```bash
+# 1. Install dependencies
+sudo apt install python3 python3-venv postgresql nginx certbot
+
+# 2. Set up the app
+git clone https://github.com/deepbhut-ai/pinggy.git /opt/pinggy
+cd /opt/pinggy
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Configure
+cp .env.example .env
+# Edit .env: set TUNNEL_DOMAIN, POSTGRES_PASSWORD, JWT_SECRET
+
+# 4. Set up nginx
+sudo cp nginx/pinggy.conf /etc/nginx/sites-available/pinggy
+sudo ln -s /etc/nginx/sites-available/pinggy /etc/nginx/sites-enabled/pinggy
+# Edit the config to replace xyz.com with your domain
+
+# 5. Get SSL certificate
+sudo bash nginx/setup-ssl.sh xyz.com admin@xyz.com
+
+# 6. Set up systemd service
+sudo cp deploy/pinggy.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable pinggy
+sudo systemctl start pinggy
+
+# 7. Reload nginx
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### Post-Deployment
+
+1. **Change admin password:**
+   - Login at `https://xyz.com/admin` with `admin` / `admin`
+   - Create a new admin user, then delete or change the default
+
+2. **Open firewall ports:**
+   ```bash
+   sudo ufw allow 80/tcp     # HTTP
+   sudo ufw allow 443/tcp    # HTTPS
+   sudo ufw allow 2222/tcp   # SSH tunnel port
+   ```
+
+3. **DNS setup:**
+   - Point `xyz.com` A record to your server IP
+   - Point `*.xyz.com` A record to your server IP (wildcard)
+
+4. **Test the tunnel:**
+   ```bash
+   # On any machine:
+   ssh -p 2222 -R0:localhost:3000 xyz.com
+   # Server prints: https://k7m3x9a.xyz.com
+   # Visit that URL — it routes to your localhost:3000
+   ```
+
+### Managing the Service
+
+```bash
+sudo systemctl status pinggy    # check status
+sudo systemctl restart pinggy   # restart
+sudo systemctl stop pinggy      # stop
+journalctl -u pinggy -f         # view live logs
+```
+
+### SSL Certificate Renewal
+
+Let's Encrypt certificates expire in 90 days. Auto-renewal is set up by the
+deployment script. To manually renew:
+
+```bash
+sudo certbot renew --dry-run    # test
+sudo certbot renew              # renew
+sudo systemctl reload nginx     # apply
+```
