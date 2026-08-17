@@ -29,7 +29,7 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token payload")
     cur = await db.execute(
-        "SELECT id, email, full_name, role FROM users WHERE id = %s",
+        "SELECT id, email, full_name, role, tunnel_token FROM users WHERE id = %s",
         (user_id,),
     )
     row = await cur.fetchone()
@@ -41,6 +41,7 @@ async def get_current_user(
         "email": row[1],
         "full_name": row[2],
         "role": row[3],
+        "tunnel_token": row[4],
     }
 
 

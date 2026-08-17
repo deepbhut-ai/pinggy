@@ -75,8 +75,50 @@ class MySSHServer(asyncssh.SSHServer):
             self._tunnel = None
 
     def begin_auth(self, username: str) -> bool:
-        self._username = username or "anonymous"
-        return False  # No auth required in dev mode
+        """Token-based auth: the SSH username must be a valid tunnel_token from the DB.
+        We verify the token synchronously here and return False (no further auth needed)
+        if valid, or True (require password, which will fail) if invalid."""
+        token = username or ""
+        if not token:
+            logger.warning("SSH connection rejected: no token provided from %s", self._peer)
+            return True  # Require password → will fail → connection rejected
+
+        # Synchronous DB check — no password needed if token is valid
+        if self._verify_tunnel_token_sync(token):
+            logger.info("SSH auth OK: token verified for user %s from %s", self._username, self._peer)
+            return False  # No further auth needed — token is valid
+        else:
+            logger.warning("SSH auth rejected: invalid token '%s...' from %s", token[:8], self._peer)
+            return True  # Require password → will fail → connection rejected
+
+    def password_auth_supported(self) -> bool:
+        return True
+
+    def validate_password(self, username: str, password: str) -> bool:
+        """If we get here, the token was invalid. Reject everything."""
+        return False
+
+    def _verify_tunnel_token_sync(self, token: str) -> bool:
+        """Synchronous DB check — used from begin_auth which is a sync callback."""
+        import psycopg
+        from app.core.config import settings
+        try:
+            # Use a one-off sync connection (not from the async pool)
+            conn = psycopg.connect(settings.async_dsn, autocommit=True)
+            cur = conn.execute(
+                "SELECT email FROM users WHERE tunnel_token = %s",
+                (token,),
+            )
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            if row:
+                self._username = row[0]  # Store the real email as username
+                return True
+            return False
+        except Exception as e:
+            logger.error("DB error verifying tunnel token: %s", e)
+            return False
 
     def server_requested(self, listen_host: str, listen_port: int) -> bool:
         """Called when client requests TCP port forwarding (ssh -R).
@@ -184,6 +226,7 @@ async def start_ssh_server() -> asyncio.AbstractServer:
         server_host_keys=[host_key_path],
         allow_pty=True,
         keepalive_interval=30,
+        login_timeout=300,
     )
 
     print(f"[ssh] Server listening on {settings.SSH_HOST}:{settings.SSH_PORT}")

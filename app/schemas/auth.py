@@ -19,9 +19,11 @@ class UserOut(BaseModel):
     email: str
     full_name: str | None
     role: str = "user"
+    tunnel_token: str | None = None
 
 
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+    tunnel_token: str | None = None

@@ -78,6 +78,74 @@
   .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
   .stat-card .label { font-size: .75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
   .stat-card .value { font-size: 1.75rem; font-weight: 700; margin-top: .25rem; }
+
+  /* ---- Timeline (pinggy.io style) ---- */
+  .timeline { position: relative; padding-left: 3rem; }
+  .timeline::before { content: ''; position: absolute; left: 1rem; top: 1rem; bottom: 1rem; width: 2px; background: var(--border); }
+  .tl-item { position: relative; margin-bottom: 1.5rem; }
+  .tl-bullet { position: absolute; left: calc(-3rem + 1rem - 1rem); top: 0; width: 2rem; height: 2rem; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .85rem; font-weight: 700; z-index: 1; }
+  .tl-title h3 { font-size: 1.1rem; margin-bottom: .15rem; }
+  .tl-title p { font-size: .85rem; color: var(--text-dim); margin-bottom: .5rem; }
+  .tl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-top: .5rem; }
+
+  /* ---- Tabs ---- */
+  .tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+  .tab { padding: .5rem 1rem; cursor: pointer; color: var(--text-dim); font-size: .85rem; border-bottom: 2px solid transparent; transition: .15s; background: none; border-top: none; border-left: none; border-right: none; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ---- OS tabs ---- */
+  .os-tabs { display: flex; gap: .25rem; margin-bottom: .75rem; }
+  .os-tab { display: flex; align-items: center; gap: .35rem; padding: .4rem .8rem; cursor: pointer; color: var(--text-dim); font-size: .8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); transition: .15s; }
+  .os-tab:hover { color: var(--text); border-color: var(--primary); }
+  .os-tab.active { color: var(--primary); border-color: var(--primary); background: rgba(59,130,246,.1); }
+  .os-tab svg { width: 16px; height: 16px; }
+
+  /* ---- Command box ---- */
+  .cmd-box { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1rem; display: flex; align-items: center; gap: .5rem; }
+  .cmd-box pre { flex: 1; font-family: 'Cascadia Code','Fira Code',monospace; font-size: .85rem; color: var(--text); white-space: pre-wrap; word-break: break-all; margin: 0; }
+  .cmd-box .copy-btn { flex-shrink: 0; }
+
+  /* ---- Token field ---- */
+  .token-row { display: flex; align-items: center; gap: .5rem; }
+  .token-row input { flex: 1; font-family: 'Cascadia Code','Fira Code',monospace; font-size: .85rem; }
+  .token-row .icon-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem; cursor: pointer; color: var(--text-dim); display: flex; align-items: center; justify-content: center; transition: .15s; }
+  .token-row .icon-btn:hover { color: var(--text); border-color: var(--primary); }
+  .token-row .icon-btn svg { width: 16px; height: 16px; }
+
+  /* ---- App selector ---- */
+  .app-select-wrap { position: relative; }
+  .app-select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .55rem .75rem; color: var(--text); font-size: .9rem; cursor: pointer; appearance: none; }
+  .app-select:focus { border-color: var(--primary); }
+
+  /* ---- Switch toggle ---- */
+  .switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; gap: .5rem; }
+  .switch input { display: none; }
+  .switch .track { width: 36px; height: 20px; background: var(--surface2); border-radius: 10px; position: relative; transition: .2s; border: 1px solid var(--border); }
+  .switch .thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: var(--text-dim); border-radius: 50%; transition: .2s; }
+  .switch input:checked + .track { background: var(--primary); }
+  .switch input:checked + .track .thumb { left: 18px; background: #fff; }
+  .switch label { font-size: .85rem; color: var(--text); cursor: pointer; }
+
+  /* ---- Integration grid ---- */
+  .int-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+  .int-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; display: flex; gap: 1rem; align-items: center; cursor: pointer; transition: .15s; }
+  .int-card:hover { border-color: var(--primary); background: var(--surface2); }
+  .int-card .int-icon { width: 48px; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; background: var(--bg); }
+  .int-card .int-info h4 { font-size: .9rem; margin-bottom: .15rem; }
+  .int-card .int-info p { font-size: .75rem; color: var(--text-dim); line-height: 1.3; }
+
+  /* ---- Search input ---- */
+  .search-wrap { position: relative; margin-bottom: 1rem; }
+  .search-wrap input { padding-left: 2rem; }
+  .search-wrap .search-icon { position: absolute; left: .6rem; top: 50%; transform: translateY(-50%); color: var(--text-dim); }
+
+  /* ---- Protocol select ---- */
+  .proto-select { width: 110px; flex-shrink: 0; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .55rem .75rem; color: var(--text); font-size: .9rem; cursor: pointer; appearance: none; }
+  .addr-row { display: flex; gap: .5rem; align-items: flex-start; }
+  .addr-row input { flex: 1; }
 </style>
 </head>
 <body>
@@ -365,15 +433,29 @@ async function stopTunnel(subdomain) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-// ---- My Tunnels (user dashboard) ----
+// ---- My Tunnels (user dashboard — pinggy.io style timeline) ----
+
+let tunnelState = {
+  localPort: 8080,
+  os: 'mac',
+  token: '',
+  tokenVisible: false,
+};
+
 async function loadMyTunnels() {
   const c = document.getElementById('pageContent');
   c.innerHTML = `<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>`;
   try {
-    // Get tunnel info (SSH instructions)
     const info = await api('/tunnels/info');
-    // Get user's active tunnels
     const tunnels = await api('/tunnels/my');
+    // Fetch the real tunnel token from the API
+    try {
+      const tokenResp = await api('/auth/tunnel-token');
+      tunnelState.token = tokenResp.tunnel_token;
+    } catch {
+      tunnelState.token = 'ERROR';
+    }
+    tunnelState.info = info;
 
     let tunnelRows = tunnels.map(t => `<tr>
       <td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>
@@ -383,42 +465,145 @@ async function loadMyTunnels() {
       <td><span class="badge badge-green">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
     </tr>`).join('');
-    if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No active tunnels yet. Create one using the SSH command below.</td></tr>';
+    if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
 
     c.innerHTML = `
-    <div class="card" style="border:2px solid var(--primary)">
-      <div class="card-header"><h2>🚀 Create Your Tunnel</h2></div>
-      <div class="card-body">
-        <p style="margin-bottom:1rem;color:var(--text-dim)">Start your local service, then run this command to expose it to the internet:</p>
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
-          <div style="display:flex;align-items:center;gap:.5rem">
-            <span class="code" style="flex:1;font-size:.9rem;white-space:nowrap;overflow-x:auto">${info.ssh_command_example}</span>
-            <button class="btn btn-ghost btn-sm" onclick="copyToClipboard('${info.ssh_command_example}')">📋 Copy</button>
+    <div class="timeline">
+      <!-- Step 1: Access token -->
+      <div class="tl-item">
+        <div class="tl-bullet">1</div>
+        <div class="tl-title">
+          <h3>Your access token</h3>
+          <p>Use this token to authenticate your tunnel connection.</p>
+        </div>
+        <div class="tl-card">
+          <p style="font-size:.8rem;color:var(--text-dim);margin-bottom:.4rem;font-weight:600">Access token</p>
+          <div class="token-row">
+            <input type="text" id="accessToken" value="${tunnelState.token}" readonly>
+            <button class="icon-btn" onclick="copyToken()" title="Copy token">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+            <button class="icon-btn" onclick="toggleTokenVisibility()" title="Show/Hide token">
+              <svg id="tokenEye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
           </div>
         </div>
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.5rem">
-          <div><span style="color:var(--text-dim)">Domain:</span> <strong>${info.domain}</strong></div>
-          <div><span style="color:var(--text-dim)">SSH Port:</span> <strong>${info.ssh_port}</strong></div>
-          <div><span style="color:var(--text-dim)">URL Format:</span> <strong class="code">${info.url_format}</strong></div>
-          <div><span style="color:var(--text-dim)">Example:</span> <strong class="code">${info.url_example}</strong></div>
+      </div>
+
+      <!-- Step 2: Paste command -->
+      <div class="tl-item">
+        <div class="tl-bullet">2</div>
+        <div class="tl-title">
+          <h3>Paste this command to start tunnel</h3>
         </div>
-        <details style="margin-top:1rem">
-          <summary style="cursor:pointer;color:var(--text-dim);font-size:.85rem">📋 Step-by-step instructions</summary>
-          <ol style="margin-top:.5rem;padding-left:1.5rem;color:var(--text-dim);font-size:.85rem;line-height:1.8">
-            ${info.instructions.map(i => `<li>${i}</li>`).join('')}
-          </ol>
-        </details>
+        <div class="tl-card">
+          <div class="os-tabs" id="osTabs">
+            <button class="os-tab active" onclick="switchOS('mac',this)">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.14-1.69 2.27-3.05 2.29-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.46C2.86 16.36 1.62 11.3 4.1 7.86c1.25-1.73 3.49-2.83 5.87-2.86 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.14 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13.54 3.03c.69-.84 1.16-2.01 1.03-3.18-1 .04-2.21.66-2.92 1.5-.64.74-1.2 1.93-1.05 3.08 1.12.09 2.25-.57 2.94-1.4"/></svg>
+              Mac
+            </button>
+            <button class="os-tab" onclick="switchOS('linux',this)">
+              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="17" r="2"/><path d="M12 7c-3 0-5 2-5 5s2 5 5 5 5-2 5-5-2-5-5-5z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+              Linux
+            </button>
+            <button class="os-tab" onclick="switchOS('windows',this)">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.5v7H3v-6zM12 4.3L21 3v8.5H12V4.3zM3 12.5h7.5v7L3 18.5v-6zM12 12.5h9V21l-9-1.3v-7.2z"/></svg>
+              Windows
+            </button>
+          </div>
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+            <label style="font-size:.85rem;color:var(--text-dim);white-space:nowrap">Local port:</label>
+            <input type="number" id="localPortInput" value="${tunnelState.localPort}" min="1" max="65535" style="width:80px;padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem" onchange="updateLocalPort(this.value)">
+            <span style="font-size:.8rem;color:var(--text-dim)">The port your local service runs on</span>
+          </div>
+          <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:.5rem" id="osHint">Open terminal and paste the following command:</p>
+          <div class="cmd-box">
+            <pre id="sshCommand">${buildSSHCommand()}</pre>
+            <button class="btn btn-sm copy-btn" onclick="copySSHCmd()">📋 Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Documentation (SSH only) -->
+      <div class="tl-item">
+        <div class="tl-bullet">3</div>
+        <div class="tl-title">
+          <h3>Documentation</h3>
+          <p>Learn more in the <a href="https://pinggy.io/docs/" target="_blank">official documentation</a></p>
+        </div>
+        <div class="tl-card">
+          <p style="font-size:.85rem;margin-bottom:.5rem">Open your terminal and run:</p>
+          <div class="cmd-box"><pre>ssh -p ${info.ssh_port} -R0:localhost:8000 ${info.domain}</pre><button class="btn btn-sm" onclick="copyToClipboard('ssh -p ${info.ssh_port} -R0:localhost:8000 ${info.domain}')">📋</button></div>
+          <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-dim)">Replace <span style="color:var(--primary)">8000</span> with the port where your service is running.</p>
+        </div>
       </div>
     </div>
 
-    <div class="card">
+    <!-- Active tunnels table -->
+    <div class="card" style="margin-top:1.5rem">
       <div class="card-header"><h2>🔗 My Active Tunnels (${tunnels.length})</h2><button class="btn btn-sm" onclick="loadMyTunnels()">🔄 Refresh</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
         <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody>${tunnelRows}</tbody></table>
       </div>
     </div>`;
+    // Apply current state
+    updateSSHCommand();
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
+
+// ---- Timeline helpers ----
+function buildSSHCommand() {
+  const info = tunnelState.info;
+  if (!info) return '';
+  const port = tunnelState.localPort;
+  const token = tunnelState.token;
+  const domain = info.domain;
+  const sshPort = info.ssh_port;
+  return `ssh -p ${sshPort} -R0:localhost:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${domain}`;
+}
+
+function updateSSHCommand() {
+  const el = document.getElementById('sshCommand');
+  if (el) el.textContent = buildSSHCommand();
+}
+
+function updateLocalPort(port) {
+  tunnelState.localPort = parseInt(port) || 8080;
+  updateSSHCommand();
+}
+
+function switchOS(os, el) {
+  document.querySelectorAll('#osTabs .os-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  tunnelState.os = os;
+  const hints = {
+    mac: 'Open terminal and paste the following command:',
+    linux: 'Open a terminal and paste the following command:',
+    windows: 'Open Command Prompt (CMD) and paste the following command:',
+  };
+  document.getElementById('osHint').textContent = hints[os];
+}
+
+function copySSHCmd() {
+  copyToClipboard(buildSSHCommand());
+}
+
+function copyToken() {
+  copyToClipboard(tunnelState.token);
+}
+
+function toggleTokenVisibility() {
+  const el = document.getElementById('accessToken');
+  tunnelState.tokenVisible = !tunnelState.tokenVisible;
+  if (tunnelState.tokenVisible) {
+    el.value = tunnelState.token;
+    el.removeAttribute('type');
+  } else {
+    el.value = tunnelState.token.substring(0, 4) + '••••••••';
+  }
+}
+
+
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard!')).catch(() => toast('Copy failed', 'error'));
