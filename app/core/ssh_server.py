@@ -90,13 +90,33 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
             await asyncio.sleep(0.5)
 
     def data_received(self, data: str, datatype: int) -> None:
-        """Handle data from client — close on Ctrl+C (0x03)."""
-        if '\x03' in data:
-            # Ctrl+C received — close the channel and connection
-            if self._chan:
-                self._chan.close()
-            if self._server._conn:
-                self._server._conn.close()
+        """Handle data from client — close on Ctrl+C (0x03) or 'q'."""
+        # Ctrl+C is 0x03 — check in both string and bytes form
+        if '\x03' in data or b'\x03' in (data.encode() if isinstance(data, str) else data):
+            # Ctrl+C received — close everything
+            self._cleanup_and_close()
+        elif data.strip().lower() == 'q':
+            # 'q' to quit
+            self._cleanup_and_close()
+
+    def break_received(self, signal: str) -> bool:
+        """Handle break signal (Ctrl+C in some terminals)."""
+        self._cleanup_and_close()
+        return True
+
+    def _cleanup_and_close(self) -> None:
+        """Close the channel and SSH connection, cleanup the tunnel."""
+        if self._chan:
+            try:
+                self._chan.write("\n  Tunnel stopped.\n")
+            except Exception:
+                pass
+            self._chan.close()
+        if self._server._conn:
+            self._server._conn.close()
+        # Also cleanup the tunnel
+        if self._server._tunnel:
+            asyncio.create_task(self._server._cleanup_tunnel())
 
     def eof_received(self) -> bool:
         # Client closed their end — close the channel too
