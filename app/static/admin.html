@@ -185,7 +185,7 @@
       <a href="#" data-page="mytunnels" onclick="navigate('mytunnels', this)">🔗 My Tunnels</a>
       <a href="#" data-page="users" onclick="navigate('users', this)" id="navUsers" style="display:none">👥 Users</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
-      <a href="#" data-page="api" onclick="navigate('api', this)">🔌 API Explorer</a>
+      <a href="#" data-page="api" onclick="navigate('api', this)" id="navApi" style="display:none">🔌 API Explorer</a>
     </div>
     <div class="content" id="pageContent"></div>
   </div>
@@ -260,6 +260,7 @@ async function showApp() {
   if (currentUser.role === 'admin') {
     document.getElementById('navUsers').style.display = 'block';
     document.getElementById('navRegister').style.display = 'block';
+    document.getElementById('navApi').style.display = 'block';
   }
   navigate('dashboard', document.querySelector('.sidebar a'));
 }
