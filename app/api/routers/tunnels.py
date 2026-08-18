@@ -142,3 +142,71 @@ async def stop_tunnel(
     await cur.close()
 
     return {"message": f"Tunnel {subdomain} stopped"}
+
+
+@router.post("/{subdomain}/stop")
+async def user_stop_tunnel(
+    subdomain: str,
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Stop your own tunnel by subdomain (any logged-in user)."""
+    tunnel = await remove_tunnel(subdomain)
+    if not tunnel:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tunnel not found")
+
+    # Verify ownership
+    if tunnel.user_email != user["email"]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You can only stop your own tunnels")
+
+    # Close the SSH connection
+    if tunnel.ssh_conn:
+        tunnel.ssh_conn.close()
+
+    # Update DB
+    cur = await db.execute(
+        "UPDATE tunnels SET status = 'disconnected', closed_at = now() WHERE subdomain = %s",
+        (subdomain,),
+    )
+    await cur.close()
+
+    return {"message": f"Tunnel {subdomain} stopped"}
+
+
+@router.get("/stats")
+async def tunnel_stats(
+    admin: dict = Depends(get_admin_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Get dashboard stats (admin only)."""
+    # Total users
+    cur = await db.execute("SELECT COUNT(*) FROM users")
+    total_users = (await cur.fetchone())[0]
+    await cur.close()
+
+    # Total tunnels (all time)
+    cur = await db.execute("SELECT COUNT(*) FROM tunnels")
+    total_tunnels = (await cur.fetchone())[0]
+    await cur.close()
+
+    # Active tunnels (from registry)
+    from app.core.tunnel_registry import list_tunnels
+    active_tunnels = len(await list_tunnels())
+
+    # Total requests
+    cur = await db.execute("SELECT COALESCE(SUM(request_count), 0) FROM tunnels")
+    total_requests = (await cur.fetchone())[0]
+    await cur.close()
+
+    # Total data transferred
+    cur = await db.execute("SELECT COALESCE(SUM(bytes_transferred), 0) FROM tunnels")
+    total_bytes = (await cur.fetchone())[0]
+    await cur.close()
+
+    return {
+        "total_users": total_users,
+        "total_tunnels": total_tunnels,
+        "active_tunnels": active_tunnels,
+        "total_requests": total_requests,
+        "total_bytes_transferred": total_bytes,
+    }

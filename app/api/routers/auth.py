@@ -80,3 +80,17 @@ async def get_tunnel_token(user: dict = Depends(get_current_user), db: AsyncConn
     if not row or not row[0]:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Tunnel token not found")
     return {"tunnel_token": row[0]}
+
+
+@router.post("/regenerate-token")
+async def regenerate_tunnel_token(user: dict = Depends(get_current_user), db: AsyncConnection = Depends(get_db)):
+    """Regenerate the current user's tunnel token (in case of compromise)."""
+    import secrets as _secrets
+    new_token = _secrets.token_hex(8)
+    cur = await db.execute(
+        "UPDATE users SET tunnel_token = %s WHERE id = %s RETURNING tunnel_token",
+        (new_token, user["id"]),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    return {"tunnel_token": row[0], "message": "Tunnel token regenerated. Use the new token for SSH connections."}
