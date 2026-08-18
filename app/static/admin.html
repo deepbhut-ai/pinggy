@@ -612,8 +612,10 @@ function buildSSHCommand() {
   const token = tunnelState.token;
   const domain = info.domain;
   const sshPort = info.ssh_port;
-  // Use 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
-  return `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${domain}`;
+  // Use server IP for SSH connection (Cloudflare only proxies HTTP/HTTPS, not SSH)
+  // Tunnel URLs still use the domain (e.g. https://abc123.invitechsg.com)
+  const sshHost = domain.includes('invitechsg.com') ? '13.140.131.204' : domain;
+  return `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
 }
 
 function updateSSHCommand() {
