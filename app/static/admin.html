@@ -685,14 +685,23 @@ function fallbackCopy(text) {
 function renderApiExplorer() {
   const endpoints = [
     { method: 'GET',    path: '/health',              auth: false, desc: 'Health check' },
-    { method: 'POST',   path: '/auth/register',       auth: true,  desc: 'Create user (admin only)' },
     { method: 'POST',   path: '/auth/login',           auth: false, desc: 'Login, get JWT token' },
+    { method: 'POST',   path: '/auth/register',       auth: true,  desc: 'Create user (admin only)' },
     { method: 'GET',    path: '/auth/me',              auth: true,  desc: 'Get current user' },
+    { method: 'GET',    path: '/auth/tunnel-token',    auth: true,  desc: 'Get your tunnel token' },
+    { method: 'POST',   path: '/auth/regenerate-token', auth: true, desc: 'Regenerate your tunnel token' },
     { method: 'GET',    path: '/users',                auth: true,  desc: 'List all users (admin only)' },
     { method: 'GET',    path: '/users/{user_id}',      auth: true,  desc: 'Get user by ID (admin only)' },
-    { method: 'GET',    path: '/tunnels',              auth: true,  desc: 'List active tunnels (admin only)' },
-    { method: 'GET',    path: '/tunnels/history',      auth: true,  desc: 'Tunnel history from DB' },
-    { method: 'DELETE', path: '/tunnels/{subdomain}',  auth: true,  desc: 'Stop a tunnel (admin only)' },
+    { method: 'PUT',    path: '/users/{user_id}',      auth: true,  desc: 'Update user — email, name, role, password (admin only)' },
+    { method: 'DELETE', path: '/users/{user_id}',     auth: true,  desc: 'Delete user (admin only)' },
+    { method: 'GET',    path: '/users/{user_id}/tunnels', auth: true, desc: 'Get tunnels for a user (admin only)' },
+    { method: 'GET',    path: '/tunnels/info',         auth: true,  desc: 'SSH connection info' },
+    { method: 'GET',    path: '/tunnels/my',           auth: true,  desc: 'My active tunnels' },
+    { method: 'GET',    path: '/tunnels',              auth: true,  desc: 'List all active tunnels (admin only)' },
+    { method: 'GET',    path: '/tunnels/history',      auth: true,  desc: 'Tunnel history from DB (admin only)' },
+    { method: 'GET',    path: '/tunnels/stats',        auth: true,  desc: 'Dashboard stats — users, tunnels, requests (admin only)' },
+    { method: 'DELETE', path: '/tunnels/{subdomain}',  auth: true,  desc: 'Force-stop a tunnel (admin only)' },
+    { method: 'POST',   path: '/tunnels/{subdomain}/stop', auth: true, desc: 'Stop your own tunnel' },
   ];
   let rows = endpoints.map(e => `<tr>
     <td><span class="badge ${e.auth ? 'badge-green' : 'badge-red'}">${e.method}</span></td>
