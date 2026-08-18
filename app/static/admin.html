@@ -376,7 +376,7 @@ async function viewUser(id) {
           <tr><td>Full Name</td><td>${u.full_name || '—'}</td></tr>
           <tr><td>Role</td><td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td></tr>
           <tr><td>Tunnel Token</td><td class="code" style="font-size:.85rem"><strong>${u.tunnel_token || '—'}</strong> <button class="btn btn-sm" onclick="copyToClipboard('${u.tunnel_token}')" style="margin-left:.5rem">📋 Copy</button></td></tr>
-          <tr><td>SSH Command</td><td class="code" style="font-size:.8rem">ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@13.140.131.204.nip.io</td></tr>
+          <tr><td>SSH Command</td><td class="code" style="font-size:.8rem">ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@ssh.invitechsg.com</td></tr>
         </table>
       </div>
     </div>
@@ -612,9 +612,9 @@ function buildSSHCommand() {
   const token = tunnelState.token;
   const domain = info.domain;
   const sshPort = info.ssh_port;
-  // Use server IP for SSH connection (Cloudflare only proxies HTTP/HTTPS, not SSH)
+  // Use ssh.invitechsg.com for SSH connection (DNS-only, bypasses Cloudflare)
   // Tunnel URLs still use the domain (e.g. https://abc123.invitechsg.com)
-  const sshHost = domain.includes('invitechsg.com') ? '13.140.131.204' : domain;
+  const sshHost = domain.includes('invitechsg.com') ? 'ssh.invitechsg.com' : domain;
   return `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
 }
 
