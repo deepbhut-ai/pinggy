@@ -53,8 +53,9 @@ async def update_user(
     full_name: str | None = None,
     role: str | None = None,
     password: str | None = None,
+    custom_domain: str | None = None,
 ):
-    """Update a user (admin only). Can change email, name, role, or password."""
+    """Update a user (admin only). Can change email, name, role, password, or custom domain."""
     # Check user exists
     cur = await db.execute("SELECT id FROM users WHERE id = %s", (user_id,))
     if not await cur.fetchone():
@@ -77,6 +78,9 @@ async def update_user(
     if password:
         updates.append("password_hash = %s")
         params.append(hash_password(password))
+    if custom_domain is not None:
+        updates.append("custom_domain = %s")
+        params.append(custom_domain if custom_domain else None)
 
     if not updates:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields to update")
@@ -84,7 +88,7 @@ async def update_user(
     params.append(user_id)
     cur = await db.execute(
         f"UPDATE users SET {', '.join(updates)} WHERE id = %s "
-        f"RETURNING id, email, full_name, role, tunnel_token",
+        f"RETURNING id, email, full_name, role, tunnel_token, custom_domain",
         tuple(params),
     )
     row = await cur.fetchone()

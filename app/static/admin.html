@@ -378,6 +378,13 @@ async function viewUser(id) {
           <tr><td>Role</td><td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td></tr>
           <tr><td>Tunnel Token</td><td class="code" style="font-size:.85rem"><strong>${u.tunnel_token || '—'}</strong> <button class="btn btn-sm" onclick="copyToClipboard('${u.tunnel_token}')" style="margin-left:.5rem">📋 Copy</button></td></tr>
           <tr><td>SSH Command</td><td class="code" style="font-size:.8rem">ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@ssh.invitechsg.com</td></tr>
+          <tr><td>Custom Domain</td><td>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <input type="text" id="customDomainInput" value="${u.custom_domain || ''}" placeholder="e.g. serveraira.com" style="flex:1;padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem">
+              <button class="btn btn-sm" onclick="saveCustomDomain('${u.id}')">Save</button>
+            </div>
+            <div style="font-size:.8rem;color:var(--text-dim);margin-top:.3rem">User adds CNAME: their-domain.com → ${u.tunnel_token ? u.tunnel_token.substring(0,7) : 'xxxxxxx'}.invitechsg.com</div>
+          </td></tr>
         </table>
       </div>
     </div>
@@ -387,6 +394,16 @@ async function viewUser(id) {
         <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody>${tunnelRows}</tbody></table>
       </div>
     </div>`;
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function saveCustomDomain(userId) {
+  const domain = document.getElementById('customDomainInput').value.trim();
+  if (!domain) { toast('Enter a domain first', 'error'); return; }
+  try {
+    await api(`/users/${userId}?custom_domain=${encodeURIComponent(domain)}`, 'PUT');
+    toast('Custom domain saved');
+    viewUser(userId);
   } catch (e) { toast(e.message, 'error'); }
 }
 
