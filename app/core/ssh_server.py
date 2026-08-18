@@ -64,7 +64,9 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
         for _ in range(20):
             if self._server._tunnel and not self._info_sent:
                 tunnel = self._server._tunnel
-                url = f"http://{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}:{settings.PROXY_PORT}"
+                # Use https:// when behind Cloudflare (port 80 = proxied by CF)
+                scheme = "https" if settings.PROXY_PORT == 80 else "http"
+                url = f"{scheme}://{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
                 lines = [
                     "",
                     "  ╔══════════════════════════════════════════════════════╗",
@@ -88,10 +90,18 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
             await asyncio.sleep(0.5)
 
     def data_received(self, data: str, datatype: int) -> None:
-        """Ignore data from client — we only send."""
-        pass
+        """Handle data from client — close on Ctrl+C (0x03)."""
+        if '\x03' in data:
+            # Ctrl+C received — close the channel and connection
+            if self._chan:
+                self._chan.close()
+            if self._server._conn:
+                self._server._conn.close()
 
     def eof_received(self) -> bool:
+        # Client closed their end — close the channel too
+        if self._chan:
+            self._chan.close()
         return True
 
     def close_received(self) -> None:
@@ -263,7 +273,8 @@ class MySSHServer(asyncssh.SSHServer):
 
             await register_tunnel(self._tunnel)
 
-            url = f"http://{subdomain}.{settings.TUNNEL_DOMAIN}:{settings.PROXY_PORT}"
+            scheme = "https" if settings.PROXY_PORT == 80 else "http"
+            url = f"{scheme}://{subdomain}.{settings.TUNNEL_DOMAIN}"
             logger.info("Tunnel created: %s → remote port %d (from %s)",
                         url, remote_port, self._peer)
 

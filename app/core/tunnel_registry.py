@@ -29,7 +29,8 @@ class TunnelSession:
 
     @property
     def url(self) -> str:
-        return f"http://{self.subdomain}.{_domain}:{_proxy_port}"
+        scheme = "https" if _proxy_port == 80 else "http"
+        return f"{scheme}://{self.subdomain}.{_domain}"
 
     @property
     def is_alive(self) -> bool:
