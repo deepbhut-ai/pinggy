@@ -258,13 +258,29 @@ class MySSHServer(asyncssh.SSHServer):
         logger.warning("Could not detect forwarded port for %s", self._peer)
 
     async def _setup_tunnel(self, remote_port: int) -> None:
-        """Create the tunnel: allocate subdomain, register in memory + DB."""
+        """Create the tunnel: allocate subdomain, register in memory + DB.
+        Each user gets a fixed subdomain derived from their token, so
+        reconnecting with the same token gives the same URL."""
         if self._tunnel:
             return
         try:
-            subdomain = _generate_subdomain(settings.SUBDOMAIN_LENGTH)
-            while is_subdomain_taken(subdomain):
-                subdomain = _generate_subdomain(settings.SUBDOMAIN_LENGTH)
+            # Generate a deterministic subdomain from the user's token
+            # so the same user always gets the same tunnel URL
+            import hashlib
+            token_hash = hashlib.md5(self._username.encode()).hexdigest()[:7]
+            subdomain = token_hash
+
+            # If this subdomain is already in use (user has an active tunnel),
+            # remove the old one first
+            if is_subdomain_taken(subdomain):
+                from app.core.tunnel_registry import get_tunnel
+                existing = await get_tunnel(subdomain)
+                if existing and existing.user_email == self._username:
+                    # Same user reconnecting — remove old tunnel
+                    await remove_tunnel(subdomain)
+                else:
+                    # Different user has a hash collision — append a suffix
+                    subdomain = f"{token_hash}1"
 
             tunnel_id = _generate_tunnel_id()
 
