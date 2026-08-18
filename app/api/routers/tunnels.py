@@ -210,3 +210,76 @@ async def tunnel_stats(
         "total_requests": total_requests,
         "total_bytes_transferred": total_bytes,
     }
+
+
+@router.post("/custom-domain")
+async def set_custom_domain(
+    domain: str,
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Set a custom domain for the current user's tunnel.
+    The user must add a CNAME record pointing to their tunnel URL first."""
+    domain = domain.lower().strip()
+    if not domain or "." not in domain:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid domain format")
+
+    # Check if domain is already taken by another user
+    cur = await db.execute(
+        "SELECT email FROM users WHERE custom_domain = %s AND id != %s",
+        (domain, user["id"]),
+    )
+    if await cur.fetchone():
+        await cur.close()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Custom domain already in use")
+    await cur.close()
+
+    # Set the custom domain
+    cur = await db.execute(
+        "UPDATE users SET custom_domain = %s WHERE id = %s RETURNING custom_domain, tunnel_token",
+        (domain, user["id"]),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+
+    # Generate the user's tunnel subdomain for CNAME instructions
+    import hashlib
+    subdomain = hashlib.md5(user["email"].encode()).hexdigest()[:7]
+
+    return {
+        "custom_domain": row[0],
+        "tunnel_url": f"https://{subdomain}.{settings.TUNNEL_DOMAIN}",
+        "cname_instructions": f"Add CNAME record: {domain} → {subdomain}.{settings.TUNNEL_DOMAIN}",
+        "message": f"Custom domain set. Add a CNAME record in your DNS: {domain} → {subdomain}.{settings.TUNNEL_DOMAIN}",
+    }
+
+
+@router.delete("/custom-domain")
+async def remove_custom_domain(
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Remove the custom domain for the current user."""
+    cur = await db.execute(
+        "UPDATE users SET custom_domain = NULL WHERE id = %s RETURNING email",
+        (user["id"],),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    return {"message": "Custom domain removed"}
+
+
+@router.get("/custom-domain")
+async def get_custom_domain(
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Get the current user's custom domain (if any)."""
+    cur = await db.execute(
+        "SELECT custom_domain FROM users WHERE id = %s", (user["id"],)
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    return {"custom_domain": row[0] if row else None}
