@@ -537,32 +537,6 @@ async function loadMyTunnels() {
         </div>
       </div>
 
-      <!-- Custom Domain section -->
-      <div class="tl-item">
-        <div class="tl-bullet" style="background:var(--primary)">★</div>
-        <div class="tl-title">
-          <h3>Custom Domain (optional)</h3>
-          <p>Use your own domain instead of the generated URL</p>
-        </div>
-        <div class="tl-card">
-          <div id="customDomainSection">
-            <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem">
-              <input type="text" id="customDomainInput" placeholder="tunnel.mycompany.com" style="flex:1;padding:.5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
-              <button class="btn btn-sm" onclick="setCustomDomain()">Set Domain</button>
-              <button class="btn btn-sm btn-ghost" onclick="removeCustomDomain()" id="removeCustomDomainBtn" style="display:none">Remove</button>
-            </div>
-            <div id="customDomainStatus" style="font-size:.85rem;color:var(--text-dim);margin-top:.5rem"></div>
-            <div id="customDomainInstructions" style="display:none;font-size:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem;margin-top:.5rem">
-              <strong>Setup instructions:</strong><br>
-              1. Add a CNAME record in your DNS:<br>
-              <span id="cnameInstructions" class="code" style="color:var(--primary)"></span><br>
-              2. Wait for DNS to propagate (5-30 minutes)<br>
-              3. Your tunnel will be accessible at <span id="customDomainUrl" class="code" style="color:var(--primary)"></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Step 2: Paste command -->
       <div class="tl-item">
         <div class="tl-bullet">2</div>
@@ -626,8 +600,6 @@ async function loadMyTunnels() {
     updateSSHCommand();
     // Show banner if tunnels exist
     updateTunnelBanner(tunnels);
-    // Load custom domain status
-    loadCustomDomain();
     // Start auto-polling for new tunnels
     startTunnelPolling();
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
@@ -655,53 +627,6 @@ function updateSSHCommand() {
 function updateLocalPort(port) {
   tunnelState.localPort = parseInt(port) || 8080;
   updateSSHCommand();
-}
-
-// ---- Custom Domain ----
-async function loadCustomDomain() {
-  try {
-    const resp = await api('/tunnels/custom-domain');
-    const status = document.getElementById('customDomainStatus');
-    const input = document.getElementById('customDomainInput');
-    const removeBtn = document.getElementById('removeCustomDomainBtn');
-    const instructions = document.getElementById('customDomainInstructions');
-    if (resp.custom_domain) {
-      input.value = resp.custom_domain;
-      status.innerHTML = `✅ Custom domain: <strong>${resp.custom_domain}</strong>`;
-      removeBtn.style.display = 'inline-block';
-      // Show CNAME instructions
-      const info = await api('/tunnels/info');
-      const subdomain = await api('/tunnels/my');
-      instructions.style.display = 'block';
-      document.getElementById('cnameInstructions').textContent = `${resp.custom_domain} → ${subdomain.length > 0 ? subdomain[0].subdomain : 'your-subdomain'}.${info.domain}`;
-      document.getElementById('customDomainUrl').textContent = `https://${resp.custom_domain}`;
-    } else {
-      status.textContent = 'No custom domain set. Add one to use your own domain.';
-      removeBtn.style.display = 'none';
-      instructions.style.display = 'none';
-    }
-  } catch (e) {
-    // Ignore errors — custom domain feature may not be available
-  }
-}
-
-async function setCustomDomain() {
-  const domain = document.getElementById('customDomainInput').value.trim();
-  if (!domain) { toast('Enter a domain first', 'error'); return; }
-  try {
-    const resp = await api(`/tunnels/custom-domain?domain=${encodeURIComponent(domain)}`, 'POST');
-    toast(resp.message);
-    await loadCustomDomain();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function removeCustomDomain() {
-  try {
-    await api('/tunnels/custom-domain', 'DELETE');
-    toast('Custom domain removed');
-    document.getElementById('customDomainInput').value = '';
-    await loadCustomDomain();
-  } catch (e) { toast(e.message, 'error'); }
 }
 
 function switchOS(os, el) {

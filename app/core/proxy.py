@@ -24,7 +24,6 @@ def _extract_subdomain(host: str) -> str | None:
 
     e.g. "abc123.localhost:8080" → "abc123"
          "abc123.pinggy.example.com" → "abc123"
-         "custom.example.com" → checks DB for custom domain
     """
     # Strip port
     if ":" in host:
@@ -42,41 +41,7 @@ def _extract_subdomain(host: str) -> str | None:
         sub = host[: -len(".localhost")]
         if sub and "." not in sub:
             return sub
-    # If not a subdomain of our base domain, it might be a custom domain
-    # Return the full host — the middleware will check the DB for custom domains
-    return host  # Could be a custom domain — let the middleware decide
-
-
-# Cache for custom domain → subdomain mapping (refreshed every 60 seconds)
-_custom_domain_cache: dict[str, str] = {}
-_custom_domain_cache_time: float = 0
-
-async def _resolve_custom_domain(host: str) -> str | None:
-    """Check if host is a custom domain and return the user's subdomain."""
-    global _custom_domain_cache, _custom_domain_cache_time
-    import time
-
-    # Refresh cache every 60 seconds
-    now = time.time()
-    if now - _custom_domain_cache_time > 60:
-        try:
-            from app.core.db import get_conn
-            async with get_conn() as db:
-                cur = await db.execute(
-                    "SELECT custom_domain, email FROM users WHERE custom_domain IS NOT NULL"
-                )
-                rows = await cur.fetchall()
-                await cur.close()
-                import hashlib
-                _custom_domain_cache = {
-                    r[0]: hashlib.md5(r[1].encode()).hexdigest()[:7]
-                    for r in rows
-                }
-                _custom_domain_cache_time = now
-        except Exception:
-            pass
-
-    return _custom_domain_cache.get(host)
+    return None
 
 
 class TunnelProxyMiddleware(BaseHTTPMiddleware):
@@ -85,26 +50,9 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         host = request.headers.get("host", "")
-        # Strip port
-        raw_host = host.split(":")[0] if ":" in host else host
-        base = settings.TUNNEL_DOMAIN
-
-        # If it's the base domain or localhost, pass through to FastAPI routes
-        if raw_host == base or raw_host == "localhost" or raw_host == "127.0.0.1":
-            return await call_next(request)
-
         subdomain = _extract_subdomain(host)
 
-        # If subdomain is the same as raw_host, it might be a custom domain
-        if subdomain == raw_host:
-            # Check if it's a custom domain
-            resolved = await _resolve_custom_domain(raw_host)
-            if resolved:
-                subdomain = resolved
-            else:
-                # Not a custom domain and not a subdomain — pass through
-                return await call_next(request)
-
+        # If no subdomain, pass through to normal FastAPI routes
         if not subdomain:
             return await call_next(request)
 
