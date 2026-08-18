@@ -151,21 +151,23 @@ class MySSHServer(asyncssh.SSHServer):
             asyncio.create_task(self._cleanup_tunnel())
 
     async def _cleanup_tunnel(self) -> None:
-        if self._tunnel:
-            await remove_tunnel(self._tunnel.subdomain)
-            try:
-                from app.core.db import get_conn
-                async with get_conn() as db:
-                    cur = await db.execute(
-                        "UPDATE tunnels SET status = 'disconnected', closed_at = now() "
-                        "WHERE tunnel_id = %s",
-                        (self._tunnel.tunnel_id,),
-                    )
-                    await cur.close()
-            except Exception as e:
-                logger.warning("Failed to update tunnel status in DB: %s", e)
-            logger.info("Tunnel %s (%s) removed", self._tunnel.tunnel_id, self._tunnel.subdomain)
-            self._tunnel = None
+        if not self._tunnel:
+            return
+        tunnel = self._tunnel
+        self._tunnel = None  # Set to None first to prevent double cleanup
+        await remove_tunnel(tunnel.subdomain)
+        try:
+            from app.core.db import get_conn
+            async with get_conn() as db:
+                cur = await db.execute(
+                    "UPDATE tunnels SET status = 'disconnected', closed_at = now() "
+                    "WHERE tunnel_id = %s",
+                    (tunnel.tunnel_id,),
+                )
+                await cur.close()
+        except Exception as e:
+            logger.warning("Failed to update tunnel status in DB: %s", e)
+        logger.info("Tunnel %s (%s) removed", tunnel.tunnel_id, tunnel.subdomain)
 
     def begin_auth(self, username: str) -> bool:
         """Token-based auth: the SSH username must be a valid tunnel_token from the DB.
@@ -297,6 +299,14 @@ class MySSHServer(asyncssh.SSHServer):
 
             from app.core.db import get_conn
             async with get_conn() as db:
+                # Delete any old DB record for this subdomain first
+                cur = await db.execute(
+                    "DELETE FROM tunnels WHERE subdomain = %s",
+                    (subdomain,),
+                )
+                await cur.close()
+
+                # Now insert the new tunnel
                 cur = await db.execute(
                     """
                     INSERT INTO tunnels (tunnel_id, subdomain, remote_port, local_port,
