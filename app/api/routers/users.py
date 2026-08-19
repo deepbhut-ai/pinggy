@@ -79,20 +79,42 @@ async def update_user(
         updates.append("password_hash = %s")
         params.append(hash_password(password))
     if custom_domain is not None:
+        domain_value = custom_domain.strip() if custom_domain else None
+        # Check if domain is already taken by another user
+        if domain_value:
+            cur = await db.execute(
+                "SELECT email FROM users WHERE custom_domain = %s AND id != %s",
+                (domain_value, user_id),
+            )
+            existing = await cur.fetchone()
+            await cur.close()
+            if existing:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    f"Domain '{domain_value}' is already in use by another user ({existing[0]}). Please choose a different domain.",
+                )
         updates.append("custom_domain = %s")
-        params.append(custom_domain if custom_domain else None)
+        params.append(domain_value)
 
     if not updates:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields to update")
 
     params.append(user_id)
-    cur = await db.execute(
-        f"UPDATE users SET {', '.join(updates)} WHERE id = %s "
-        f"RETURNING id, email, full_name, role, tunnel_token, custom_domain",
-        tuple(params),
-    )
-    row = await cur.fetchone()
-    await cur.close()
+    try:
+        cur = await db.execute(
+            f"UPDATE users SET {', '.join(updates)} WHERE id = %s "
+            f"RETURNING id, email, full_name, role, tunnel_token, custom_domain",
+            tuple(params),
+        )
+        row = await cur.fetchone()
+        await cur.close()
+    except Exception as e:
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "This custom domain is already in use by another user. Please choose a different domain.",
+            )
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Failed to update user: {str(e)}")
     return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5])
 
 
@@ -132,13 +154,36 @@ async def update_my_custom_domain(
     """Update the current user's custom domain. Available to any logged-in user."""
     # Allow empty string to clear the domain
     domain_value = custom_domain.strip() if custom_domain else None
-    cur = await db.execute(
-        "UPDATE users SET custom_domain = %s, updated_at = now() WHERE id = %s RETURNING custom_domain",
-        (domain_value, user["id"]),
-    )
-    row = await cur.fetchone()
-    await cur.close()
-    return {"custom_domain": row[0]}
+
+    # Check if domain is already taken by another user
+    if domain_value:
+        cur = await db.execute(
+            "SELECT email FROM users WHERE custom_domain = %s AND id != %s",
+            (domain_value, user["id"]),
+        )
+        existing = await cur.fetchone()
+        await cur.close()
+        if existing:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"Domain '{domain_value}' is already in use by another user ({existing[0]}). Please choose a different domain.",
+            )
+
+    try:
+        cur = await db.execute(
+            "UPDATE users SET custom_domain = %s, updated_at = now() WHERE id = %s RETURNING custom_domain",
+            (domain_value, user["id"]),
+        )
+        row = await cur.fetchone()
+        await cur.close()
+        return {"custom_domain": row[0]}
+    except Exception as e:
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"Domain '{domain_value}' is already in use by another user. Please choose a different domain.",
+            )
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Failed to update custom domain: {str(e)}")
 
 
 @router.get("/{user_id}/tunnels")
