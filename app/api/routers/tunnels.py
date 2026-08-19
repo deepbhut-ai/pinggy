@@ -22,6 +22,7 @@ async def tunnel_info(user: dict = Depends(get_current_user)):
         "ssh_command_example": f"ssh -p {settings.SSH_PORT} -R0:localhost:8080 {settings.TUNNEL_DOMAIN}",
         "url_format": f"https://[your-code].{settings.TUNNEL_DOMAIN}",
         "url_example": f"https://abc123.{settings.TUNNEL_DOMAIN}",
+        "custom_domain": user.get("custom_domain"),
         "instructions": [
             f"1. Start your local service (e.g., on port 8080)",
             f"2. Run: ssh -p {settings.SSH_PORT} -R0:localhost:8080 {settings.TUNNEL_DOMAIN}",

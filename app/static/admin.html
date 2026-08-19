@@ -551,6 +551,13 @@ async function loadMyTunnels() {
               <svg id="tokenEye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             </button>
           </div>
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+            <p style="font-size:.8rem;color:var(--text-dim);margin-bottom:.4rem;font-weight:600">Custom Domain</p>
+            ${info.custom_domain 
+              ? `<div style="display:flex;align-items:center;gap:.5rem"><span class="badge badge-green" style="font-size:.85rem">✓ ${info.custom_domain}</span><button class="btn btn-sm" onclick="copyToClipboard('${info.custom_domain}')" title="Copy domain">📋</button></div><p style="font-size:.8rem;color:var(--text-dim);margin-top:.4rem">Your tunnel is accessible via your custom domain. Make sure DNS points to Cloudflare with SSL set to Flexible.</p>`
+              : `<p style="font-size:.85rem;color:var(--text-dim)">No custom domain set. Contact admin to configure a custom domain for your tunnel.</p>`
+            }
+          </div>
         </div>
       </div>
 
