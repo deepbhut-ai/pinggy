@@ -32,6 +32,10 @@ def _extract_subdomain(host: str) -> str | None:
     base = settings.TUNNEL_DOMAIN
     if host == base or host == "localhost" or host == "127.0.0.1":
         return None  # No subdomain — not a tunnel request
+    # Skip raw IP addresses (server IP, admin access via IP)
+    import re
+    if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", host):
+        return None
     if host.endswith(f".{base}"):
         sub = host[: -len(f".{base}")]
         if sub and "." not in sub:
