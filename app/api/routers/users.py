@@ -123,6 +123,24 @@ async def delete_user(
     return {"message": f"User {row[0]} deleted"}
 
 
+@router.put("/me/custom-domain")
+async def update_my_custom_domain(
+    custom_domain: str | None = None,
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Update the current user's custom domain. Available to any logged-in user."""
+    # Allow empty string to clear the domain
+    domain_value = custom_domain.strip() if custom_domain else None
+    cur = await db.execute(
+        "UPDATE users SET custom_domain = %s, updated_at = now() WHERE id = %s RETURNING custom_domain",
+        (domain_value, user["id"]),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    return {"custom_domain": row[0]}
+
+
 @router.get("/{user_id}/tunnels")
 async def get_user_tunnels(
     user_id: str,

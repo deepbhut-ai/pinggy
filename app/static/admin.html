@@ -407,6 +407,19 @@ async function saveCustomDomain(userId) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
+async function saveMyCustomDomain(clear) {
+  const input = document.getElementById('myCustomDomain');
+  const domain = clear ? '' : input.value.trim();
+  if (!clear && !domain) { toast('Enter a domain first', 'error'); return; }
+  try {
+    const resp = await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}`, 'PUT');
+    toast(clear ? 'Custom domain cleared' : 'Custom domain saved');
+    if (clear) input.value = '';
+    // Reload My Tunnels to reflect change
+    loadMyTunnels();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
 // ---- Register ----
 function renderRegisterForm() {
   return `<div class="card" style="max-width:500px">
@@ -553,10 +566,12 @@ async function loadMyTunnels() {
           </div>
           <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
             <p style="font-size:.8rem;color:var(--text-dim);margin-bottom:.4rem;font-weight:600">Custom Domain</p>
-            ${info.custom_domain 
-              ? `<div style="display:flex;align-items:center;gap:.5rem"><span class="badge badge-green" style="font-size:.85rem">✓ ${info.custom_domain}</span><button class="btn btn-sm" onclick="copyToClipboard('${info.custom_domain}')" title="Copy domain">📋</button></div><p style="font-size:.8rem;color:var(--text-dim);margin-top:.4rem">Your tunnel is accessible via your custom domain. Make sure DNS points to Cloudflare with SSL set to Flexible.</p>`
-              : `<p style="font-size:.85rem;color:var(--text-dim)">No custom domain set. Contact admin to configure a custom domain for your tunnel.</p>`
-            }
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <input type="text" id="myCustomDomain" value="${info.custom_domain || ''}" placeholder="e.g. serverira.com" style="flex:1;padding:.4rem .6rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem">
+              <button class="btn btn-sm" onclick="saveMyCustomDomain()">Save</button>
+              ${info.custom_domain ? '<button class="btn btn-sm btn-ghost" onclick="saveMyCustomDomain(true)">Clear</button>' : ''}
+            </div>
+            <p style="font-size:.8rem;color:var(--text-dim);margin-top:.4rem">Add your domain to Cloudflare with A record pointing to the server and SSL set to Flexible. Leave empty to use the default subdomain only.</p>
           </div>
         </div>
       </div>
