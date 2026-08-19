@@ -20,6 +20,7 @@ class UserOut(BaseModel):
     full_name: str | None
     role: str = "user"
     tunnel_token: str | None = None
+    custom_domain: str | None = None
 
 
 class Token(BaseModel):
