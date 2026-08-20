@@ -571,7 +571,29 @@ async function loadMyTunnels() {
               <button class="btn btn-sm" onclick="saveMyCustomDomain()">Save</button>
               ${info.custom_domain ? '<button class="btn btn-sm btn-ghost" onclick="saveMyCustomDomain(true)">Clear</button>' : ''}
             </div>
-            <p style="font-size:.8rem;color:var(--text-dim);margin-top:.4rem">Add your domain to Cloudflare with A record pointing to the server and SSL set to Flexible. Leave empty to use the default subdomain only.</p>
+            <details style="margin-top:.6rem">
+              <summary style="font-size:.85rem;color:var(--primary);cursor:pointer;font-weight:600">📋 How to set up your custom domain</summary>
+              <div style="margin-top:.6rem;padding:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;color:var(--text-dim);line-height:1.6">
+                <p style="font-weight:600;color:var(--text);margin-bottom:.4rem">Step 1: Add your domain to Cloudflare</p>
+                <p>• Go to <a href="https://dash.cloudflare.com" target="_blank" style="color:var(--primary)">Cloudflare Dashboard</a> → Add Site → enter your domain</p>
+                <p>• Cloudflare will give you 2 nameservers (e.g., <code style="color:var(--primary)">xxx.ns.cloudflare.com</code>)</p>
+                <p>• Go to your domain registrar (where you bought the domain) and change the nameservers to Cloudflare's</p>
+                <p style="margin-top:.6rem;font-weight:600;color:var(--text);margin-bottom:.4rem">Step 2: Add DNS A Record</p>
+                <p>• In Cloudflare → DNS → Records → Add Record:</p>
+                <div style="margin:.4rem 0;padding:.5rem;background:var(--surface);border-radius:4px;font-family:monospace">
+                  <div>Type: <span style="color:var(--primary)">A</span></div>
+                  <div>Name: <span style="color:var(--primary)">@</span> (or your subdomain)</div>
+                  <div>Content: <span style="color:var(--primary)">13.140.131.204</span></div>
+                  <div>Proxy status: <span style="color:var(--green)">Proxied (orange cloud)</span></div>
+                </div>
+                <p style="margin-top:.6rem;font-weight:600;color:var(--text);margin-bottom:.4rem">Step 3: Set SSL mode</p>
+                <p>• In Cloudflare → SSL/TLS → Overview → set mode to <span style="color:var(--green);font-weight:600">Flexible</span></p>
+                <p style="margin-top:.6rem;font-weight:600;color:var(--text);margin-bottom:.4rem">Step 4: Enter domain above</p>
+                <p>• Type your domain in the box above and click <span style="color:var(--primary);font-weight:600">Save</span></p>
+                <p>• Wait 5-30 minutes for DNS propagation</p>
+                <p>• Your tunnel will be accessible at <code style="color:var(--primary)">https://your-domain.com</code></p>
+              </div>
+            </details>
           </div>
         </div>
       </div>
