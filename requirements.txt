@@ -19,5 +19,8 @@ alembic==1.13.2
 # SSH server (for tunnel service)
 asyncssh==2.17.0
 
+# Payments (Stripe/PayPal/NowPayments REST calls)
+httpx==0.27.2
+
 # HTTP client (for proxy forwarding)
 httpx==0.27.2

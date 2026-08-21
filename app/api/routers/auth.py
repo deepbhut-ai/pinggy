@@ -65,7 +65,8 @@ async def login(payload: UserLogin, db: AsyncConnection = Depends(get_db)):
 async def me(user: dict = Depends(get_current_user)):
     return UserOut(
         id=user["id"], email=user["email"], full_name=user["full_name"], role=user["role"],
-        tunnel_token=user.get("tunnel_token")
+        tunnel_token=user.get("tunnel_token"), custom_domain=user.get("custom_domain"),
+        plan=user.get("plan") or "free",
     )
 
 

@@ -42,6 +42,28 @@ class Settings(BaseSettings):
     TUNNEL_PORT_MAX: int = 20000
     # Free plan: tunnel auto-disconnect after this many minutes (like pinggy.io)
     FREE_TUNNEL_TIMEOUT_MINUTES: int = 60
+
+    # ---- Payments / Subscriptions ----
+    PRO_PRICE_INR: float = 199.0          # monthly price in INR
+    PRO_PRICE_USD: float = 2.99           # monthly price in USD (paypal/stripe intl)
+    # Base URL for payment success/cancel redirects (set in .env)
+    PUBLIC_BASE_URL: str = "https://invitechsg.com"
+
+    # Stripe (card payments)
+    STRIPE_SECRET_KEY: str = ""            # sk_live_... / sk_test_...
+    STRIPE_WEBHOOK_SECRET: str = ""        # whsec_...
+    STRIPE_ENABLED: bool = False           # enable when key is set
+
+    # PayPal
+    PAYPAL_CLIENT_ID: str = ""
+    PAYPAL_CLIENT_SECRET: str = ""
+    PAYPAL_MODE: str = "sandbox"           # sandbox | live
+    PAYPAL_ENABLED: bool = False
+
+    # NowPayments (crypto)
+    NOWPAYMENTS_API_KEY: str = ""
+    NOWPAYMENTS_IPN_SECRET: str = ""
+    NOWPAYMENTS_ENABLED: bool = False
     # HTTP proxy listen port (for subdomain-based routing; in production use 80/443)
     PROXY_PORT: int = 8080
     # Subdomain length (random string)
