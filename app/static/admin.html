@@ -302,8 +302,6 @@ function renderDashboard() {
       <div class="card-body" style="display:flex;gap:.75rem;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="navigate('users', document.querySelector('[data-page=users]'))">View Users</button>
         <button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">Add User</button>
-        <button class="btn btn-sm" onclick="navigate('alltunnels', document.querySelector('[data-page=alltunnels]'))">All Tunnels</button>
-        <button class="btn btn-sm" onclick="navigate('api', document.querySelector('[data-page=api]'))">API Explorer</button>
       </div>
     </div>` : '';
   return `
@@ -314,12 +312,6 @@ function renderDashboard() {
       <div class="stat-card"><div class="label">Role</div><div class="value" style="font-size:1rem"><span class="badge ${currentUser.role === 'admin' ? 'badge-green' : 'badge-red'}">${currentUser.role}</span></div></div>
     </div>
     <div id="adminStats" style="margin-bottom:1.5rem"></div>
-    <div class="card" style="border:2px solid var(--primary)">
-      <div class="card-header"><h2>🚀 Create a Tunnel</h2><button class="btn btn-sm" onclick="navigate('mytunnels', document.querySelector('[data-page=mytunnels]'))">Go to My Tunnels →</button></div>
-      <div class="card-body">
-        <p style="color:var(--text-dim);font-size:.9rem">Expose your local service to the internet with a single SSH command. Click "My Tunnels" for full instructions.</p>
-      </div>
-    </div>
     ${adminCards}
     <div id="recentActivity" style="margin-top:1.5rem"></div>
     <div class="card">
