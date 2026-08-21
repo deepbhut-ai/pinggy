@@ -182,17 +182,27 @@
   <div class="layout">
     <div class="sidebar" id="sidebar">
       <a href="#" class="active" data-page="dashboard" onclick="navigate('dashboard', this)">📊 Dashboard</a>
-      <a href="#" data-page="mytunnels" onclick="navigate('mytunnels', this)">🔗 My Tunnels</a>
-      <a href="#" data-page="alltunnels" onclick="navigate('alltunnels', this)" id="navAllTunnels" style="display:none">🌐 All Tunnels</a>
       <a href="#" data-page="users" onclick="navigate('users', this)" id="navUsers" style="display:none">👥 Users</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
-      <a href="#" data-page="api" onclick="navigate('api', this)" id="navApi" style="display:none">🔌 API Explorer</a>
+      <a href="#" data-page="mytunnels" onclick="navigate('mytunnels', this)">🔗 My Tunnels</a>
     </div>
     <div class="content" id="pageContent"></div>
   </div>
 </div>
 
 <div id="toast"></div>
+
+<!-- Modal Dialog -->
+<div id="modalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:998;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;width:100%;max-width:400px;margin:1rem">
+    <h3 id="modalTitle" style="font-size:1.1rem;font-weight:700;margin-bottom:1rem"></h3>
+    <div id="modalBody"></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1.25rem">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-sm" id="modalConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const API = '/api/v1';
@@ -259,10 +269,8 @@ async function showApp() {
   document.getElementById('topbarUser').textContent = `${currentUser.email} (${currentUser.role})`;
   // Show admin-only nav links
   if (currentUser.role === 'admin') {
-    document.getElementById('navAllTunnels').style.display = 'block';
     document.getElementById('navUsers').style.display = 'block';
     document.getElementById('navRegister').style.display = 'block';
-    document.getElementById('navApi').style.display = 'block';
   }
   navigate('dashboard', document.querySelector('.sidebar a'));
 }
@@ -275,10 +283,8 @@ function navigate(page, el) {
   const c = document.getElementById('pageContent');
   if (page === 'dashboard') { c.innerHTML = renderDashboard(); loadAdminStats(); }
   else if (page === 'mytunnels') loadMyTunnels();
-  else if (page === 'alltunnels') loadAllTunnels();
   else if (page === 'users') loadUsers();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
-  else if (page === 'api') c.innerHTML = renderApiExplorer();
 }
 
 // ---- Dashboard ----
@@ -444,45 +450,135 @@ async function loadUsers() {
 }
 
 async function viewUser(id) {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const u = await api(`/users/${id}`);
     const allTunnels = await api('/tunnels');
     const userTunnels = allTunnels.filter(t => t.user_email === u.email);
-    let tunnelRows = userTunnels.map(t => `<tr>
+    const activeTunnels = userTunnels.filter(t => t.status === 'active');
+    const totalRequests = userTunnels.reduce((s, t) => s + t.request_count, 0);
+    const totalData = userTunnels.reduce((s, t) => s + t.bytes_transferred, 0);
+
+    // Get user's tokens from the tokens API
+    let userTokens = [];
+    try {
+      // Admin can fetch tokens by listing all and filtering — but we need a different approach
+      // Use the user's tunnel_token from the users table for now
+      // TODO: add admin endpoint to list tokens by user
+    } catch {}
+
+    // Tunnels table
+    let tunnelRows = userTunnels.map((t, i) => `<tr>
+      <td>${i + 1}</td>
       <td><a href="${t.url}" target="_blank" style="color:var(--primary)">${t.url}</a></td>
       <td class="code">${t.subdomain}</td>
+      <td>${t.remote_port}</td>
       <td>${t.request_count}</td>
       <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
       <td><span class="badge ${t.status === 'active' ? 'badge-green' : 'badge-red'}">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+      <td>${t.status === 'active' ? `<button class="btn btn-sm btn-danger" onclick="stopTunnel('${t.subdomain}')">Stop</button>` : '—'}</td>
     </tr>`).join('');
-    if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No tunnels yet</td></tr>';
-    document.getElementById('pageContent').innerHTML = `<div class="card">
-      <div class="card-header"><h2>User Details</h2><button class="btn btn-ghost btn-sm" onclick="loadUsers()">← Back</button></div>
+    if (!tunnelRows) tunnelRows = '<tr><td colspan="9" class="empty">No tunnels yet</td></tr>';
+
+    c.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h2 style="font-size:1.25rem">User Details: ${u.email}</h2>
+      <button class="btn btn-ghost btn-sm" onclick="loadUsers()">← Back to Users</button>
+    </div>
+
+    <!-- User Info -->
+    <div class="card">
+      <div class="card-header"><h2>Account Info</h2></div>
       <div class="card-body">
         <table>
           <tr><td style="width:150px">Email</td><td><strong>${u.email}</strong></td></tr>
           <tr><td>Full Name</td><td>${u.full_name || '—'}</td></tr>
           <tr><td>Role</td><td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td></tr>
-          <tr><td>Tunnel Token</td><td class="code" style="font-size:.85rem"><strong>${u.tunnel_token || '—'}</strong> <button class="btn btn-sm" onclick="copyToClipboard('${u.tunnel_token}')" style="margin-left:.5rem">📋 Copy</button></td></tr>
-          <tr><td>SSH Command</td><td class="code" style="font-size:.8rem">ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@ssh.invitechsg.com</td></tr>
+          <tr><td>User ID</td><td class="code">${u.id}</td></tr>
+          <tr><td>Tunnel Token</td><td><strong class="code">${u.tunnel_token || '—'}</strong> <button class="btn btn-sm" onclick="copyToClipboard('${u.tunnel_token}')" style="margin-left:.5rem">📋</button></td></tr>
           <tr><td>Custom Domain</td><td>
             <div style="display:flex;gap:.5rem;align-items:center">
-              <input type="text" id="customDomainInput" value="${u.custom_domain || ''}" placeholder="e.g. serveraira.com" style="flex:1;padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem">
+              <input type="text" id="customDomainInput" value="${u.custom_domain || ''}" placeholder="e.g. serverira.com" style="flex:1;padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem">
               <button class="btn btn-sm" onclick="saveCustomDomain('${u.id}')">Save</button>
             </div>
-            <div style="font-size:.8rem;color:var(--text-dim);margin-top:.3rem">User adds CNAME: their-domain.com → ${u.tunnel_token ? u.tunnel_token.substring(0,7) : 'xxxxxxx'}.invitechsg.com</div>
           </td></tr>
         </table>
       </div>
     </div>
-    <div class="card" style="margin-top:1rem">
-      <div class="card-header"><h2>Tunnels (${userTunnels.length})</h2></div>
+
+    <!-- Stats -->
+    <div class="stat-grid" style="margin-bottom:1rem">
+      <div class="stat-card"><div class="label">Total Tunnels</div><div class="value">${userTunnels.length}</div></div>
+      <div class="stat-card"><div class="label">Active Now</div><div class="value" style="color:var(--green)">${activeTunnels.length}</div></div>
+      <div class="stat-card"><div class="label">Total Requests</div><div class="value">${totalRequests}</div></div>
+      <div class="stat-card"><div class="label">Total Data</div><div class="value">${(totalData / 1024).toFixed(1)} KB</div></div>
+    </div>
+
+    <!-- SSH Command -->
+    <div class="card">
+      <div class="card-header"><h2>SSH Command</h2><button class="btn btn-sm" onclick="copyToClipboard('ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@ssh.invitechsg.com')">📋 Copy</button></div>
+      <div class="card-body">
+        <div class="cmd-box"><pre>ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@ssh.invitechsg.com</pre></div>
+        <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-dim)">Replace PORT with the user's local service port.</p>
+      </div>
+    </div>
+
+    <!-- Tunnels -->
+    <div class="card">
+      <div class="card-header"><h2>Tunnels (${userTunnels.length})</h2><button class="btn btn-sm" onclick="viewUser('${u.id}')">🔄 Refresh</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody>${tunnelRows}</tbody></table>
+        <table><thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Port</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>${tunnelRows}</tbody></table>
+      </div>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="card" style="border-color:var(--red)">
+      <div class="card-header"><h2 style="color:var(--red)">Danger Zone</h2></div>
+      <div class="card-body" style="display:flex;gap:.75rem;flex-wrap:wrap">
+        <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.email}')">🗑️ Delete User</button>
       </div>
     </div>`;
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function stopTunnel(subdomain) {
+  showModal('Stop Tunnel', `<p style="font-size:.875rem;color:var(--text-dim);line-height:1.5">Stop tunnel <strong style="color:var(--text)">${subdomain}</strong>? This will disconnect the user's SSH session immediately.</p>`, async () => {
+    try {
+      closeModal();
+      await api(`/tunnels/${subdomain}/stop`, 'POST');
+      toast('Tunnel stopped');
+      const activeLink = document.querySelector('.sidebar a.active');
+      if (activeLink) navigate(activeLink.dataset.page, activeLink);
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Stop', 'btn-danger');
+}
+
+async function deleteUser(userId, email) {
+  showModal('Delete User', `<p style="font-size:.875rem;color:var(--text-dim);line-height:1.5">Delete user <strong style="color:var(--text)">${email}</strong>? This will remove all their tunnels and tokens. This cannot be undone.</p>`, async () => {
+    try {
+      closeModal();
+      await api(`/users/${userId}`, 'DELETE');
+      toast('User deleted');
+      loadUsers();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Delete', 'btn-danger');
+}
+
+// ---- Modal helpers ----
+function showModal(title, bodyHtml, onConfirm, confirmText = 'Confirm', confirmClass = '') {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  const confirmBtn = document.getElementById('modalConfirm');
+  confirmBtn.textContent = confirmText;
+  confirmBtn.className = 'btn btn-sm ' + confirmClass;
+  confirmBtn.onclick = onConfirm;
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').style.display = 'none';
 }
 
 async function saveCustomDomain(userId) {
