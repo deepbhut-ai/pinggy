@@ -9,12 +9,19 @@ router = APIRouter(tags=["admin"])
 _ADMIN_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "admin.html"
 _DASHBOARD_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "dashboard.html"
 _LANDING_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "landing.html"
+_LOGIN_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "login.html"
 
 
 @router.get("/", response_class=HTMLResponse)
 async def landing_page():
     """Serve the landing page at root path."""
     return HTMLResponse(content=_LANDING_HTML_PATH.read_text(encoding="utf-8"))
+
+
+@router.get("/login", response_class=HTMLResponse)
+async def login_page():
+    """Serve the login/signup page."""
+    return HTMLResponse(content=_LOGIN_HTML_PATH.read_text(encoding="utf-8"))
 
 
 @router.get("/admin", response_class=HTMLResponse)

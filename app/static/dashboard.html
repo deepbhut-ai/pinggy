@@ -323,7 +323,7 @@ async function doLogin() {
 function logout() {
   authToken = '';
   localStorage.removeItem('pinggy_token');
-  window.location.href = '/';
+  window.location.href = '/login';
 }
 
 async function showApp() {
@@ -977,8 +977,7 @@ function toggleTokenVisibility() {
 // ---- Init ----
 (async function init() {
   if (!authToken) {
-    // Not logged in — redirect to landing page
-    window.location.href = '/';
+    window.location.href = '/login';
     return;
   }
   try {
@@ -987,9 +986,8 @@ function toggleTokenVisibility() {
     currentUser = await resp.json();
     showApp();
   } catch {
-    // Token invalid — redirect to landing page
     localStorage.removeItem('pinggy_token');
-    window.location.href = '/';
+    window.location.href = '/login';
   }
 })();
 </script>

@@ -253,7 +253,7 @@ async function doLogin() {
 function logout() {
   token = null; currentUser = null;
   localStorage.removeItem('admin_token');
-  window.location.href = '/';
+  window.location.href = '/login';
 }
 
 async function showApp() {
@@ -1010,8 +1010,7 @@ async function executeTry() {
 if (token) {
   showApp();
 } else {
-  // Not logged in — redirect to landing page
-  window.location.href = '/';
+  window.location.href = '/login';
 }
 </script>
 </body>
