@@ -192,7 +192,6 @@
       <a href="#" class="active" data-page="dashboard" onclick="navigate('dashboard', this)">📊 Dashboard</a>
       <a href="#" data-page="users" onclick="navigate('users', this)" id="navUsers" style="display:none">👥 Users</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
-      <a href="#" data-page="mytunnels" onclick="navigate('mytunnels', this)">🔗 My Tunnels</a>
     </div>
     <div class="content" id="pageContent"></div>
   </div>
@@ -290,7 +289,6 @@ function navigate(page, el) {
   if (el) el.classList.add('active');
   const c = document.getElementById('pageContent');
   if (page === 'dashboard') { c.innerHTML = renderDashboard(); loadAdminStats(); }
-  else if (page === 'mytunnels') loadMyTunnels();
   else if (page === 'users') loadUsers();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
 }

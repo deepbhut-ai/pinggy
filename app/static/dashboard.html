@@ -821,8 +821,25 @@ async function showCreateTokenDialog() {
       const result = await api('/tokens', 'POST', JSON.stringify({ name }));
       toast('Token created: ' + result.token);
       loadTokens();
-    } catch (e) { toast(e.message, 'error'); }
+    } catch (e) {
+      if (e.message.toLowerCase().includes('free plan') || e.message.toLowerCase().includes('upgrade')) {
+        showUpgradeModal();
+      } else { toast(e.message, 'error'); }
+    }
   });
+}
+
+function showUpgradeModal() {
+  showModal('Upgrade Required', `
+    <div style="text-align:center;padding:.5rem 0">
+      <div style="font-size:2.5rem;margin-bottom:.5rem">🔒</div>
+      <p style="font-size:.925rem;line-height:1.6;margin-bottom:.25rem"><strong>Free plan allows only 1 tunnel.</strong></p>
+      <p style="font-size:.825rem;color:var(--text-dim);line-height:1.6">Upgrade to Pro for multiple tunnels, persistent URLs (no 60-min timeout) and custom domains.</p>
+    </div>
+  `, () => {
+    closeModal();
+    navigate('subscription', document.querySelector('[data-page=subscription]'));
+  }, 'Upgrade to Pro →');
 }
 
 async function editToken(tokenId, currentName, currentDomain) {
@@ -894,6 +911,9 @@ function closeModal() {
 }
 
 // ---- Subscription (Page 6) ----
+let billingCycle = 'monthly';
+let proSeats = 1;
+
 async function loadSubscription() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
@@ -906,11 +926,13 @@ async function loadSubscription() {
     const enabled = pay.enabled || {};
     const priceInr = pay.price_inr || 199;
     const priceUsd = pay.price_usd || 2.99;
+    const yearlyInr = Math.round(priceInr * 10); // 12 months for price of 10 (save ~17%)
 
     const historyRows = (pay.history || []).map(p => {
       const statusClass = p.status === 'paid' ? 'badge-green' : (p.status === 'failed' || p.status === 'expired') ? 'badge-red' : 'badge-amber';
+      const dt = p.created_at ? p.created_at.substring(0, 10) : '—';
       return `<tr>
-      <td>${p.created_at ? p.created_at.substring(0,10) : '—'}</td>
+      <td>${dt}</td>
       <td style="text-transform:capitalize">${p.method}</td>
       <td style="text-transform:capitalize">${p.plan}</td>
       <td>${p.amount.toFixed(2)} ${p.currency}</td>
@@ -918,41 +940,133 @@ async function loadSubscription() {
     </tr>`;
     }).join('') || '<tr><td colspan="5" class="empty">No payments yet</td></tr>';
 
+    // Active subscriptions (paid payments = active sub periods)
+    const activeRows = (pay.history || []).filter(p => p.status === 'paid').map(p => {
+      const start = p.created_at ? p.created_at.substring(0, 10) : '—';
+      const endDt = new Date(p.created_at);
+      endDt.setMonth(endDt.getMonth() + 1);
+      const end = p.created_at ? endDt.toISOString().substring(0, 10) : '—';
+      return `<tr>
+        <td>Tunnel Pro</td>
+        <td>1</td>
+        <td>${start}</td>
+        <td>${end}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="4" class="empty">No active subscriptions</td></tr>';
+
+    const proPriceDisplay = billingCycle === 'monthly' ? `₹${priceInr * proSeats}/mo` : `₹${yearlyInr * proSeats}/yr`;
+    const proSub = billingCycle === 'monthly' ? '' : `<div style="font-size:.75rem;color:var(--text-dim);margin-top:.15rem">(₹${yearlyInr} per year · save 17%)</div>`;
+
     c.innerHTML = `
-    <div class="page-title">Subscription</div>
-    <div class="page-subtitle">Manage your plan and payment methods</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem">
+      <div>
+        <div class="page-title">Subscription</div>
+        <div class="page-subtitle" style="margin-bottom:0">Manage your plan and payment methods</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="loadSubscription()">🔄 Refresh</button>
+    </div>
 
     ${isPro ? `
     <div style="margin-bottom:1.25rem;padding:1rem 1.25rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem">
       <span style="font-size:1.5rem">⭐</span>
       <div>
         <strong style="font-size:1rem">You are on Pro</strong>
-        <div style="font-size:.825rem;color:var(--text-dim)">Persistent tunnels, fixed subdomains, custom domain${info.plan_expires_at ? ' · renews ' + info.plan_expires_at.substring(0,10) : ''}</div>
+        <div style="font-size:.825rem;color:var(--text-dim)">Persistent tunnels, fixed subdomains, custom domain${info.plan_expires_at ? ' · renews ' + info.plan_expires_at.substring(0, 10) : ''}</div>
       </div>
     </div>` : `
-    <div style="margin-bottom:1.25rem;padding:1rem 1.25rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem">
+    <div style="margin-bottom:1.25rem;padding:1rem 1.25rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
       <span style="font-size:1.5rem">🆓</span>
-      <div>
-        <strong style="font-size:1rem">You are on Free</strong>
-        <div style="font-size:.825rem;color:var(--text-dim)">60-minute tunnel timeout · random subdomain each connect</div>
+      <div style="flex:1;min-width:200px">
+        <strong style="font-size:.95rem">You are on Free</strong>
+        <div style="font-size:.825rem;color:var(--text-dim)">1 tunnel · 60-minute timeout · random subdomain each connect</div>
       </div>
+      <button class="btn btn-sm" onclick="scrollToPlans()">Upgrade Plan</button>
     </div>`}
 
     <div class="card">
-      <div class="card-header"><h2>Upgrade to Pro — ₹${priceInr}/month</h2></div>
+      <div class="card-header"><h2 style="color:var(--green)">Your Active Subscriptions</h2></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table>
+          <thead><tr><th>Plan</th><th>Number of seats</th><th>Start Date</th><th>End / Renewal Date</th></tr></thead>
+          <tbody>${activeRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin:2rem 0 1.25rem">
+      <h2 style="font-size:1.35rem;font-weight:800;margin-bottom:.25rem">Subscribe to the easiest localhost tunneling.</h2>
+      <p style="font-size:.875rem;color:var(--text-dim)">Make your development experience smoother by unlocking the full potential.</p>
+      <div style="display:inline-flex;gap:.25rem;background:var(--bg);border-radius:var(--radius);padding:.25rem;margin-top:1rem" id="cycleToggle">
+        <button class="btn btn-sm" style="min-width:90px" id="btnMonthly" onclick="setCycle('monthly')">Monthly</button>
+        <button class="btn btn-ghost btn-sm" style="min-width:90px" id="btnYearly" onclick="setCycle('yearly')">Yearly</button>
+      </div>
+    </div>
+
+    <div id="plansSection" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;align-items:stretch;margin-bottom:1.5rem">
+      <div class="card" style="display:flex;flex-direction:column">
+        <div class="card-body" style="text-align:center;flex:1">
+          <div style="font-size:1.5rem;font-weight:800">Free</div>
+          <div style="color:var(--text-dim);font-size:.85rem;margin-top:.35rem">Free forever</div>
+          <div style="font-size:2rem;font-weight:900;margin-top:.5rem">₹0<span style="font-size:.875rem;font-weight:500;color:var(--text-dim)">/mo</span></div>
+        </div>
+        <div style="padding:0 1rem .5rem;flex:1">
+          <table style="font-size:.85rem">
+            <tr><td style="padding:.3rem 0">Single command tunneling</td></tr>
+            <tr><td style="padding:.3rem 0">HTTP(S) tunnels</td></tr>
+            <tr><td style="padding:.3rem 0;font-weight:700">60 minutes tunnel timeout</td></tr>
+            <tr><td style="padding:.3rem 0">Random subdomains</td></tr>
+            <tr><td style="padding:.3rem 0">1 tunnel at a time</td></tr>
+          </table>
+        </div>
+        <div style="padding:1rem">
+          <button class="btn btn-ghost" style="width:100%" onclick="toast('You are already on the Free plan')">Current Plan</button>
+        </div>
+      </div>
+
+      <div class="card" style="display:flex;flex-direction:column;border:2px solid var(--brand);position:relative">
+        <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;font-size:.7rem;font-weight:700;padding:.2rem .75rem;border-radius:999px;letter-spacing:.05em">MOST POPULAR</div>
+        <div class="card-body" style="text-align:center;flex:1">
+          <div style="font-size:1.5rem;font-weight:800">Pro</div>
+          <div style="color:var(--text-dim);font-size:.85rem;margin-top:.35rem">For developers who need more</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:.6rem;margin-top:.75rem">
+            <button class="icon-btn" onclick="changeSeats(-1)">−</button>
+            <input type="text" value="${proSeats}" readonly style="width:56px;text-align:center;padding:.35rem .4rem">
+            <button class="icon-btn" onclick="changeSeats(1)">+</button>
+          </div>
+          <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Add Seat</div>
+          <div style="font-size:2rem;font-weight:900;margin-top:.5rem;color:var(--brand)">${proPriceDisplay}</div>
+          ${proSub}
+        </div>
+        <div style="padding:0 1rem .5rem;flex:1">
+          <table style="font-size:.85rem">
+            <tr><td style="padding:.3rem 0">Everything in Free plan</td></tr>
+            <tr><td style="padding:.3rem 0;font-weight:700">Unlimited tunnel duration</td></tr>
+            <tr><td style="padding:.3rem 0;font-weight:700">Multiple tunnels (${proSeats} seat${proSeats > 1 ? 's' : ''})</td></tr>
+            <tr><td style="padding:.3rem 0;font-weight:700">Fixed subdomain per token</td></tr>
+            <tr><td style="padding:.3rem 0;font-weight:700">1 Custom domain</td></tr>
+            <tr><td style="padding:.3rem 0">Priority support</td></tr>
+          </table>
+        </div>
+        <div style="padding:1rem">
+          <button class="btn" style="width:100%" onclick="scrollToPay()">Add ${proSeats} Seat${proSeats > 1 ? 's' : ''} — ${proPriceDisplay}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="paySection">
+      <div class="card-header"><h2>Choose a payment method</h2></div>
       <div class="card-body">
-        <p style="font-size:.875rem;color:var(--text-dim);margin-bottom:1rem">Choose a payment method:</p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem">
           <button class="btn btn-ghost pay-btn ${enabled.stripe ? '' : 'pay-btn-disabled'}" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('stripe')" ${enabled.stripe ? '' : 'disabled'}>
             <span style="font-size:1.4rem">💳</span>
             <strong>Stripe</strong>
-            <span style="font-size:.75rem;color:var(--text-dim)">Card · UPI · INR ₹${priceInr}</span>
+            <span style="font-size:.75rem;color:var(--text-dim)">Card · UPI · INR</span>
             ${enabled.stripe ? '' : '<span style="font-size:.7rem;color:var(--text-dim)">(not configured)</span>'}
           </button>
           <button class="btn btn-ghost pay-btn ${enabled.paypal ? '' : 'pay-btn-disabled'}" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('paypal')" ${enabled.paypal ? '' : 'disabled'}>
             <span style="font-size:1.4rem">🅿️</span>
             <strong>PayPal</strong>
-            <span style="font-size:.75rem;color:var(--text-dim)">Wallet · USD $${priceUsd}</span>
+            <span style="font-size:.75rem;color:var(--text-dim)">Wallet · USD</span>
             ${enabled.paypal ? '' : '<span style="font-size:.7rem;color:var(--text-dim)">(not configured)</span>'}
           </button>
           <button class="btn btn-ghost pay-btn ${enabled.nowpayments ? '' : 'pay-btn-disabled'}" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('nowpayments')" ${enabled.nowpayments ? '' : 'disabled'}>
@@ -962,7 +1076,6 @@ async function loadSubscription() {
             ${enabled.nowpayments ? '' : '<span style="font-size:.7rem;color:var(--text-dim)">(not configured)</span>'}
           </button>
         </div>
-        <p style="font-size:.75rem;color:var(--text-dim);margin-top:.75rem">Pro includes: persistent tunnels (no timeout), fixed subdomain per token, custom domain, multiple tunnels, priority support.</p>
       </div>
     </div>
 
@@ -976,6 +1089,32 @@ async function loadSubscription() {
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function setCycle(cycle) {
+  billingCycle = cycle;
+  const m = document.getElementById('btnMonthly');
+  const y = document.getElementById('btnYearly');
+  if (m && y) {
+    if (cycle === 'monthly') { m.className = 'btn btn-sm'; y.className = 'btn btn-ghost btn-sm'; }
+    else { y.className = 'btn btn-sm'; m.className = 'btn btn-ghost btn-sm'; }
+  }
+  loadSubscription();
+}
+
+function changeSeats(delta) {
+  proSeats = Math.max(1, Math.min(10, proSeats + delta));
+  loadSubscription();
+}
+
+function scrollToPlans() {
+  const el = document.getElementById('plansSection');
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
+}
+
+function scrollToPay() {
+  const el = document.getElementById('paySection');
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
 }
 
 async function startCheckout(method) {

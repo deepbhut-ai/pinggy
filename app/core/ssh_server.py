@@ -300,6 +300,22 @@ class MySSHServer(asyncssh.SSHServer):
         try:
             is_pro = self._plan == "pro"
 
+            # Free plan: only ONE active tunnel allowed — block a second one
+            if not is_pro:
+                from app.core.tunnel_registry import list_tunnels
+                all_t = await list_tunnels()
+                user_active = [t for t in all_t if t.user_email == self._username]
+                if len(user_active) >= 1:
+                    logger.info("Free plan limit: %s already has an active tunnel — rejecting", self._username)
+                    self._send_notice(
+                        "\r\n  ⛔  FREE PLAN LIMIT: only 1 tunnel at a time.\r\n"
+                        "  Your first tunnel is still active.\r\n"
+                        "  Upgrade to Pro for multiple tunnels → https://" + settings.TUNNEL_DOMAIN + "/dashboard\r\n"
+                    )
+                    if self._conn:
+                        self._conn.close()
+                    return
+
             if is_pro:
                 # Deterministic subdomain from the token (persistent URL)
                 import hashlib

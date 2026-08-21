@@ -73,7 +73,20 @@ async def create_token(
     user: dict = Depends(get_current_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """Create a new token for the current user."""
+    """Create a new token for the current user.
+    Free plan is limited to 1 token (single tunnel)."""
+    # Plan limit check
+    if (user.get("plan") or "free") != "pro":
+        cur = await db.execute(
+            "SELECT COUNT(*) FROM tokens WHERE user_email = %s", (user["email"],)
+        )
+        row = await cur.fetchone()
+        await cur.close()
+        if row[0] >= 1:
+            raise HTTPException(
+                status.HTTP_402_PAYMENT_REQUIRED,
+                "Free plan allows only 1 tunnel token. Upgrade to Pro to create more.",
+            )
     token = _generate_token()
     cur = await db.execute(
         "INSERT INTO tokens (user_email, token, name) VALUES (%s, %s, %s) "
