@@ -907,13 +907,16 @@ async function loadSubscription() {
     const priceInr = pay.price_inr || 199;
     const priceUsd = pay.price_usd || 2.99;
 
-    const historyRows = (pay.history || []).map(p => `<tr>
+    const historyRows = (pay.history || []).map(p => {
+      const statusClass = p.status === 'paid' ? 'badge-green' : (p.status === 'failed' || p.status === 'expired') ? 'badge-red' : 'badge-amber';
+      return `<tr>
       <td>${p.created_at ? p.created_at.substring(0,10) : '—'}</td>
       <td style="text-transform:capitalize">${p.method}</td>
       <td style="text-transform:capitalize">${p.plan}</td>
       <td>${p.amount.toFixed(2)} ${p.currency}</td>
-      <td><span class="badge ${p.status === 'paid' ? 'badge-green' : (p.status === 'failed' || p.status === 'expired') ? 'badge-red' : 'badge-amber')}">${p.status}</span></td>
-    </tr>`).join('') || '<tr><td colspan="5" class="empty">No payments yet</td></tr>';
+      <td><span class="badge ${statusClass}">${p.status}</span></td>
+    </tr>`;
+    }).join('') || '<tr><td colspan="5" class="empty">No payments yet</td></tr>';
 
     c.innerHTML = `
     <div class="page-title">Subscription</div>
