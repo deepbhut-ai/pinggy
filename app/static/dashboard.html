@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — pinggy</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
+    --border: #475569; --text: #f1f5f9; --text-dim: #94a3b8;
+    --primary: #3b82f6; --primary-hover: #2563eb; --green: #22c55e;
+    --red: #ef4444; --amber: #f59e0b; --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  a { color: var(--primary); text-decoration: none; }
+
+  /* ---- Login ---- */
+  #loginView { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; width: 360px; }
+  .login-card h1 { font-size: 1.5rem; margin-bottom: .25rem; }
+  .login-card p { color: var(--text-dim); font-size: .85rem; margin-bottom: 1.5rem; }
+
+  /* ---- Layout ---- */
+  #appView { display: none; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: .75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .topbar h1 { font-size: 1.25rem; display: flex; align-items: center; gap: .5rem; }
+  .topbar .right { display: flex; align-items: center; gap: 1rem; }
+  .topbar .user-info { color: var(--text-dim); font-size: .85rem; }
+
+  .layout { display: flex; min-height: calc(100vh - 57px); }
+  .sidebar { width: 240px; background: var(--surface); border-right: 1px solid var(--border); padding: 1rem 0; flex-shrink: 0; position: sticky; top: 57px; height: calc(100vh - 57px); overflow-y: auto; }
+  .sidebar a { display: flex; align-items: center; gap: .6rem; padding: .65rem 1.5rem; color: var(--text-dim); font-size: .9rem; border-left: 3px solid transparent; transition: .15s; }
+  .sidebar a:hover { background: var(--surface2); color: var(--text); }
+  .sidebar a.active { color: var(--primary); border-left-color: var(--primary); background: var(--surface2); }
+  .sidebar .sep { height: 1px; background: var(--border); margin: .75rem 1rem; }
+  .content { flex: 1; padding: 1.5rem; overflow-y: auto; max-width: 1000px; }
+
+  /* ---- Forms ---- */
+  label { display: block; font-size: .8rem; color: var(--text-dim); margin-bottom: .3rem; }
+  input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .55rem .75rem; color: var(--text); font-size: .9rem; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+  .form-group { margin-bottom: 1rem; }
+  .form-row { display: flex; gap: 1rem; }
+  .form-row .form-group { flex: 1; }
+
+  /* ---- Buttons ---- */
+  .btn { background: var(--primary); color: #fff; border: none; border-radius: var(--radius); padding: .55rem 1.25rem; font-size: .9rem; cursor: pointer; transition: .15s; }
+  .btn:hover { background: var(--primary-hover); }
+  .btn-sm { padding: .3rem .7rem; font-size: .8rem; }
+  .btn-danger { background: var(--red); }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-ghost { background: var(--surface2); }
+  .btn-ghost:hover { background: var(--border); }
+
+  /* ---- Cards / Tables ---- */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1.5rem; }
+  .card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-header h2 { font-size: 1.1rem; }
+  .card-body { padding: 1.25rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: .65rem 1rem; border-bottom: 1px solid var(--border); font-size: .85rem; }
+  th { color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: .75rem; letter-spacing: .03em; }
+  tr:hover td { background: var(--surface2); }
+  .badge { display: inline-block; padding: .15rem .5rem; border-radius: 4px; font-size: .75rem; font-weight: 600; }
+  .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
+  .badge-red { background: rgba(239,68,68,.15); color: var(--red); }
+  .badge-amber { background: rgba(245,158,11,.15); color: var(--amber); }
+
+  /* ---- Toast ---- */
+  #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1.25rem; font-size: .85rem; display: none; z-index: 999; }
+  #toast.show { display: block; animation: slideIn .3s; }
+  #toast.success { border-color: var(--green); }
+  #toast.error { border-color: var(--red); }
+  @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+  .empty { text-align: center; color: var(--text-dim); padding: 2rem; }
+  .code { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: .8rem; color: var(--text-dim); }
+
+  /* ---- Timeline (pinggy.io style) ---- */
+  .timeline { position: relative; padding-left: 3rem; }
+  .timeline::before { content: ''; position: absolute; left: 1rem; top: 1rem; bottom: 1rem; width: 2px; background: var(--border); }
+  .tl-item { position: relative; margin-bottom: 1.5rem; }
+  .tl-bullet { position: absolute; left: calc(-3rem + 1rem - 1rem); top: 0; width: 2rem; height: 2rem; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .85rem; font-weight: 700; z-index: 1; }
+  .tl-title h3 { font-size: 1.1rem; margin-bottom: .15rem; }
+  .tl-title p { font-size: .85rem; color: var(--text-dim); margin-bottom: .5rem; }
+  .tl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-top: .5rem; }
+
+  /* ---- OS tabs ---- */
+  .os-tabs { display: flex; gap: .25rem; margin-bottom: .75rem; }
+  .os-tab { display: flex; align-items: center; gap: .4rem; padding: .4rem .8rem; cursor: pointer; color: var(--text-dim); font-size: .85rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); transition: .15s; }
+  .os-tab:hover { color: var(--text); border-color: var(--primary); }
+  .os-tab.active { color: var(--primary); border-color: var(--primary); background: rgba(59,130,246,.1); }
+  .os-tab svg { width: 16px; height: 16px; }
+
+  /* ---- Command box ---- */
+  .cmd-box { position: relative; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 3rem .75rem .75rem; }
+  .cmd-box pre { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: .82rem; white-space: pre-wrap; word-break: break-all; color: var(--text); }
+  .cmd-box .copy-btn { position: absolute; top: .5rem; right: .5rem; }
+
+  /* ---- Token row ---- */
+  .token-row { display: flex; gap: .5rem; align-items: center; }
+  .token-row input { flex: 1; }
+  .icon-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem; cursor: pointer; color: var(--text-dim); display: flex; align-items: center; justify-content: center; transition: .15s; }
+  .icon-btn:hover { color: var(--text); border-color: var(--primary); }
+  .icon-btn svg { width: 18px; height: 18px; }
+
+  /* ---- Tunnel banner ---- */
+  .tunnel-banner { padding: 1rem 1.5rem; background: linear-gradient(135deg,rgba(34,197,94,.1),rgba(34,197,94,.05)); border: 1px solid rgba(34,197,94,.3); border-radius: var(--radius); display: flex; align-items: center; gap: 1rem; }
+  .tunnel-banner .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
+  .tunnel-banner .url { font-size: 1.1rem; font-weight: 700; color: var(--primary); background: var(--bg); padding: .5rem 1rem; border-radius: var(--radius); border: 1px solid var(--border); }
+
+  /* ---- Domain section ---- */
+  .domain-box { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  details summary { cursor: pointer; }
+  details summary:focus { outline: none; }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .content { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Login View -->
+<div id="loginView">
+  <div class="login-card">
+    <h1>⚡ pinggy</h1>
+    <p>Sign in to manage your tunnels</p>
+    <div class="form-group">
+      <label>Email / Username</label>
+      <input type="text" id="loginEmail" placeholder="user@example.com" value="test">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Password" value="test">
+    </div>
+    <button class="btn" style="width:100%" onclick="doLogin()">Login</button>
+    <p style="margin-top:1rem;font-size:.8rem;color:var(--text-dim)">Default: <strong>admin</strong> / <strong>admin</strong> (change after first login)</p>
+  </div>
+</div>
+
+<!-- App View -->
+<div id="appView">
+  <!-- Top bar -->
+  <div class="topbar">
+    <h1>⚡ pinggy</h1>
+    <div class="right">
+      <span class="user-info" id="userInfo"></span>
+      <button class="btn btn-sm btn-ghost" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <a href="#" data-page="quickstart" onclick="navigate('quickstart', this)" class="active">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Quickstart
+      </a>
+      <div class="sep"></div>
+      <a href="#" data-page="configure" onclick="navigate('configure', this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Configure Tunnel
+      </a>
+      <a href="#" data-page="domains" onclick="navigate('domains', this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Domains
+      </a>
+      <a href="#" data-page="tunnels" onclick="navigate('tunnels', this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Active Tunnels
+      </a>
+      <a href="#" data-page="tokens" onclick="navigate('tokens', this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Manage Tokens
+      </a>
+    </div>
+
+    <!-- Content -->
+    <div class="content" id="pageContent">
+      <div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ---- State ----
+let authToken = localStorage.getItem('pinggy_token') || '';
+let currentUser = null;
+let tunnelState = { localPort: 8080, os: 'windows', token: '', tokenVisible: false, info: null };
+let tunnelPollTimer = null;
+
+// ---- API helper ----
+async function api(path, method = 'GET') {
+  const resp = await fetch('/api/v1' + path, {
+    method,
+    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(err.detail || `HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+// ---- Toast ----
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => t.className = '', 3000);
+}
+
+// ---- Auth ----
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  try {
+    const resp = await fetch('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!resp.ok) throw new Error('Invalid credentials');
+    const data = await resp.json();
+    authToken = data.access_token;
+    localStorage.setItem('pinggy_token', authToken);
+    currentUser = data.user;
+    showApp();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function logout() {
+  authToken = '';
+  localStorage.removeItem('pinggy_token');
+  document.getElementById('appView').style.display = 'none';
+  document.getElementById('loginView').style.display = 'flex';
+}
+
+async function showApp() {
+  document.getElementById('loginView').style.display = 'none';
+  document.getElementById('appView').style.display = 'block';
+  document.getElementById('userInfo').textContent = `${currentUser.email} (${currentUser.role})`;
+  navigate('quickstart', document.querySelector('[data-page=quickstart]'));
+}
+
+// ---- Navigation ----
+function navigate(page, el) {
+  document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+  if (el) el.classList.add('active');
+  stopTunnelPolling();
+  if (page === 'quickstart') loadQuickstart();
+  else if (page === 'configure') loadConfigure();
+  else if (page === 'domains') loadDomains();
+  else if (page === 'tunnels') loadTunnels();
+  else if (page === 'tokens') loadTokens();
+}
+
+// ---- Quickstart (Page 1) ----
+async function loadQuickstart() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const info = await api('/tunnels/info');
+    const tunnels = await api('/tunnels/my');
+    try {
+      const tokenResp = await api('/auth/tunnel-token');
+      tunnelState.token = tokenResp.tunnel_token;
+    } catch { tunnelState.token = 'ERROR'; }
+    tunnelState.info = info;
+
+    let tunnelRows = tunnels.map(t => `<tr>
+      <td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>
+      <td class="code">${t.subdomain}</td>
+      <td>${t.request_count}</td>
+      <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td><span class="badge badge-green">${t.status}</span></td>
+      <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+    </tr>`).join('');
+    if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
+
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Quickstart</h2>
+    <div class="timeline">
+      <!-- Step 1: Access token -->
+      <div class="tl-item">
+        <div class="tl-bullet">1</div>
+        <div class="tl-title">
+          <h3>Your access token</h3>
+          <p>Use this token to authenticate your tunnel connection.</p>
+        </div>
+        <div class="tl-card">
+          <p style="font-size:.8rem;color:var(--text-dim);margin-bottom:.4rem;font-weight:600">Access token</p>
+          <div class="token-row">
+            <input type="text" id="accessToken" value="${tunnelState.token}" readonly>
+            <button class="icon-btn" onclick="copyToken()" title="Copy token">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+            <button class="icon-btn" onclick="toggleTokenVisibility()" title="Show/Hide token">
+              <svg id="tokenEye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+          </div>
+          <div class="domain-box">
+            <p style="font-size:.8rem;color:var(--text-dim);margin-bottom:.4rem;font-weight:600">Custom Domain</p>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <input type="text" id="myCustomDomain" value="${info.custom_domain || ''}" placeholder="e.g. serverira.com" style="flex:1;padding:.4rem .6rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem">
+              <button class="btn btn-sm" onclick="saveMyCustomDomain()">Save</button>
+              ${info.custom_domain ? '<button class="btn btn-sm btn-ghost" onclick="saveMyCustomDomain(true)">Clear</button>' : ''}
+            </div>
+            <details style="margin-top:.6rem">
+              <summary style="font-size:.85rem;color:var(--primary);cursor:pointer;font-weight:600">📋 How to set up your custom domain</summary>
+              <div style="margin-top:.6rem;padding:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;color:var(--text-dim);line-height:1.6">
+                <p style="font-weight:600;color:var(--text);margin-bottom:.4rem">Step 1: Add your domain to Cloudflare</p>
+                <p>• Go to <a href="https://dash.cloudflare.com" target="_blank">Cloudflare Dashboard</a> → Add Site → enter your domain</p>
+                <p>• Cloudflare will give you 2 nameservers</p>
+                <p>• Change nameservers at your domain registrar</p>
+                <p style="margin-top:.6rem;font-weight:600;color:var(--text);margin-bottom:.4rem">Step 2: Add DNS A Record</p>
+                <div style="margin:.4rem 0;padding:.5rem;background:var(--surface);border-radius:4px;font-family:monospace">
+                  <div>Type: <span style="color:var(--primary)">A</span> | Name: <span style="color:var(--primary)">@</span> | Content: <span style="color:var(--primary)">13.140.131.204</span> | Proxy: <span style="color:var(--green)">Proxied</span></div>
+                </div>
+                <p style="margin-top:.6rem;font-weight:600;color:var(--text);margin-bottom:.4rem">Step 3: Set SSL mode</p>
+                <p>• Cloudflare → SSL/TLS → Overview → set to <span style="color:var(--green);font-weight:600">Flexible</span></p>
+                <p style="margin-top:.6rem;font-weight:600;color:var(--text);margin-bottom:.4rem">Step 4: Enter domain above and click Save</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Paste command -->
+      <div class="tl-item">
+        <div class="tl-bullet">2</div>
+        <div class="tl-title">
+          <h3>Paste this command to start tunnel</h3>
+        </div>
+        <div class="tl-card">
+          <div class="os-tabs" id="osTabs">
+            <button class="os-tab active" onclick="switchOS('windows',this)">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.5v7H3v-6zM12 4.3L21 3v8.5H12V4.3zM3 12.5h7.5v7L3 18.5v-6zM12 12.5h9V21l-9-1.3v-7.2z"/></svg>
+              Windows
+            </button>
+            <button class="os-tab" onclick="switchOS('linux',this)">
+              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="17" r="2"/><path d="M12 7c-3 0-5 2-5 5s2 5 5 5 5-2 5-5-2-5-5-5z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+              Linux
+            </button>
+            <button class="os-tab" onclick="switchOS('mac',this)">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.14-1.69 2.27-3.05 2.29-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.46C2.86 16.36 1.62 11.3 4.1 7.86c1.25-1.73 3.49-2.83 5.87-2.86 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.14 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13.54 3.03c.69-.84 1.16-2.01 1.03-3.18-1 .04-2.21.66-2.92 1.5-.64.74-1.2 1.93-1.05 3.08 1.12.09 2.25-.57 2.94-1.4"/></svg>
+              Mac
+            </button>
+          </div>
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+            <label style="font-size:.85rem;color:var(--text-dim);white-space:nowrap">Local port:</label>
+            <input type="number" id="localPortInput" value="${tunnelState.localPort}" min="1" max="65535" style="width:80px;padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem" onchange="updateLocalPort(this.value)">
+            <span style="font-size:.8rem;color:var(--text-dim)">The port your local service runs on</span>
+          </div>
+          <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:.5rem" id="osHint">Open Command Prompt (CMD) and paste the following command:</p>
+          <div class="cmd-box">
+            <pre id="sshCommand">${buildSSHCommand()}</pre>
+            <button class="btn btn-sm copy-btn" onclick="copySSHCmd()">📋 Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Quick Reference -->
+      <div class="tl-item">
+        <div class="tl-bullet">3</div>
+        <div class="tl-title">
+          <h3>Quick Reference</h3>
+          <p>Alternative SSH command format</p>
+        </div>
+        <div class="tl-card">
+          <p style="font-size:.85rem;margin-bottom:.5rem">Open your terminal and run:</p>
+          <div class="cmd-box"><pre>ssh -p ${info.ssh_port} -R0:127.0.0.1:8000 ${info.domain}</pre><button class="btn btn-sm" onclick="copyToClipboard('ssh -p ${info.ssh_port} -R0:127.0.0.1:8000 ${info.domain}')">📋</button></div>
+          <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-dim)">Replace <span style="color:var(--primary)">8000</span> with the port where your service is running.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active tunnel banner -->
+    <div id="tunnelBanner" style="display:none;margin-top:1.5rem"></div>
+
+    <!-- Active tunnels table -->
+    <div class="card" style="margin-top:1.5rem">
+      <div class="card-header"><h2>🔗 My Active Tunnels (<span id="tunnelCount">${tunnels.length}</span>)</h2><button class="btn btn-sm" onclick="loadQuickstart()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody id="tunnelTableBody">${tunnelRows}</tbody></table>
+      </div>
+    </div>`;
+    updateSSHCommand();
+    updateTunnelBanner(tunnels);
+    startTunnelPolling();
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Configure Tunnel (Page 2) ----
+async function loadConfigure() {
+  const c = document.getElementById('pageContent');
+  try {
+    const info = await api('/tunnels/info');
+    tunnelState.info = info;
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Configure Tunnel</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Build and customize your tunnel command</p>
+    <div class="card">
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Local service — what you want to share</label>
+            <input type="text" id="cfgLocalAddr" value="127.0.0.1:${tunnelState.localPort}" placeholder="127.0.0.1:8080">
+          </div>
+          <div class="form-group" style="max-width:150px">
+            <label>Tunnel type</label>
+            <select id="cfgTunnelType">
+              <option value="http" selected>HTTP</option>
+              <option value="tcp">TCP</option>
+              <option value="tls">TLS</option>
+              <option value="udp">UDP</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="max-width:200px">
+            <label>Platform</label>
+            <select id="cfgPlatform" onchange="updateCfgCommand()">
+              <option value="windows" selected>Windows</option>
+              <option value="linux">Linux</option>
+              <option value="mac">Mac</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Access token</label>
+            <input type="text" value="${tunnelState.token}" readonly>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Run this command</label>
+          <div class="cmd-box">
+            <pre id="cfgCommand">${buildSSHCommand()}</pre>
+            <button class="btn btn-sm copy-btn" onclick="copyCfgCmd()">📋 Copy</button>
+          </div>
+        </div>
+        <button class="btn" onclick="applyConfig()">Save Configuration</button>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function applyConfig() {
+  const addr = document.getElementById('cfgLocalAddr').value;
+  const port = addr.split(':').pop();
+  tunnelState.localPort = parseInt(port) || 8080;
+  updateCfgCommand();
+  toast('Configuration saved');
+  navigate('quickstart', document.querySelector('[data-page=quickstart]'));
+}
+
+function updateCfgCommand() {
+  const el = document.getElementById('cfgCommand');
+  if (el) el.textContent = buildSSHCommand();
+}
+
+// ---- Domains (Page 3) ----
+async function loadDomains() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const info = await api('/tunnels/info');
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Domains</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Manage your custom domain and subdomain</p>
+    <div class="card">
+      <div class="card-header"><h2>Custom Domain</h2></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Your custom domain</label>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <input type="text" id="domainInput" value="${info.custom_domain || ''}" placeholder="e.g. serverira.com">
+            <button class="btn btn-sm" onclick="saveMyCustomDomain()">Save</button>
+            ${info.custom_domain ? '<button class="btn btn-sm btn-ghost" onclick="saveMyCustomDomain(true)">Clear</button>' : ''}
+          </div>
+        </div>
+        <div style="margin-top:1rem;padding:1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;color:var(--text-dim);line-height:1.6">
+          <p style="font-weight:600;color:var(--text);margin-bottom:.4rem">📋 Setup Instructions</p>
+          <p><strong>Step 1:</strong> Add your domain to Cloudflare → Add Site</p>
+          <p><strong>Step 2:</strong> Change nameservers at your registrar to Cloudflare's</p>
+          <p><strong>Step 3:</strong> Add DNS A Record: Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied</p>
+          <p><strong>Step 4:</strong> Set SSL/TLS mode to Flexible</p>
+          <p><strong>Step 5:</strong> Enter your domain above and click Save</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Default Subdomain</h2></div>
+      <div class="card-body">
+        <p style="font-size:.9rem;color:var(--text-dim)">Your tunnel is always accessible via your default subdomain:</p>
+        <p style="font-size:1.1rem;color:var(--primary);font-weight:600;margin-top:.5rem">https://098f6bc.invitechsg.com</p>
+        <p style="font-size:.8rem;color:var(--text-dim);margin-top:.5rem">This subdomain is automatically generated from your account and cannot be changed.</p>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Active Tunnels (Page 4) ----
+async function loadTunnels() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const tunnels = await api('/tunnels/my');
+    let rows = tunnels.map((t, i) => `<tr>
+      <td>${i + 1}</td>
+      <td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>
+      <td class="code">${t.subdomain}</td>
+      <td>${t.request_count}</td>
+      <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td><span class="badge badge-green">${t.status}</span></td>
+      <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+    </tr>`).join('');
+    if (!rows) rows = '<tr><td colspan="7" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Active Tunnels</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">${tunnels.length} active session${tunnels.length !== 1 ? 's' : ''}</p>
+    <div class="card">
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table>
+          <thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Manage Tokens (Page 5) ----
+async function loadTokens() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const info = await api('/tunnels/info');
+    try {
+      const tokenResp = await api('/auth/tunnel-token');
+      tunnelState.token = tokenResp.tunnel_token;
+    } catch { tunnelState.token = 'ERROR'; }
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Manage Tokens</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Your access token for SSH tunnel authentication</p>
+    <div class="card">
+      <div class="card-body">
+        <table>
+          <tr><td style="width:150px">Token</td><td><strong style="font-family:monospace">${tunnelState.token}</strong> <button class="btn btn-sm" onclick="copyToClipboard('${tunnelState.token}')" style="margin-left:.5rem">📋 Copy</button></td></tr>
+          <tr><td>Status</td><td><span class="badge badge-green">Active</span></td></tr>
+          <tr><td>SSH Host</td><td class="code">ssh.invitechsg.com</td></tr>
+          <tr><td>SSH Port</td><td class="code">${info.ssh_port}</td></tr>
+          <tr><td>Default URL</td><td class="code">https://[subdomain].${info.domain}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>SSH Command</h2></div>
+      <div class="card-body">
+        <div class="cmd-box">
+          <pre>ssh -p ${info.ssh_port} -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${tunnelState.token}@ssh.invitechsg.com</pre>
+          <button class="btn btn-sm copy-btn" onclick="copyToClipboard('ssh -p ${info.ssh_port} -R0:127.0.0.1:8080 -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${tunnelState.token}@ssh.invitechsg.com')">📋 Copy</button>
+        </div>
+        <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-dim)">Replace PORT with your local service port.</p>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Tunnel helpers ----
+function buildSSHCommand() {
+  const info = tunnelState.info;
+  if (!info) return '';
+  const port = tunnelState.localPort;
+  const token = tunnelState.token;
+  const sshPort = info.ssh_port;
+  const sshHost = info.domain.includes('invitechsg.com') ? 'ssh.invitechsg.com' : info.domain;
+  return `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
+}
+
+function updateSSHCommand() {
+  const el = document.getElementById('sshCommand');
+  if (el) el.textContent = buildSSHCommand();
+}
+
+function updateLocalPort(port) {
+  tunnelState.localPort = parseInt(port) || 8080;
+  updateSSHCommand();
+}
+
+function switchOS(os, el) {
+  document.querySelectorAll('#osTabs .os-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  tunnelState.os = os;
+  const hint = document.getElementById('osHint');
+  if (hint) {
+    const hints = { windows: 'Open Command Prompt (CMD) and paste the following command:', linux: 'Open terminal and paste the following command:', mac: 'Open Terminal and paste the following command:' };
+    hint.textContent = hints[os] || hints.windows;
+  }
+}
+
+// ---- Polling ----
+function startTunnelPolling() {
+  stopTunnelPolling();
+  tunnelPollTimer = setInterval(async () => {
+    if (!document.getElementById('sshCommand')) return;
+    try {
+      const tunnels = await api('/tunnels/my');
+      updateTunnelBanner(tunnels);
+      updateTunnelTable(tunnels);
+    } catch {}
+  }, 3000);
+}
+
+function stopTunnelPolling() {
+  if (tunnelPollTimer) { clearInterval(tunnelPollTimer); tunnelPollTimer = null; }
+}
+
+function updateTunnelBanner(tunnels) {
+  const banner = document.getElementById('tunnelBanner');
+  if (!banner) return;
+  if (tunnels.length > 0) {
+    const t = tunnels[0];
+    banner.style.display = 'block';
+    banner.className = 'tunnel-banner';
+    banner.innerHTML = `
+      <div class="dot"></div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:1.1rem;color:var(--primary)">Tunnel Active!</div>
+        <div style="font-size:.9rem;color:var(--text-dim)">Your tunnel URL:</div>
+      </div>
+      <a href="${t.url}" target="_blank" class="url">${t.url}</a>
+      <button class="btn btn-sm" onclick="copyToClipboard('${t.url}')">📋 Copy</button>`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function updateTunnelTable(tunnels) {
+  const tbody = document.getElementById('tunnelTableBody');
+  const countEl = document.getElementById('tunnelCount');
+  if (!tbody) return;
+  if (countEl) countEl.textContent = tunnels.length;
+  if (tunnels.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = tunnels.map(t => `<tr>
+    <td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>
+    <td class="code">${t.subdomain}</td>
+    <td>${t.request_count}</td>
+    <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+    <td><span class="badge badge-green">${t.status}</span></td>
+    <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+  </tr>`).join('');
+}
+
+// ---- Custom Domain ----
+async function saveMyCustomDomain(clear) {
+  const input = document.getElementById('myCustomDomain') || document.getElementById('domainInput');
+  const domain = clear ? '' : input.value.trim();
+  if (!clear && !domain) { toast('Enter a domain first', 'error'); return; }
+  try {
+    await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}`, 'PUT');
+    toast(clear ? 'Custom domain cleared' : 'Custom domain saved');
+    if (clear) input.value = '';
+    loadQuickstart();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Clipboard helpers ----
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard')).catch(() => {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('Copied to clipboard'); } catch { toast('Copy failed', 'error'); }
+    document.body.removeChild(ta);
+  });
+}
+function copyToken() { copyToClipboard(tunnelState.token); }
+function copySSHCmd() { copyToClipboard(buildSSHCommand()); }
+function copyCfgCmd() { copyToClipboard(buildSSHCommand()); }
+function toggleTokenVisibility() {
+  const el = document.getElementById('accessToken');
+  if (el) { el.type = el.type === 'password' ? 'text' : 'password'; }
+}
+
+// ---- Init ----
+(async function init() {
+  if (!authToken) { return; }
+  try {
+    const resp = await fetch('/api/v1/auth/me', { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!resp.ok) throw new Error('Token expired');
+    currentUser = await resp.json();
+    showApp();
+  } catch { localStorage.removeItem('pinggy_token'); authToken = ''; }
+})();
+</script>
+</body>
+</html>
