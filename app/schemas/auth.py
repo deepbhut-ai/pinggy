@@ -22,6 +22,7 @@ class UserOut(BaseModel):
     tunnel_token: str | None = None
     custom_domain: str | None = None
     plan: str = "free"
+    plan_expires_at: str | None = None
 
 
 class Token(BaseModel):
