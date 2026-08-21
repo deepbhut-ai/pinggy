@@ -179,6 +179,9 @@
   .info-box { padding: .75rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); line-height: 1.6; }
   .info-box strong { color: var(--text); }
 
+  /* ---- Payment buttons ---- */
+  .pay-btn-disabled { opacity: .5; cursor: not-allowed; }
+
   /* ---- Responsive ---- */
   @media (max-width: 768px) {
     .app-nav { display: none; }
@@ -937,19 +940,19 @@ async function loadSubscription() {
       <div class="card-body">
         <p style="font-size:.875rem;color:var(--text-dim);margin-bottom:1rem">Choose a payment method:</p>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem">
-          <button class="btn btn-ghost" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('stripe')" ${enabled.stripe ? '' : 'disabled style="opacity:.5;padding:1rem;flex-direction:column;gap:.35rem"'}>
+          <button class="btn btn-ghost pay-btn ${enabled.stripe ? '' : 'pay-btn-disabled'}" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('stripe')" ${enabled.stripe ? '' : 'disabled'}>
             <span style="font-size:1.4rem">💳</span>
             <strong>Stripe</strong>
             <span style="font-size:.75rem;color:var(--text-dim)">Card · UPI · INR ₹${priceInr}</span>
             ${enabled.stripe ? '' : '<span style="font-size:.7rem;color:var(--text-dim)">(not configured)</span>'}
           </button>
-          <button class="btn btn-ghost" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('paypal')" ${enabled.paypal ? '' : 'disabled style="opacity:.5;padding:1rem;flex-direction:column;gap:.35rem"'}>
+          <button class="btn btn-ghost pay-btn ${enabled.paypal ? '' : 'pay-btn-disabled'}" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('paypal')" ${enabled.paypal ? '' : 'disabled'}>
             <span style="font-size:1.4rem">🅿️</span>
             <strong>PayPal</strong>
             <span style="font-size:.75rem;color:var(--text-dim)">Wallet · USD $${priceUsd}</span>
             ${enabled.paypal ? '' : '<span style="font-size:.7rem;color:var(--text-dim)">(not configured)</span>'}
           </button>
-          <button class="btn btn-ghost" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('nowpayments')" ${enabled.nowpayments ? '' : 'disabled style="opacity:.5;padding:1rem;flex-direction:column;gap:.35rem"'}>
+          <button class="btn btn-ghost pay-btn ${enabled.nowpayments ? '' : 'pay-btn-disabled'}" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('nowpayments')" ${enabled.nowpayments ? '' : 'disabled'}>
             <span style="font-size:1.4rem">🪙</span>
             <strong>Crypto</strong>
             <span style="font-size:.75rem;color:var(--text-dim)">NowPayments · BTC/ETH/USDT</span>
