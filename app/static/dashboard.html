@@ -258,6 +258,18 @@
 <!-- Toast -->
 <div id="toast"></div>
 
+<!-- Modal Dialog -->
+<div id="modalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:998;align-items:center;justify-content:center">
+  <div id="modalBox" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;width:100%;max-width:420px;margin:1rem">
+    <h3 id="modalTitle" style="font-size:1.1rem;font-weight:700;margin-bottom:1rem"></h3>
+    <div id="modalBody"></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1.25rem">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-sm" id="modalConfirm" onclick="">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ---- State ----
 let authToken = localStorage.getItem('pinggy_token') || '';
@@ -661,43 +673,88 @@ async function loadTokens() {
 }
 
 async function showCreateTokenDialog() {
-  const name = prompt('Token name (e.g. "My API Server"):');
-  if (!name) return;
-  try {
-    await api('/tokens', 'POST', JSON.stringify({ name }));
-    toast('Token created');
-    loadTokens();
-  } catch (e) { toast(e.message, 'error'); }
+  showModal('Generate New Token', `
+    <div class="form-group">
+      <label>Token name</label>
+      <input type="text" id="newTokenName" placeholder="e.g. My API Server" value="New Token">
+    </div>
+  `, async () => {
+    const name = document.getElementById('newTokenName').value.trim() || 'New Token';
+    try {
+      closeModal();
+      const result = await api('/tokens', 'POST', JSON.stringify({ name }));
+      toast('Token created: ' + result.token);
+      loadTokens();
+    } catch (e) { toast(e.message, 'error'); }
+  });
 }
 
 async function editToken(tokenId, currentName, currentDomain) {
-  const name = prompt('Token name:', currentName);
-  if (name === null) return;
-  const domain = prompt('Custom domain (leave empty for none):', currentDomain);
-  if (domain === null) return;
-  try {
-    await api(`/tokens/${tokenId}`, 'PUT', JSON.stringify({ name, custom_domain: domain }));
-    toast('Token updated');
-    loadTokens();
-  } catch (e) { toast(e.message, 'error'); }
+  showModal('Edit Token', `
+    <div class="form-group">
+      <label>Token name</label>
+      <input type="text" id="editTokenName" value="${currentName}">
+    </div>
+    <div class="form-group">
+      <label>Custom domain (leave empty for none)</label>
+      <input type="text" id="editTokenDomain" value="${currentDomain}" placeholder="e.g. serverira.com">
+    </div>
+  `, async () => {
+    const name = document.getElementById('editTokenName').value.trim();
+    const domain = document.getElementById('editTokenDomain').value.trim();
+    try {
+      closeModal();
+      await api(`/tokens/${tokenId}`, 'PUT', JSON.stringify({ name, custom_domain: domain }));
+      toast('Token updated');
+      loadTokens();
+    } catch (e) { toast(e.message, 'error'); }
+  });
 }
 
 async function regenerateToken(tokenId) {
-  if (!confirm('Regenerate token? The old token will stop working immediately.')) return;
-  try {
-    await api(`/tokens/${tokenId}/regenerate`, 'POST');
-    toast('Token regenerated');
-    loadTokens();
-  } catch (e) { toast(e.message, 'error'); }
+  showModal('Regenerate Token', `
+    <p style="font-size:.875rem;color:var(--text-dim);line-height:1.5">Are you sure? The old token will stop working immediately. Any active tunnels using it will be disconnected.</p>
+  `, async () => {
+    try {
+      closeModal();
+      const result = await api(`/tokens/${tokenId}/regenerate`, 'POST');
+      toast('Token regenerated: ' + result.token);
+      loadTokens();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Regenerate', 'btn-danger');
 }
 
 async function deleteToken(tokenId) {
-  if (!confirm('Delete this token? Active tunnels using it will be disconnected.')) return;
-  try {
-    await api(`/tokens/${tokenId}`, 'DELETE');
-    toast('Token deleted');
-    loadTokens();
-  } catch (e) { toast(e.message, 'error'); }
+  showModal('Delete Token', `
+    <p style="font-size:.875rem;color:var(--text-dim);line-height:1.5">Are you sure? This token will be permanently deleted. Active tunnels using it will be disconnected.</p>
+  `, async () => {
+    try {
+      closeModal();
+      await api(`/tokens/${tokenId}`, 'DELETE');
+      toast('Token deleted');
+      loadTokens();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Delete', 'btn-danger');
+}
+
+// ---- Modal helpers ----
+function showModal(title, bodyHtml, onConfirm, confirmText = 'Confirm', confirmClass = '') {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  const confirmBtn = document.getElementById('modalConfirm');
+  confirmBtn.textContent = confirmText;
+  confirmBtn.className = 'btn btn-sm ' + confirmClass;
+  confirmBtn.onclick = onConfirm;
+  document.getElementById('modalOverlay').style.display = 'flex';
+  // Focus first input
+  setTimeout(() => {
+    const firstInput = document.querySelector('#modalBody input');
+    if (firstInput) firstInput.focus();
+  }, 50);
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').style.display = 'none';
 }
 
 // ---- Tunnel helpers ----
