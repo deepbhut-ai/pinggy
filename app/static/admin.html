@@ -213,7 +213,7 @@
 
 <script>
 const API = '/api/v1';
-let token = localStorage.getItem('admin_token');
+let token = localStorage.getItem('pinggy_token');
 let currentUser = null;
 
 // ---- Toast ----
@@ -248,7 +248,7 @@ async function doLogin() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Login failed');
     token = data.access_token;
-    localStorage.setItem('admin_token', token);
+    localStorage.setItem('pinggy_token', token);
     currentUser = data.user;
     showApp();
   } catch (e) {
@@ -259,7 +259,7 @@ async function doLogin() {
 
 function logout() {
   token = null; currentUser = null;
-  localStorage.removeItem('admin_token');
+  localStorage.removeItem('pinggy_token');
   window.location.href = '/login';
 }
 
@@ -1037,7 +1037,7 @@ async function executeTry() {
 // Detect back/forward navigation (bfcache) — immediately hide and redirect
 window.addEventListener('pageshow', (event) => {
   if (event.persisted || (performance && performance.getEntriesByType && performance.getEntriesByType('navigation').some(n => n.type === 'back_forward'))) {
-    if (!localStorage.getItem('admin_token')) {
+    if (!localStorage.getItem('pinggy_token')) {
       // Immediately hide ALL content synchronously before redirect
       document.documentElement.style.visibility = 'hidden';
       window.location.replace('/login');
