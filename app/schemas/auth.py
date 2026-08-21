@@ -21,6 +21,7 @@ class UserOut(BaseModel):
     role: str = "user"
     tunnel_token: str | None = None
     custom_domain: str | None = None
+    plan: str = "free"
 
 
 class Token(BaseModel):

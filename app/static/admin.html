@@ -439,6 +439,7 @@ async function loadUsers() {
         <td>${u.email}</td>
         <td>${u.full_name || '—'}</td>
         <td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td>
+        <td><span class="badge ${u.plan === 'pro' ? 'badge-green' : ''}">${u.plan || 'free'}</span></td>
         <td class="code" style="font-size:.8rem">${u.tunnel_token || '—'}</td>
         <td>${statusBadge}</td>
         <td><span class="badge ${activeCount > 0 ? 'badge-green' : ''}">${activeCount}</span></td>
@@ -447,11 +448,11 @@ async function loadUsers() {
         <td><button class="btn btn-ghost btn-sm" onclick="viewUser('${u.id}')">View</button></td>
       </tr>`;
     }).join('');
-    if (!rows) rows = '<tr><td colspan="9" class="empty">No users found</td></tr>';
+    if (!rows) rows = '<tr><td colspan="10" class="empty">No users found</td></tr>';
     c.innerHTML = `<div class="card">
       <div class="card-header"><h2>Users (${users.length})</h2><button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">➕ Add User</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>Email</th><th>Full Name</th><th>Role</th><th>Tunnel Token</th><th>Status</th><th>Active Tunnels</th><th>Total Requests</th><th>Total Data</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>Email</th><th>Full Name</th><th>Role</th><th>Plan</th><th>Tunnel Token</th><th>Status</th><th>Active Tunnels</th><th>Total Requests</th><th>Total Data</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
@@ -505,6 +506,16 @@ async function viewUser(id) {
           <tr><td style="width:150px">Email</td><td><strong>${u.email}</strong></td></tr>
           <tr><td>Full Name</td><td>${u.full_name || '—'}</td></tr>
           <tr><td>Role</td><td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td></tr>
+          <tr><td>Plan</td><td>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <select id="userPlanSelect" style="flex:1;padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem">
+                <option value="free" ${u.plan === 'free' ? 'selected' : ''}>Free — 60min timeout, random subdomain</option>
+                <option value="pro" ${u.plan === 'pro' ? 'selected' : ''}>Pro — persistent tunnels, custom domain</option>
+              </select>
+              <button class="btn btn-sm" onclick="saveUserPlan('${u.id}')">Save</button>
+            </div>
+            <span class="badge ${u.plan === 'pro' ? 'badge-green' : ''}" style="margin-top:.35rem;display:inline-block">${u.plan || 'free'}</span>
+          </td></tr>
           <tr><td>User ID</td><td class="code">${u.id}</td></tr>
           <tr><td>Tunnel Token</td><td><strong class="code">${u.tunnel_token || '—'}</strong> <button class="btn btn-sm" onclick="copyToClipboard('${u.tunnel_token}')" style="margin-left:.5rem">📋</button></td></tr>
           <tr><td>Custom Domain</td><td>
@@ -596,6 +607,15 @@ async function saveCustomDomain(userId) {
   try {
     await api(`/users/${userId}?custom_domain=${encodeURIComponent(domain)}`, 'PUT');
     toast('Custom domain saved');
+    viewUser(userId);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function saveUserPlan(userId) {
+  const plan = document.getElementById('userPlanSelect').value;
+  try {
+    await api(`/users/${userId}?plan=${plan}`, 'PUT');
+    toast(`Plan updated to ${plan}`);
     viewUser(userId);
   } catch (e) { toast(e.message, 'error'); }
 }

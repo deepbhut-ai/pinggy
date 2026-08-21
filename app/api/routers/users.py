@@ -20,12 +20,12 @@ async def list_users(
     offset: int = 0,
 ):
     cur = await db.execute(
-        "SELECT id, email, full_name, role, tunnel_token, custom_domain FROM users ORDER BY created_at DESC LIMIT %s OFFSET %s",
+        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan FROM users ORDER BY created_at DESC LIMIT %s OFFSET %s",
         (limit, offset),
     )
     rows = await cur.fetchall()
     await cur.close()
-    return [UserOut(id=str(r[0]), email=r[1], full_name=r[2], role=r[3], tunnel_token=r[4], custom_domain=r[5]) for r in rows]
+    return [UserOut(id=str(r[0]), email=r[1], full_name=r[2], role=r[3], tunnel_token=r[4], custom_domain=r[5], plan=r[6]) for r in rows]
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -35,13 +35,13 @@ async def get_user(
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
-        "SELECT id, email, full_name, role, tunnel_token, custom_domain FROM users WHERE id = %s", (user_id,)
+        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan FROM users WHERE id = %s", (user_id,)
     )
     row = await cur.fetchone()
     await cur.close()
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
-    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5])
+    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6])
 
 
 @router.put("/{user_id}", response_model=UserOut)
@@ -54,8 +54,9 @@ async def update_user(
     role: str | None = None,
     password: str | None = None,
     custom_domain: str | None = None,
+    plan: str | None = None,
 ):
-    """Update a user (admin only). Can change email, name, role, password, or custom domain."""
+    """Update a user (admin only). Can change email, name, role, password, custom domain, or plan."""
     # Check user exists
     cur = await db.execute("SELECT id FROM users WHERE id = %s", (user_id,))
     if not await cur.fetchone():
@@ -78,6 +79,9 @@ async def update_user(
     if password:
         updates.append("password_hash = %s")
         params.append(hash_password(password))
+    if plan and plan in ("free", "pro"):
+        updates.append("plan = %s")
+        params.append(plan)
     if custom_domain is not None:
         domain_value = custom_domain.strip() if custom_domain else None
         # Check if domain is already taken by another user
@@ -103,7 +107,7 @@ async def update_user(
     try:
         cur = await db.execute(
             f"UPDATE users SET {', '.join(updates)} WHERE id = %s "
-            f"RETURNING id, email, full_name, role, tunnel_token, custom_domain",
+            f"RETURNING id, email, full_name, role, tunnel_token, custom_domain, plan",
             tuple(params),
         )
         row = await cur.fetchone()
@@ -115,7 +119,7 @@ async def update_user(
                 "This custom domain is already in use by another user. Please choose a different domain.",
             )
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Failed to update user: {str(e)}")
-    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5])
+    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6])
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_200_OK)

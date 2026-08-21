@@ -136,8 +136,10 @@ class MySSHServer(asyncssh.SSHServer):
         self._conn: asyncssh.SSHServerConnection | None = None
         self._username = "anonymous"
         self._token = ""
+        self._plan = "free"
         self._peer = "unknown"
         self._tunnel: TunnelSession | None = None
+        self._timeout_task: asyncio.Task | None = None
 
     def connection_made(self, conn: asyncssh.SSHServerConnection) -> None:
         self._conn = conn
@@ -154,6 +156,9 @@ class MySSHServer(asyncssh.SSHServer):
     async def _cleanup_tunnel(self) -> None:
         if not self._tunnel:
             return
+        if self._timeout_task:
+            self._timeout_task.cancel()
+            self._timeout_task = None
         tunnel = self._tunnel
         self._tunnel = None  # Set to None first to prevent double cleanup
         await remove_tunnel(tunnel.subdomain)
@@ -201,7 +206,8 @@ class MySSHServer(asyncssh.SSHServer):
 
     def _verify_tunnel_token_sync(self, token: str) -> bool:
         """Synchronous DB check — used from begin_auth which is a sync callback.
-        Checks both the tokens table (multi-token) and users table (legacy)."""
+        Checks both the tokens table (multi-token) and users table (legacy).
+        Also loads the user's plan for free/pro enforcement."""
         import psycopg
         from app.core.config import settings
         try:
@@ -209,7 +215,8 @@ class MySSHServer(asyncssh.SSHServer):
 
             # First check the tokens table (new multi-token system)
             cur = conn.execute(
-                "SELECT user_email FROM tokens WHERE token = %s",
+                "SELECT t.user_email, u.plan FROM tokens t "
+                "JOIN users u ON u.email = t.user_email WHERE t.token = %s",
                 (token,),
             )
             row = cur.fetchone()
@@ -217,13 +224,14 @@ class MySSHServer(asyncssh.SSHServer):
 
             if row:
                 self._username = row[0]
+                self._plan = row[1] or "free"
                 self._token = token
                 conn.close()
                 return True
 
             # Fallback: check users table (legacy single-token system)
             cur = conn.execute(
-                "SELECT email FROM users WHERE tunnel_token = %s",
+                "SELECT email, plan FROM users WHERE tunnel_token = %s",
                 (token,),
             )
             row = cur.fetchone()
@@ -232,6 +240,7 @@ class MySSHServer(asyncssh.SSHServer):
 
             if row:
                 self._username = row[0]
+                self._plan = row[1] or "free"
                 self._token = token
                 return True
             return False
@@ -280,16 +289,24 @@ class MySSHServer(asyncssh.SSHServer):
 
     async def _setup_tunnel(self, remote_port: int) -> None:
         """Create the tunnel: allocate subdomain, register in memory + DB.
-        Each token gets a deterministic subdomain derived from the token,
-        so the same token always gives the same URL. Different tokens
-        for the same user give different URLs (multiple tunnels)."""
+
+        Plan rules:
+        - PRO users: persistent subdomain (MD5 of token) — same URL every time,
+          no timeout, custom domain support.
+        - FREE users: random subdomain each connect, tunnel auto-disconnects
+          after FREE_TUNNEL_TIMEOUT_MINUTES (60 min like pinggy.io)."""
         if self._tunnel:
             return
         try:
-            # Deterministic subdomain from the token (not email)
-            # Same token → same subdomain, different tokens → different subdomains
-            import hashlib
-            subdomain = hashlib.md5(self._token.encode()).hexdigest()[:7]
+            is_pro = self._plan == "pro"
+
+            if is_pro:
+                # Deterministic subdomain from the token (persistent URL)
+                import hashlib
+                subdomain = hashlib.md5(self._token.encode()).hexdigest()[:7]
+            else:
+                # Free tier: random subdomain each connect
+                subdomain = _generate_subdomain()
 
             # If this subdomain is already in use (same token reconnecting),
             # remove the old one first
@@ -297,13 +314,19 @@ class MySSHServer(asyncssh.SSHServer):
                 from app.core.tunnel_registry import get_tunnel
                 existing = await get_tunnel(subdomain)
                 if existing and existing.user_email == self._username:
-                    # Same user reconnecting with same token — remove old tunnel
+                    # Same user reconnecting — remove old tunnel
                     await remove_tunnel(subdomain)
                 else:
-                    # Hash collision (extremely unlikely) — append suffix
-                    subdomain = f"{subdomain}1"
+                    # Collision — regenerate / append suffix
+                    subdomain = f"{_generate_subdomain()}"
 
             tunnel_id = _generate_tunnel_id()
+
+            # Free-tier timeout (60 minutes, like pinggy.io)
+            expires_at = None
+            if not is_pro:
+                from datetime import datetime, timedelta, timezone
+                expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.FREE_TUNNEL_TIMEOUT_MINUTES)
 
             self._tunnel = TunnelSession(
                 tunnel_id=tunnel_id,
@@ -329,10 +352,10 @@ class MySSHServer(asyncssh.SSHServer):
                 cur = await db.execute(
                     """
                     INSERT INTO tunnels (tunnel_id, subdomain, remote_port, local_port,
-                                         protocol, user_email, ssh_peer, status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'active')
+                                         protocol, user_email, ssh_peer, status, tunnel_expires_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'active', %s)
                     """,
-                    (tunnel_id, subdomain, remote_port, 0, "http", self._username, self._peer),
+                    (tunnel_id, subdomain, remote_port, 0, "http", self._username, self._peer, expires_at),
                 )
                 await cur.close()
 
@@ -340,19 +363,61 @@ class MySSHServer(asyncssh.SSHServer):
 
             scheme = "https" if settings.PROXY_PORT == 80 else "http"
             url = f"{scheme}://{subdomain}.{settings.TUNNEL_DOMAIN}"
-            logger.info("Tunnel created: %s → remote port %d (from %s)",
-                        url, remote_port, self._peer)
+            logger.info("Tunnel created: %s → remote port %d (from %s, plan=%s)",
+                        url, remote_port, self._peer, self._plan)
+
+            # Start the free-tier timeout countdown
+            if not is_pro and expires_at:
+                self._timeout_task = asyncio.create_task(self._free_timeout(expires_at))
+                mins = settings.FREE_TUNNEL_TIMEOUT_MINUTES
+                self._send_notice(
+                    f"\r\n  ⚠️  Free plan: tunnel disconnects in {mins} minutes.\r\n"
+                    f"  Upgrade to Pro for persistent tunnels → https://{settings.TUNNEL_DOMAIN}/#prices\r\n"
+                )
 
             # Print to server console
             print(f"\n  ╔══════════════════════════════════════════════════════╗")
-            print(f"  ║  pinggy tunnel — ACTIVE                               ║")
+            print(f"  ║  tunnel — ACTIVE ({self._plan:<8s})                        ║")
             print(f"  ║  URL:  {url:<46s}║")
             print(f"  ║  Remote port: {remote_port:<37d}║")
             print(f"  ║  User: {self._username:<44s}║")
+            if not is_pro:
+                print(f"  ║  Expires: in {settings.FREE_TUNNEL_TIMEOUT_MINUTES} minutes (free plan)       ║")
             print(f"  ╚══════════════════════════════════════════════════════╝\n")
 
         except Exception as e:
             logger.error("Failed to setup tunnel: %s", e)
+
+    def _send_notice(self, msg: str) -> None:
+        """Send a notice line to the client's terminal session if open."""
+        try:
+            # TunnelInfoSession writes to the channel; find it via the connection
+            # Simplest: reuse the info session reference if attached
+            for handler in getattr(self, "_sessions", []) or []:
+                if handler and getattr(handler, "_chan", None):
+                    handler._chan.write(msg)
+        except Exception:
+            pass
+
+    async def _free_timeout(self, expires_at) -> None:
+        """Disconnect the tunnel when the free-tier timeout is reached."""
+        from datetime import datetime, timezone
+        try:
+            while True:
+                now = datetime.now(timezone.utc)
+                remaining = (expires_at - now).total_seconds()
+                if remaining <= 0:
+                    break
+                await asyncio.sleep(min(remaining, 30))
+            logger.info("Free-tier timeout reached for %s — disconnecting", self._username)
+            self._send_notice(
+                "\r\n  ⏰  Free plan time limit reached — tunnel disconnected.\r\n"
+                "  Upgrade to Pro for persistent tunnels.\r\n"
+            )
+            if self._conn:
+                self._conn.close()
+        except asyncio.CancelledError:
+            pass
 
 
 async def start_ssh_server() -> asyncio.AbstractServer:

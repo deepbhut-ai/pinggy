@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     # Port range for SSH reverse tunnels (allocated dynamically)
     TUNNEL_PORT_MIN: int = 10000
     TUNNEL_PORT_MAX: int = 20000
+    # Free plan: tunnel auto-disconnect after this many minutes (like pinggy.io)
+    FREE_TUNNEL_TIMEOUT_MINUTES: int = 60
     # HTTP proxy listen port (for subdomain-based routing; in production use 80/443)
     PROXY_PORT: int = 8080
     # Subdomain length (random string)

@@ -380,7 +380,24 @@ async function loadQuickstart() {
     if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
 
     c.innerHTML = `
-    <h2 style="margin-bottom:1rem">Quickstart</h2>
+    <div class="page-title">Quickstart</div>
+    <div class="page-subtitle">Get your tunnel running in under a minute</div>
+    ${(currentUser.plan || 'free') !== 'pro' ? `
+    <div style="margin-bottom:1.25rem;padding:.75rem 1rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <span style="font-size:1.25rem">⚠️</span>
+      <div style="flex:1;min-width:200px">
+        <strong style="font-size:.9rem">Free plan</strong>
+        <span style="font-size:.825rem;color:var(--text-dim)"> — tunnels disconnect after 60 min & get a random subdomain each time.</span>
+      </div>
+      <a href="/#prices" class="btn btn-sm">Upgrade to Pro →</a>
+    </div>` : `
+    <div style="margin-bottom:1.25rem;padding:.75rem 1rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem">
+      <span style="font-size:1.25rem">⭐</span>
+      <div>
+        <strong style="font-size:.9rem">Pro plan</strong>
+        <span style="font-size:.825rem;color:var(--text-dim)"> — persistent tunnels, fixed subdomains, custom domain.</span>
+      </div>
+    </div>`}
     <div class="timeline">
       <!-- Step 1: Access token -->
       <div class="tl-item">
