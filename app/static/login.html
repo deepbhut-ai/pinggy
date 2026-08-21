@@ -149,7 +149,9 @@ async function doLogin() {
     if (!res.ok) throw new Error(data.detail || 'Login failed');
     localStorage.setItem('pinggy_token', data.access_token);
     localStorage.setItem('pinggy_user', JSON.stringify(data.user));
-    window.location.href = data.user.role === 'admin' ? '/admin' : '/dashboard';
+    // Replace current history entry so back button doesn't go back to login
+    const dest = data.user.role === 'admin' ? '/admin' : '/dashboard';
+    window.location.replace(dest);
   } catch (e) {
     errEl.textContent = e.message;
     errEl.style.display = 'block';
@@ -192,7 +194,8 @@ async function doLoginAfterRegister(email, password) {
     if (!res.ok) throw new Error('Login failed');
     localStorage.setItem('pinggy_token', data.access_token);
     localStorage.setItem('pinggy_user', JSON.stringify(data.user));
-    window.location.href = '/dashboard';
+    // Replace current history entry so back button doesn't go back to login
+    window.location.replace('/dashboard');
   } catch (e) {
     switchTab('login', document.querySelector('.auth-tab:nth-child(1)'));
     document.getElementById('loginEmail').value = email;

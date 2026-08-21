@@ -151,8 +151,16 @@
 </head>
 <body>
 
-<!-- ============ LOGIN VIEW ============ -->
-<div id="loginView">
+<!-- Loading screen (shown while checking auth) -->
+<div id="loadingScreen" style="display:flex;align-items:center;justify-content:center;min-height:100vh">
+  <div style="text-align:center">
+    <div style="font-size:1.5rem;font-weight:800;margin-bottom:1rem">⚡ Tunnel Admin</div>
+    <div style="color:var(--text-dim);font-size:.875rem">Loading...</div>
+  </div>
+</div>
+
+<!-- ============ LOGIN VIEW (hidden — auth is on /login page) ============ -->
+<div id="loginView" style="display:none">
   <div class="login-card">
     <h1>pinggy Admin</h1>
     <p>Sign in with your account</p>
