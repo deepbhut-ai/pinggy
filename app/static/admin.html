@@ -183,6 +183,7 @@
     <div class="sidebar" id="sidebar">
       <a href="#" class="active" data-page="dashboard" onclick="navigate('dashboard', this)">📊 Dashboard</a>
       <a href="#" data-page="mytunnels" onclick="navigate('mytunnels', this)">🔗 My Tunnels</a>
+      <a href="#" data-page="alltunnels" onclick="navigate('alltunnels', this)" id="navAllTunnels" style="display:none">🌐 All Tunnels</a>
       <a href="#" data-page="users" onclick="navigate('users', this)" id="navUsers" style="display:none">👥 Users</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
       <a href="#" data-page="api" onclick="navigate('api', this)" id="navApi" style="display:none">🔌 API Explorer</a>
@@ -258,6 +259,7 @@ async function showApp() {
   document.getElementById('topbarUser').textContent = `${currentUser.email} (${currentUser.role})`;
   // Show admin-only nav links
   if (currentUser.role === 'admin') {
+    document.getElementById('navAllTunnels').style.display = 'block';
     document.getElementById('navUsers').style.display = 'block';
     document.getElementById('navRegister').style.display = 'block';
     document.getElementById('navApi').style.display = 'block';
@@ -271,8 +273,9 @@ function navigate(page, el) {
   document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
   if (el) el.classList.add('active');
   const c = document.getElementById('pageContent');
-  if (page === 'dashboard') c.innerHTML = renderDashboard();
+  if (page === 'dashboard') { c.innerHTML = renderDashboard(); loadAdminStats(); }
   else if (page === 'mytunnels') loadMyTunnels();
+  else if (page === 'alltunnels') loadAllTunnels();
   else if (page === 'users') loadUsers();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
   else if (page === 'api') c.innerHTML = renderApiExplorer();
@@ -287,6 +290,7 @@ function renderDashboard() {
       <div class="card-body" style="display:flex;gap:.75rem;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="navigate('users', document.querySelector('[data-page=users]'))">View Users</button>
         <button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">Add User</button>
+        <button class="btn btn-sm" onclick="navigate('alltunnels', document.querySelector('[data-page=alltunnels]'))">All Tunnels</button>
         <button class="btn btn-sm" onclick="navigate('api', document.querySelector('[data-page=api]'))">API Explorer</button>
       </div>
     </div>` : '';
@@ -297,6 +301,7 @@ function renderDashboard() {
       <div class="stat-card"><div class="label">Full Name</div><div class="value" style="font-size:1rem">${currentUser.full_name || '—'}</div></div>
       <div class="stat-card"><div class="label">Role</div><div class="value" style="font-size:1rem"><span class="badge ${currentUser.role === 'admin' ? 'badge-green' : 'badge-red'}">${currentUser.role}</span></div></div>
     </div>
+    <div id="adminStats" style="margin-bottom:1.5rem"></div>
     <div class="card" style="border:2px solid var(--primary)">
       <div class="card-header"><h2>🚀 Create a Tunnel</h2><button class="btn btn-sm" onclick="navigate('mytunnels', document.querySelector('[data-page=mytunnels]'))">Go to My Tunnels →</button></div>
       <div class="card-body">
@@ -304,6 +309,7 @@ function renderDashboard() {
       </div>
     </div>
     ${adminCards}
+    <div id="recentActivity" style="margin-top:1.5rem"></div>
     <div class="card">
       <div class="card-header"><h2>System Info</h2></div>
       <div class="card-body">
@@ -312,9 +318,91 @@ function renderDashboard() {
           <tr><td>Swagger Docs</td><td><a href="/docs" target="_blank">/docs</a></td></tr>
           <tr><td>ReDoc</td><td><a href="/redoc" target="_blank">/redoc</a></td></tr>
           <tr><td>Health Check</td><td><a href="/health" target="_blank">/health</a></td></tr>
+          <tr><td>SSH Server</td><td class="code">ssh.invitechsg.com:2222</td></tr>
+          <tr><td>Tunnel Domain</td><td class="code">invitechsg.com</td></tr>
         </table>
       </div>
     </div>`;
+}
+
+// ---- Admin Stats (loaded async) ----
+async function loadAdminStats() {
+  if (currentUser.role !== 'admin') return;
+  try {
+    const users = await api('/users');
+    const tunnels = await api('/tunnels');
+    const activeTunnels = tunnels.filter(t => t.status === 'active');
+    const totalRequests = tunnels.reduce((s, t) => s + t.request_count, 0);
+    const totalData = tunnels.reduce((s, t) => s + t.bytes_transferred, 0);
+
+    const statsEl = document.getElementById('adminStats');
+    if (statsEl) {
+      statsEl.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-card"><div class="label">Total Users</div><div class="value">${users.length}</div></div>
+        <div class="stat-card"><div class="label">Active Tunnels</div><div class="value" style="color:var(--green)">${activeTunnels.length}</div></div>
+        <div class="stat-card"><div class="label">Total Tunnels (all time)</div><div class="value">${tunnels.length}</div></div>
+        <div class="stat-card"><div class="label">Total Requests</div><div class="value">${totalRequests}</div></div>
+        <div class="stat-card"><div class="label">Total Data Transfer</div><div class="value">${(totalData / 1024 / 1024).toFixed(2)} MB</div></div>
+      </div>`;
+    }
+
+    // Recent activity — last 10 tunnels
+    const recentEl = document.getElementById('recentActivity');
+    if (recentEl) {
+      const recent = tunnels.slice(0, 10);
+      let rows = recent.map(t => `<tr>
+        <td class="code">${t.subdomain}</td>
+        <td>${t.user_email}</td>
+        <td><a href="${t.url}" target="_blank" style="color:var(--primary)">${t.url}</a></td>
+        <td><span class="badge ${t.status === 'active' ? 'badge-green' : 'badge-red'}">${t.status}</span></td>
+        <td>${t.request_count}</td>
+        <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+        <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+      </tr>`).join('');
+      if (!rows) rows = '<tr><td colspan="7" class="empty">No tunnel activity yet</td></tr>';
+      recentEl.innerHTML = `<div class="card">
+        <div class="card-header"><h2>Recent Tunnel Activity</h2></div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table><thead><tr><th>Subdomain</th><th>User</th><th>URL</th><th>Status</th><th>Requests</th><th>Data</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table>
+        </div>
+      </div>`;
+    }
+  } catch (e) { /* ignore — stats are optional */ }
+}
+
+// ---- All Tunnels (admin view) ----
+async function loadAllTunnels() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const tunnels = await api('/tunnels');
+    const active = tunnels.filter(t => t.status === 'active');
+    let rows = tunnels.map((t, i) => `<tr>
+      <td>${i + 1}</td>
+      <td class="code">${t.subdomain}</td>
+      <td>${t.user_email}</td>
+      <td><a href="${t.url}" target="_blank" style="color:var(--primary)">${t.url}</a></td>
+      <td>${t.remote_port}</td>
+      <td>${t.request_count}</td>
+      <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td><span class="badge ${t.status === 'active' ? 'badge-green' : 'badge-red'}">${t.status}</span></td>
+      <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+    </tr>`).join('');
+    if (!rows) rows = '<tr><td colspan="9" class="empty">No tunnels found</td></tr>';
+    c.innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="label">Total Tunnels</div><div class="value">${tunnels.length}</div></div>
+      <div class="stat-card"><div class="label">Active Now</div><div class="value" style="color:var(--green)">${active.length}</div></div>
+      <div class="stat-card"><div class="label">Disconnected</div><div class="value" style="color:var(--text-dim)">${tunnels.length - active.length}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>All Tunnels (${tunnels.length})</h2><button class="btn btn-sm" onclick="loadAllTunnels()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>#</th><th>Subdomain</th><th>User</th><th>URL</th><th>Port</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
 // ---- Users ----
