@@ -335,6 +335,7 @@ function logout() {
 }
 
 async function showApp() {
+  document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('loginView').style.display = 'none';
   document.getElementById('appView').style.display = 'block';
   document.getElementById('userInfo').textContent = currentUser.email;
@@ -983,19 +984,39 @@ function toggleTokenVisibility() {
 }
 
 // ---- Init ----
-(async function init() {
+async function checkAuth() {
   if (!authToken) {
-    window.location.href = '/login';
-    return;
+    window.location.replace('/login');
+    return false;
   }
   try {
     const resp = await fetch('/api/v1/auth/me', { headers: { 'Authorization': `Bearer ${authToken}` } });
     if (!resp.ok) throw new Error('Token expired');
     currentUser = await resp.json();
-    showApp();
+    return true;
   } catch {
     localStorage.removeItem('pinggy_token');
-    window.location.href = '/login';
+    authToken = '';
+    window.location.replace('/login');
+    return false;
+  }
+}
+
+// Detect back/forward navigation (bfcache) — re-verify auth
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted || (performance && performance.getEntriesByType && performance.getEntriesByType('navigation').some(n => n.type === 'back_forward'))) {
+    // Page restored from bfcache — check if still logged in
+    if (!localStorage.getItem('pinggy_token')) {
+      window.location.replace('/login');
+    } else {
+      checkAuth();
+    }
+  }
+});
+
+(async function init() {
+  if (await checkAuth()) {
+    showApp();
   }
 })();
 </script>

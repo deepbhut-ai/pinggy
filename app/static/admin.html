@@ -265,12 +265,13 @@ function logout() {
 }
 
 async function showApp() {
-  if (!token) { document.getElementById('loginView').style.display = 'flex'; return; }
+  if (!token) { window.location.href = '/login'; return; }
   try {
     currentUser = await api('/auth/me');
   } catch {
     logout(); return;
   }
+  document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('loginView').style.display = 'none';
   document.getElementById('appView').style.display = 'block';
   document.getElementById('topbarUser').textContent = `${currentUser.email} (${currentUser.role})`;
@@ -1015,10 +1016,19 @@ async function executeTry() {
 }
 
 // ---- Init ----
+// Detect back/forward navigation (bfcache) — redirect if logged out
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted || (performance && performance.getEntriesByType && performance.getEntriesByType('navigation').some(n => n.type === 'back_forward'))) {
+    if (!localStorage.getItem('admin_token')) {
+      window.location.replace('/login');
+    }
+  }
+});
+
 if (token) {
   showApp();
 } else {
-  window.location.href = '/login';
+  window.location.replace('/login');
 }
 </script>
 </body>
