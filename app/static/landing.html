@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en" data-color-scheme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secure Tunnels to Localhost — Fast & Simple</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    --brand: #6aa6f0;
+    --brand-hover: #4785ea;
+    --brand-light: rgba(106,166,240,.15);
+    --bg: #141618;
+    --surface: #1b1e21;
+    --surface-1: #222529;
+    --surface-2: #2a2d31;
+    --border: rgba(255,255,255,.08);
+    --border-hover: rgba(255,255,255,.12);
+    --text: #f1f3f5;
+    --text-dim: #8a9099;
+    --text-muted: #adb3ba;
+    --green: #29a97f;
+    --green-bg: rgba(41,169,127,.15);
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ---- Nav ---- */
+  .nav { position: sticky; top: 0; z-index: 100; background: rgba(20,22,24,.9); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: .75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+  .nav .logo { font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: .5rem; }
+  .nav .links { display: flex; align-items: center; gap: 1.5rem; }
+  .nav .links a { color: var(--text-dim); font-size: .9rem; font-weight: 500; }
+  .nav .links a:hover { color: var(--text); text-decoration: none; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; background: var(--brand); color: #fff; border: none; border-radius: var(--radius); padding: .5rem 1.25rem; font-size: .9rem; font-weight: 600; font-family: var(--font); cursor: pointer; transition: .15s; text-decoration: none; }
+  .btn:hover { background: var(--brand-hover); text-decoration: none; }
+  .btn-lg { padding: .75rem 1.75rem; font-size: 1rem; }
+  .btn-ghost { background: var(--surface-1); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface-2); border-color: var(--border-hover); }
+
+  /* ---- Hero ---- */
+  .hero { text-align: center; padding: 5rem 1.5rem 4rem; max-width: 800px; margin: 0 auto; }
+  .hero h1 { font-size: 3rem; font-weight: 900; line-height: 1.15; margin-bottom: 1rem; letter-spacing: -.02em; }
+  .hero h1 .highlight { color: var(--brand); }
+  .hero p { font-size: 1.25rem; color: var(--text-dim); margin-bottom: 2rem; }
+  .hero .cta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+  .hero .terminal { margin-top: 3rem; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto; }
+
+  /* ---- Terminal ---- */
+  .terminal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .terminal-header { padding: .5rem .75rem; background: var(--surface-1); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .5rem; }
+  .terminal-header .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .terminal-header .dot.red { background: #de5f4b; }
+  .terminal-header .dot.amber { background: #f59e0b; }
+  .terminal-header .dot.green { background: var(--green); }
+  .terminal-header .title { font-size: .8rem; color: var(--text-dim); margin-left: .5rem; }
+  .terminal-body { padding: 1rem; font-family: var(--font-mono); font-size: .85rem; line-height: 1.7; }
+  .terminal-body .cmd { color: var(--brand); }
+  .terminal-body .out { color: var(--text-dim); }
+  .terminal-body .url { color: var(--green); font-weight: 500; }
+  .terminal-body .cursor { display: inline-block; width: 8px; height: 16px; background: var(--brand); animation: blink 1s infinite; vertical-align: text-bottom; }
+  @keyframes blink { 0%,50% { opacity: 1; } 51%,100% { opacity: 0; } }
+
+  /* ---- Features ---- */
+  .features { padding: 4rem 1.5rem; max-width: 1000px; margin: 0 auto; }
+  .features h2 { text-align: center; font-size: 2rem; font-weight: 800; margin-bottom: .5rem; }
+  .features .subtitle { text-align: center; color: var(--text-dim); margin-bottom: 3rem; }
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+  .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; transition: .15s; }
+  .feature-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+  .feature-card .icon { width: 48px; height: 48px; border-radius: var(--radius); background: var(--brand-light); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+  .feature-card .icon svg { width: 24px; height: 24px; color: var(--brand); }
+  .feature-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: .5rem; }
+  .feature-card p { font-size: .9rem; color: var(--text-dim); }
+
+  /* ---- Steps ---- */
+  .steps { padding: 4rem 1.5rem; max-width: 800px; margin: 0 auto; }
+  .steps h2 { text-align: center; font-size: 2rem; font-weight: 800; margin-bottom: .5rem; }
+  .steps .subtitle { text-align: center; color: var(--text-dim); margin-bottom: 3rem; }
+  .step { display: flex; gap: 1.5rem; margin-bottom: 2rem; align-items: flex-start; }
+  .step .num { width: 40px; height: 40px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 700; flex-shrink: 0; }
+  .step .content h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: .25rem; }
+  .step .content p { font-size: .9rem; color: var(--text-dim); }
+  .step .content .code { font-family: var(--font-mono); font-size: .82rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem .75rem; margin-top: .5rem; display: block; color: var(--brand); }
+
+  /* ---- CTA ---- */
+  .cta-section { text-align: center; padding: 4rem 1.5rem; max-width: 600px; margin: 0 auto; }
+  .cta-section h2 { font-size: 2rem; font-weight: 800; margin-bottom: 1rem; }
+  .cta-section p { color: var(--text-dim); margin-bottom: 2rem; }
+
+  /* ---- Footer ---- */
+  .footer { border-top: 1px solid var(--border); padding: 2rem 1.5rem; text-align: center; color: var(--text-dim); font-size: .85rem; }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 2rem; }
+    .hero p { font-size: 1rem; }
+    .nav .links a:not(.btn) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <div class="logo">⚡ <span>Tunnel</span></div>
+  <div class="links">
+    <a href="#features">Features</a>
+    <a href="#how">How it Works</a>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/admin">Admin</a>
+    <a href="/dashboard" class="btn">Get Started</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <h1>Expose your <span class="highlight">localhost</span> to the internet in seconds</h1>
+  <p>Create secure tunnels to your local services with a single SSH command. No installs, no downloads, no hassle.</p>
+  <div class="cta">
+    <a href="/dashboard" class="btn btn-lg">Get Started Free →</a>
+    <a href="#how" class="btn btn-ghost btn-lg">See How it Works</a>
+  </div>
+  <div class="terminal">
+    <div class="terminal-header">
+      <div class="dot red"></div>
+      <div class="dot amber"></div>
+      <div class="dot green"></div>
+      <span class="title">Terminal</span>
+    </div>
+    <div class="terminal-body">
+      <div><span class="cmd">$</span> ssh -p 2222 -R0:127.0.0.1:8080 your-token@ssh.invitechsg.com</div>
+      <div class="out">Allocated port 45647 for remote forward</div>
+      <div class="out">&nbsp;</div>
+      <div class="out">  ╔═══════════════════════════════════════════════╗</div>
+      <div class="out">  ║  Tunnel — ACTIVE                              ║</div>
+      <div class="out">  ║  URL:  <span class="url">https://abc1234.invitechsg.com</span>       ║</div>
+      <div class="out">  ╚═══════════════════════════════════════════════╝</div>
+      <div class="out">&nbsp;</div>
+      <div class="out">  Share this URL to access your local service.</div>
+      <div><span class="cursor"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features" id="features">
+  <h2>Everything you need to share local services</h2>
+  <p class="subtitle">Simple, fast, and secure tunneling built for developers</p>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      <h3>Lightning Fast</h3>
+      <p>Start a tunnel in under 2 seconds. Just one SSH command — no client to install, no configuration files.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h3>Secure by Default</h3>
+      <p>Token-based authentication, SSH encryption, and HTTPS via Cloudflare. Your tunnels are protected end-to-end.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      </div>
+      <h3>Custom Domains</h3>
+      <p>Use your own domain with Cloudflare. Get a green lock HTTPS URL like <code>https://yourdomain.com</code> for your tunnel.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <h3>Multiple Tunnels</h3>
+      <p>Run multiple tunnels simultaneously. Each token gets its own permanent URL — perfect for microservices and APIs.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      </div>
+      <h3>Developer Friendly</h3>
+      <p>Works with any local service — web apps, APIs, databases, dev servers. If it runs on localhost, it works.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+      </div>
+      <h3>Dashboard & Analytics</h3>
+      <p>Monitor active tunnels, request counts, data transfer, and manage tokens from a clean web dashboard.</p>
+    </div>
+  </div>
+</section>
+
+<!-- How it Works -->
+<section class="steps" id="how">
+  <h2>Get started in 3 steps</h2>
+  <p class="subtitle">No downloads, no installs — just one command</p>
+  <div class="step">
+    <div class="num">1</div>
+    <div class="content">
+      <h3>Sign up and get your token</h3>
+      <p>Create an account in the dashboard and generate an access token. Each token gets its own permanent tunnel URL.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="num">2</div>
+    <div class="content">
+      <h3>Run one SSH command</h3>
+      <p>Open your terminal and paste the command. Replace PORT with your local service port.</p>
+      <span class="code">ssh -p 2222 -R0:127.0.0.1:8080 your-token@ssh.invitechsg.com</span>
+    </div>
+  </div>
+  <div class="step">
+    <div class="num">3</div>
+    <div class="content">
+      <h3>Share your URL</h3>
+      <p>Get a public HTTPS URL instantly. Share it with anyone — they can access your local service from anywhere.</p>
+      <span class="code">https://abc1234.invitechsg.com</span>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>Ready to share your localhost?</h2>
+  <p>Start tunneling in seconds. No credit card required.</p>
+  <a href="/dashboard" class="btn btn-lg">Get Started Free →</a>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <p>Powered by SSH & Cloudflare · <a href="/dashboard">Dashboard</a> · <a href="/admin">Admin</a> · <a href="/docs">API Docs</a></p>
+</footer>
+
+</body>
+</html>

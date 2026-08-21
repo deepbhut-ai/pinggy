@@ -62,14 +62,7 @@ app.add_middleware(
 app.add_middleware(TunnelProxyMiddleware)
 
 app.include_router(api_router, prefix="/api/v1")
-app.include_router(admin_router)  # /admin panel (no API prefix)
-
-
-@app.get("/", tags=["system"])
-async def root():
-    """Redirect root to dashboard."""
-    from starlette.responses import RedirectResponse
-    return RedirectResponse(url="/dashboard")
+app.include_router(admin_router)  # /admin, /dashboard, / (landing page)
 
 
 @app.get("/health", tags=["system"])
