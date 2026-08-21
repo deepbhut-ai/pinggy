@@ -135,6 +135,7 @@ class MySSHServer(asyncssh.SSHServer):
     def __init__(self):
         self._conn: asyncssh.SSHServerConnection | None = None
         self._username = "anonymous"
+        self._token = ""
         self._peer = "unknown"
         self._tunnel: TunnelSession | None = None
 
@@ -199,12 +200,28 @@ class MySSHServer(asyncssh.SSHServer):
         return TunnelInfoSession(self)
 
     def _verify_tunnel_token_sync(self, token: str) -> bool:
-        """Synchronous DB check — used from begin_auth which is a sync callback."""
+        """Synchronous DB check — used from begin_auth which is a sync callback.
+        Checks both the tokens table (multi-token) and users table (legacy)."""
         import psycopg
         from app.core.config import settings
         try:
-            # Use a one-off sync connection (not from the async pool)
             conn = psycopg.connect(settings.async_dsn, autocommit=True)
+
+            # First check the tokens table (new multi-token system)
+            cur = conn.execute(
+                "SELECT user_email FROM tokens WHERE token = %s",
+                (token,),
+            )
+            row = cur.fetchone()
+            cur.close()
+
+            if row:
+                self._username = row[0]
+                self._token = token
+                conn.close()
+                return True
+
+            # Fallback: check users table (legacy single-token system)
             cur = conn.execute(
                 "SELECT email FROM users WHERE tunnel_token = %s",
                 (token,),
@@ -212,8 +229,10 @@ class MySSHServer(asyncssh.SSHServer):
             row = cur.fetchone()
             cur.close()
             conn.close()
+
             if row:
-                self._username = row[0]  # Store the real email as username
+                self._username = row[0]
+                self._token = token
                 return True
             return False
         except Exception as e:
@@ -261,28 +280,28 @@ class MySSHServer(asyncssh.SSHServer):
 
     async def _setup_tunnel(self, remote_port: int) -> None:
         """Create the tunnel: allocate subdomain, register in memory + DB.
-        Each user gets a fixed subdomain derived from their token, so
-        reconnecting with the same token gives the same URL."""
+        Each token gets a deterministic subdomain derived from the token,
+        so the same token always gives the same URL. Different tokens
+        for the same user give different URLs (multiple tunnels)."""
         if self._tunnel:
             return
         try:
-            # Generate a deterministic subdomain from the user's token
-            # so the same user always gets the same tunnel URL
+            # Deterministic subdomain from the token (not email)
+            # Same token → same subdomain, different tokens → different subdomains
             import hashlib
-            token_hash = hashlib.md5(self._username.encode()).hexdigest()[:7]
-            subdomain = token_hash
+            subdomain = hashlib.md5(self._token.encode()).hexdigest()[:7]
 
-            # If this subdomain is already in use (user has an active tunnel),
+            # If this subdomain is already in use (same token reconnecting),
             # remove the old one first
             if is_subdomain_taken(subdomain):
                 from app.core.tunnel_registry import get_tunnel
                 existing = await get_tunnel(subdomain)
                 if existing and existing.user_email == self._username:
-                    # Same user reconnecting — remove old tunnel
+                    # Same user reconnecting with same token — remove old tunnel
                     await remove_tunnel(subdomain)
                 else:
-                    # Different user has a hash collision — append a suffix
-                    subdomain = f"{token_hash}1"
+                    # Hash collision (extremely unlikely) — append suffix
+                    subdomain = f"{subdomain}1"
 
             tunnel_id = _generate_tunnel_id()
 

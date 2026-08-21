@@ -266,16 +266,19 @@ let tunnelState = { localPort: 8080, os: 'windows', token: '', tokenVisible: fal
 let tunnelPollTimer = null;
 
 // ---- API helper ----
-async function api(path, method = 'GET') {
-  const resp = await fetch('/api/v1' + path, {
+async function api(path, method = 'GET', body = null) {
+  const opts = {
     method,
     headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-  });
+  };
+  if (body) opts.body = body;
+  const resp = await fetch('/api/v1' + path, opts);
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: 'Request failed' }));
     throw new Error(err.detail || `HTTP ${resp.status}`);
   }
-  return resp.json();
+  const text = await resp.text();
+  return text ? JSON.parse(text) : {};
 }
 
 // ---- Toast ----
@@ -612,35 +615,89 @@ async function loadTokens() {
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const info = await api('/tunnels/info');
-    try {
-      const tokenResp = await api('/auth/tunnel-token');
-      tunnelState.token = tokenResp.tunnel_token;
-    } catch { tunnelState.token = 'ERROR'; }
+    const tokens = await api('/tokens');
+    let tokenRows = tokens.map((t, i) => `<tr>
+      <td>${i + 1}</td>
+      <td><strong class="code">${t.token.substring(0,8)}••••••••</strong> <button class="btn btn-sm" onclick="copyToClipboard('${t.token}')" style="margin-left:.25rem">📋</button></td>
+      <td>${t.name || '—'}</td>
+      <td class="code">${t.subdomain}</td>
+      <td>${t.custom_domain ? `<span class="badge badge-blue">${t.custom_domain}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td>${t.created_at ? t.created_at.substring(0,10) : '—'}</td>
+      <td>
+        <button class="btn btn-sm btn-ghost" onclick="editToken('${t.id}','${t.name || ''}','${t.custom_domain || ''}')" title="Edit">✏️</button>
+        <button class="btn btn-sm btn-ghost" onclick="regenerateToken('${t.id}')" title="Regenerate">🔄</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteToken('${t.id}')" title="Delete">🗑️</button>
+      </td>
+    </tr>`).join('');
+    if (!tokenRows) tokenRows = '<tr><td colspan="7" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
+
     c.innerHTML = `
-    <h2 style="margin-bottom:1rem">Manage Tokens</h2>
-    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Your access token for SSH tunnel authentication</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div>
+        <div class="page-title">Manage Tokens</div>
+        <div class="page-subtitle">Each token creates a separate tunnel with its own URL</div>
+      </div>
+      <button class="btn" onclick="showCreateTokenDialog()">+ Generate New Token</button>
+    </div>
     <div class="card">
-      <div class="card-body">
+      <div class="card-body" style="padding:0;overflow-x:auto">
         <table>
-          <tr><td style="width:150px">Token</td><td><strong style="font-family:monospace">${tunnelState.token}</strong> <button class="btn btn-sm" onclick="copyToClipboard('${tunnelState.token}')" style="margin-left:.5rem">📋 Copy</button></td></tr>
-          <tr><td>Status</td><td><span class="badge badge-green">Active</span></td></tr>
-          <tr><td>SSH Host</td><td class="code">ssh.invitechsg.com</td></tr>
-          <tr><td>SSH Port</td><td class="code">${info.ssh_port}</td></tr>
-          <tr><td>Default URL</td><td class="code">https://[subdomain].${info.domain}</td></tr>
+          <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Custom Domain</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody>${tokenRows}</tbody>
         </table>
       </div>
     </div>
     <div class="card">
-      <div class="card-header"><h2>SSH Command</h2></div>
+      <div class="card-header"><h2>How to use a token</h2></div>
       <div class="card-body">
+        <p style="font-size:.875rem;margin-bottom:.5rem">Copy a token above and run:</p>
         <div class="cmd-box">
-          <pre>ssh -p ${info.ssh_port} -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${tunnelState.token}@ssh.invitechsg.com</pre>
-          <button class="btn btn-sm copy-btn" onclick="copyToClipboard('ssh -p ${info.ssh_port} -R0:127.0.0.1:8080 -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${tunnelState.token}@ssh.invitechsg.com')">📋 Copy</button>
+          <pre>ssh -p ${info.ssh_port} -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 YOUR_TOKEN@ssh.invitechsg.com</pre>
         </div>
-        <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-dim)">Replace PORT with your local service port.</p>
+        <p style="margin-top:.5rem;font-size:.825rem;color:var(--text-dim)">Replace YOUR_TOKEN with a token from the table and PORT with your local service port. Each token gets its own unique URL.</p>
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function showCreateTokenDialog() {
+  const name = prompt('Token name (e.g. "My API Server"):');
+  if (!name) return;
+  try {
+    await api('/tokens', 'POST', JSON.stringify({ name }));
+    toast('Token created');
+    loadTokens();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function editToken(tokenId, currentName, currentDomain) {
+  const name = prompt('Token name:', currentName);
+  if (name === null) return;
+  const domain = prompt('Custom domain (leave empty for none):', currentDomain);
+  if (domain === null) return;
+  try {
+    await api(`/tokens/${tokenId}`, 'PUT', JSON.stringify({ name, custom_domain: domain }));
+    toast('Token updated');
+    loadTokens();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function regenerateToken(tokenId) {
+  if (!confirm('Regenerate token? The old token will stop working immediately.')) return;
+  try {
+    await api(`/tokens/${tokenId}/regenerate`, 'POST');
+    toast('Token regenerated');
+    loadTokens();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteToken(tokenId) {
+  if (!confirm('Delete this token? Active tunnels using it will be disconnected.')) return;
+  try {
+    await api(`/tokens/${tokenId}`, 'DELETE');
+    toast('Token deleted');
+    loadTokens();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 // ---- Tunnel helpers ----

@@ -66,30 +66,47 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
         if "." in subdomain and not subdomain.endswith(f".{settings.TUNNEL_DOMAIN}"):
             # Look up the custom domain in the database
             # to find which tunnel subdomain it points to
-            import asyncio
+            import hashlib
             import psycopg
             from app.core.config import settings as cfg
             try:
                 conn = psycopg.connect(cfg.async_dsn, autocommit=True)
+
+                # First check tokens table (new multi-token system)
                 cur = conn.execute(
-                    "SELECT tunnel_token FROM users WHERE custom_domain = %s",
+                    "SELECT token FROM tokens WHERE custom_domain = %s",
                     (subdomain,),
                 )
                 row = cur.fetchone()
                 cur.close()
-                conn.close()
+
                 if row:
-                    # Found a custom domain — resolve to the user's tunnel subdomain
-                    import hashlib
-                    # Get the user's email to generate their deterministic subdomain
-                    cur2 = psycopg.connect(cfg.async_dsn, autocommit=True).execute(
-                        "SELECT email FROM users WHERE custom_domain = %s",
+                    # Found in tokens table — subdomain from token
+                    subdomain = hashlib.md5(row[0].encode()).hexdigest()[:7]
+                else:
+                    # Fallback: check users table (legacy single-token system)
+                    cur = conn.execute(
+                        "SELECT tunnel_token FROM users WHERE custom_domain = %s",
                         (subdomain,),
                     )
-                    email_row = cur2.fetchone()
-                    cur2.close()
-                    if email_row:
-                        subdomain = hashlib.md5(email_row[0].encode()).hexdigest()[:7]
+                    row = cur.fetchone()
+                    cur.close()
+
+                    if row:
+                        # Found in users table — subdomain from token
+                        subdomain = hashlib.md5(row[0].encode()).hexdigest()[:7]
+                    else:
+                        # Also try by email (old MD5(email) subdomain format)
+                        cur = conn.execute(
+                            "SELECT email FROM users WHERE custom_domain = %s",
+                            (subdomain,),
+                        )
+                        email_row = cur.fetchone()
+                        cur.close()
+                        if email_row:
+                            subdomain = hashlib.md5(email_row[0].encode()).hexdigest()[:7]
+
+                conn.close()
             except Exception:
                 pass
 
