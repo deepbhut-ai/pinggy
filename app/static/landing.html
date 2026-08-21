@@ -130,12 +130,11 @@
 <!-- Nav -->
 <nav class="nav">
   <div class="logo">⚡ <span>Tunnel</span></div>
-  <div class="links">
+  <div class="links" id="navLinks">
     <a href="#features">Features</a>
     <a href="#how">How it Works</a>
-    <a href="#auth">Sign Up</a>
-    <a href="/dashboard">Dashboard</a>
-    <a href="#auth" class="btn">Get Started</a>
+    <a href="#auth" id="navSignUp">Sign Up</a>
+    <a href="#auth" class="btn" id="navGetStarted">Get Started</a>
   </div>
 </nav>
 
@@ -397,12 +396,14 @@ async function doLoginAfterRegister(email, password) {
   try {
     const res = await fetch(`${API}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } });
     if (res.ok) {
-      // Already logged in — update nav
       const user = await res.json();
-      const navLinks = document.querySelector('.nav .links');
+      // User is logged in — replace nav with Dashboard link
+      const navLinks = document.getElementById('navLinks');
       if (navLinks) {
-        navLinks.innerHTML = `<a href="/dashboard" style="color:var(--text)">${user.email}</a><a href="/dashboard" class="btn">Dashboard →</a>`;
+        navLinks.innerHTML = `<a href="#features">Features</a><a href="#how">How it Works</a><a href="/dashboard" style="color:var(--text)">${user.email}</a><a href="/dashboard" class="btn">Dashboard →</a>`;
       }
+      // Update CTA buttons to go to dashboard
+      document.querySelectorAll('a[href="#auth"]').forEach(a => { a.href = '/dashboard'; });
     }
   } catch {}
 })();
