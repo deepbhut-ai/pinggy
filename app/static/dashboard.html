@@ -1003,11 +1003,12 @@ async function checkAuth() {
   }
 }
 
-// Detect back/forward navigation (bfcache) — re-verify auth
+// Detect back/forward navigation (bfcache) — immediately hide and check auth
 window.addEventListener('pageshow', (event) => {
   if (event.persisted || (performance && performance.getEntriesByType && performance.getEntriesByType('navigation').some(n => n.type === 'back_forward'))) {
-    // Page restored from bfcache — check if still logged in
+    // Page restored from bfcache — immediately hide ALL content synchronously
     if (!localStorage.getItem('pinggy_token')) {
+      document.documentElement.style.visibility = 'hidden';
       window.location.replace('/login');
     } else {
       checkAuth();
