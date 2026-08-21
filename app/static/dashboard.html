@@ -486,68 +486,169 @@ async function loadQuickstart() {
 // ---- Configure Tunnel (Page 2) ----
 async function loadConfigure() {
   const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const info = await api('/tunnels/info');
+    const tokens = await api('/tokens');
     tunnelState.info = info;
+
+    // Token options for the dropdown
+    const tokenOptions = tokens.map(t => 
+      `<option value="${t.token}">${t.name || 'Unnamed'} — ${t.token.substring(0,8)}... (→ ${t.subdomain}.invitechsg.com)</option>`
+    ).join('');
+
     c.innerHTML = `
-    <h2 style="margin-bottom:1rem">Configure Tunnel</h2>
-    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Build and customize your tunnel command</p>
+    <div class="page-title">Configure Tunnel</div>
+    <div class="page-subtitle">Build and customize your tunnel command</div>
+
     <div class="card">
+      <div class="card-header"><h2>Tunnel Settings</h2><button class="btn btn-sm" onclick="resetConfig()">Reset</button></div>
       <div class="card-body">
         <div class="form-row">
           <div class="form-group">
-            <label>Local service — what you want to share</label>
-            <input type="text" id="cfgLocalAddr" value="127.0.0.1:${tunnelState.localPort}" placeholder="127.0.0.1:8080">
+            <label>Local address — what you want to share</label>
+            <input type="text" id="cfgLocalAddr" value="127.0.0.1:${tunnelState.localPort}" placeholder="127.0.0.1:8080" onchange="updateCfgCommand()">
           </div>
-          <div class="form-group" style="max-width:150px">
+          <div class="form-group" style="max-width:140px">
             <label>Tunnel type</label>
-            <select id="cfgTunnelType">
+            <select id="cfgTunnelType" onchange="updateCfgCommand()">
               <option value="http" selected>HTTP</option>
-              <option value="tcp">TCP</option>
-              <option value="tls">TLS</option>
-              <option value="udp">UDP</option>
+              <option value="tcp" disabled>TCP (soon)</option>
+              <option value="tls" disabled>TLS (soon)</option>
+              <option value="udp" disabled>UDP (soon)</option>
             </select>
           </div>
         </div>
         <div class="form-row">
-          <div class="form-group" style="max-width:200px">
+          <div class="form-group" style="max-width:180px">
             <label>Platform</label>
             <select id="cfgPlatform" onchange="updateCfgCommand()">
-              <option value="windows" selected>Windows</option>
+              <option value="windows" selected>Windows (CMD)</option>
               <option value="linux">Linux</option>
               <option value="mac">Mac</option>
             </select>
           </div>
           <div class="form-group">
             <label>Access token</label>
-            <input type="text" value="${tunnelState.token}" readonly>
+            <select id="cfgToken" onchange="updateCfgCommand()">
+              ${tokenOptions}
+            </select>
           </div>
         </div>
         <div class="form-group">
-          <label>Run this command</label>
-          <div class="cmd-box">
-            <pre id="cfgCommand">${buildSSHCommand()}</pre>
-            <button class="btn btn-sm copy-btn" onclick="copyCfgCmd()">📋 Copy</button>
-          </div>
+          <label>Region</label>
+          <select id="cfgRegion" onchange="updateCfgCommand()">
+            <option value="auto" selected>Auto (closest server)</option>
+            <option value="eu" disabled>Europe (soon)</option>
+            <option value="us" disabled>US East (soon)</option>
+            <option value="asia" disabled>Asia (soon)</option>
+          </select>
         </div>
-        <button class="btn" onclick="applyConfig()">Save Configuration</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2>Generated Command</h2><button class="btn btn-sm" onclick="copyCfgCmd()">📋 Copy</button></div>
+      <div class="card-body">
+        <p style="font-size:.825rem;color:var(--text-dim);margin-bottom:.5rem" id="cfgPlatformHint">Open Command Prompt (CMD) and paste the following command:</p>
+        <div class="cmd-box">
+          <pre id="cfgCommand">${buildConfigCommand()}</pre>
+        </div>
+        <div style="margin-top:.75rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim)">
+          <strong style="color:var(--text)">Your tunnel URL will be:</strong><br>
+          <span id="cfgUrl" style="color:var(--brand);font-family:var(--font-mono)">https://—.invitechsg.com</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2>Advanced Options</h2></div>
+      <div class="card-body">
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--text)">
+            <input type="checkbox" id="cfgKeepAlive" checked onchange="updateCfgCommand()" style="width:auto">
+            Keep Alive (30s interval)
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--text)">
+            <input type="checkbox" id="cfgStrictHostKey" onchange="updateCfgCommand()" style="width:auto">
+            Strict Host Key Check
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--text)">
+            <input type="checkbox" id="cfgVerbose" onchange="updateCfgCommand()" style="width:auto">
+            Verbose output (-v)
+          </label>
+        </div>
       </div>
     </div>`;
+    updateCfgCommand();
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function buildConfigCommand() {
+  const info = tunnelState.info;
+  if (!info) return '';
+  const addr = document.getElementById('cfgLocalAddr')?.value || `127.0.0.1:${tunnelState.localPort}`;
+  const port = addr.split(':').pop() || '8080';
+  const token = document.getElementById('cfgToken')?.value || tunnelState.token;
+  const platform = document.getElementById('cfgPlatform')?.value || 'windows';
+  const keepAlive = document.getElementById('cfgKeepAlive')?.checked !== false;
+  const strictHost = document.getElementById('cfgStrictHostKey')?.checked;
+  const verbose = document.getElementById('cfgVerbose')?.checked;
+
+  let cmd = 'ssh';
+  if (verbose) cmd += ' -v';
+  cmd += ` -p ${info.ssh_port}`;
+  cmd += ` -R0:127.0.0.1:${port}`;
+  if (keepAlive) cmd += ' -o ServerAliveInterval=30';
+  if (!strictHost) cmd += ' -o StrictHostKeyChecking=no';
+  cmd += ` ${token}@ssh.invitechsg.com`;
+  return cmd;
+}
+
+function updateCfgCommand() {
+  const el = document.getElementById('cfgCommand');
+  if (el) el.textContent = buildConfigCommand();
+
+  // Update URL preview
+  const tokenSelect = document.getElementById('cfgToken');
+  const urlEl = document.getElementById('cfgUrl');
+  if (tokenSelect && urlEl) {
+    const token = tokenSelect.value;
+    import_hash = (s => { let h=0; for(let i=0;i<s.length;i++) h=((h<<5)-h+s.charCodeAt(i))|0; return Math.abs(h).toString(16).substring(0,7); })(token);
+    // Use MD5-like hash for display
+    let hash = 0;
+    for (let i = 0; i < token.length; i++) { hash = ((hash << 5) - hash + token.charCodeAt(i)) | 0; }
+    const sub = Math.abs(hash).toString(16).substring(0, 7).padStart(7, '0');
+    urlEl.textContent = `https://${sub}.invitechsg.com`;
+  }
+
+  // Update platform hint
+  const platform = document.getElementById('cfgPlatform')?.value || 'windows';
+  const hint = document.getElementById('cfgPlatformHint');
+  if (hint) {
+    const hints = {
+      windows: 'Open Command Prompt (CMD) and paste the following command:',
+      linux: 'Open terminal and paste the following command:',
+      mac: 'Open Terminal and paste the following command:'
+    };
+    hint.textContent = hints[platform];
+  }
+}
+
+function resetConfig() {
+  tunnelState.localPort = 8080;
+  loadConfigure();
+  toast('Configuration reset');
 }
 
 function applyConfig() {
   const addr = document.getElementById('cfgLocalAddr').value;
   const port = addr.split(':').pop();
   tunnelState.localPort = parseInt(port) || 8080;
-  updateCfgCommand();
+  const token = document.getElementById('cfgToken')?.value;
+  if (token) tunnelState.token = token;
   toast('Configuration saved');
   navigate('quickstart', document.querySelector('[data-page=quickstart]'));
-}
-
-function updateCfgCommand() {
-  const el = document.getElementById('cfgCommand');
-  if (el) el.textContent = buildSSHCommand();
 }
 
 // ---- Domains (Page 3) ----
