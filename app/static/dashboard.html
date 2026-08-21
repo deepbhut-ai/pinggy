@@ -360,12 +360,13 @@ async function loadQuickstart() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
-    const info = await api('/tunnels/info');
-    const tunnels = await api('/tunnels/my');
-    try {
-      const tokenResp = await api('/auth/tunnel-token');
-      tunnelState.token = tokenResp.tunnel_token;
-    } catch { tunnelState.token = 'ERROR'; }
+    // Run all API calls in PARALLEL (not serial) for fast load
+    const [info, tunnels, tokenResp] = await Promise.all([
+      api('/tunnels/info'),
+      api('/tunnels/my'),
+      api('/auth/tunnel-token').catch(() => null),
+    ]);
+    tunnelState.token = tokenResp ? tokenResp.tunnel_token : 'ERROR';
     tunnelState.info = info;
 
     let tunnelRows = tunnels.map(t => `<tr>
@@ -908,7 +909,7 @@ function startTunnelPolling() {
       updateTunnelBanner(tunnels);
       updateTunnelTable(tunnels);
     } catch {}
-  }, 3000);
+  }, 5000);
 }
 
 function stopTunnelPolling() {
