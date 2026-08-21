@@ -257,14 +257,14 @@
 <section class="auth-section" id="auth">
   <div class="auth-card">
     <h2>Get Started</h2>
-    <p class="subtitle">Sign in or create an account to start tunneling</p>
+    <p class="subtitle">Create an account to start tunneling</p>
     <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchAuthTab('login', this)">Login</button>
-      <button class="auth-tab" onclick="switchAuthTab('register', this)">Sign Up</button>
+      <button class="auth-tab" onclick="switchAuthTab('login', this)">Login</button>
+      <button class="auth-tab active" onclick="switchAuthTab('register', this)">Sign Up</button>
     </div>
 
     <!-- Login Form -->
-    <div class="auth-form active" id="loginForm">
+    <div class="auth-form" id="loginForm">
       <div class="form-group">
         <label>Email or Username</label>
         <input type="text" id="loginEmail" placeholder="user@example.com">
@@ -279,7 +279,7 @@
     </div>
 
     <!-- Register Form -->
-    <div class="auth-form" id="registerForm">
+    <div class="auth-form active" id="registerForm">
       <div class="form-group">
         <label>Email</label>
         <input type="email" id="regEmail" placeholder="user@example.com">
@@ -342,7 +342,12 @@ async function doLogin() {
     if (!res.ok) throw new Error(data.detail || 'Login failed');
     localStorage.setItem('pinggy_token', data.access_token);
     localStorage.setItem('pinggy_user', JSON.stringify(data.user));
-    window.location.href = '/dashboard';
+    // Redirect based on role
+    if (data.user.role === 'admin') {
+      window.location.href = '/admin';
+    } else {
+      window.location.href = '/dashboard';
+    }
   } catch (e) {
     errEl.textContent = e.message;
     errEl.style.display = 'block';
@@ -386,6 +391,7 @@ async function doLoginAfterRegister(email, password) {
     if (!res.ok) throw new Error('Login failed after registration');
     localStorage.setItem('pinggy_token', data.access_token);
     localStorage.setItem('pinggy_user', JSON.stringify(data.user));
+    // New users go to dashboard (role = user)
     window.location.href = '/dashboard';
   } catch (e) {
     // If auto-login fails, switch to login tab

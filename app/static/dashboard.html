@@ -323,8 +323,7 @@ async function doLogin() {
 function logout() {
   authToken = '';
   localStorage.removeItem('pinggy_token');
-  document.getElementById('appView').style.display = 'none';
-  document.getElementById('loginView').style.display = 'flex';
+  window.location.href = '/';
 }
 
 async function showApp() {
@@ -977,13 +976,21 @@ function toggleTokenVisibility() {
 
 // ---- Init ----
 (async function init() {
-  if (!authToken) { return; }
+  if (!authToken) {
+    // Not logged in — redirect to landing page
+    window.location.href = '/';
+    return;
+  }
   try {
     const resp = await fetch('/api/v1/auth/me', { headers: { 'Authorization': `Bearer ${authToken}` } });
     if (!resp.ok) throw new Error('Token expired');
     currentUser = await resp.json();
     showApp();
-  } catch { localStorage.removeItem('pinggy_token'); authToken = ''; }
+  } catch {
+    // Token invalid — redirect to landing page
+    localStorage.removeItem('pinggy_token');
+    window.location.href = '/';
+  }
 })();
 </script>
 </body>
