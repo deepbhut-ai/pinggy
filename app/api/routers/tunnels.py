@@ -105,7 +105,7 @@ async def tunnel_history(
         TunnelOut(
             tunnel_id=r[0],
             subdomain=r[1],
-            url=f"http://{r[1]}.localhost:8080",
+            url=f"https://{r[1]}.{settings.TUNNEL_DOMAIN}",
             remote_port=r[2],
             local_port=r[3],
             protocol=r[4],

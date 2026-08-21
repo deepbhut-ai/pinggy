@@ -336,7 +336,7 @@ async function loadAdminStats() {
   if (currentUser.role !== 'admin') return;
   try {
     const users = await api('/users');
-    const tunnels = await api('/tunnels');
+    const tunnels = await api('/tunnels/history?limit=500');
     const activeTunnels = tunnels.filter(t => t.status === 'active');
     const totalRequests = tunnels.reduce((s, t) => s + t.request_count, 0);
     const totalData = tunnels.reduce((s, t) => s + t.bytes_transferred, 0);
@@ -382,7 +382,7 @@ async function loadAllTunnels() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
-    const tunnels = await api('/tunnels');
+    const tunnels = await api('/tunnels/history?limit=500');
     const active = tunnels.filter(t => t.status === 'active');
     let rows = tunnels.map((t, i) => `<tr>
       <td>${i + 1}</td>
@@ -417,7 +417,7 @@ async function loadUsers() {
   c.innerHTML = `<div class="card"><div class="card-header"><h2>Users</h2><button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">➕ Add User</button></div><div class="card-body"><p class="empty">Loading...</p></div></div>`;
   try {
     const users = await api('/users');
-    const tunnels = await api('/tunnels');
+    const tunnels = await api('/tunnels/history?limit=500');
     let rows = users.map(u => {
       const userTunnels = tunnels.filter(t => t.user_email === u.email);
       const activeCount = userTunnels.filter(t => t.status === 'active').length;
@@ -454,7 +454,8 @@ async function viewUser(id) {
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const u = await api(`/users/${id}`);
-    const allTunnels = await api('/tunnels');
+    // Use history endpoint to get ALL tunnels (active + disconnected) from DB
+    const allTunnels = await api('/tunnels/history?limit=200');
     const userTunnels = allTunnels.filter(t => t.user_email === u.email);
     const activeTunnels = userTunnels.filter(t => t.status === 'active');
     const totalRequests = userTunnels.reduce((s, t) => s + t.request_count, 0);
