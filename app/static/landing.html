@@ -133,8 +133,8 @@
   <div class="links" id="navLinks">
     <a href="#features">Features</a>
     <a href="#how">How it Works</a>
-    <a href="#auth" id="navSignUp">Sign Up</a>
-    <a href="#auth" class="btn" id="navGetStarted">Get Started</a>
+    <a href="#auth" onclick="showSignUp()">Sign Up</a>
+    <a href="#auth" class="btn" onclick="showSignUp()">Get Started</a>
   </div>
 </nav>
 
@@ -143,7 +143,7 @@
   <h1>Expose your <span class="highlight">localhost</span> to the internet in seconds</h1>
   <p>Create secure tunnels to your local services with a single SSH command. No installs, no downloads, no hassle.</p>
   <div class="cta">
-      <a href="#auth" class="btn btn-lg">Get Started Free →</a>
+      <a href="#auth" class="btn btn-lg" onclick="showSignUp()">Get Started Free →</a>
     <a href="#how" class="btn btn-ghost btn-lg">See How it Works</a>
   </div>
   <div class="terminal">
@@ -251,7 +251,7 @@
 <section class="cta-section">
   <h2>Ready to share your localhost?</h2>
   <p>Start tunneling in seconds. No credit card required.</p>
-  <a href="#auth" class="btn btn-lg">Get Started Free →</a>
+  <a href="#auth" class="btn btn-lg" onclick="showSignUp()">Get Started Free →</a>
 </section>
 
 <!-- Auth Section (Login + Register) -->
@@ -318,6 +318,14 @@ function switchAuthTab(tab, el) {
   document.getElementById('loginError').style.display = 'none';
   document.getElementById('registerError').style.display = 'none';
   document.getElementById('registerSuccess').style.display = 'none';
+}
+
+function showSignUp() {
+  // Switch to Sign Up tab when user clicks Get Started / Sign Up
+  setTimeout(() => {
+    const signUpTab = document.querySelector('.auth-tab:nth-child(2)');
+    if (signUpTab) switchAuthTab('register', signUpTab);
+  }, 100);
 }
 
 async function doLogin() {
