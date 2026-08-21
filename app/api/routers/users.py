@@ -56,6 +56,7 @@ async def update_user(
     custom_domain: str | None = None,
     plan: str | None = None,
     duration_days: int | None = None,
+    seats: int | None = None,
 ):
     """Update a user (admin only). Can change email, name, role, password, custom domain, or plan."""
     # Check user exists
@@ -93,6 +94,9 @@ async def update_user(
             params.append(days)
         else:
             updates.append("plan_expires_at = NULL")
+    if seats and seats > 0:
+        updates.append("seats = %s")
+        params.append(seats)
     if custom_domain is not None:
         domain_value = custom_domain.strip() if custom_domain else None
         # Check if domain is already taken by another user

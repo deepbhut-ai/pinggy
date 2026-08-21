@@ -348,6 +348,20 @@ async function showApp() {
   document.getElementById('appView').style.display = 'block';
   document.getElementById('userInfo').textContent = currentUser.email;
   document.getElementById('userAvatar').textContent = (currentUser.email || 'U')[0].toUpperCase();
+
+  // Payment redirect feedback — show toast and navigate to subscription
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentStatus = urlParams.get('payment');
+  if (paymentStatus === 'success') {
+    window.history.replaceState({}, '', '/dashboard');
+    toast('🎉 Payment successful! Your Pro plan is being activated.');
+    navigate('subscription', document.querySelector('[data-page=subscription]'));
+    return;
+  } else if (paymentStatus === 'cancel') {
+    window.history.replaceState({}, '', '/dashboard');
+    toast('Payment cancelled — no charge was made', 'error');
+  }
+
   navigate('quickstart', document.querySelector('[data-page=quickstart]'));
 }
 
@@ -918,9 +932,28 @@ async function loadSubscription() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
-    const [info, pay] = await Promise.all([
+    // Payment redirect feedback (?payment=success|cancel)
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    let paymentBanner = '';
+    if (paymentStatus === 'success') {
+      paymentBanner = `<div style="margin-bottom:1rem;padding:.85rem 1.25rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.4);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem">
+        <span style="font-size:1.25rem">🎉</span>
+        <div style="flex:1"><strong>Payment successful!</strong> <span style="color:var(--text-dim);font-size:.85rem">Your Pro plan is being activated — it may take a moment to confirm.</span></div>
+      </div>`;
+      // Clean the query param
+      window.history.replaceState({}, '', '/dashboard');
+    } else if (paymentStatus === 'cancel') {
+      paymentBanner = `<div style="margin-bottom:1rem;padding:.85rem 1.25rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.4);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem">
+        <span style="font-size:1.25rem">ℹ️</span>
+        <div style="flex:1"><strong>Payment cancelled.</strong> <span style="color:var(--text-dim);font-size:.85rem">No charge was made. You can try again anytime.</span></div>
+      </div>`;
+      window.history.replaceState({}, '', '/dashboard');
+    }
+    const [info, pay, myTunnels] = await Promise.all([
       api('/auth/me').catch(() => ({})),
       api('/payments/my'),
+      api('/tunnels/my').catch(() => []),
     ]);
     const isPro = (info.plan || pay.plan || 'free') === 'pro';
     const enabled = pay.enabled || {};
@@ -928,6 +961,21 @@ async function loadSubscription() {
     const priceUsd = pay.price_usd || 2.99;
     const yearlyInr = Math.round(priceInr * 10); // 12 months for price of 10 (save ~17%)
 
+    // Usage stats (from live tunnels + history of payments page)
+    const totalRequests = (myTunnels || []).reduce((s, t) => s + (t.request_count || 0), 0);
+    const totalBytes = (myTunnels || []).reduce((s, t) => s + (t.bytes_transferred || 0), 0);
+    const usageStr = totalBytes > 1048576 ? (totalBytes / 1048576).toFixed(2) + ' MB' : (totalBytes / 1024).toFixed(1) + ' KB';
+
+    // Days left on Pro
+    let daysLeft = null;
+    let renewalDate = null;
+    if (isPro && info.plan_expires_at) {
+      const end = new Date(info.plan_expires_at);
+      renewalDate = info.plan_expires_at.substring(0, 10);
+      daysLeft = Math.max(0, Math.ceil((end - new Date()) / 86400000));
+    }
+
+    // Payment history
     const historyRows = (pay.history || []).map(p => {
       const statusClass = p.status === 'paid' ? 'badge-green' : (p.status === 'failed' || p.status === 'expired') ? 'badge-red' : 'badge-amber';
       const dt = p.created_at ? p.created_at.substring(0, 10) : '—';
@@ -940,38 +988,52 @@ async function loadSubscription() {
     </tr>`;
     }).join('') || '<tr><td colspan="5" class="empty">No payments yet</td></tr>';
 
-    // Active subscriptions (paid payments = active sub periods)
-    const activeRows = (pay.history || []).filter(p => p.status === 'paid').map(p => {
-      const start = p.created_at ? p.created_at.substring(0, 10) : '—';
-      const endDt = new Date(p.created_at);
-      endDt.setMonth(endDt.getMonth() + 1);
-      const end = p.created_at ? endDt.toISOString().substring(0, 10) : '—';
-      return `<tr>
-        <td>Tunnel Pro</td>
-        <td>1</td>
-        <td>${start}</td>
-        <td>${end}</td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="4" class="empty">No active subscriptions</td></tr>';
+    // Active subscriptions — real plan period from plan_expires_at (admin or payment activated)
+    let activeRows = '';
+    if (isPro) {
+      // Paid payment rows take precedence (show actual purchase period)
+      const paidRows = (pay.history || []).filter(p => p.status === 'paid').map(p => {
+        const start = p.created_at ? p.created_at.substring(0, 10) : '—';
+        const endDt = new Date(p.created_at);
+        endDt.setMonth(endDt.getMonth() + 1);
+        return `<tr><td>Tunnel Pro</td><td>1</td><td>${start}</td><td>${endDt.toISOString().substring(0, 10)}</td></tr>`;
+      });
+      if (paidRows.length) {
+        activeRows = paidRows.join('');
+      } else if (renewalDate) {
+        // Admin-activated plan — derive start from expiry minus 30d default
+        const startDt = new Date(info.plan_expires_at);
+        startDt.setDate(startDt.getDate() - 30);
+        activeRows = `<tr><td>Tunnel Pro</td><td>1</td><td>${startDt.toISOString().substring(0, 10)}</td><td>${renewalDate}</td></tr>`;
+      } else {
+        activeRows = `<tr><td>Tunnel Pro</td><td>1</td><td>—</td><td>—</td></tr>`;
+      }
+    } else {
+      activeRows = '<tr><td colspan="4" class="empty">No active subscriptions</td></tr>';
+    }
 
     const proPriceDisplay = billingCycle === 'monthly' ? `₹${priceInr * proSeats}/mo` : `₹${yearlyInr * proSeats}/yr`;
     const proSub = billingCycle === 'monthly' ? '' : `<div style="font-size:.75rem;color:var(--text-dim);margin-top:.15rem">(₹${yearlyInr} per year · save 17%)</div>`;
 
     c.innerHTML = `
+    ${paymentBanner}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem">
       <div>
         <div class="page-title">Subscription</div>
         <div class="page-subtitle" style="margin-bottom:0">Manage your plan and payment methods</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="loadSubscription()">🔄 Refresh</button>
     </div>
 
     ${isPro ? `
-    <div style="margin-bottom:1.25rem;padding:1rem 1.25rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem">
+    <div style="margin-bottom:1.25rem;padding:1rem 1.25rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
       <span style="font-size:1.5rem">⭐</span>
-      <div>
+      <div style="flex:1;min-width:200px">
         <strong style="font-size:1rem">You are on Pro</strong>
-        <div style="font-size:.825rem;color:var(--text-dim)">Persistent tunnels, fixed subdomains, custom domain${info.plan_expires_at ? ' · renews ' + info.plan_expires_at.substring(0, 10) : ''}</div>
+        <div style="font-size:.825rem;color:var(--text-dim)">Persistent tunnels, fixed subdomains, custom domain${renewalDate ? ' · renews ' + renewalDate : ''}${daysLeft !== null ? ' · <strong style="color:var(--green)">' + daysLeft + ' days left</strong>' : ''}</div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="loadSubscription()">🔄 Refresh</button>
+        <button class="btn btn-ghost btn-sm" onclick="scrollToPay()">➕ Extend / Add Seats</button>
       </div>
     </div>` : `
     <div style="margin-bottom:1.25rem;padding:1rem 1.25rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
@@ -980,8 +1042,18 @@ async function loadSubscription() {
         <strong style="font-size:.95rem">You are on Free</strong>
         <div style="font-size:.825rem;color:var(--text-dim)">1 tunnel · 60-minute timeout · random subdomain each connect</div>
       </div>
-      <button class="btn btn-sm" onclick="scrollToPlans()">Upgrade Plan</button>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="loadSubscription()">🔄 Refresh</button>
+        <button class="btn btn-sm" onclick="scrollToPlans()">Upgrade Plan</button>
+      </div>
     </div>`}
+
+    <div class="stat-grid" style="margin-bottom:1.25rem">
+      <div class="stat-card"><div class="label">Active Tunnels</div><div class="value">${(myTunnels || []).length}</div></div>
+      <div class="stat-card"><div class="label">Total Requests</div><div class="value">${totalRequests}</div></div>
+      <div class="stat-card"><div class="label">Data Transfer</div><div class="value">${usageStr}</div></div>
+      ${isPro ? `<div class="stat-card"><div class="label">Plan</div><div class="value" style="color:var(--green);font-size:1.25rem">Pro${daysLeft !== null ? ' · ' + daysLeft + 'd' : ''}</div></div>` : `<div class="stat-card"><div class="label">Plan</div><div class="value" style="font-size:1.25rem">Free</div></div>`}
+    </div>
 
     <div class="card">
       <div class="card-header"><h2 style="color:var(--green)">Your Active Subscriptions</h2></div>
@@ -1019,7 +1091,7 @@ async function loadSubscription() {
           </table>
         </div>
         <div style="padding:1rem">
-          <button class="btn btn-ghost" style="width:100%" onclick="toast('You are already on the Free plan')">Current Plan</button>
+          ${isPro ? `<button class="btn btn-ghost" style="width:100%;opacity:.6" onclick="downgradeModal()">Downgrade to Free</button>` : `<button class="btn btn-ghost" style="width:100%" onclick="toast('You are already on the Free plan')">Current Plan</button>`}
         </div>
       </div>
 
@@ -1048,7 +1120,7 @@ async function loadSubscription() {
           </table>
         </div>
         <div style="padding:1rem">
-          <button class="btn" style="width:100%" onclick="scrollToPay()">Add ${proSeats} Seat${proSeats > 1 ? 's' : ''} — ${proPriceDisplay}</button>
+          ${isPro ? `<button class="btn" style="width:100%" onclick="scrollToPay()">Extend / Add ${proSeats} Seat${proSeats > 1 ? 's' : ''} — ${proPriceDisplay}</button>` : `<button class="btn" style="width:100%" onclick="scrollToPay()">Add ${proSeats} Seat${proSeats > 1 ? 's' : ''} — ${proPriceDisplay}</button>`}
         </div>
       </div>
     </div>
@@ -1120,13 +1192,29 @@ function scrollToPay() {
 async function startCheckout(method) {
   try {
     toast('Creating payment...');
-    const resp = await api('/payments/checkout', 'POST', JSON.stringify({ method, plan: 'pro' }));
+    const resp = await api('/payments/checkout', 'POST', JSON.stringify({ method, plan: 'pro', seats: proSeats || 1, cycle: billingCycle || 'monthly' }));
     if (resp.url) {
       window.location.href = resp.url;
     } else {
       toast('No payment URL returned', 'error');
     }
   } catch (e) { toast(e.message, 'error'); }
+}
+
+function downgradeModal() {
+  showModal('Downgrade to Free', `
+    <p style="font-size:.875rem;color:var(--text-dim);line-height:1.6">
+      Are you sure you want to downgrade to <strong style="color:var(--text)">Free</strong>?
+    </p>
+    <div style="margin-top:.75rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim)">
+      You will lose: persistent tunnels, fixed subdomains, custom domain.<br>
+      Free limits: 1 tunnel · 60-minute timeout · random subdomain.
+    </div>
+    <p style="font-size:.78rem;color:var(--text-dim);margin-top:.6rem">Note: an admin will process your downgrade. Your Pro stays active until then.</p>
+  `, () => {
+    closeModal();
+    toast('Downgrade requested — contact support or admin to process', 'success');
+  }, 'Request Downgrade', 'btn-danger');
 }
 
 // ---- Tunnel helpers ----

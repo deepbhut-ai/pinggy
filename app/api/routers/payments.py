@@ -46,7 +46,7 @@ async def _create_payment_row(
     return str(row[0])
 
 
-async def _mark_paid_and_upgrade(db: AsyncConnection, provider_ref: str, payload: dict | None) -> bool:
+async def _mark_paid_and_upgrade(db: AsyncConnection, provider_ref: str, payload: dict | None, seats: int = 1) -> bool:
     """Mark payment paid and upgrade the user to pro. Returns True on success."""
     cur = await db.execute(
         "SELECT id, user_email, status FROM payments WHERE provider_ref = %s",
@@ -66,18 +66,19 @@ async def _mark_paid_and_upgrade(db: AsyncConnection, provider_ref: str, payload
     )
     await cur.close()
 
-    # Extend from current expiry or from now
+    # Extend from current expiry or from now; increase seats (max of current/new)
     cur = await db.execute(
         """UPDATE users
            SET plan = 'pro',
+               seats = GREATEST(seats, %s),
                plan_expires_at = GREATEST(COALESCE(plan_expires_at, now()), now()) + interval '1 month',
                updated_at = now()
            WHERE email = %s RETURNING plan_expires_at""",
-        (email,),
+        (seats, email),
     )
     row = await cur.fetchone()
     await cur.close()
-    print(f"[payments] {email} upgraded to pro (ref={provider_ref}, expires={row[0]})")
+    print(f"[payments] {email} upgraded to pro (seats={seats}, ref={provider_ref}, expires={row[0]})")
     return True
 
 
@@ -92,9 +93,11 @@ async def create_checkout(
     user: dict = Depends(get_current_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """Create a payment for a plan. body: {method: stripe|paypal|nowpayments, plan: 'pro'}"""
+    """Create a payment for a plan. body: {method, plan, seats?, cycle?}"""
     method = (body.get("method") or "").lower()
     plan = (body.get("plan") or "pro").lower()
+    seats = max(1, int(body.get("seats") or 1))
+    cycle = (body.get("cycle") or "monthly").lower()
     if plan != "pro":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only 'pro' plan is purchasable right now")
     if method not in ("stripe", "paypal", "nowpayments"):
@@ -105,11 +108,20 @@ async def create_checkout(
             f"{method} payments are not configured yet. Contact support.",
         )
 
+    # Price scales with seats; yearly = 12 months for price of 10 (save 17%)
+    months = 12 if cycle == "yearly" else 1
+    inr_amount = round(settings.PRO_PRICE_INR * seats * (10 if months == 12 else 1), 2)
+    usd_amount = round(settings.PRO_PRICE_USD * seats * (10 if months == 12 else 1), 2)
+
     if method == "stripe":
-        return await _stripe_checkout(user["email"], plan, db)
+        return await _stripe_checkout(user["email"], plan, db, seats, inr_amount)
     if method == "paypal":
-        return await _paypal_checkout(user["email"], plan, db)
-    return await _nowpayments_checkout(user["email"], plan, db)
+        return await _paypal_checkout(user["email"], plan, db, seats, usd_amount)
+    return await _nowpayments_checkout(user["email"], plan, db, seats, usd_amount)
+
+
+# Pending seats per payment ref: provider_ref -> seats (used when webhook upgrades)
+_PENDING_SEATS_MAP: dict = {}
 
 
 # ---------------------------------------------------------------- Stripe

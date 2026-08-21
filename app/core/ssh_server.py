@@ -137,6 +137,7 @@ class MySSHServer(asyncssh.SSHServer):
         self._username = "anonymous"
         self._token = ""
         self._plan = "free"
+        self._seats = 1
         self._peer = "unknown"
         self._tunnel: TunnelSession | None = None
         self._timeout_task: asyncio.Task | None = None
@@ -207,7 +208,7 @@ class MySSHServer(asyncssh.SSHServer):
     def _verify_tunnel_token_sync(self, token: str) -> bool:
         """Synchronous DB check — used from begin_auth which is a sync callback.
         Checks both the tokens table (multi-token) and users table (legacy).
-        Also loads the user's plan for free/pro enforcement."""
+        Also loads the user's plan + seats for free/pro enforcement."""
         import psycopg
         from app.core.config import settings
         try:
@@ -215,7 +216,7 @@ class MySSHServer(asyncssh.SSHServer):
 
             # First check the tokens table (new multi-token system)
             cur = conn.execute(
-                "SELECT t.user_email, u.plan FROM tokens t "
+                "SELECT t.user_email, u.plan, u.seats FROM tokens t "
                 "JOIN users u ON u.email = t.user_email WHERE t.token = %s",
                 (token,),
             )
@@ -225,13 +226,14 @@ class MySSHServer(asyncssh.SSHServer):
             if row:
                 self._username = row[0]
                 self._plan = row[1] or "free"
+                self._seats = row[2] or 1
                 self._token = token
                 conn.close()
                 return True
 
             # Fallback: check users table (legacy single-token system)
             cur = conn.execute(
-                "SELECT email, plan FROM users WHERE tunnel_token = %s",
+                "SELECT email, plan, seats FROM users WHERE tunnel_token = %s",
                 (token,),
             )
             row = cur.fetchone()
@@ -241,6 +243,7 @@ class MySSHServer(asyncssh.SSHServer):
             if row:
                 self._username = row[0]
                 self._plan = row[1] or "free"
+                self._seats = row[2] or 1
                 self._token = token
                 return True
             return False
@@ -300,21 +303,30 @@ class MySSHServer(asyncssh.SSHServer):
         try:
             is_pro = self._plan == "pro"
 
-            # Free plan: only ONE active tunnel allowed — block a second one
-            if not is_pro:
-                from app.core.tunnel_registry import list_tunnels
-                all_t = await list_tunnels()
-                user_active = [t for t in all_t if t.user_email == self._username]
-                if len(user_active) >= 1:
+            # Plan-based concurrent tunnel limit
+            # Free: 1 tunnel · Pro: seats (default 1, more when purchased)
+            max_tunnels = 1 if not is_pro else max(1, int(self._seats or 1))
+            from app.core.tunnel_registry import list_tunnels
+            all_t = await list_tunnels()
+            user_active = [t for t in all_t if t.user_email == self._username]
+            if len(user_active) >= max_tunnels:
+                if not is_pro:
                     logger.info("Free plan limit: %s already has an active tunnel — rejecting", self._username)
                     self._send_notice(
                         "\r\n  ⛔  FREE PLAN LIMIT: only 1 tunnel at a time.\r\n"
                         "  Your first tunnel is still active.\r\n"
                         "  Upgrade to Pro for multiple tunnels → https://" + settings.TUNNEL_DOMAIN + "/dashboard\r\n"
                     )
-                    if self._conn:
-                        self._conn.close()
-                    return
+                else:
+                    logger.info("Seats limit: %s has %d/%d tunnels active — rejecting", self._username, len(user_active), max_tunnels)
+                    self._send_notice(
+                        f"\r\n  ⛔  SEAT LIMIT: your Pro plan allows {max_tunnels} tunnel(s) at a time.\r\n"
+                        f"  You currently have {len(user_active)} active.\r\n"
+                        "  Add more seats from the dashboard → https://" + settings.TUNNEL_DOMAIN + "/dashboard\r\n"
+                    )
+                if self._conn:
+                    self._conn.close()
+                return
 
             if is_pro:
                 # Deterministic subdomain from the token (persistent URL)
