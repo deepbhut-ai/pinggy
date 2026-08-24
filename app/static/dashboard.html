@@ -828,12 +828,20 @@ async function showCreateTokenDialog() {
       <label>Token name</label>
       <input type="text" id="newTokenName" placeholder="e.g. My API Server" value="New Token">
     </div>
+    <div class="form-group">
+      <label>Custom domain (optional — Pro only)</label>
+      <input type="text" id="newTokenDomain" placeholder="e.g. api.myapp.com">
+      <div style="font-size:.75rem;color:var(--text-dim);margin-top:.3rem">Point your domain's A record to 13.140.131.204 via Cloudflare (Proxied, SSL Flexible).</div>
+    </div>
   `, async () => {
     const name = document.getElementById('newTokenName').value.trim() || 'New Token';
+    const domain = document.getElementById('newTokenDomain').value.trim();
     try {
       closeModal();
-      const result = await api('/tokens', 'POST', JSON.stringify({ name }));
-      toast('Token created: ' + result.token);
+      const payload = { name };
+      if (domain) payload.custom_domain = domain;
+      const result = await api('/tokens', 'POST', JSON.stringify(payload));
+      toast('Token created: ' + result.token + (domain ? ' · domain: ' + domain : ''));
       loadTokens();
     } catch (e) {
       if (e.message.toLowerCase().includes('free plan') || e.message.toLowerCase().includes('upgrade')) {

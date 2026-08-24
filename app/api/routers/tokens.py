@@ -26,6 +26,7 @@ class TokenOut(BaseModel):
 
 class TokenCreate(BaseModel):
     name: str = Field(default="New Token", max_length=120)
+    custom_domain: str | None = Field(default=None, max_length=255)
 
 
 class TokenUpdate(BaseModel):
@@ -74,7 +75,8 @@ async def create_token(
     db: AsyncConnection = Depends(get_db),
 ):
     """Create a new token for the current user.
-    Free plan is limited to 1 token (single tunnel)."""
+    Free plan is limited to 1 token (single tunnel).
+    Pro users can set a custom_domain at creation time."""
     # Plan limit check
     if (user.get("plan") or "free") != "pro":
         cur = await db.execute(
@@ -87,11 +89,30 @@ async def create_token(
                 status.HTTP_402_PAYMENT_REQUIRED,
                 "Free plan allows only 1 tunnel token. Upgrade to Pro to create more.",
             )
+
+    # Validate custom_domain uniqueness if provided
+    custom_domain = None
+    if body.custom_domain:
+        cd = body.custom_domain.strip().lower()
+        if cd:
+            cur = await db.execute(
+                "SELECT id FROM tokens WHERE custom_domain = %s", (cd,)
+            )
+            if await cur.fetchone():
+                await cur.close()
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    f"Domain '{cd}' is already in use by another token.",
+                )
+            await cur.close()
+            custom_domain = cd
+
     token = _generate_token()
     cur = await db.execute(
-        "INSERT INTO tokens (user_email, token, name) VALUES (%s, %s, %s) "
+        "INSERT INTO tokens (user_email, token, name, custom_domain) "
+        "VALUES (%s, %s, %s, %s) "
         "RETURNING id, token, name, custom_domain, created_at",
-        (user["email"], token, body.name),
+        (user["email"], token, body.name, custom_domain),
     )
     row = await cur.fetchone()
     await cur.close()
