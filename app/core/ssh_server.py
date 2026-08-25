@@ -141,6 +141,8 @@ class MySSHServer(asyncssh.SSHServer):
         self._peer = "unknown"
         self._tunnel: TunnelSession | None = None
         self._timeout_task: asyncio.Task | None = None
+        self._custom_domain: str = ""
+        self._auth_failed: bool = False
 
     def connection_made(self, conn: asyncssh.SSHServerConnection) -> None:
         self._conn = conn
@@ -178,12 +180,14 @@ class MySSHServer(asyncssh.SSHServer):
 
     def begin_auth(self, username: str) -> bool:
         """Token-based auth: the SSH username must be a valid tunnel_token from the DB.
-        We verify the token synchronously here and return False (no further auth needed)
-        if valid, or True (require password, which will fail) if invalid."""
+        Returns False (no further auth needed) if the token is valid.
+        For invalid tokens, we also return False but mark the connection for
+        immediate disconnect — this prevents SSH from prompting for a password."""
         token = username or ""
         if not token:
             logger.warning("SSH connection rejected: no token provided from %s", self._peer)
-            return True  # Require password → will fail → connection rejected
+            self._auth_failed = True
+            return False  # No password prompt — will be disconnected
 
         # Synchronous DB check — no password needed if token is valid
         if self._verify_tunnel_token_sync(token):
@@ -191,77 +195,113 @@ class MySSHServer(asyncssh.SSHServer):
             return False  # No further auth needed — token is valid
         else:
             logger.warning("SSH auth rejected: invalid token '%s...' from %s", token[:8], self._peer)
-            return True  # Require password → will fail → connection rejected
+            self._auth_failed = True
+            return False  # No password prompt — will be disconnected
 
     def password_auth_supported(self) -> bool:
-        return True
+        return False  # Never ask for a password
+
+    def public_key_auth_supported(self) -> bool:
+        return False  # No public key auth either
 
     def validate_password(self, username: str, password: str) -> bool:
-        """If we get here, the token was invalid. Reject everything."""
+        """Never called — password auth is not supported."""
         return False
 
     def session_requested(self) -> bool:
         """Allow the client to open a session so we can send the tunnel URL
         back to their terminal (like pinggy.io does)."""
+        if self._auth_failed:
+            return False  # Reject — invalid token
         return TunnelInfoSession(self)
-
-    def _verify_tunnel_token_sync(self, token: str) -> bool:
-        """Synchronous DB check — used from begin_auth which is a sync callback.
-        Checks both the tokens table (multi-token) and users table (legacy).
-        Also loads the user's plan + seats for free/pro enforcement."""
-        import psycopg
-        from app.core.config import settings
-        try:
-            conn = psycopg.connect(settings.async_dsn, autocommit=True)
-
-            # First check the tokens table (new multi-token system)
-            cur = conn.execute(
-                "SELECT t.user_email, u.plan, u.seats FROM tokens t "
-                "JOIN users u ON u.email = t.user_email WHERE t.token = %s",
-                (token,),
-            )
-            row = cur.fetchone()
-            cur.close()
-
-            if row:
-                self._username = row[0]
-                self._plan = row[1] or "free"
-                self._seats = row[2] or 1
-                self._token = token
-                conn.close()
-                return True
-
-            # Fallback: check users table (legacy single-token system)
-            cur = conn.execute(
-                "SELECT email, plan, seats FROM users WHERE tunnel_token = %s",
-                (token,),
-            )
-            row = cur.fetchone()
-            cur.close()
-            conn.close()
-
-            if row:
-                self._username = row[0]
-                self._plan = row[1] or "free"
-                self._seats = row[2] or 1
-                self._token = token
-                return True
-            return False
-        except Exception as e:
-            logger.error("DB error verifying tunnel token: %s", e)
-            return False
 
     def server_requested(self, listen_host: str, listen_port: int) -> bool:
         """Called when client requests TCP port forwarding (ssh -R).
 
         Return True to let asyncssh handle the forwarding automatically.
         After the listener is created, we scan _local_listeners to find
-        the allocated port and set up the tunnel registry.
-        """
+        the allocated port and set up the tunnel registry."""
+        if self._auth_failed:
+            return False  # Reject — invalid token
         logger.info("Port forward requested: %s:%d from %s", listen_host, listen_port, self._peer)
         # Schedule tunnel setup after asyncssh creates the listener
         asyncio.create_task(self._detect_port_and_setup())
         return True
+
+    def _verify_tunnel_token_sync(self, token: str) -> bool:
+        """Synchronous DB check — used from begin_auth which is a sync callback.
+        Checks both the tokens table (multi-token) and users table (legacy).
+        Also loads the user's plan + seats + custom_domain for free/pro enforcement.
+        Falls back gracefully if the tokens table doesn't exist yet."""
+        import psycopg
+        from app.core.config import settings
+        try:
+            conn = psycopg.connect(settings.async_dsn, autocommit=True)
+
+            # First check the tokens table (new multi-token system)
+            # — but only if it exists (migration may not have run yet)
+            try:
+                cur = conn.execute(
+                    "SELECT t.user_email, u.plan, u.seats, t.custom_domain "
+                    "FROM tokens t JOIN users u ON u.email = t.user_email WHERE t.token = %s",
+                    (token,),
+                )
+                row = cur.fetchone()
+                cur.close()
+
+                if row:
+                    self._username = row[0]
+                    self._plan = row[1] or "free"
+                    self._seats = row[2] or 1
+                    self._custom_domain = row[3] or ""
+                    self._token = token
+                    conn.close()
+                    return True
+            except psycopg.errors.UndefinedTable:
+                # tokens table doesn't exist yet — fall through to users table
+                pass
+
+            # Fallback: check users table (legacy single-token system)
+            # Use try/except per-column in case some columns don't exist yet
+            try:
+                cur = conn.execute(
+                    "SELECT email, plan, seats, custom_domain FROM users WHERE tunnel_token = %s",
+                    (token,),
+                )
+                row = cur.fetchone()
+                cur.close()
+
+                if row:
+                    self._username = row[0]
+                    self._plan = row[1] or "free"
+                    self._seats = row[2] or 1
+                    self._custom_domain = row[3] or ""
+                    self._token = token
+                    conn.close()
+                    return True
+            except psycopg.errors.UndefinedColumn:
+                # plan/seats/custom_domain columns missing — query with just email
+                cur = conn.execute(
+                    "SELECT email FROM users WHERE tunnel_token = %s",
+                    (token,),
+                )
+                row = cur.fetchone()
+                cur.close()
+
+                if row:
+                    self._username = row[0]
+                    self._plan = "free"
+                    self._seats = 1
+                    self._custom_domain = ""
+                    self._token = token
+                    conn.close()
+                    return True
+
+            conn.close()
+            return False
+        except Exception as e:
+            logger.error("DB error verifying tunnel token: %s", e)
+            return False
 
     async def _detect_port_and_setup(self) -> None:
         """Wait for asyncssh to create the listener, then find the port
@@ -365,6 +405,7 @@ class MySSHServer(asyncssh.SSHServer):
                 user_email=self._username,
                 ssh_peer=self._peer,
                 ssh_conn=self._conn,
+                custom_domain=self._custom_domain,
             )
 
             from app.core.db import get_conn
@@ -466,6 +507,10 @@ async def start_ssh_server() -> asyncio.AbstractServer:
         allow_pty=True,
         keepalive_interval=30,
         login_timeout=300,
+        # No password or public-key auth — token is the SSH username
+        password_auth=False,
+        publickey_auth=False,
+        kbdint_auth=False,
     )
 
     print(f"[ssh] Server listening on {settings.SSH_HOST}:{settings.SSH_PORT}")

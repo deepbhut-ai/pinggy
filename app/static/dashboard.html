@@ -401,14 +401,19 @@ async function loadQuickstart() {
     tunnelState.token = tokenResp ? tokenResp.tunnel_token : 'ERROR';
     tunnelState.info = info;
 
-    let tunnelRows = tunnels.map(t => `<tr>
-      <td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>
+    let tunnelRows = tunnels.map(t => {
+      const urlCell = t.custom_url
+        ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
+        : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+      return `<tr>
+      ${urlCell}
       <td class="code">${t.subdomain}</td>
       <td>${t.request_count}</td>
       <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
       <td><span class="badge badge-green">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
     if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
 
     c.innerHTML = `
@@ -819,15 +824,20 @@ async function loadTunnels() {
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const tunnels = await api('/tunnels/my');
-    let rows = tunnels.map((t, i) => `<tr>
+    let rows = tunnels.map((t, i) => {
+      const urlCell = t.custom_url
+        ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
+        : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+      return `<tr>
       <td>${i + 1}</td>
-      <td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>
+      ${urlCell}
       <td class="code">${t.subdomain}</td>
       <td>${t.request_count}</td>
       <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
       <td><span class="badge badge-green">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
     if (!rows) rows = '<tr><td colspan="7" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
     c.innerHTML = `
     <h2 style="margin-bottom:1rem">Active Tunnels</h2>
@@ -1597,11 +1607,15 @@ function updateTunnelBanner(tunnels) {
     const t = tunnels[0];
     banner.style.display = 'block';
     banner.className = 'tunnel-banner';
+    const customUrlHtml = t.custom_url
+      ? `<div style="margin-top:.25rem"><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-weight:600;font-size:.95rem">${t.custom_url}</a> <button class="btn btn-sm" style="padding:.2rem .5rem;font-size:.75rem" onclick="copyToClipboard('${t.custom_url}')">📋</button></div>`
+      : '';
     banner.innerHTML = `
       <div class="dot"></div>
       <div style="flex:1">
         <div style="font-weight:700;font-size:1.1rem;color:var(--primary)">Tunnel Active!</div>
         <div style="font-size:.9rem;color:var(--text-dim)">Your tunnel URL:</div>
+        ${customUrlHtml}
       </div>
       <a href="${t.url}" target="_blank" class="url">${t.url}</a>
       <button class="btn btn-sm" onclick="copyToClipboard('${t.url}')">📋 Copy</button>`;
@@ -1619,14 +1633,19 @@ function updateTunnelTable(tunnels) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
     return;
   }
-  tbody.innerHTML = tunnels.map(t => `<tr>
-    <td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>
+  tbody.innerHTML = tunnels.map(t => {
+    const urlCell = t.custom_url
+      ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
+      : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+    return `<tr>
+    ${urlCell}
     <td class="code">${t.subdomain}</td>
     <td>${t.request_count}</td>
     <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
     <td><span class="badge badge-green">${t.status}</span></td>
     <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 // ---- Custom Domain ----

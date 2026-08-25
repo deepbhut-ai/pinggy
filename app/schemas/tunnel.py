@@ -13,6 +13,8 @@ class TunnelOut(BaseModel):
     tunnel_id: str
     subdomain: str
     url: str
+    custom_domain: str = ""
+    custom_url: str = ""
     remote_port: int
     local_port: int
     protocol: str

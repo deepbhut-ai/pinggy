@@ -21,6 +21,7 @@ class TunnelSession:
     protocol: str             # "http" or "tcp"
     user_email: str           # SSH username used to connect
     ssh_peer: str             # remote address of SSH client
+    custom_domain: str = ""  # custom domain (if token has one)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     request_count: int = 0
     bytes_transferred: int = 0
@@ -31,6 +32,14 @@ class TunnelSession:
     def url(self) -> str:
         scheme = "https" if _proxy_port == 80 else "http"
         return f"{scheme}://{self.subdomain}.{_domain}"
+
+    @property
+    def custom_url(self) -> str:
+        """Custom domain URL (if set), otherwise empty string."""
+        if self.custom_domain:
+            scheme = "https" if _proxy_port == 80 else "http"
+            return f"{scheme}://{self.custom_domain}"
+        return ""
 
     @property
     def is_alive(self) -> bool:
