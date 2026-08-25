@@ -1,18 +1,24 @@
-# docker-compose.yml — pinggy LOCAL DEVELOPMENT
+# docker-compose.prod.yml — pinggy PRODUCTION deployment
 #
 # Usage:
-#   cp .env.docker .env && nano .env
-#   docker compose up -d
+#   1. Copy .env.docker to .env and edit (set DOMAIN, JWT_SECRET, payment keys)
+#   2. docker compose -f docker-compose.prod.yml up -d
 #
-# For PRODUCTION use docker-compose.prod.yml instead:
-#   docker compose -f docker-compose.prod.yml up -d
+# Production differences from local:
+#   - DB port NOT exposed to host (internal only)
+#   - App port only on 127.0.0.1 (nginx proxies)
+#   - SSH port exposed directly (required for tunnel connections)
+#   - SSH host keys persisted in volume (survive rebuilds)
+#   - Nginx on port 80 only (Cloudflare handles SSL)
+#   - Health checks on all services
+#   - Log rotation configured
+#   - restart: always on all services
 #
-#                  ssh.domain → server IP (DNS only)
-#
+
 version: "3.9"
 
 services:
-  # ---- PostgreSQL Database ----
+  # ---- PostgreSQL Database (internal only) ----
   db:
     image: postgres:16-alpine
     restart: always
@@ -23,12 +29,14 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pinggy}"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pinggy} -d ${DB_NAME:-pinggy}"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
-      - pinggy-net
+      - pinggy-internal
+    # NO ports exposed — DB is internal only
 
   # ---- FastAPI App + SSH Server ----
   app:
@@ -38,8 +46,10 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "${SSH_PORT:-2222}:2222"   # SSH tunnel server (must be direct, not through nginx)
-      - "127.0.0.1:8000:8000"      # FastAPI (localhost only, nginx proxies)
+      # SSH tunnel server — MUST be exposed directly (not through nginx/Cloudflare)
+      - "${SSH_PORT:-2222}:2222"
+      # FastAPI — localhost only, nginx proxies to it
+      - "127.0.0.1:8000:8000"
     environment:
       # App
       APP_NAME: pinggy
@@ -82,30 +92,62 @@ services:
       NOWPAYMENTS_IPN_SECRET: ${NOWPAYMENTS_IPN_SECRET:-}
       NOWPAYMENTS_ENABLED: ${NOWPAYMENTS_ENABLED:-false}
     volumes:
+      # SSH host keys persisted — survive container rebuilds
       - ssh_keys:/app/ssh_host_key
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     networks:
-      - pinggy-net
+      - pinggy-internal
+      - pinggy-web
 
-  # ---- Nginx Reverse Proxy ----
+  # ---- Nginx Reverse Proxy (port 80 only, Cloudflare handles SSL) ----
   nginx:
     image: nginx:alpine
     restart: always
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     ports:
       - "80:80"
-      - "443:443"
+      # Port 443 NOT exposed — Cloudflare Flexible SSL handles HTTPS
     volumes:
       - ./nginx/docker-nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - nginx_logs:/var/log/nginx
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     networks:
-      - pinggy-net
+      - pinggy-web
 
 volumes:
   pgdata:
+    driver: local
   ssh_keys:
+    driver: local
   nginx_logs:
+    driver: local
 
 networks:
-  pinggy-net:
+  # Internal network — DB and app communicate
+  pinggy-internal:
+    driver: bridge
+    internal: true
+  # Web network — nginx and app communicate (nginx exposed to outside)
+  pinggy-web:
     driver: bridge

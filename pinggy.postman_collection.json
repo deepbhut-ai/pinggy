@@ -1,0 +1,508 @@
+{
+  "info": {
+    "name": "pinggy API",
+    "_postman_id": "pinggy-api-collection-001",
+    "description": "Complete API collection for the pinggy SSH tunnel service.\n\n## Setup\n1. Set the `base_url` variable to your server (default: https://iraglobaltech.com)\n2. Call \"Login\" or \"Register\" — the `access_token` is auto-saved to the collection variable\n3. All authenticated requests use `{{access_token}}` automatically\n\n## Auth\n- Public: Register, Login\n- User: Me, Tunnel Token, Regenerate Token, My Tokens, My Tunnels, My Payments, Checkout\n- Admin: All Users, All Tokens, All Tunnels, All Payments, User Management, Tunnel Control\n\nBase URL: {{base_url}}/api/v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://iraglobaltech.com", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "user_id", "value": "", "type": "string" },
+    { "key": "token_id", "value": "", "type": "string" },
+    { "key": "subdomain", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register (Signup)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"mypassword123\",\n  \"full_name\": \"John Doe\",\n  \"role\": \"user\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "  pm.collectionVariables.set('access_token', json.access_token);",
+                  "  pm.collectionVariables.set('user_id', json.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin\",\n  \"password\": \"admin\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "  pm.collectionVariables.set('access_token', json.access_token);",
+                  "  pm.collectionVariables.set('user_id', json.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Current User (Me)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/auth/me"
+          }
+        },
+        {
+          "name": "Get Tunnel Token",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/auth/tunnel-token"
+          }
+        },
+        {
+          "name": "Regenerate Tunnel Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/regenerate-token"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔑 Tokens (User)",
+      "item": [
+        {
+          "name": "List My Tokens",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/tokens"
+          }
+        },
+        {
+          "name": "Create Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Tunnel Token\",\n  \"custom_domain\": null\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) {",
+                  "  pm.collectionVariables.set('token_id', json.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Token with Custom Domain (Pro)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Production Tunnel\",\n  \"custom_domain\": \"myapp.example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Token",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/tokens/{{token_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Token Name\",\n  \"custom_domain\": \"newdomain.example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Token",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/v1/tokens/{{token_id}}"
+          }
+        },
+        {
+          "name": "Regenerate Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/tokens/{{token_id}}/regenerate"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔗 Tunnels",
+      "item": [
+        {
+          "name": "Tunnel Server Info",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/tunnels/info"
+          }
+        },
+        {
+          "name": "List My Tunnels",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/tunnels/my"
+          }
+        },
+        {
+          "name": "List All Tunnels (Admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/tunnels"
+          }
+        },
+        {
+          "name": "Tunnel History (Admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/tunnels/history"
+          }
+        },
+        {
+          "name": "Stop Tunnel (Admin)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/tunnels/{{subdomain}}/stop"
+          }
+        },
+        {
+          "name": "Delete Tunnel (Admin)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/v1/tunnels/{{subdomain}}"
+          }
+        },
+        {
+          "name": "Tunnel Stats (Admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/tunnels/stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "💳 Payments",
+      "item": [
+        {
+          "name": "Create Checkout (Stripe)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/payments/checkout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"stripe\",\n  \"plan\": \"pro\",\n  \"seats\": 1,\n  \"cycle\": \"monthly\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Checkout (PayPal)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/payments/checkout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"paypal\",\n  \"plan\": \"pro\",\n  \"seats\": 1,\n  \"cycle\": \"monthly\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Checkout (NowPayments / Crypto)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/payments/checkout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"nowpayments\",\n  \"plan\": \"pro\",\n  \"seats\": 1,\n  \"cycle\": \"monthly\"\n}"
+            }
+          }
+        },
+        {
+          "name": "My Payments & Subscription",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payments/my"
+          }
+        },
+        {
+          "name": "PayPal Capture (Fallback)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payments/paypal/capture/ORDER_ID_HERE"
+          }
+        },
+        {
+          "name": "Stripe Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "stripe-signature", "value": "t=1234567890,v1=signature_here" }
+            ],
+            "url": "{{base_url}}/api/v1/payments/webhook/stripe",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"checkout.session.completed\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"cs_test_123\",\n      \"customer_email\": \"user@example.com\"\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "PayPal Webhook",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/payments/webhook/paypal",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_type\": \"CHECKOUT.ORDER.APPROVED\",\n  \"resource\": {\n    \"id\": \"ORDER_ID_HERE\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "NowPayments Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-nowpayments-sig", "value": "signature_here" }
+            ],
+            "url": "{{base_url}}/api/v1/payments/webhook/nowpayments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_status\": \"finished\",\n  \"payment_id\": \"12345\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Users (Admin)",
+      "item": [
+        {
+          "name": "List All Users",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/users"
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/users/{{user_id}}"
+          }
+        },
+        {
+          "name": "Update User (Plan / Role / Password)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/users/{{user_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Updated Name\",\n  \"role\": \"user\",\n  \"plan\": \"pro\",\n  \"duration_days\": 30,\n  \"seats\": 3,\n  \"password\": \"newpassword123\",\n  \"custom_domain\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Activate Pro Plan (30 days)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/users/{{user_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": \"pro\",\n  \"duration_days\": 30,\n  \"seats\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Deactivate (Set to Free)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/users/{{user_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": \"free\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/v1/users/{{user_id}}"
+          }
+        },
+        {
+          "name": "Update My Custom Domain",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/users/me/custom-domain",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"custom_domain\": \"myapp.example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get User's Tunnels",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/users/{{user_id}}/tunnels"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛡️ Admin — All Tokens",
+      "item": [
+        {
+          "name": "List All Tokens (All Users)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/tokens/admin/all?limit=200"
+          }
+        },
+        {
+          "name": "Delete Any Token",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/v1/tokens/admin/{{token_id}}"
+          }
+        },
+        {
+          "name": "Regenerate Any Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/tokens/admin/{{token_id}}/regenerate"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛡️ Admin — All Payments",
+      "item": [
+        {
+          "name": "List All Payments (All Users)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payments/admin/all?limit=200"
+          }
+        },
+        {
+          "name": "Payment Stats (Revenue)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payments/admin/stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🌐 System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "Swagger Docs (Open in browser)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/docs"
+          }
+        },
+        {
+          "name": "ReDoc (Open in browser)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/redoc"
+          }
+        },
+        {
+          "name": "Landing Page",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/"
+          }
+        },
+        {
+          "name": "Login Page",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/login"
+          }
+        },
+        {
+          "name": "Dashboard Page",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/dashboard"
+          }
+        },
+        {
+          "name": "Admin Panel",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin"
+          }
+        }
+      ]
+    }
+  ]
+}

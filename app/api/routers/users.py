@@ -232,7 +232,7 @@ async def get_user_tunnels(
         {
             "tunnel_id": r[0],
             "subdomain": r[1],
-            "url": f"https://{r[1]}.invitechsg.com" if r[1] else "",
+            "url": f"https://{r[1]}.iraglobaltech.com" if r[1] else "",
             "remote_port": r[2],
             "local_port": r[3],
             "protocol": r[4],

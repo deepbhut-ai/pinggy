@@ -191,6 +191,9 @@
     <div class="sidebar" id="sidebar">
       <a href="#" class="active" data-page="dashboard" onclick="navigate('dashboard', this)">📊 Dashboard</a>
       <a href="#" data-page="users" onclick="navigate('users', this)" id="navUsers" style="display:none">👥 Users</a>
+      <a href="#" data-page="tokens" onclick="navigate('tokens', this)" id="navTokens" style="display:none">🔑 All Tokens</a>
+      <a href="#" data-page="tunnels" onclick="navigate('tunnels', this)" id="navTunnels" style="display:none">🔗 All Tunnels</a>
+      <a href="#" data-page="payments" onclick="navigate('payments', this)" id="navPayments" style="display:none">💳 Payments</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
     </div>
     <div class="content" id="pageContent"></div>
@@ -277,6 +280,9 @@ async function showApp() {
   // Show admin-only nav links
   if (currentUser.role === 'admin') {
     document.getElementById('navUsers').style.display = 'block';
+    document.getElementById('navTokens').style.display = 'block';
+    document.getElementById('navTunnels').style.display = 'block';
+    document.getElementById('navPayments').style.display = 'block';
     document.getElementById('navRegister').style.display = 'block';
   }
   navigate('dashboard', document.querySelector('.sidebar a'));
@@ -290,6 +296,9 @@ function navigate(page, el) {
   const c = document.getElementById('pageContent');
   if (page === 'dashboard') { c.innerHTML = renderDashboard(); loadAdminStats(); }
   else if (page === 'users') loadUsers();
+  else if (page === 'tokens') loadAllTokens();
+  else if (page === 'tunnels') loadAllTunnels();
+  else if (page === 'payments') loadAllPayments();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
 }
 
@@ -301,6 +310,9 @@ function renderDashboard() {
       <div class="card-header"><h2>Quick Actions</h2></div>
       <div class="card-body" style="display:flex;gap:.75rem;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="navigate('users', document.querySelector('[data-page=users]'))">View Users</button>
+        <button class="btn btn-sm" onclick="navigate('tokens', document.querySelector('[data-page=tokens]'))">View Tokens</button>
+        <button class="btn btn-sm" onclick="navigate('tunnels', document.querySelector('[data-page=tunnels]'))">View Tunnels</button>
+        <button class="btn btn-sm" onclick="navigate('payments', document.querySelector('[data-page=payments]'))">View Payments</button>
         <button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">Add User</button>
       </div>
     </div>` : '';
@@ -322,8 +334,8 @@ function renderDashboard() {
           <tr><td>Swagger Docs</td><td><a href="/docs" target="_blank">/docs</a></td></tr>
           <tr><td>ReDoc</td><td><a href="/redoc" target="_blank">/redoc</a></td></tr>
           <tr><td>Health Check</td><td><a href="/health" target="_blank">/health</a></td></tr>
-          <tr><td>SSH Server</td><td class="code">ssh.invitechsg.com:2222</td></tr>
-          <tr><td>Tunnel Domain</td><td class="code">invitechsg.com</td></tr>
+          <tr><td>SSH Server</td><td class="code">ssh.iraglobaltech.com:2222</td></tr>
+          <tr><td>Tunnel Domain</td><td class="code">iraglobaltech.com</td></tr>
         </table>
       </div>
     </div>`;
@@ -339,6 +351,18 @@ async function loadAdminStats() {
     const totalRequests = tunnels.reduce((s, t) => s + t.request_count, 0);
     const totalData = tunnels.reduce((s, t) => s + t.bytes_transferred, 0);
 
+    // Payment stats
+    let payStats = null;
+    try { payStats = await api('/payments/admin/stats'); } catch {}
+
+    let payCards = '';
+    if (payStats) {
+      for (const [cur, amt] of Object.entries(payStats.revenue || {})) {
+        payCards += `<div class="stat-card"><div class="label">Revenue (${cur})</div><div class="value" style="color:var(--green)">${amt.toFixed(2)}</div></div>`;
+      }
+      payCards += `<div class="stat-card"><div class="label">Total Payments</div><div class="value">${payStats.total_payments || 0}</div></div>`;
+    }
+
     const statsEl = document.getElementById('adminStats');
     if (statsEl) {
       statsEl.innerHTML = `
@@ -348,6 +372,7 @@ async function loadAdminStats() {
         <div class="stat-card"><div class="label">Total Tunnels (all time)</div><div class="value">${tunnels.length}</div></div>
         <div class="stat-card"><div class="label">Total Requests</div><div class="value">${totalRequests}</div></div>
         <div class="stat-card"><div class="label">Total Data Transfer</div><div class="value">${(totalData / 1024 / 1024).toFixed(2)} MB</div></div>
+        ${payCards}
       </div>`;
     }
 
@@ -541,9 +566,9 @@ async function viewUser(id) {
 
     <!-- SSH Command -->
     <div class="card">
-      <div class="card-header"><h2>SSH Command</h2><button class="btn btn-sm" onclick="copyToClipboard('ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@ssh.invitechsg.com')">📋 Copy</button></div>
+      <div class="card-header"><h2>SSH Command</h2><button class="btn btn-sm" onclick="copyToClipboard('ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@ssh.iraglobaltech.com')">📋 Copy</button></div>
       <div class="card-body">
-        <div class="cmd-box"><pre>ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@ssh.invitechsg.com</pre></div>
+        <div class="cmd-box"><pre>ssh -p 2222 -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${u.tunnel_token}@ssh.iraglobaltech.com</pre></div>
         <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-dim)">Replace PORT with the user's local service port.</p>
       </div>
     </div>
@@ -691,6 +716,105 @@ async function saveMyCustomDomain(clear) {
     // Reload My Tunnels to reflect change
     loadMyTunnels();
   } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- All Tokens (admin) ----
+async function loadAllTokens() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const tokens = await api('/tokens/admin/all');
+    let rows = tokens.map((t, i) => `<tr>
+      <td>${i + 1}</td>
+      <td class="code">${t.token}</td>
+      <td>${t.name || '—'}</td>
+      <td>${t.user_email}</td>
+      <td class="code">${t.subdomain}</td>
+      <td>${t.custom_domain || '—'}</td>
+      <td>${t.created_at ? t.created_at.replace('T',' ').substring(0,19) : '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="adminRegenToken('${t.id}')">🔄 Regen</button>
+        <button class="btn btn-sm btn-danger" onclick="adminDeleteToken('${t.id}')">🗑️</button>
+      </td>
+    </tr>`).join('');
+    if (!rows) rows = '<tr><td colspan="8" class="empty">No tokens found</td></tr>';
+    c.innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="label">Total Tokens</div><div class="value">${tokens.length}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>All Tokens (${tokens.length})</h2><button class="btn btn-sm" onclick="loadAllTokens()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>#</th><th>Token</th><th>Name</th><th>User</th><th>Subdomain</th><th>Custom Domain</th><th>Created</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function adminDeleteToken(id) {
+  showModal('Delete Token', `<p style="font-size:.875rem;color:var(--text-dim)">Delete this token? The user's tunnel using this token will stop working.</p>`, async () => {
+    try {
+      closeModal();
+      await api(`/tokens/admin/${id}`, 'DELETE');
+      toast('Token deleted');
+      loadAllTokens();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Delete', 'btn-danger');
+}
+
+async function adminRegenToken(id) {
+  showModal('Regenerate Token', `<p style="font-size:.875rem;color:var(--text-dim)">Regenerate this token? The old token string will stop working immediately.</p>`, async () => {
+    try {
+      closeModal();
+      await api(`/tokens/admin/${id}/regenerate`, 'POST');
+      toast('Token regenerated');
+      loadAllTokens();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Regenerate', '');
+}
+
+// ---- All Payments (admin) ----
+async function loadAllPayments() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const [data, stats] = await Promise.all([api('/payments/admin/all'), api('/payments/admin/stats')]);
+    const payments = data.payments || [];
+    let rows = payments.map((p, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${p.user_email}</td>
+      <td><span class="badge">${p.method}</span></td>
+      <td>${p.plan}</td>
+      <td>${p.amount} ${p.currency}</td>
+      <td><span class="badge ${p.status === 'paid' ? 'badge-green' : p.status === 'pending' ? '' : 'badge-red'}">${p.status}</span></td>
+      <td class="code" style="font-size:.75rem">${p.provider_ref ? p.provider_ref.substring(0,20) : '—'}</td>
+      <td>${p.created_at ? p.created_at.replace('T',' ').substring(0,19) : '—'}</td>
+    </tr>`).join('');
+    if (!rows) rows = '<tr><td colspan="8" class="empty">No payments found</td></tr>';
+
+    // Revenue summary
+    let revCards = '';
+    for (const [cur, amt] of Object.entries(stats.revenue || {})) {
+      revCards += `<div class="stat-card"><div class="label">Revenue (${cur})</div><div class="value" style="color:var(--green)">${amt.toFixed(2)}</div></div>`;
+    }
+    if (!revCards) revCards = '<div class="stat-card"><div class="label">Revenue</div><div class="value">—</div></div>';
+
+    const statusBadges = Object.entries(stats.by_status || {}).map(([s, n]) =>
+      `<span class="badge ${s === 'paid' ? 'badge-green' : s === 'pending' ? '' : 'badge-red'}">${s}: ${n}</span>`).join(' ');
+
+    c.innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="label">Total Payments</div><div class="value">${stats.total_payments || 0}</div></div>
+      ${revCards}
+      <div class="stat-card"><div class="label">By Status</div><div class="value" style="font-size:.85rem;display:flex;gap:.3rem;flex-wrap:wrap">${statusBadges}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>All Payments (${payments.length})</h2><button class="btn btn-sm" onclick="loadAllPayments()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>#</th><th>User</th><th>Method</th><th>Plan</th><th>Amount</th><th>Status</th><th>Ref</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
 // ---- Register ----
@@ -947,9 +1071,9 @@ function buildSSHCommand() {
   const token = tunnelState.token;
   const domain = info.domain;
   const sshPort = info.ssh_port;
-  // Use ssh.invitechsg.com for SSH connection (DNS-only, bypasses Cloudflare)
-  // Tunnel URLs still use the domain (e.g. https://abc123.invitechsg.com)
-  const sshHost = domain.includes('invitechsg.com') ? 'ssh.invitechsg.com' : domain;
+  // Use ssh.iraglobaltech.com for SSH connection (DNS-only, bypasses Cloudflare)
+  // Tunnel URLs still use the domain (e.g. https://abc123.iraglobaltech.com)
+  const sshHost = domain.includes('iraglobaltech.com') ? 'ssh.iraglobaltech.com' : domain;
   return `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
 }
 

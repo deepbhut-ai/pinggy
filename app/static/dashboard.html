@@ -179,8 +179,17 @@
   .info-box { padding: .75rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); line-height: 1.6; }
   .info-box strong { color: var(--text); }
 
+  /* ---- Stat cards (subscription page) ---- */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }
+  .stat-card .label { font-size: .75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; margin-bottom: .25rem; }
+  .stat-card .value { font-size: 1.5rem; font-weight: 800; color: var(--text); }
+
   /* ---- Payment buttons ---- */
+  .pay-btn { display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: 1rem; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: pointer; transition: .15s; }
+  .pay-btn:hover { border-color: var(--brand); background: var(--surface-2); }
   .pay-btn-disabled { opacity: .5; cursor: not-allowed; }
+  .pay-btn-disabled:hover { border-color: var(--border); background: var(--surface-1); }
 
   /* ---- Responsive ---- */
   @media (max-width: 768px) {
@@ -526,6 +535,69 @@ async function loadQuickstart() {
         <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody id="tunnelTableBody">${tunnelRows}</tbody></table>
       </div>
     </div>`;
+
+  // Attach event listeners (Cloudflare Rocket Loader safe — replaces inline onclick)
+  setTimeout(() => {
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      if (btn.textContent.includes('Copy')) {
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', () => copySSHCmd());
+      }
+    });
+    document.querySelectorAll('.os-tab').forEach(tab => {
+      const os = tab.textContent.trim().toLowerCase();
+      tab.removeAttribute('onclick');
+      tab.addEventListener('click', function() { switchOS(os, this); });
+    });
+    const portInput = document.getElementById('localPortInput');
+    if (portInput) {
+      portInput.removeAttribute('onchange');
+      portInput.addEventListener('change', function() { updateLocalPort(this.value); });
+    }
+    document.querySelectorAll('.cmd-box button:not(.copy-btn)').forEach(btn => {
+      if (btn.textContent.includes('📋')) {
+        const pre = btn.parentElement.querySelector('pre');
+        if (pre) {
+          btn.removeAttribute('onclick');
+          btn.addEventListener('click', () => copyToClipboard(pre.textContent));
+        }
+      }
+    });
+    document.querySelectorAll('button').forEach(btn => {
+      if (btn.textContent.includes('Refresh') && btn.getAttribute('onclick')?.includes('loadQuickstart')) {
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', () => loadQuickstart());
+      }
+    });
+    const copyTokenBtn = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('onclick')?.includes('copyToken'));
+    if (copyTokenBtn) {
+      copyTokenBtn.removeAttribute('onclick');
+      copyTokenBtn.addEventListener('click', () => {
+        const tokenInput = document.getElementById('accessToken');
+        if (tokenInput) copyToClipboard(tokenInput.value);
+      });
+    }
+    const toggleBtn = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('onclick')?.includes('toggleTokenVisibility'));
+    if (toggleBtn) {
+      toggleBtn.removeAttribute('onclick');
+      toggleBtn.addEventListener('click', () => toggleTokenVisibility());
+    }
+    // Tunnel URL copy button in the green banner
+    document.querySelectorAll('button').forEach(btn => {
+      if (btn.getAttribute('onclick')?.includes('copyToClipboard') && btn.closest('[style*="green-bg"]')) {
+        btn.removeAttribute('onclick');
+        const link = btn.parentElement.querySelector('a');
+        if (link) btn.addEventListener('click', () => copyToClipboard(link.href));
+      }
+    });
+    // Save custom domain button
+    const saveDomainBtn = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('onclick')?.includes('saveMyCustomDomain'));
+    if (saveDomainBtn) {
+      saveDomainBtn.removeAttribute('onclick');
+      saveDomainBtn.addEventListener('click', () => saveMyCustomDomain());
+    }
+  }, 100);
+
     updateSSHCommand();
     updateTunnelBanner(tunnels);
     startTunnelPolling();
@@ -543,7 +615,7 @@ async function loadConfigure() {
 
     // Token options for the dropdown
     const tokenOptions = tokens.map(t => 
-      `<option value="${t.token}">${t.name || 'Unnamed'} — ${t.token.substring(0,8)}... (→ ${t.subdomain}.invitechsg.com)</option>`
+      `<option value="${t.token}">${t.name || 'Unnamed'} — ${t.token.substring(0,8)}... (→ ${t.subdomain}.iraglobaltech.com)</option>`
     ).join('');
 
     c.innerHTML = `
@@ -605,7 +677,7 @@ async function loadConfigure() {
         </div>
         <div style="margin-top:.75rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim)">
           <strong style="color:var(--text)">Your tunnel URL will be:</strong><br>
-          <span id="cfgUrl" style="color:var(--brand);font-family:var(--font-mono)">https://—.invitechsg.com</span>
+          <span id="cfgUrl" style="color:var(--brand);font-family:var(--font-mono)">https://—.iraglobaltech.com</span>
         </div>
       </div>
     </div>
@@ -650,7 +722,7 @@ function buildConfigCommand() {
   cmd += ` -R0:127.0.0.1:${port}`;
   if (keepAlive) cmd += ' -o ServerAliveInterval=30';
   if (!strictHost) cmd += ' -o StrictHostKeyChecking=no';
-  cmd += ` ${token}@ssh.invitechsg.com`;
+  cmd += ` ${token}@ssh.iraglobaltech.com`;
   return cmd;
 }
 
@@ -668,7 +740,7 @@ function updateCfgCommand() {
     let hash = 0;
     for (let i = 0; i < token.length; i++) { hash = ((hash << 5) - hash + token.charCodeAt(i)) | 0; }
     const sub = Math.abs(hash).toString(16).substring(0, 7).padStart(7, '0');
-    urlEl.textContent = `https://${sub}.invitechsg.com`;
+    urlEl.textContent = `https://${sub}.iraglobaltech.com`;
   }
 
   // Update platform hint
@@ -734,7 +806,7 @@ async function loadDomains() {
       <div class="card-header"><h2>Default Subdomain</h2></div>
       <div class="card-body">
         <p style="font-size:.9rem;color:var(--text-dim)">Your tunnel is always accessible via your default subdomain:</p>
-        <p style="font-size:1.1rem;color:var(--primary);font-weight:600;margin-top:.5rem">https://098f6bc.invitechsg.com</p>
+        <p style="font-size:1.1rem;color:var(--primary);font-weight:600;margin-top:.5rem">https://098f6bc.iraglobaltech.com</p>
         <p style="font-size:.8rem;color:var(--text-dim);margin-top:.5rem">This subdomain is automatically generated from your account and cannot be changed.</p>
       </div>
     </div>`;
@@ -772,23 +844,25 @@ async function loadTunnels() {
 }
 
 // ---- Manage Tokens (Page 5) ----
+let selectedTokenId = null;
+
 async function loadTokens() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const info = await api('/tunnels/info');
     const tokens = await api('/tokens');
-    let tokenRows = tokens.map((t, i) => `<tr>
+    let tokenRows = tokens.map((t, i) => `<tr id="tokenRow-${t.id}" data-token-id="${t.id}" data-token="${t.token}" data-name="${(t.name || 'My Tunnel').replace(/"/g, '&quot;')}" data-subdomain="${t.subdomain}" data-custom-domain="${t.custom_domain || ''}" data-ssh-port="${info.ssh_port}" style="cursor:pointer;transition:.15s">
       <td>${i + 1}</td>
-      <td><strong class="code">${t.token.substring(0,8)}••••••••</strong> <button class="btn btn-sm" onclick="copyToClipboard('${t.token}')" style="margin-left:.25rem">📋</button></td>
+      <td><strong class="code">${t.token.substring(0,8)}••••••••</strong> <button class="btn btn-sm copy-token-btn" data-token="${t.token}" style="margin-left:.25rem">📋</button></td>
       <td>${t.name || '—'}</td>
       <td class="code">${t.subdomain}</td>
       <td>${t.custom_domain ? `<span class="badge badge-blue">${t.custom_domain}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
       <td>${t.created_at ? t.created_at.substring(0,10) : '—'}</td>
-      <td>
-        <button class="btn btn-sm btn-ghost" onclick="editToken('${t.id}','${t.name || ''}','${t.custom_domain || ''}')" title="Edit">✏️</button>
-        <button class="btn btn-sm btn-ghost" onclick="regenerateToken('${t.id}')" title="Regenerate">🔄</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteToken('${t.id}')" title="Delete">🗑️</button>
+      <td class="token-actions" data-token-id="${t.id}" data-name="${(t.name || '').replace(/"/g, '&quot;')}" data-domain="${t.custom_domain || ''}">
+        <button class="btn btn-sm btn-ghost edit-token-btn" title="Edit">✏️</button>
+        <button class="btn btn-sm btn-ghost regen-token-btn" title="Regenerate">🔄</button>
+        <button class="btn btn-sm btn-danger del-token-btn" title="Delete">🗑️</button>
       </td>
     </tr>`).join('');
     if (!tokenRows) tokenRows = '<tr><td colspan="7" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
@@ -799,9 +873,13 @@ async function loadTokens() {
         <div class="page-title">Manage Tokens</div>
         <div class="page-subtitle">Each token creates a separate tunnel with its own URL</div>
       </div>
-      <button class="btn" onclick="showCreateTokenDialog()">+ Generate New Token</button>
+      <button class="btn" id="generateTokenBtn">+ Generate New Token</button>
     </div>
     <div class="card">
+      <div class="card-header">
+        <h2>Tokens (${tokens.length})</h2>
+        <button class="btn btn-sm btn-ghost" id="refreshTokensBtn">🔄 Refresh</button>
+      </div>
       <div class="card-body" style="padding:0;overflow-x:auto">
         <table>
           <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Custom Domain</th><th>Created</th><th>Actions</th></tr></thead>
@@ -809,17 +887,199 @@ async function loadTokens() {
         </table>
       </div>
     </div>
-    <div class="card">
-      <div class="card-header"><h2>How to use a token</h2></div>
-      <div class="card-body">
-        <p style="font-size:.875rem;margin-bottom:.5rem">Copy a token above and run:</p>
-        <div class="cmd-box">
-          <pre>ssh -p ${info.ssh_port} -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 YOUR_TOKEN@ssh.invitechsg.com</pre>
+    <div id="tokenDetailPanel"></div>`;
+
+    // Attach event listeners to token rows (delayed for Cloudflare Rocket Loader)
+    setTimeout(() => {
+      document.querySelectorAll('tbody tr[data-token-id]').forEach(tr => {
+        tr.addEventListener('click', function(e) {
+          if (e.target.closest('.token-actions') || e.target.closest('.copy-token-btn')) return;
+          selectToken(
+            this.dataset.tokenId,
+            this.dataset.token,
+            this.dataset.name,
+            this.dataset.subdomain,
+            this.dataset.customDomain,
+            parseInt(this.dataset.sshPort)
+          );
+        });
+      });
+      document.querySelectorAll('.copy-token-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          copyToClipboard(this.dataset.token);
+        });
+      });
+      document.querySelectorAll('.edit-token-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const td = this.closest('.token-actions');
+          editToken(td.dataset.tokenId, td.dataset.name, td.dataset.domain);
+        });
+      });
+      document.querySelectorAll('.regen-token-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const td = this.closest('.token-actions');
+          regenerateToken(td.dataset.tokenId);
+        });
+      });
+      document.querySelectorAll('.del-token-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const td = this.closest('.token-actions');
+          deleteToken(td.dataset.tokenId);
+        });
+      });
+      // Generate New Token button
+      const genBtn = document.getElementById('generateTokenBtn');
+      if (genBtn) genBtn.addEventListener('click', () => showCreateTokenDialog());
+      // Refresh button
+      const refreshBtn = document.getElementById('refreshTokensBtn');
+      if (refreshBtn) refreshBtn.addEventListener('click', () => loadTokens());
+    }, 100);
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function selectToken(tokenId, token, name, subdomain, customDomain, sshPort) {
+  selectedTokenId = tokenId;
+  document.querySelectorAll('tbody tr').forEach(tr => { tr.style.background = ''; tr.style.borderLeft = ''; });
+  const row = document.getElementById('tokenRow-' + tokenId);
+  if (row) { row.style.background = 'var(--brand-light)'; row.style.borderLeft = '3px solid var(--brand)'; }
+
+  const tunnelUrl = customDomain ? `https://${customDomain}` : `https://${subdomain}.iraglobaltech.com`;
+  const sshCmd = `ssh -p ${sshPort} -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@ssh.iraglobaltech.com`;
+
+  const panel = document.getElementById('tokenDetailPanel');
+  panel.innerHTML = `
+    <div class="card" style="border:1px solid var(--brand);margin-top:1rem;overflow:visible">
+      <div class="card-header" style="background:var(--brand-light)">
+        <h2 style="display:flex;align-items:center;gap:.5rem;font-size:1rem"><span style="font-size:1.1rem">🔌</span> ${name} — Connection Guide</h2>
+        <button class="btn btn-sm btn-ghost" id="closeTokenGuideBtn">✕ Close</button>
+      </div>
+      <div class="card-body" style="padding:1.5rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div style="padding:.875rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">
+            <div style="font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem">Access Token</div>
+            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+              <code style="font-size:.875rem;font-weight:700;color:var(--brand)">${token}</code>
+              <button class="btn btn-sm guide-copy-token" data-token="${token}" style="padding:.2rem .5rem;font-size:.75rem">📋 Copy</button>
+            </div>
+          </div>
+          <div style="padding:.875rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">
+            <div style="font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem">Tunnel URL</div>
+            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+              <a href="${tunnelUrl}" target="_blank" style="font-size:.85rem;font-weight:700;color:var(--brand);word-break:break-all">${tunnelUrl}</a>
+              <button class="btn btn-sm guide-copy-url" data-url="${tunnelUrl}" style="padding:.2rem .5rem;font-size:.75rem">📋</button>
+            </div>
+          </div>
         </div>
-        <p style="margin-top:.5rem;font-size:.825rem;color:var(--text-dim)">Replace YOUR_TOKEN with a token from the table and PORT with your local service port. Each token gets its own unique URL.</p>
+        <div style="display:flex;flex-direction:column;gap:1.25rem">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0">1</div>
+            <div style="flex:1">
+              <div style="font-size:.875rem;font-weight:600;margin-bottom:.5rem">Choose your OS</div>
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap" id="tokenOsTabs">
+                <button class="os-tab active guide-os-tab" data-os="windows">🪟 Windows</button>
+                <button class="os-tab guide-os-tab" data-os="linux">🐧 Linux</button>
+                <button class="os-tab guide-os-tab" data-os="mac">🍎 Mac</button>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0">2</div>
+            <div style="flex:1">
+              <div style="font-size:.875rem;font-weight:600;margin-bottom:.5rem">Enter your local port</div>
+              <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+                <input type="number" id="tokenLocalPort" value="8080" min="1" max="65535" style="width:100px">
+                <span style="font-size:.8rem;color:var(--text-dim)">The port your local service runs on (e.g. 8080, 3000, 8000)</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0">3</div>
+            <div style="flex:1">
+              <div style="font-size:.875rem;font-weight:600;margin-bottom:.5rem">Run this command</div>
+              <div class="cmd-box" style="position:relative">
+                <pre id="tokenSshCmd" style="white-space:pre-wrap;word-break:break-all;font-size:.85rem">${sshCmd.replace('PORT', '8080')}</pre>
+                <button class="btn btn-sm guide-copy-cmd" style="position:absolute;top:.375rem;right:.375rem;padding:.3rem .6rem;font-size:.75rem">📋 Copy</button>
+              </div>
+              <div id="tokenOsHint" style="margin-top:.5rem;font-size:.825rem;color:var(--text-dim);line-height:1.5">
+                Open <strong>Command Prompt (CMD)</strong> and paste the command above.
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0">4</div>
+            <div style="flex:1">
+              <div style="font-size:.875rem;font-weight:600;margin-bottom:.5rem">Access your tunnel</div>
+              <div style="padding:.875rem 1rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.3);border-radius:var(--radius);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+                <span style="font-size:1.25rem">🌐</span>
+                <div style="flex:1;min-width:200px">
+                  <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:.15rem">Your tunnel will be available at:</div>
+                  <a href="${tunnelUrl}" target="_blank" style="font-size:.95rem;font-weight:700;color:var(--green);word-break:break-all">${tunnelUrl}</a>
+                </div>
+                <button class="btn btn-sm guide-copy-url2" data-url="${tunnelUrl}" style="padding:.3rem .6rem;font-size:.75rem">📋</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:1.25rem;padding:.875rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;color:var(--text-dim);line-height:1.7">
+          <strong style="color:var(--text)">💡 Tips:</strong><br>
+          • Keep the terminal window open while you need the tunnel — closing it disconnects the tunnel.<br>
+          • The <code style="color:var(--brand)">-R0:</code> flag auto-assigns a remote port. Your tunnel URL stays the same.<br>
+          • <code style="color:var(--brand)">ServerAliveInterval=30</code> keeps the connection alive with periodic keep-alive packets.<br>
+          ${customDomain ? '• Visitors to your custom domain will be routed through this tunnel.' : '• Your subdomain <code style="color:var(--brand)">' + subdomain + '</code> is fixed for this token — it will not change between connections.'}
+        </div>
       </div>
     </div>`;
-  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+
+  window._tokenSshTemplate = sshCmd;
+
+  // Attach event listeners (Cloudflare Rocket Loader safe)
+  setTimeout(() => {
+    document.getElementById('closeTokenGuideBtn')?.addEventListener('click', () => closeTokenDetail());
+    document.querySelector('.guide-copy-token')?.addEventListener('click', function() { copyToClipboard(this.dataset.token); });
+    document.querySelector('.guide-copy-url')?.addEventListener('click', function() { copyToClipboard(this.dataset.url); });
+    document.querySelector('.guide-copy-url2')?.addEventListener('click', function() { copyToClipboard(this.dataset.url); });
+    document.querySelector('.guide-copy-cmd')?.addEventListener('click', () => {
+      const cmd = document.getElementById('tokenSshCmd');
+      if (cmd) copyToClipboard(cmd.textContent);
+    });
+    document.querySelectorAll('.guide-os-tab').forEach(tab => {
+      tab.addEventListener('click', function() { switchTokenOs(this.dataset.os, this); });
+    });
+    const portInput = document.getElementById('tokenLocalPort');
+    if (portInput) portInput.addEventListener('change', () => updateTokenCmd());
+  }, 50);
+}
+
+function switchTokenOs(os, btn) {
+  document.querySelectorAll('#tokenOsTabs .os-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const hint = document.getElementById('tokenOsHint');
+  if (os === 'windows') {
+    hint.innerHTML = 'Open <strong>Command Prompt (CMD)</strong> or <strong>PowerShell</strong> and paste the command above.';
+  } else if (os === 'linux') {
+    hint.innerHTML = 'Open your <strong>terminal</strong> (Ctrl+Alt+T) and paste the command above.';
+  } else {
+    hint.innerHTML = 'Open <strong>Terminal</strong> (Cmd+Space → "Terminal") and paste the command above.';
+  }
+}
+
+function updateTokenCmd() {
+  const port = document.getElementById('tokenLocalPort').value || '8080';
+  const cmd = (window._tokenSshTemplate || '').replace(/:\d+:/, `:${port}:`);
+  // Actually replace PORT placeholder
+  const template = window._tokenSshTemplate || '';
+  const realCmd = template.replace('PORT', port);
+  document.getElementById('tokenSshCmd').textContent = realCmd;
+}
+
+function closeTokenDetail() {
+  selectedTokenId = null;
+  document.querySelectorAll('tbody tr').forEach(tr => { tr.style.background = ''; tr.style.borderLeft = ''; });
+  document.getElementById('tokenDetailPanel').innerHTML = '';
 }
 
 async function showCreateTokenDialog() {
@@ -1103,19 +1363,21 @@ async function loadSubscription() {
         </div>
       </div>
 
-      <div class="card" style="display:flex;flex-direction:column;border:2px solid var(--brand);position:relative">
-        <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;font-size:.7rem;font-weight:700;padding:.2rem .75rem;border-radius:999px;letter-spacing:.05em">MOST POPULAR</div>
-        <div class="card-body" style="text-align:center;flex:1">
+      <div class="card" style="display:flex;flex-direction:column;border:2px solid var(--brand);position:relative;overflow:visible;margin-top:1rem">
+        <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;font-size:.7rem;font-weight:700;padding:.2rem .75rem;border-radius:999px;letter-spacing:.05em;white-space:nowrap">MOST POPULAR</div>
+        <div class="card-body" style="text-align:center;flex:1;padding-bottom:.5rem">
           <div style="font-size:1.5rem;font-weight:800">Pro</div>
           <div style="color:var(--text-dim);font-size:.85rem;margin-top:.35rem">For developers who need more</div>
-          <div style="display:flex;align-items:center;justify-content:center;gap:.6rem;margin-top:.75rem">
-            <button class="icon-btn" onclick="changeSeats(-1)">−</button>
-            <input type="text" value="${proSeats}" readonly style="width:56px;text-align:center;padding:.35rem .4rem">
-            <button class="icon-btn" onclick="changeSeats(1)">+</button>
-          </div>
-          <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Add Seat</div>
-          <div style="font-size:2rem;font-weight:900;margin-top:.5rem;color:var(--brand)">${proPriceDisplay}</div>
+          <div style="font-size:2rem;font-weight:900;margin-top:.75rem;color:var(--brand)">₹${billingCycle === 'yearly' ? yearlyInr * proSeats : priceInr * proSeats}<span style="font-size:.875rem;font-weight:500;color:var(--text-dim)">/${billingCycle === 'yearly' ? 'yr' : 'mo'}</span></div>
           ${proSub}
+          <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:.75rem;padding:.5rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">
+            <button class="icon-btn" onclick="changeSeats(-1)" style="width:28px;height:28px;font-size:1rem">−</button>
+            <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
+              <input type="text" value="${proSeats}" readonly style="width:48px;text-align:center;padding:.25rem .3rem;font-weight:700;border:none;background:transparent">
+              <span style="font-size:.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em">seat${proSeats > 1 ? 's' : ''}</span>
+            </div>
+            <button class="icon-btn" onclick="changeSeats(1)" style="width:28px;height:28px;font-size:1rem">+</button>
+          </div>
         </div>
         <div style="padding:0 1rem .5rem;flex:1">
           <table style="font-size:.85rem">
@@ -1128,33 +1390,7 @@ async function loadSubscription() {
           </table>
         </div>
         <div style="padding:1rem">
-          ${isPro ? `<button class="btn" style="width:100%" onclick="scrollToPay()">Extend / Add ${proSeats} Seat${proSeats > 1 ? 's' : ''} — ${proPriceDisplay}</button>` : `<button class="btn" style="width:100%" onclick="scrollToPay()">Add ${proSeats} Seat${proSeats > 1 ? 's' : ''} — ${proPriceDisplay}</button>`}
-        </div>
-      </div>
-    </div>
-
-    <div class="card" id="paySection">
-      <div class="card-header"><h2>Choose a payment method</h2></div>
-      <div class="card-body">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem">
-          <button class="btn btn-ghost pay-btn ${enabled.stripe ? '' : 'pay-btn-disabled'}" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('stripe')" ${enabled.stripe ? '' : 'disabled'}>
-            <span style="font-size:1.4rem">💳</span>
-            <strong>Stripe</strong>
-            <span style="font-size:.75rem;color:var(--text-dim)">Card · UPI · INR</span>
-            ${enabled.stripe ? '' : '<span style="font-size:.7rem;color:var(--text-dim)">(not configured)</span>'}
-          </button>
-          <button class="btn btn-ghost pay-btn ${enabled.paypal ? '' : 'pay-btn-disabled'}" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('paypal')" ${enabled.paypal ? '' : 'disabled'}>
-            <span style="font-size:1.4rem">🅿️</span>
-            <strong>PayPal</strong>
-            <span style="font-size:.75rem;color:var(--text-dim)">Wallet · USD</span>
-            ${enabled.paypal ? '' : '<span style="font-size:.7rem;color:var(--text-dim)">(not configured)</span>'}
-          </button>
-          <button class="btn btn-ghost pay-btn ${enabled.nowpayments ? '' : 'pay-btn-disabled'}" style="padding:1rem;flex-direction:column;gap:.35rem" onclick="startCheckout('nowpayments')" ${enabled.nowpayments ? '' : 'disabled'}>
-            <span style="font-size:1.4rem">🪙</span>
-            <strong>Crypto</strong>
-            <span style="font-size:.75rem;color:var(--text-dim)">NowPayments · BTC/ETH/USDT</span>
-            ${enabled.nowpayments ? '' : '<span style="font-size:.7rem;color:var(--text-dim)">(not configured)</span>'}
-          </button>
+          ${isPro ? `<button class="btn" style="width:100%" onclick="showCheckoutModal()">Extend / Add ${proSeats} Seat${proSeats > 1 ? 's' : ''} — ${proPriceDisplay}</button>` : `<button class="btn" style="width:100%" onclick="showCheckoutModal()">Buy Pro — ${proPriceDisplay}</button>`}
         </div>
       </div>
     </div>
@@ -1192,9 +1428,89 @@ function scrollToPlans() {
   if (el) el.scrollIntoView({ behavior: 'smooth' });
 }
 
-function scrollToPay() {
-  const el = document.getElementById('paySection');
-  if (el) el.scrollIntoView({ behavior: 'smooth' });
+function showCheckoutModal() {
+  const priceInr = 199;
+  const priceUsd = 2.99;
+  const months = billingCycle === 'yearly' ? 12 : 1;
+  const inrTotal = billingCycle === 'yearly' ? priceInr * proSeats * 10 : priceInr * proSeats;
+  const usdTotal = billingCycle === 'yearly' ? priceUsd * proSeats * 10 : priceUsd * proSeats;
+  const cycleLabel = billingCycle === 'yearly' ? 'year' : 'month';
+  const perMonthInr = Math.round(inrTotal / (billingCycle === 'yearly' ? 12 : 1));
+
+  showModal('Checkout', `
+    <div style="margin-bottom:1rem">
+      <div style="font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;margin-bottom:.5rem">Order Summary</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+          <span style="font-weight:700">Tunnel Pro</span>
+          <span class="badge badge-blue">${billingCycle === 'yearly' ? 'Yearly' : 'Monthly'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--text-dim);margin-bottom:.25rem">
+          <span>Seats</span><span>${proSeats}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--text-dim);margin-bottom:.25rem">
+          <span>Billing cycle</span><span>${billingCycle === 'yearly' ? '12 months (pay for 10)' : '1 month'}</span>
+        </div>
+        ${billingCycle === 'yearly' ? `<div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--green);margin-bottom:.25rem"><span>Savings</span><span>₹${priceInr * proSeats * 2}</span></div>` : ''}
+        <div style="border-top:1px solid var(--border);margin-top:.5rem;padding-top:.5rem;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:700">Total</span>
+          <div style="text-align:right">
+            <div style="font-size:1.25rem;font-weight:900;color:var(--brand)">₹${inrTotal}</div>
+            <div style="font-size:.75rem;color:var(--text-dim)">≈ $${usdTotal.toFixed(2)} USD</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;margin-bottom:.5rem">Choose Payment Method</div>
+    <div id="checkoutPayMethods" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem">
+      <label class="checkout-pay-opt" style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:var(--bg);border:2px solid var(--brand);border-radius:var(--radius);cursor:pointer;transition:.15s">
+        <input type="radio" name="payMethod" value="stripe" checked style="width:auto">
+        <span style="font-size:1.3rem">💳</span>
+        <div style="flex:1">
+          <strong>Stripe</strong>
+          <div style="font-size:.75rem;color:var(--text-dim)">Card · UPI · NetBanking · INR</div>
+        </div>
+      </label>
+      <label class="checkout-pay-opt" style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:.15s">
+        <input type="radio" name="payMethod" value="paypal" style="width:auto">
+        <span style="font-size:1.3rem">🅿️</span>
+        <div style="flex:1">
+          <strong>PayPal</strong>
+          <div style="font-size:.75rem;color:var(--text-dim)">Wallet · $${usdTotal.toFixed(2)} USD</div>
+        </div>
+      </label>
+      <label class="checkout-pay-opt" style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:.15s">
+        <input type="radio" name="payMethod" value="nowpayments" style="width:auto">
+        <span style="font-size:1.3rem">🪙</span>
+        <div style="flex:1">
+          <strong>Crypto</strong>
+          <div style="font-size:.75rem;color:var(--text-dim)">BTC · ETH · USDT · NowPayments</div>
+        </div>
+      </label>
+    </div>
+
+    <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:.75rem;line-height:1.5">
+      🔒 Payments are processed securely. You'll be redirected to the payment provider to complete your purchase.
+    </div>
+  `, async () => {
+    const method = document.querySelector('input[name="payMethod"]:checked')?.value || 'stripe';
+    closeModal();
+    await startCheckout(method);
+  }, 'Pay Now → ₹' + inrTotal, 'btn');
+
+  // Add radio button selection styling
+  document.querySelectorAll('#checkoutPayMethods label').forEach(lbl => {
+    const radio = lbl.querySelector('input[type="radio"]');
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('#checkoutPayMethods label').forEach(l => {
+        l.style.border = '1px solid var(--border)';
+        l.style.background = 'var(--bg)';
+      });
+      lbl.style.border = '2px solid var(--brand)';
+      lbl.style.background = 'var(--brand-light)';
+    });
+  });
 }
 
 async function startCheckout(method) {
@@ -1232,7 +1548,7 @@ function buildSSHCommand() {
   const port = tunnelState.localPort;
   const token = tunnelState.token;
   const sshPort = info.ssh_port;
-  const sshHost = info.domain.includes('invitechsg.com') ? 'ssh.invitechsg.com' : info.domain;
+  const sshHost = info.domain.includes('iraglobaltech.com') ? 'ssh.iraglobaltech.com' : info.domain;
   return `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
 }
 

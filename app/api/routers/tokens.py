@@ -10,7 +10,7 @@ from psycopg import AsyncConnection
 from pydantic import BaseModel, Field
 
 from app.core.db import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_admin_user, get_current_user
 
 router = APIRouter(prefix="/tokens", tags=["tokens"])
 
@@ -244,4 +244,91 @@ async def regenerate_token(
         custom_domain=row[3],
         subdomain=_subdomain_from_token(row[1]),
         created_at=row[4].isoformat() if row[4] else None,
+    )
+
+
+# ================================================================
+# Admin endpoints — admin-only, operate across ALL users
+# ================================================================
+
+class AdminTokenOut(BaseModel):
+    id: str
+    token: str
+    name: str | None = None
+    custom_domain: str | None = None
+    subdomain: str | None = None
+    user_email: str
+    created_at: str | None = None
+
+
+@router.get("/admin/all", response_model=list[AdminTokenOut])
+async def admin_list_all_tokens(
+    admin: dict = Depends(get_admin_user),
+    db: AsyncConnection = Depends(get_db),
+    limit: int = 200,
+):
+    """List all tokens across all users (admin only)."""
+    cur = await db.execute(
+        "SELECT id, token, name, custom_domain, user_email, created_at "
+        "FROM tokens ORDER BY created_at DESC LIMIT %s",
+        (limit,),
+    )
+    rows = await cur.fetchall()
+    await cur.close()
+    return [
+        AdminTokenOut(
+            id=str(r[0]),
+            token=r[1],
+            name=r[2],
+            custom_domain=r[3],
+            subdomain=_subdomain_from_token(r[1]),
+            user_email=r[4],
+            created_at=r[5].isoformat() if r[5] else None,
+        )
+        for r in rows
+    ]
+
+
+@router.delete("/admin/{token_id}", status_code=status.HTTP_200_OK)
+async def admin_delete_token(
+    token_id: str,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Delete any token by ID (admin only)."""
+    cur = await db.execute(
+        "DELETE FROM tokens WHERE id = %s RETURNING token", (token_id,)
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
+    return {"message": "Token deleted"}
+
+
+@router.post("/admin/{token_id}/regenerate", response_model=AdminTokenOut)
+async def admin_regenerate_token(
+    token_id: str,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Regenerate any token's string (admin only)."""
+    new_token = _generate_token()
+    cur = await db.execute(
+        "UPDATE tokens SET token = %s, updated_at = now() WHERE id = %s "
+        "RETURNING id, token, name, custom_domain, user_email, created_at",
+        (new_token, token_id),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
+    return AdminTokenOut(
+        id=str(row[0]),
+        token=row[1],
+        name=row[2],
+        custom_domain=row[3],
+        subdomain=_subdomain_from_token(row[1]),
+        user_email=row[4],
+        created_at=row[5].isoformat() if row[5] else None,
     )

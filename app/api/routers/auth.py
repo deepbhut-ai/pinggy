@@ -14,9 +14,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def register(
     payload: UserCreate,
     db: AsyncConnection = Depends(get_db),
-    admin: dict = Depends(get_admin_user),
 ):
-    """Create a new user. Admin-only — requires admin JWT token."""
+    """Create a new user. Public endpoint — anyone can sign up."""
     # Check existing user
     cur = await db.execute(
         "SELECT id FROM users WHERE email = %s", (payload.email,)
@@ -28,13 +27,15 @@ async def register(
     import secrets as _secrets
     tunnel_token = _secrets.token_hex(8)  # 16-char hex token
     hashed = hash_password(payload.password)
+    # Force role to "user" for self-service signup (prevent privilege escalation)
+    safe_role = "user"
     cur = await db.execute(
         """
         INSERT INTO users (email, password_hash, full_name, role, tunnel_token)
         VALUES (%s, %s, %s, %s, %s)
         RETURNING id, email, full_name, role, tunnel_token
         """,
-        (payload.email, hashed, payload.full_name, payload.role, tunnel_token),
+        (payload.email, hashed, payload.full_name, safe_role, tunnel_token),
     )
     row = await cur.fetchone()
     await cur.close()

@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+*.md
+.env
+.env.production
+.env.example
+.env.docker
+delete_users.py
+check_user.py
+set_password.py
+test_tunnel_client.py
+ssh_host_key.pub
+*.log

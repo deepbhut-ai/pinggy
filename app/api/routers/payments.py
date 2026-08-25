@@ -18,7 +18,7 @@ from psycopg import AsyncConnection
 
 from app.core.config import settings
 from app.core.db import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_admin_user, get_current_user
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -125,8 +125,10 @@ _PENDING_SEATS_MAP: dict = {}
 
 
 # ---------------------------------------------------------------- Stripe
-async def _stripe_checkout(email: str, plan: str, db: AsyncConnection) -> dict:
+async def _stripe_checkout(email: str, plan: str, db: AsyncConnection, seats: int = 1, inr_amount: float = None) -> dict:
     """Create a Stripe Checkout Session via REST (no SDK needed)."""
+    if inr_amount is None:
+        inr_amount = settings.PRO_PRICE_INR
     url = "https://api.stripe.com/v1/checkout/sessions"
     data = {
         "mode": "payment",
@@ -134,11 +136,12 @@ async def _stripe_checkout(email: str, plan: str, db: AsyncConnection) -> dict:
         "cancel_url": f"{settings.PUBLIC_BASE_URL}/dashboard?payment=cancel",
         "customer_email": email,
         "line_items[0][price_data][currency]": "inr",
-        "line_items[0][price_data][unit_amount]": str(int(settings.PRO_PRICE_INR * 100)),
-        "line_items[0][price_data][product_data][name]": "Tunnel Pro (1 month)",
+        "line_items[0][price_data][unit_amount]": str(int(inr_amount * 100)),
+        "line_items[0][price_data][product_data][name]": f"Tunnel Pro ({seats} seat{'s' if seats > 1 else ''})",
         "line_items[0][quantity]": "1",
         "metadata[plan]": plan,
         "metadata[email]": email,
+        "metadata[seats]": str(seats),
     }
     async with httpx.AsyncClient() as client:
         r = await client.post(
@@ -150,7 +153,7 @@ async def _stripe_checkout(email: str, plan: str, db: AsyncConnection) -> dict:
     if r.status_code >= 300:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Stripe error: {r.text[:300]}")
     session = r.json()
-    await _create_payment_row(db, email, "stripe", plan, settings.PRO_PRICE_INR, "INR", session["id"])
+    await _create_payment_row(db, email, "stripe", plan, inr_amount, "INR", session["id"])
     return {"method": "stripe", "url": session["url"], "ref": session["id"]}
 
 
@@ -204,15 +207,17 @@ async def _paypal_token() -> str:
     return r.json()["access_token"]
 
 
-async def _paypal_checkout(email: str, plan: str, db: AsyncConnection) -> dict:
+async def _paypal_checkout(email: str, plan: str, db: AsyncConnection, seats: int = 1, usd_amount: float = None) -> dict:
+    if usd_amount is None:
+        usd_amount = settings.PRO_PRICE_USD
     token = await _paypal_token()
     base = "https://api-m.sandbox.paypal.com" if settings.PAYPAL_MODE == "sandbox" else "https://api-m.paypal.com"
     order = {
         "intent": "CAPTURE",
         "purchase_units": [{
             "reference_id": f"{email}:{plan}",
-            "amount": {"currency_code": "USD", "value": f"{settings.PRO_PRICE_USD:.2f}"},
-            "description": "Tunnel Pro (1 month)",
+            "amount": {"currency_code": "USD", "value": f"{usd_amount:.2f}"},
+            "description": f"Tunnel Pro ({seats} seat{'s' if seats > 1 else ''})",
             "custom_id": email,
         }],
         "application_context": {
@@ -235,7 +240,7 @@ async def _paypal_checkout(email: str, plan: str, db: AsyncConnection) -> dict:
     approve = next((l["href"] for l in data.get("links", []) if l.get("rel") == "approve"), None)
     if not approve:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "PayPal: no approve link")
-    await _create_payment_row(db, email, "paypal", plan, settings.PRO_PRICE_USD, "USD", data["id"])
+    await _create_payment_row(db, email, "paypal", plan, usd_amount, "USD", data["id"])
     return {"method": "paypal", "url": approve, "ref": data["id"]}
 
 
@@ -277,15 +282,17 @@ async def paypal_capture(
 
 
 # ---------------------------------------------------------------- NowPayments (crypto)
-async def _nowpayments_checkout(email: str, plan: str, db: AsyncConnection) -> dict:
+async def _nowpayments_checkout(email: str, plan: str, db: AsyncConnection, seats: int = 1, usd_amount: float = None) -> dict:
+    if usd_amount is None:
+        usd_amount = settings.PRO_PRICE_USD
     async with httpx.AsyncClient() as client:
         r = await client.post(
             "https://api.nowpayments.io/v1/invoice",
             json={
-                "price_amount": settings.PRO_PRICE_USD,
+                "price_amount": usd_amount,
                 "price_currency": "usd",
                 "order_id": f"{email}-{int(datetime.now(timezone.utc).timestamp())}",
-                "order_description": f"Tunnel Pro (1 month) — {email}",
+                "order_description": f"Tunnel Pro ({seats} seat{'s' if seats > 1 else ''}) — {email}",
                 "ipn_callback_url": f"{settings.PUBLIC_BASE_URL}/api/v1/payments/webhook/nowpayments",
                 "success_url": f"{settings.PUBLIC_BASE_URL}/dashboard?payment=success",
                 "cancel_url": f"{settings.PUBLIC_BASE_URL}/dashboard?payment=cancel",
@@ -296,7 +303,7 @@ async def _nowpayments_checkout(email: str, plan: str, db: AsyncConnection) -> d
     if r.status_code >= 300:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"NowPayments error: {r.text[:300]}")
     data = r.json()
-    await _create_payment_row(db, email, "nowpayments", plan, settings.PRO_PRICE_USD, "USD", data["id"])
+    await _create_payment_row(db, email, "nowpayments", plan, usd_amount, "USD", data["id"])
     return {"method": "nowpayments", "url": data["invoice_url"], "ref": data["id"]}
 
 
@@ -359,4 +366,86 @@ async def my_payments(
             }
             for r in rows
         ],
+    }
+
+
+# ================================================================
+# Admin endpoints — admin-only, view all payments
+# ================================================================
+
+@router.get("/admin/all")
+async def admin_list_all_payments(
+    admin: dict = Depends(get_admin_user),
+    db: AsyncConnection = Depends(get_db),
+    limit: int = 200,
+):
+    """List all payments across all users (admin only)."""
+    cur = await db.execute(
+        """SELECT id, user_email, method, plan, amount, currency, status,
+                  provider_ref, created_at, updated_at
+           FROM payments ORDER BY created_at DESC LIMIT %s""",
+        (limit,),
+    )
+    rows = await cur.fetchall()
+    await cur.close()
+    return {
+        "total": len(rows),
+        "payments": [
+            {
+                "id": str(r[0]),
+                "user_email": r[1],
+                "method": r[2],
+                "plan": r[3],
+                "amount": float(r[4]),
+                "currency": r[5],
+                "status": r[6],
+                "provider_ref": r[7],
+                "created_at": r[8].isoformat() if r[8] else None,
+                "updated_at": r[9].isoformat() if r[9] else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/admin/stats")
+async def admin_payment_stats(
+    admin: dict = Depends(get_admin_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Payment statistics (admin only)."""
+    # Total revenue (paid only)
+    cur = await db.execute(
+        "SELECT COALESCE(SUM(amount), 0), currency FROM payments WHERE status = 'paid' GROUP BY currency"
+    )
+    revenue_rows = await cur.fetchall()
+    await cur.close()
+    revenue_by_currency = {r[1]: float(r[0]) for r in revenue_rows}
+
+    # Counts by status
+    cur = await db.execute(
+        "SELECT status, COUNT(*) FROM payments GROUP BY status"
+    )
+    status_rows = await cur.fetchall()
+    await cur.close()
+    status_counts = {r[0]: r[1] for r in status_rows}
+
+    # Counts by method
+    cur = await db.execute(
+        "SELECT method, COUNT(*) FROM payments GROUP BY method"
+    )
+    method_rows = await cur.fetchall()
+    await cur.close()
+    method_counts = {r[0]: r[1] for r in method_rows}
+
+    # Total payments
+    cur = await db.execute("SELECT COUNT(*) FROM payments")
+    total = (await cur.fetchone())[0]
+    await cur.close()
+
+    return {
+        "total_payments": total,
+        "revenue": revenue_by_currency,
+        "by_status": status_counts,
+        "by_method": method_counts,
     }

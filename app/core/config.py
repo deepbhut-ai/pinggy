@@ -1,5 +1,6 @@
 """Application configuration via pydantic-settings."""
 from functools import lru_cache
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,23 +48,23 @@ class Settings(BaseSettings):
     PRO_PRICE_INR: float = 199.0          # monthly price in INR
     PRO_PRICE_USD: float = 2.99           # monthly price in USD (paypal/stripe intl)
     # Base URL for payment success/cancel redirects (set in .env)
-    PUBLIC_BASE_URL: str = "https://invitechsg.com"
+    PUBLIC_BASE_URL: str = "https://iraglobaltech.com"
 
     # Stripe (card payments)
     STRIPE_SECRET_KEY: str = ""            # sk_live_... / sk_test_...
     STRIPE_WEBHOOK_SECRET: str = ""        # whsec_...
-    STRIPE_ENABLED: bool = False           # enable when key is set
+    STRIPE_ENABLED: bool | None = None      # auto-enable if key is set
 
     # PayPal
     PAYPAL_CLIENT_ID: str = ""
     PAYPAL_CLIENT_SECRET: str = ""
     PAYPAL_MODE: str = "sandbox"           # sandbox | live
-    PAYPAL_ENABLED: bool = False
+    PAYPAL_ENABLED: bool | None = None
 
     # NowPayments (crypto)
     NOWPAYMENTS_API_KEY: str = ""
     NOWPAYMENTS_IPN_SECRET: str = ""
-    NOWPAYMENTS_ENABLED: bool = False
+    NOWPAYMENTS_ENABLED: bool | None = None
     # HTTP proxy listen port (for subdomain-based routing; in production use 80/443)
     PROXY_PORT: int = 8080
     # Subdomain length (random string)
@@ -76,6 +77,17 @@ class Settings(BaseSettings):
         if url.startswith("postgresql+psycopg://"):
             url = url.replace("postgresql+psycopg://", "postgresql://", 1)
         return url
+
+    @model_validator(mode="after")
+    def _auto_enable_payments(self) -> "Settings":
+        """Auto-enable payment methods when their API keys are present."""
+        if self.STRIPE_ENABLED is None:
+            self.STRIPE_ENABLED = bool(self.STRIPE_SECRET_KEY and self.STRIPE_SECRET_KEY.strip())
+        if self.PAYPAL_ENABLED is None:
+            self.PAYPAL_ENABLED = bool(self.PAYPAL_CLIENT_ID and self.PAYPAL_CLIENT_ID.strip())
+        if self.NOWPAYMENTS_ENABLED is None:
+            self.NOWPAYMENTS_ENABLED = bool(self.NOWPAYMENTS_API_KEY and self.NOWPAYMENTS_API_KEY.strip())
+        return self
 
 
 @lru_cache
