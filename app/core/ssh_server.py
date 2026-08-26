@@ -53,6 +53,14 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
     def exec_requested(self, command: str) -> bool:
         return False
 
+    def write_log(self, message: str) -> None:
+        """Write a log line to the user's terminal (called by the proxy)."""
+        if self._chan and not self._chan.exit_status_sent:
+            try:
+                self._chan.write(message + "\n")
+            except Exception:
+                pass
+
     def session_started(self) -> None:
         """Called when the session starts — try to send tunnel info."""
         # Schedule sending tunnel info (tunnel may not be ready yet)
@@ -146,6 +154,7 @@ class MySSHServer(asyncssh.SSHServer):
         self._timeout_task: asyncio.Task | None = None
         self._custom_domain: str = ""
         self._auth_failed: bool = False
+        self._info_session: TunnelInfoSession | None = None
 
     def connection_made(self, conn: asyncssh.SSHServerConnection) -> None:
         self._conn = conn
@@ -216,7 +225,8 @@ class MySSHServer(asyncssh.SSHServer):
         back to their terminal (like pinggy.io does)."""
         if self._auth_failed:
             return False  # Reject — invalid token
-        return TunnelInfoSession(self)
+        self._info_session = TunnelInfoSession(self)
+        return self._info_session
 
     def server_requested(self, listen_host: str, listen_port: int) -> bool:
         """Called when client requests TCP port forwarding (ssh -R).
@@ -327,6 +337,7 @@ class MySSHServer(asyncssh.SSHServer):
                 ssh_peer=self._peer,
                 ssh_conn=self._conn,
                 custom_domain=self._custom_domain,
+                log_callback=self._info_session.write_log if self._info_session else None,
             )
 
             from app.core.db import get_conn

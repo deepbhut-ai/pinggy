@@ -7,6 +7,8 @@ When a browser visits abc123.localhost:8080, this proxy:
 4. Returns the response to the browser
 """
 import logging
+import time
+from datetime import datetime
 
 import httpx
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -14,7 +16,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.config import settings
-from app.core.tunnel_registry import get_tunnel, increment_request_count
+from app.core.tunnel_registry import get_tunnel, increment_request_count, log_to_tunnel
 
 logger = logging.getLogger("proxy")
 
@@ -169,6 +171,12 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             # Set the host to the tunnel's local host
             forward_headers["host"] = f"localhost:{tunnel.local_port}"
 
+            # Track request timing for live log
+            req_start = time.monotonic()
+            req_path = request.url.path or "/"
+            if request.url.query:
+                req_path += f"?{request.url.query}"
+
             async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
                 resp = await client.request(
                     method=request.method,
@@ -180,6 +188,12 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
 
             # Track stats
             await increment_request_count(subdomain, len(resp.content))
+
+            # Log to user's SSH terminal
+            elapsed_ms = int((time.monotonic() - req_start) * 1000)
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            status = resp.status_code
+            log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {req_path:<30s} → {status}  ({elapsed_ms}ms)")
 
             # Build response — exclude hop-by-hop headers
             resp_headers = {}
@@ -195,6 +209,8 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             )
 
         except httpx.ConnectError:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {request.url.path or '/':<30s} → 502 (refused)")
             return Response(
                 content="<h1>Tunnel connection refused</h1>"
                 "<p>The local service may not be running. "
@@ -203,12 +219,16 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                 media_type="text/html",
             )
         except httpx.ReadTimeout:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {request.url.path or '/':<30s} → 504 (timeout)")
             return Response(
                 content="<h1>Tunnel request timed out</h1>",
                 status_code=504,
                 media_type="text/html",
             )
         except Exception as e:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {request.url.path or '/':<30s} → ERR ({e})")
             logger.error("Proxy error for %s: %s", subdomain, e)
             return Response(
                 content=f"<h1>Proxy error</h1><p>{e}</p>",

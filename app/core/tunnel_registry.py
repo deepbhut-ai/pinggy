@@ -8,7 +8,7 @@ and the admin panel.
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 
 @dataclass
@@ -27,6 +27,8 @@ class TunnelSession:
     bytes_transferred: int = 0
     # Reference to the asyncssh SSHServerConnection for cleanup
     ssh_conn: Any = None
+    # Callback to send log lines to the user's SSH terminal (live request log)
+    log_callback: Callable[[str], None] | None = None
 
     @property
     def url(self) -> str:
@@ -96,6 +98,16 @@ async def increment_request_count(subdomain: str, bytes_count: int = 0) -> None:
     if tunnel:
         tunnel.request_count += 1
         tunnel.bytes_transferred += bytes_count
+
+
+def log_to_tunnel(subdomain: str, message: str) -> None:
+    """Send a log line to the tunnel's SSH terminal (if connected)."""
+    tunnel = _tunnels.get(subdomain)
+    if tunnel and tunnel.log_callback:
+        try:
+            tunnel.log_callback(message)
+        except Exception:
+            pass  # Don't let logging break the request
 
 
 def is_subdomain_taken(subdomain: str) -> bool:
