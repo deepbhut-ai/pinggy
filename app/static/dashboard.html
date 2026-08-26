@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-color-scheme="dark">
+<html lang="en" data-color-scheme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,64 +9,89 @@
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    /* Mantine-inspired dark theme matching pinggy.io */
     --font: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
-
-    /* Brand colors */
-    --brand: #6aa6f0;
-    --brand-hover: #4785ea;
-    --brand-light: rgba(106,166,240,.15);
-    --brand-light-hover: rgba(106,166,240,.2);
-
-    /* Slate dark theme */
-    --bg: #141618;
-    --surface: #1b1e21;
-    --surface-1: #222529;
-    --surface-2: #2a2d31;
-    --border: rgba(255,255,255,.08);
-    --border-hover: rgba(255,255,255,.12);
-    --text: #f1f3f5;
-    --text-dim: #8a9099;
-    --text-muted: #adb3ba;
-
-    /* Status colors */
-    --green: #29a97f;
-    --green-bg: rgba(41,169,127,.15);
+    --brand: #4a55a2;
+    --brand-hover: #3d468a;
+    --brand-light: rgba(74,85,162,.10);
+    --brand-light-hover: rgba(74,85,162,.15);
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-1: #f4f5fb;
+    --surface-2: #e8eaf6;
+    --border: rgba(74,85,162,.12);
+    --border-hover: rgba(74,85,162,.22);
+    --text: #1a1a2e;
+    --text-dim: #5a5d7a;
+    --text-muted: #8b8fa8;
+    --green: #2a9d8f;
+    --green-bg: rgba(42,157,143,.12);
     --red: #de5f4b;
-    --red-bg: rgba(222,95,75,.15);
+    --red-bg: rgba(222,95,75,.12);
     --amber: #f59e0b;
-    --amber-bg: rgba(245,158,11,.15);
-
-    /* Radius */
+    --amber-bg: rgba(245,158,11,.12);
     --radius-sm: 6px;
     --radius: 8px;
     --radius-lg: 12px;
-
-    /* Spacing */
     --sp-xs: .375rem;
     --sp-sm: .5rem;
     --sp-md: 1rem;
     --sp-lg: 1.5rem;
     --sp-xl: 2rem;
   }
+  @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+  html { scroll-behavior: smooth; }
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: rgba(232,238,246,.6); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--brand) 0%, var(--green) 100%); border-radius: 10px; border: 2px solid rgba(232,238,246,.6); box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
+  ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #3d468a 0%, #238b7f 100%); }
+  ::-webkit-scrollbar-corner { background: transparent; }
+  * { scrollbar-width: thin; scrollbar-color: var(--brand) rgba(232,238,246,.6); }
+
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; position: relative; overflow-x: hidden; }
   a { color: var(--brand); text-decoration: none; }
   a:hover { text-decoration: underline; }
   ::selection { background: var(--brand-light); }
 
-  /* ---- Login ---- */
+  .bg-animation {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f4f5fb 0%, #e8eaf6 40%, #ffffff 100%);
+    width: 100vw;
+    min-height: 100vh;
+    pointer-events: none;
+  }
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: .55;
+    animation: blobMove 20s ease-in-out infinite;
+    will-change: transform, border-radius;
+  }
+  .blob:nth-child(1) { width: 55vw; height: 55vw; background: radial-gradient(circle, rgba(138,149,225,.55), rgba(138,149,225,0)); top: -15%; left: -10%; animation-delay: 0s; }
+  .blob:nth-child(2) { width: 45vw; height: 45vw; background: radial-gradient(circle, rgba(168,179,235,.5), rgba(168,179,235,0)); bottom: -10%; right: -10%; animation-delay: -7s; }
+  .blob:nth-child(3) { width: 35vw; height: 35vw; background: radial-gradient(circle, rgba(122,188,214,.45), rgba(122,188,214,0)); top: 40%; left: 35%; animation-delay: -14s; }
+  .blob:nth-child(4) { width: 25vw; height: 25vw; background: radial-gradient(circle, rgba(199,210,254,.55), rgba(199,210,254,0)); top: 15%; right: 15%; animation-delay: -4s; }
+  @keyframes blobMove {
+    0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 60% 40% 55% 45% / 55% 45% 60% 40%; }
+    25% { transform: translate(8%, -6%) scale(1.08) rotate(8deg); border-radius: 45% 55% 40% 60% / 50% 60% 40% 55%; }
+    50% { transform: translate(-5%, 10%) scale(0.95) rotate(-5deg); border-radius: 55% 45% 60% 40% / 45% 55% 50% 60%; }
+    75% { transform: translate(-8%, -4%) scale(1.05) rotate(6deg); border-radius: 50% 50% 45% 55% / 60% 40% 55% 45%; }
+  }
+
   #loginView { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
-  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; width: 100%; max-width: 380px; }
+  .login-card { background: rgba(255,255,255,.9); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; width: 100%; max-width: 380px; backdrop-filter: blur(12px); box-shadow: 0 18px 60px rgba(74,85,162,.10); }
   .login-card .logo { font-size: 1.75rem; font-weight: 800; margin-bottom: .25rem; }
   .login-card .subtitle { color: var(--text-dim); font-size: .875rem; margin-bottom: 1.5rem; }
 
-  /* ---- AppShell Layout ---- */
   #appView { display: none; }
   .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
-  .app-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .app-header { background: rgba(255,255,255,.9); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
   .app-header .logo { font-size: 1.25rem; font-weight: 800; }
   .app-header .right { display: flex; align-items: center; gap: .75rem; }
   .user-badge { display: flex; align-items: center; gap: .5rem; padding: .375rem .75rem; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); cursor: pointer; transition: .15s; }
@@ -74,7 +99,7 @@
   .user-badge .avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; }
 
   .app-body { display: flex; flex: 1; }
-  .app-nav { width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: .75rem 0; flex-shrink: 0; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; }
+  .app-nav { width: 260px; background: rgba(255,255,255,.82); border-right: 1px solid var(--border); padding: .75rem 0; flex-shrink: 0; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; backdrop-filter: blur(10px); }
   .nav-item { display: flex; align-items: center; gap: .625rem; padding: .5rem 1.25rem; color: var(--text-dim); font-size: .875rem; font-weight: 500; border-left: 3px solid transparent; transition: .15s; cursor: pointer; }
   .nav-item:hover { background: var(--surface-1); color: var(--text); }
   .nav-item.active { color: var(--brand); border-left-color: var(--brand); background: var(--brand-light); }
@@ -82,52 +107,47 @@
   .nav-sep { height: 1px; background: var(--border); margin: .5rem 1rem; }
   .nav-section { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); padding: .5rem 1.25rem; font-weight: 600; }
 
-  .app-main { flex: 1; padding: 1.5rem; overflow-y: auto; max-width: 900px; }
+  .app-main { flex: 1; padding: 1.5rem; overflow-y: auto; width: 100%; max-width: none; }
   .page-title { font-size: 1.5rem; font-weight: 800; margin-bottom: .25rem; }
   .page-subtitle { color: var(--text-dim); font-size: .875rem; margin-bottom: 1.5rem; }
 
-  /* ---- Forms ---- */
   label { display: block; font-size: .8rem; color: var(--text-dim); margin-bottom: .3rem; font-weight: 500; }
-  input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem .75rem; color: var(--text); font-size: .875rem; font-family: var(--font); outline: none; transition: .15s; }
-  input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-light); }
+  input, select, textarea { width: 100%; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem .75rem; color: var(--text); font-size: .875rem; font-family: var(--font); outline: none; transition: .15s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-light); }
   input::placeholder { color: var(--text-muted); }
   .form-group { margin-bottom: 1rem; }
   .form-row { display: flex; gap: 1rem; }
   .form-row .form-group { flex: 1; }
 
-  /* ---- Buttons ---- */
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; background: var(--brand); color: #fff; border: none; border-radius: var(--radius); padding: .5rem 1rem; font-size: .875rem; font-weight: 600; font-family: var(--font); cursor: pointer; transition: .15s; }
-  .btn:hover { background: var(--brand-hover); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; background: var(--brand); color: #fff; border: none; border-radius: var(--radius); padding: .5rem 1rem; font-size: .875rem; font-weight: 600; font-family: var(--font); cursor: pointer; transition: .15s; box-shadow: 0 4px 14px rgba(74,85,162,.2); }
+  .btn:hover { background: var(--brand-hover); transform: translateY(-1px); }
   .btn-sm { padding: .3rem .625rem; font-size: .8rem; }
   .btn-lg { padding: .625rem 1.25rem; font-size: .95rem; }
   .btn-ghost { background: var(--surface-1); color: var(--text); border: 1px solid var(--border); }
-  .btn-ghost:hover { background: var(--surface-2); border-color: var(--border-hover); }
+  .btn-ghost:hover { background: var(--surface-2); border-color: var(--border-hover); color: var(--brand); }
   .btn-danger { background: var(--red); }
   .btn-danger:hover { background: #c85740; }
   .btn svg { width: 16px; height: 16px; }
 
-  /* ---- Cards (Paper) ---- */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1rem; overflow: hidden; }
+  .card { background: rgba(255,255,255,.88); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1rem; overflow: hidden; backdrop-filter: blur(12px); transition: transform .25s, box-shadow .25s, border-color .25s; }
+  .card:hover { border-color: var(--border-hover); box-shadow: 0 18px 45px rgba(74,85,162,.10); }
   .card-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
   .card-header h2 { font-size: 1rem; font-weight: 700; }
   .card-body { padding: 1rem; }
 
-  /* ---- Tables ---- */
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--border); font-size: .825rem; }
   th { color: var(--text-dim); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; }
   tr:hover td { background: var(--surface-1); }
   tr:last-child td { border-bottom: none; }
 
-  /* ---- Badges ---- */
   .badge { display: inline-flex; align-items: center; gap: .25rem; padding: .125rem .5rem; border-radius: var(--radius-sm); font-size: .75rem; font-weight: 600; }
   .badge-green { background: var(--green-bg); color: var(--green); }
   .badge-red { background: var(--red-bg); color: var(--red); }
   .badge-amber { background: var(--amber-bg); color: var(--amber); }
   .badge-blue { background: var(--brand-light); color: var(--brand); }
 
-  /* ---- Toast ---- */
-  #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: .625rem 1rem; font-size: .825rem; display: none; z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+  #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .625rem 1rem; font-size: .825rem; display: none; z-index: 999; box-shadow: 0 18px 60px rgba(74,85,162,.18); color: var(--text); }
   #toast.show { display: block; animation: slideIn .3s; }
   #toast.success { border-color: var(--green); }
   #toast.error { border-color: var(--red); }
@@ -137,69 +157,295 @@
   .empty { text-align: center; color: var(--text-dim); padding: 2rem; font-size: .875rem; }
   .code { font-family: var(--font-mono); font-size: .8rem; color: var(--text-dim); }
 
-  /* ---- Timeline (pinggy.io style) ---- */
   .timeline { position: relative; padding-left: 2.5rem; }
-  .timeline::before { content: ''; position: absolute; left: .875rem; top: 1.5rem; bottom: 1rem; width: 2px; background: var(--border); }
+  .timeline::before { content: ''; position: absolute; left: .875rem; top: 1.5rem; bottom: 1rem; width: 2px; background: linear-gradient(180deg, var(--brand) 0%, var(--green) 50%, rgba(74,85,162,.25) 100%); border-radius: 2px; }
   .tl-item { position: relative; margin-bottom: 1.25rem; }
-  .tl-bullet { position: absolute; left: -2.5rem; top: 0; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: var(--surface-1); border: 2px solid var(--brand); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; z-index: 1; }
+  .tl-bullet { position: absolute; left: -2.5rem; top: 0; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: var(--surface); border: 2px solid var(--brand); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; z-index: 1; }
   .tl-title h3 { font-size: 1rem; font-weight: 700; margin-bottom: .125rem; }
   .tl-title p { font-size: .825rem; color: var(--text-dim); margin-bottom: .5rem; }
-  .tl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; margin-top: .5rem; }
+  .tl-card { background: rgba(255,255,255,.88); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; margin-top: .5rem; backdrop-filter: blur(12px); transition: transform .25s, box-shadow .25s, border-color .25s; }
+  .tl-card:hover { transform: translateY(-3px); box-shadow: 0 18px 45px rgba(74,85,162,.10); border-color: var(--border-hover); }
 
-  /* ---- OS tabs ---- */
   .os-tabs { display: flex; gap: .25rem; margin-bottom: .75rem; }
-  .os-tab { display: flex; align-items: center; gap: .375rem; padding: .375rem .75rem; cursor: pointer; color: var(--text-dim); font-size: .825rem; font-weight: 500; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); transition: .15s; }
+  .os-tab { display: flex; align-items: center; gap: .375rem; padding: .375rem .75rem; cursor: pointer; color: var(--text-dim); font-size: .825rem; font-weight: 500; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); transition: .15s; }
   .os-tab:hover { color: var(--text); border-color: var(--border-hover); }
-  .os-tab.active { color: var(--brand); border-color: var(--brand); background: var(--brand-light); }
+  .os-tab.active { color: #fff; border-color: var(--brand); background: var(--brand); }
   .os-tab svg { width: 16px; height: 16px; }
 
-  /* ---- Command box ---- */
-  .cmd-box { position: relative; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .625rem 2.75rem .625rem .75rem; }
+  .cmd-box { position: relative; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: .625rem 2.75rem .625rem .75rem; }
   .cmd-box pre { font-family: var(--font-mono); font-size: .8rem; white-space: pre-wrap; word-break: break-all; color: var(--text); line-height: 1.5; }
   .cmd-box .copy-btn { position: absolute; top: .375rem; right: .375rem; }
 
-  /* ---- Token row ---- */
   .token-row { display: flex; gap: .375rem; align-items: center; }
   .token-row input { flex: 1; }
   .icon-btn { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: .375rem; cursor: pointer; color: var(--text-dim); display: flex; align-items: center; justify-content: center; transition: .15s; }
-  .icon-btn:hover { color: var(--text); border-color: var(--border-hover); background: var(--surface-2); }
+  .icon-btn:hover { color: var(--brand); border-color: var(--border-hover); background: var(--surface-2); }
   .icon-btn svg { width: 16px; height: 16px; }
 
-  /* ---- Tunnel banner ---- */
-  .tunnel-banner { padding: .75rem 1rem; background: var(--green-bg); border: 1px solid rgba(41,169,127,.3); border-radius: var(--radius-lg); display: flex; align-items: center; gap: .75rem; }
+  .tunnel-banner { padding: .75rem 1rem; background: var(--green-bg); border: 1px solid rgba(42,157,143,.3); border-radius: var(--radius-lg); display: flex; align-items: center; gap: .75rem; }
   .tunnel-banner .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; flex-shrink: 0; }
-  .tunnel-banner .url { font-size: 1rem; font-weight: 700; color: var(--brand); background: var(--bg); padding: .375rem .75rem; border-radius: var(--radius); border: 1px solid var(--border); }
+  .tunnel-banner .url { font-size: 1rem; font-weight: 700; color: var(--brand); background: var(--surface-1); padding: .375rem .75rem; border-radius: var(--radius); border: 1px solid var(--border); }
 
-  /* ---- Domain section ---- */
   .domain-box { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--border); }
-  details summary { cursor: pointer; }
+  details summary { cursor: pointer; color: var(--brand); font-weight: 600; }
   details summary:focus { outline: none; }
 
-  /* ---- Info box ---- */
-  .info-box { padding: .75rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); line-height: 1.6; }
+  .info-box { padding: .75rem; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); line-height: 1.6; }
   .info-box strong { color: var(--text); }
 
-  /* ---- Stat cards (subscription page) ---- */
   .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }
+  .stat-card { background: rgba(255,255,255,.88); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; backdrop-filter: blur(12px); transition: transform .25s, box-shadow .25s, border-color .25s; }
+  .stat-card:hover { transform: translateY(-4px); box-shadow: 0 18px 45px rgba(74,85,162,.10); border-color: var(--border-hover); }
   .stat-card .label { font-size: .75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; margin-bottom: .25rem; }
   .stat-card .value { font-size: 1.5rem; font-weight: 800; color: var(--text); }
 
-  /* ---- Payment buttons ---- */
   .pay-btn { display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: 1rem; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: pointer; transition: .15s; }
   .pay-btn:hover { border-color: var(--brand); background: var(--surface-2); }
   .pay-btn-disabled { opacity: .5; cursor: not-allowed; }
   .pay-btn-disabled:hover { border-color: var(--border); background: var(--surface-1); }
 
-  /* ---- Responsive ---- */
+  .hero-card {
+    position: relative;
+    border-radius: var(--radius-lg);
+    background:
+      radial-gradient(circle at 20% 20%, rgba(138,149,225,.12), transparent 35%),
+      radial-gradient(circle at 80% 80%, rgba(42,157,143,.08), transparent 35%),
+      rgba(255,255,255,.88);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+    padding: 1.5rem;
+    box-shadow: 0 18px 60px rgba(74,85,162,.10);
+    backdrop-filter: blur(12px);
+  }
+  .hero-border {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-lg);
+    pointer-events: none;
+    padding: 2px;
+    background: linear-gradient(90deg, rgba(106,166,240,.7), rgba(41,169,127,.7), rgba(199,210,254,.7), rgba(106,166,240,.7));
+    background-size: 300% 100%;
+    animation: borderFlow 4s linear infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+  .hero-border::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-lg);
+    padding: 2px;
+    background: conic-gradient(from var(--angle,0deg), rgba(106,166,240,0), rgba(106,166,240,.55), rgba(41,169,127,.45), rgba(199,210,254,.4), rgba(106,166,240,0));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: heroBorderRotate 5s linear infinite;
+  }
+  .hero-glow {
+    position: absolute;
+    inset: -4px;
+    border-radius: var(--radius-lg);
+    background: conic-gradient(from 0deg, rgba(106,166,240,.25), rgba(41,169,127,.15), rgba(199,210,254,.2), rgba(106,166,240,.25));
+    filter: blur(14px);
+    opacity: .55;
+    animation: heroBorderRotate 8s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes borderFlow { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
+  @keyframes heroBorderRotate { from { --angle: 0deg; } to { --angle: 360deg; } }
+  .hero-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; right: 0; bottom: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.25) 45%, transparent 55%);
+    animation: heroShimmer 7s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes heroShimmer { from { transform: translateX(0); } to { transform: translateX(200%); } }
+  .hero-title {
+    font-size: clamp(1.6rem, 3.8vw, 2.4rem);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -.02em;
+    margin-bottom: .5rem;
+    background: linear-gradient(135deg, var(--brand) 0%, #6b8cff 55%, var(--green) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    position: relative;
+    z-index: 1;
+  }
+  .hero-subtitle { color: var(--text-dim); font-size: .95rem; max-width: 520px; margin-bottom: 1.25rem; position: relative; z-index: 1; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; position: relative; z-index: 1; }
+
+  .btn-animated {
+    position: relative;
+    overflow: hidden;
+    transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s, background .2s;
+    will-change: transform;
+  }
+  .btn-animated:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 10px 30px rgba(106,166,240,.42); }
+  .btn-animated::before {
+    content: '';
+    position: absolute;
+    inset: -40%;
+    background: radial-gradient(circle at var(--x,50%) var(--y,50%), rgba(255,255,255,.32) 0%, transparent 45%);
+    opacity: 0;
+    transition: opacity .2s;
+    pointer-events: none;
+  }
+  .btn-animated:hover::before { opacity: 1; }
+  .btn-animated .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,.35);
+    transform: scale(0);
+    animation: rippleDash .6s linear;
+    pointer-events: none;
+  }
+  @keyframes rippleDash { to { transform: scale(4); opacity: 0; } }
+  .btn-glow {
+    position: relative;
+    z-index: 0;
+  }
+  .btn-glow::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: -2px;
+    border-radius: var(--radius);
+    background: linear-gradient(90deg, rgba(106,166,240,.7), rgba(41,169,127,.6), rgba(199,210,254,.5), rgba(106,166,240,.7));
+    background-size: 300% 100%;
+    filter: blur(8px);
+    opacity: .6;
+    animation: glowFlow 3s linear infinite;
+  }
+  @keyframes glowFlow { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
+  .btn-outline-animated {
+    position: relative;
+    background: transparent;
+    color: var(--brand);
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    transition: .2s;
+  }
+  .btn-outline-animated::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(106,166,240,.18), transparent);
+    transform: translateX(-100%);
+    transition: transform .55s;
+  }
+  .btn-outline-animated:hover { border-color: var(--brand); color: var(--brand); transform: translateY(-2px); }
+  .btn-outline-animated:hover::after { transform: translateX(100%); }
+
   @media (max-width: 768px) {
     .app-nav { display: none; }
     .app-main { padding: 1rem; }
     .form-row { flex-direction: column; }
+    .dt-toolbar { flex-wrap: wrap; }
+    .dt-search { width: 100%; max-width: none; }
+    .dt-actions { width: 100%; justify-content: space-between; }
+    .dt-pagination { flex-wrap: wrap; gap: .5rem; }
   }
+
+  /* Data table enhancements for Manage Tokens */
+  .dt-wrapper.fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 997;
+    background: var(--bg);
+    padding: 1rem;
+    overflow: auto;
+  }
+  .dt-wrapper.fullscreen .dt-card { max-width: none; }
+  .dt-wrapper.fullscreen ~ #tokenDetailPanel,
+  .dt-wrapper.fullscreen ~ .page-title,
+  .dt-wrapper.fullscreen ~ .page-subtitle,
+  .dt-wrapper.fullscreen ~ .dt-header { display: none; }
+  .dt-card { position: relative; width: 100%; }
+  .dt-wrapper { width: 100%; }
+  .dt-toolbar {
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    padding: .625rem .75rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.5);
+    flex-wrap: nowrap;
+  }
+  .dt-search { position: relative; min-width: 220px; flex: 1; max-width: 360px; }
+  .dt-search svg {
+    position: absolute; left: .55rem; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px; color: var(--text-muted); pointer-events: none;
+  }
+  .dt-search input {
+    width: 100%; padding: .35rem .6rem .35rem 1.8rem; font-size: .8rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .dt-actions { display: flex; align-items: center; gap: .25rem; }
+  .dt-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .25rem;
+    background: var(--bg); color: var(--text-dim); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .35rem .5rem; font-size: .8rem; font-weight: 500;
+    cursor: pointer; transition: .15s;
+  }
+  .dt-btn:hover { border-color: var(--border-hover); color: var(--brand); background: var(--surface-1); }
+  .dt-btn svg { width: 14px; height: 14px; }
+  .dt-btn.active { color: var(--brand); border-color: var(--brand); background: var(--brand-light); }
+
+  .dt-columns-popover {
+    position: absolute; top: calc(100% + 6px); right: 0; min-width: 180px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .5rem; box-shadow: 0 18px 45px rgba(74,85,162,.12); z-index: 50; display: none;
+  }
+  .dt-columns-popover.show { display: block; }
+  .dt-columns-popover label {
+    display: flex; align-items: center; gap: .4rem; font-size: .8rem; color: var(--text);
+    padding: .25rem .2rem; cursor: pointer; margin: 0;
+  }
+  .dt-columns-popover input { width: auto; margin: 0; }
+
+  .dt-table-wrap { width: 100%; overflow-x: auto; }
+  table.dt-table { min-width: 100%; table-layout: auto; border-collapse: collapse; }
+  .dt-table th {
+    text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--border);
+    color: var(--text-dim); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .03em;
+    white-space: nowrap; user-select: none; cursor: pointer; background: rgba(255,255,255,.6);
+  }
+  .dt-table th.sortable:hover { color: var(--brand); background: var(--surface-1); }
+  .dt-table th .sort-icon { display: inline-block; width: 14px; height: 14px; margin-left: .2rem; vertical-align: middle; color: var(--text-muted); }
+  .dt-table th.sort-asc .sort-icon, .dt-table th.sort-desc .sort-icon { color: var(--brand); }
+  .dt-table th.sort-asc .sort-icon::after { content: '▲'; font-size: 10px; }
+  .dt-table th.sort-desc .sort-icon::after { content: '▼'; font-size: 10px; }
+  .dt-table td { padding: .5rem .75rem; border-bottom: 1px solid var(--border); font-size: .825rem; vertical-align: middle; }
+  .dt-table tr:last-child td { border-bottom: none; }
+  .dt-table tr:hover td { background: var(--surface-1); }
+  .dt-table tr.selected td { background: var(--brand-light); border-left: 3px solid var(--brand); }
+
+  .dt-table.compact th, .dt-table.compact td { padding: .35rem .55rem; font-size: .78rem; }
+  .dt-table.comfortable th, .dt-table.comfortable td { padding: .75rem .9rem; }
+
+  .token-cell { display: flex; align-items: center; gap: .4rem; max-width: 320px; }
+  .token-mask { font-family: var(--font-mono); font-size: .8rem; color: var(--text-dim); letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
+  .token-plain { font-family: var(--font-mono); font-size: .8rem; color: var(--brand); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
+  .token-cell .icon-btn { padding: .25rem; flex: 0 0 auto; }
+
+  .dt-pagination {
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    padding: .625rem .75rem; border-top: 1px solid var(--border); background: rgba(255,255,255,.5);
+    font-size: .8rem; color: var(--text-dim);
+  }
+  .dt-page-btns { display: flex; align-items: center; gap: .25rem; }
+  .dt-page-info { white-space: nowrap; }
 </style>
 </head>
 <body>
+<div class="bg-animation">
+  <div class="blob"></div>
+  <div class="blob"></div>
+  <div class="blob"></div>
+  <div class="blob"></div>
+</div>
 
 <!-- Loading screen (shown while checking auth) -->
 <div id="loadingScreen" style="display:flex;align-items:center;justify-content:center;min-height:100vh">
@@ -269,6 +515,15 @@
         <div class="nav-item" data-page="subscription" onclick="navigate('subscription', this)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           Subscription
+        </div>
+        <div class="nav-sep"></div>
+        <div class="nav-item" data-page="request" onclick="navigate('request', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-1.068.724-1.98 1.692-2.546l-.548-.547z"/><circle cx="12" cy="11" r="2"/></svg>
+          Request Feature
+        </div>
+        <div class="nav-item" data-page="help" onclick="navigate('help', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Help
         </div>
       </nav>
 
@@ -385,6 +640,8 @@ function navigate(page, el) {
   else if (page === 'tunnels') loadTunnels();
   else if (page === 'tokens') loadTokens();
   else if (page === 'subscription') loadSubscription();
+  else if (page === 'request') loadRequestFeature();
+  else if (page === 'help') loadHelp();
 }
 
 // ---- Quickstart (Page 1) ----
@@ -417,8 +674,15 @@ async function loadQuickstart() {
     if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
 
     c.innerHTML = `
-    <div class="page-title">Quickstart</div>
-    <div class="page-subtitle">Get your tunnel running in under a minute</div>
+    <div class="hero-card">
+      <div class="hero-title">Welcome back, ${(currentUser.email || 'developer').split('@')[0]}</div>
+      <p class="hero-subtitle">Get your localhost online in under a minute. Copy your access token, paste the SSH command, and your tunnel is live.</p>
+      <div class="hero-actions">
+        <a href="#quick" class="btn btn-animated btn-glow" onclick="scrollToStep('stepToken')">Get Started →</a>
+        ${(currentUser.plan || 'free') !== 'pro' ? `<a href="/#pricing" class="btn btn-ghost btn-outline-animated">Upgrade Free → Pro</a>` : `<span class="badge badge-green">Pro Active</span>`}
+      </div>
+    </div>
+
     ${(currentUser.plan || 'free') !== 'pro' ? `
     <div style="margin-bottom:1.25rem;padding:.75rem 1rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
       <span style="font-size:1.25rem">⚠️</span>
@@ -426,7 +690,7 @@ async function loadQuickstart() {
         <strong style="font-size:.9rem">Free plan</strong>
         <span style="font-size:.825rem;color:var(--text-dim)"> — tunnels disconnect after 60 min & get a random subdomain each time.</span>
       </div>
-      <a href="/#prices" class="btn btn-sm">Upgrade to Pro →</a>
+      <a href="/#pricing" class="btn btn-sm btn-animated">Upgrade to Pro →</a>
     </div>` : `
     <div style="margin-bottom:1.25rem;padding:.75rem 1rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem">
       <span style="font-size:1.25rem">⭐</span>
@@ -437,7 +701,7 @@ async function loadQuickstart() {
     </div>`}
     <div class="timeline">
       <!-- Step 1: Access token -->
-      <div class="tl-item">
+      <div class="tl-item" id="stepToken">
         <div class="tl-bullet">1</div>
         <div class="tl-title">
           <h3>Your access token</h3>
@@ -535,14 +799,42 @@ async function loadQuickstart() {
 
     <!-- Active tunnels table -->
     <div class="card" style="margin-top:1.5rem">
-      <div class="card-header"><h2>🔗 My Active Tunnels (<span id="tunnelCount">${tunnels.length}</span>)</h2><button class="btn btn-sm" onclick="loadQuickstart()">🔄 Refresh</button></div>
+      <div class="card-header"><h2>🔗 My Active Tunnels (<span id="tunnelCount">${tunnels.length}</span>)</h2><button class="btn btn-sm btn-animated" onclick="loadQuickstart()">🔄 Refresh</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
         <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody id="tunnelTableBody">${tunnelRows}</tbody></table>
       </div>
     </div>`;
 
-  // Attach event listeners (Cloudflare Rocket Loader safe — replaces inline onclick)
-  setTimeout(() => {
+    // Button hover light + ripple helpers
+    function addButtonEffects() {
+      document.querySelectorAll('.btn-animated, .btn-outline-animated').forEach(btn => {
+        btn.addEventListener('pointermove', e => {
+          const rect = btn.getBoundingClientRect();
+          btn.style.setProperty('--x', ((e.clientX - rect.left) / rect.width * 100) + '%');
+          btn.style.setProperty('--y', ((e.clientY - rect.top) / rect.height * 100) + '%');
+        });
+        btn.addEventListener('pointerdown', e => {
+          const rect = btn.getBoundingClientRect();
+          const r = document.createElement('span');
+          r.className = 'ripple';
+          const size = Math.max(rect.width, rect.height);
+          r.style.width = r.style.height = size + 'px';
+          r.style.left = (e.clientX - rect.left - size / 2) + 'px';
+          r.style.top = (e.clientY - rect.top - size / 2) + 'px';
+          btn.appendChild(r);
+          setTimeout(() => r.remove(), 600);
+        });
+      });
+    }
+
+    window.scrollToStep = function(id) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    addButtonEffects();
+
+    // Attach event listeners (Cloudflare Rocket Loader safe — replaces inline onclick)
+    setTimeout(() => {
     document.querySelectorAll('.copy-btn').forEach(btn => {
       if (btn.textContent.includes('Copy')) {
         btn.removeAttribute('onclick');
@@ -856,99 +1148,308 @@ async function loadTunnels() {
 // ---- Manage Tokens (Page 5) ----
 let selectedTokenId = null;
 
-async function loadTokens() {
-  const c = document.getElementById('pageContent');
-  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
-  try {
-    const info = await api('/tunnels/info');
-    const tokens = await api('/tokens');
-    let tokenRows = tokens.map((t, i) => `<tr id="tokenRow-${t.id}" data-token-id="${t.id}" data-token="${t.token}" data-name="${(t.name || 'My Tunnel').replace(/"/g, '&quot;')}" data-subdomain="${t.subdomain}" data-custom-domain="${t.custom_domain || ''}" data-ssh-port="${info.ssh_port}" style="cursor:pointer;transition:.15s">
-      <td>${i + 1}</td>
-      <td><strong class="code">${t.token.substring(0,8)}••••••••</strong> <button class="btn btn-sm copy-token-btn" data-token="${t.token}" style="margin-left:.25rem">📋</button></td>
-      <td>${t.name || '—'}</td>
-      <td class="code">${t.subdomain}</td>
-      <td>${t.custom_domain ? `<span class="badge badge-blue">${t.custom_domain}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
-      <td>${t.created_at ? t.created_at.substring(0,10) : '—'}</td>
-      <td class="token-actions" data-token-id="${t.id}" data-name="${(t.name || '').replace(/"/g, '&quot;')}" data-domain="${t.custom_domain || ''}">
-        <button class="btn btn-sm btn-ghost edit-token-btn" title="Edit">✏️</button>
-        <button class="btn btn-sm btn-ghost regen-token-btn" title="Regenerate">🔄</button>
-        <button class="btn btn-sm btn-danger del-token-btn" title="Delete">🗑️</button>
-      </td>
-    </tr>`).join('');
-    if (!tokenRows) tokenRows = '<tr><td colspan="7" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
+const tokenTableState = {
+  allTokens: [],
+  info: null,
+  query: '',
+  sortKey: 'updated_at',
+  sortDesc: true,
+  page: 1,
+  pageSize: 10,
+  density: 'comfortable', // compact | comfortable
+  fullscreen: false,
+  visibleColumns: { '#': true, token: true, name: true, plan: true, updated: true, created: true, subdomain: true, customDomain: true, actions: true },
+  shownTokens: new Set(), // ids with visible plain token
+};
 
-    c.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+const tokenTableColumns = [
+  { key: '#', label: '#', sortable: false, default: true },
+  { key: 'token', label: 'Token', sortable: true, default: true },
+  { key: 'name', label: 'Token name', sortable: true, default: true },
+  { key: 'plan', label: 'Plan', sortable: true, default: true },
+  { key: 'updated', label: 'Last updated at', sortable: true, default: true },
+  { key: 'created', label: 'Created at', sortable: true, default: false },
+  { key: 'subdomain', label: 'Subdomain', sortable: true, default: false },
+  { key: 'customDomain', label: 'Custom Domain', sortable: false, default: false },
+  { key: 'actions', label: 'Regenerate', sortable: false, default: true },
+];
+
+function _tokenMask(token) {
+  if (!token) return '—';
+  return token.substring(0, 8) + '••••••••';
+}
+function _fmtDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleString(); } catch { return iso; }
+}
+function _fmtDateShort(iso) {
+  if (!iso) return '—';
+  return iso.substring(0, 10);
+}
+
+function _filterTokens(tokens, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return tokens.slice();
+  return tokens.filter(t =>
+    (t.token || '').toLowerCase().includes(q) ||
+    (t.name || '').toLowerCase().includes(q) ||
+    (t.subdomain || '').toLowerCase().includes(q) ||
+    (t.custom_domain || '').toLowerCase().includes(q) ||
+    (t.plan || '').toLowerCase().includes(q)
+  );
+}
+
+function _sortTokens(tokens, key, desc) {
+  const dir = desc ? -1 : 1;
+  const sorted = tokens.slice();
+  sorted.sort((a, b) => {
+    let av, bv;
+    if (key === '#') { av = a._index; bv = b._index; }
+    else if (key === 'token') { av = a.token || ''; bv = b.token || ''; }
+    else if (key === 'name') { av = a.name || ''; bv = b.name || ''; }
+    else if (key === 'plan') { av = a.plan || 'free'; bv = b.plan || 'free'; }
+    else if (key === 'updated') { av = a.updated_at || ''; bv = b.updated_at || ''; }
+    else if (key === 'created') { av = a.created_at || ''; bv = b.created_at || ''; }
+    else if (key === 'subdomain') { av = a.subdomain || ''; bv = b.subdomain || ''; }
+    else if (key === 'customDomain') { av = a.custom_domain || ''; bv = b.custom_domain || ''; }
+    else { av = a.updated_at || ''; bv = b.updated_at || ''; }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+  return sorted;
+}
+
+function _renderTokenTable() {
+  const c = document.getElementById('pageContent');
+  if (!c) return;
+  const state = tokenTableState;
+  const all = state.allTokens.map((t, i) => ({ ...t, _index: i + 1 }));
+  let filtered = _filterTokens(all, state.query);
+  filtered = _sortTokens(filtered, state.sortKey, state.sortDesc);
+  const total = filtered.length;
+  const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
+  if (state.page > pageCount) state.page = pageCount;
+  const start = (state.page - 1) * state.pageSize;
+  const end = start + state.pageSize;
+  const pageTokens = filtered.slice(start, end);
+
+  const colMap = {};
+  tokenTableColumns.forEach(col => colMap[col.key] = state.visibleColumns[col.key]);
+
+  const headerCells = tokenTableColumns.filter(col => colMap[col.key]).map(col => {
+    if (!col.sortable) return `<th>${col.label}</th>`;
+    const active = state.sortKey === col.key;
+    const cls = active ? (state.sortDesc ? 'sort-desc' : 'sort-asc') : '';
+    return `<th class="sortable ${cls}" data-sort="${col.key}">${col.label}<span class="sort-icon"></span></th>`;
+  }).join('');
+
+  const tokenRows = pageTokens.map((t, i) => {
+    const globalIndex = start + i + 1;
+    const isShown = state.shownTokens.has(t.id);
+    const tokenDisplay = isShown
+      ? `<span class="token-plain">${escapeHtml(t.token)}</span>`
+      : `<span class="token-mask">${_tokenMask(t.token)}</span>`;
+    const cells = [];
+    if (colMap['#']) cells.push(`<td>${globalIndex}</td>`);
+    if (colMap['token']) cells.push(`<td>
+      <div class="token-cell">
+        ${tokenDisplay}
+        <button class="icon-btn copy-token-btn" data-token="${escapeHtml(t.token)}" title="Copy">📋</button>
+        <button class="icon-btn toggle-token-btn" data-id="${t.id}" title="${isShown ? 'Hide' : 'Show'}">${isShown ? '🙈' : '👁️'}</button>
+      </div>
+    </td>`);
+    if (colMap['name']) cells.push(`<td>${escapeHtml(t.name || '—')}</td>`);
+    if (colMap['plan']) cells.push(`<td><span class="badge badge-blue">${escapeHtml(t.plan || 'free')}</span></td>`);
+    if (colMap['updated']) cells.push(`<td>${_fmtDate(t.updated_at)}</td>`);
+    if (colMap['created']) cells.push(`<td>${_fmtDateShort(t.created_at)}</td>`);
+    if (colMap['subdomain']) cells.push(`<td class="code">${escapeHtml(t.subdomain || '—')}</td>`);
+    if (colMap['customDomain']) cells.push(`<td>${t.custom_domain ? `<span class="badge badge-blue">${escapeHtml(t.custom_domain)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>`);
+    if (colMap['actions']) cells.push(`<td class="token-actions" data-token-id="${t.id}" data-name="${escapeHtml(t.name || '')}" data-domain="${escapeHtml(t.custom_domain || '')}">
+      <button class="btn btn-sm btn-ghost regen-token-btn" title="Regenerate">🔄</button>
+      <button class="btn btn-sm btn-ghost edit-token-btn" title="Edit">✏️</button>
+      <button class="btn btn-sm btn-danger del-token-btn" title="Delete">🗑️</button>
+    </td>`);
+    return `<tr id="tokenRow-${t.id}" class="${selectedTokenId === t.id ? 'selected' : ''}" data-token-id="${t.id}" data-token="${escapeHtml(t.token)}" data-name="${escapeHtml(t.name || 'My Tunnel')}" data-subdomain="${escapeHtml(t.subdomain)}" data-custom-domain="${escapeHtml(t.custom_domain || '')}" data-ssh-port="${state.info.ssh_port}" style="cursor:pointer;transition:.15s">
+      ${cells.join('')}
+    </tr>`;
+  }).join('');
+
+  const emptyRow = !tokenRows ? `<tr><td colspan="${Object.values(colMap).filter(Boolean).length}" class="empty">No tokens found. ${state.query ? 'Try a different search.' : 'Click "Generate New Token" to create one.'}</td></tr>` : '';
+
+  const pageStart = total ? start + 1 : 0;
+  const pageEnd = Math.min(end, total);
+
+  const columnPopover = `<div id="dtColumnsPopover" class="dt-columns-popover">
+    ${tokenTableColumns.map(col => `<label><input type="checkbox" data-col="${col.key}" ${colMap[col.key] ? 'checked' : ''}> ${escapeHtml(col.label)}</label>`).join('')}
+  </div>`;
+
+  const tableCardClass = `card dt-card${state.fullscreen ? ' fullscreen' : ''}`;
+
+  c.innerHTML = `
+    <div class="dt-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
       <div>
         <div class="page-title">Manage Tokens</div>
         <div class="page-subtitle">Each token creates a separate tunnel with its own URL</div>
       </div>
       <button class="btn" id="generateTokenBtn">+ Generate New Token</button>
     </div>
-    <div class="card">
-      <div class="card-header">
-        <h2>Tokens (${tokens.length})</h2>
-        <button class="btn btn-sm btn-ghost" id="refreshTokensBtn">🔄 Refresh</button>
-      </div>
-      <div class="card-body" style="padding:0;overflow-x:auto">
-        <table>
-          <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Custom Domain</th><th>Created</th><th>Actions</th></tr></thead>
-          <tbody>${tokenRows}</tbody>
-        </table>
+    <div class="dt-wrapper ${state.fullscreen ? 'fullscreen' : ''}" id="dtWrapper">
+      <div class="${tableCardClass}" id="dtCard">
+        <div class="dt-toolbar">
+          <div class="dt-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="dtSearch" placeholder="Search tokens, names, subdomains, domains..." value="${escapeHtml(state.query)}">
+          </div>
+          <div class="dt-actions">
+            <button class="dt-btn" id="dtColumnsBtn" title="Show / hide columns" style="position:relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+              Columns
+              ${columnPopover}
+            </button>
+            <button class="dt-btn ${state.density === 'compact' ? 'active' : ''}" id="dtDensityBtn" title="Toggle density">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+            </button>
+            <button class="dt-btn ${state.fullscreen ? 'active' : ''}" id="dtFullscreenBtn" title="Toggle full screen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            </button>
+            <button class="dt-btn" id="dtRefreshBtn" title="Refresh">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M20.49 9A9 9 0 1 0 5.64 15.36L1 20"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="dt-table-wrap">
+          <table class="dt-table ${state.density}">
+            <thead><tr>${headerCells}</tr></thead>
+            <tbody>${tokenRows}${emptyRow}</tbody>
+          </table>
+        </div>
+        <div class="dt-pagination">
+          <div class="dt-page-info">${pageStart}-${pageEnd} of ${total}</div>
+          <div class="dt-page-btns">
+            <button class="dt-btn" id="dtPrevPage" ${state.page <= 1 ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>← Prev</button>
+            <select id="dtPageSize" style="width:auto;padding:.3rem .5rem;font-size:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">
+              ${[5,10,25,50,100].map(n => `<option value="${n}" ${state.pageSize === n ? 'selected' : ''}>${n} / page</option>`).join('')}
+            </select>
+            <button class="dt-btn" id="dtNextPage" ${state.page >= pageCount ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>Next →</button>
+          </div>
+        </div>
       </div>
     </div>
     <div id="tokenDetailPanel"></div>`;
 
-    // Attach event listeners to token rows (delayed for Cloudflare Rocket Loader)
-    setTimeout(() => {
-      document.querySelectorAll('tbody tr[data-token-id]').forEach(tr => {
-        tr.addEventListener('click', function(e) {
-          if (e.target.closest('.token-actions') || e.target.closest('.copy-token-btn')) return;
-          selectToken(
-            this.dataset.tokenId,
-            this.dataset.token,
-            this.dataset.name,
-            this.dataset.subdomain,
-            this.dataset.customDomain,
-            parseInt(this.dataset.sshPort)
-          );
-        });
+  setTimeout(() => {
+    // Row click -> detail panel
+    document.querySelectorAll('#pageContent tbody tr[data-token-id]').forEach(tr => {
+      tr.addEventListener('click', function(e) {
+        if (e.target.closest('.token-actions') || e.target.closest('.copy-token-btn') || e.target.closest('.toggle-token-btn')) return;
+        selectToken(
+          this.dataset.tokenId,
+          this.dataset.token,
+          this.dataset.name,
+          this.dataset.subdomain,
+          this.dataset.customDomain,
+          parseInt(this.dataset.sshPort)
+        );
       });
-      document.querySelectorAll('.copy-token-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          copyToClipboard(this.dataset.token);
-        });
+    });
+    document.querySelectorAll('.copy-token-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) { e.stopPropagation(); copyToClipboard(this.dataset.token); });
+    });
+    document.querySelectorAll('.toggle-token-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) { e.stopPropagation(); toggleTokenTableVisibility(this.dataset.id); });
+    });
+    document.querySelectorAll('.edit-token-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const td = this.closest('.token-actions');
+        editToken(td.dataset.tokenId, td.dataset.name, td.dataset.domain);
       });
-      document.querySelectorAll('.edit-token-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          const td = this.closest('.token-actions');
-          editToken(td.dataset.tokenId, td.dataset.name, td.dataset.domain);
-        });
+    });
+    document.querySelectorAll('.regen-token-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const td = this.closest('.token-actions');
+        regenerateToken(td.dataset.tokenId);
       });
-      document.querySelectorAll('.regen-token-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          const td = this.closest('.token-actions');
-          regenerateToken(td.dataset.tokenId);
-        });
+    });
+    document.querySelectorAll('.del-token-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const td = this.closest('.token-actions');
+        deleteToken(td.dataset.tokenId);
       });
-      document.querySelectorAll('.del-token-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          const td = this.closest('.token-actions');
-          deleteToken(td.dataset.tokenId);
-        });
+    });
+
+    document.getElementById('generateTokenBtn')?.addEventListener('click', () => showCreateTokenDialog());
+    document.getElementById('dtRefreshBtn')?.addEventListener('click', () => loadTokens());
+    document.getElementById('dtSearch')?.addEventListener('input', e => { tokenTableState.query = e.target.value; tokenTableState.page = 1; _renderTokenTable(); });
+    document.querySelectorAll('#pageContent th.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        if (tokenTableState.sortKey === key) tokenTableState.sortDesc = !tokenTableState.sortDesc;
+        else { tokenTableState.sortKey = key; tokenTableState.sortDesc = false; }
+        _renderTokenTable();
       });
-      // Generate New Token button
-      const genBtn = document.getElementById('generateTokenBtn');
-      if (genBtn) genBtn.addEventListener('click', () => showCreateTokenDialog());
-      // Refresh button
-      const refreshBtn = document.getElementById('refreshTokensBtn');
-      if (refreshBtn) refreshBtn.addEventListener('click', () => loadTokens());
-    }, 100);
-  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+    });
+    document.getElementById('dtDensityBtn')?.addEventListener('click', () => {
+      tokenTableState.density = tokenTableState.density === 'comfortable' ? 'compact' : 'comfortable';
+      _renderTokenTable();
+    });
+    document.getElementById('dtFullscreenBtn')?.addEventListener('click', () => {
+      tokenTableState.fullscreen = !tokenTableState.fullscreen;
+      _renderTokenTable();
+    });
+    document.getElementById('dtPrevPage')?.addEventListener('click', () => { if (tokenTableState.page > 1) { tokenTableState.page--; _renderTokenTable(); } });
+    document.getElementById('dtNextPage')?.addEventListener('click', () => { tokenTableState.page++; _renderTokenTable(); });
+    document.getElementById('dtPageSize')?.addEventListener('change', e => { tokenTableState.pageSize = parseInt(e.target.value, 10); tokenTableState.page = 1; _renderTokenTable(); });
+
+    const columnsBtn = document.getElementById('dtColumnsBtn');
+    const columnsPopover = document.getElementById('dtColumnsPopover');
+    columnsBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      columnsPopover?.classList.toggle('show');
+    });
+    columnsPopover?.querySelectorAll('input').forEach(chk => {
+      chk.addEventListener('change', (e) => {
+        tokenTableState.visibleColumns[e.target.dataset.col] = e.target.checked;
+        _renderTokenTable();
+      });
+    });
+    document.addEventListener('click', function closeColumnsPopover(e) {
+      if (!columnsBtn?.contains(e.target)) columnsPopover?.classList.remove('show');
+    });
+  }, 50);
+}
+
+function toggleTokenTableVisibility(tokenId) {
+  const state = tokenTableState;
+  if (state.shownTokens.has(tokenId)) state.shownTokens.delete(tokenId);
+  else state.shownTokens.add(tokenId);
+  _renderTokenTable();
+}
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+async function loadTokens() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const [info, tokens] = await Promise.all([api('/tunnels/info'), api('/tokens')]);
+    tokenTableState.info = info;
+    tokenTableState.allTokens = tokens || [];
+    _renderTokenTable();
+  } catch (e) {
+    c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`;
+  }
 }
 
 function selectToken(tokenId, token, name, subdomain, customDomain, sshPort) {
@@ -1549,6 +2050,111 @@ function downgradeModal() {
     closeModal();
     toast('Downgrade requested — contact support or admin to process', 'success');
   }, 'Request Downgrade', 'btn-danger');
+}
+
+// ---- Request Feature (Page 7) ----
+async function loadRequestFeature() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = `
+    <div class="dt-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div>
+        <div class="page-title">Request Feature</div>
+        <div class="page-subtitle">Tell us what you need — we read every submission</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <form id="featureForm" class="form" onsubmit="submitFeatureRequest(event)">
+          <div class="form-group">
+            <label class="form-label">Feature title</label>
+            <input type="text" id="featureTitle" class="form-control" placeholder="e.g. Webhook notifications" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select id="featureCategory" class="form-control">
+              <option value="tunneling">Tunneling</option>
+              <option value="dashboard">Dashboard</option>
+              <option value="billing">Billing / Plans</option>
+              <option value="api">API</option>
+              <option value="security">Security</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea id="featureDescription" class="form-control" rows="6" placeholder="Describe the feature and why it matters..." required></textarea>
+          </div>
+          <div class="form-group">
+            <button type="submit" class="btn">Submit Feature Request</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+}
+
+async function submitFeatureRequest(e) {
+  e.preventDefault();
+  const title = document.getElementById('featureTitle').value.trim();
+  const category = document.getElementById('featureCategory').value;
+  const description = document.getElementById('featureDescription').value.trim();
+  if (!title || !description) {
+    toast('Please fill in title and description', 'error');
+    return;
+  }
+  try {
+    const user = await api('/auth/me').catch(() => ({}));
+    await api('/feedback/feature', 'POST', JSON.stringify({
+      email: user.email || '',
+      title,
+      category,
+      description
+    }));
+    toast('Feature request submitted — thank you!', 'success');
+    document.getElementById('featureForm').reset();
+  } catch (err) {
+    toast(err.message || 'Could not submit request', 'error');
+  }
+}
+
+// ---- Help (Page 8) ----
+async function loadHelp() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = `
+    <div class="dt-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div>
+        <div class="page-title">Help</div>
+        <div class="page-subtitle">Documentation and support links</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div style="display:grid;gap:1rem">
+          <div>
+            <h3 style="margin-bottom:.5rem">Getting Started</h3>
+            <p style="color:var(--text-dim);font-size:.875rem;line-height:1.6">
+              Copy your token from the Quickstart page and run the SSH command to expose a local port.
+              Example: <code style="background:var(--bg);padding:.15rem .35rem;border-radius:var(--radius)">ssh -p 2222 -R0:127.0.0.1:8080 \&lt;token\&gt;@ssh.iraglobaltech.com</code>
+            </p>
+          </div>
+          <div>
+            <h3 style="margin-bottom:.5rem">Common Questions</h3>
+            <ul style="color:var(--text-dim);font-size:.875rem;line-height:1.8;padding-left:1.2rem">
+              <li>Free tunnels disconnect after 60 minutes.</li>
+              <li>Pro users can set persistent subdomains and custom domains.</li>
+              <li>Each token creates a separate tunnel with its own URL.</li>
+              <li>Use Manage Tokens to regenerate, rename, or delete tokens.</li>
+            </ul>
+          </div>
+          <div>
+            <h3 style="margin-bottom:.5rem">Need more help?</h3>
+            <p style="color:var(--text-dim);font-size:.875rem;line-height:1.6">
+              Visit the <a href="https://pinggy.io/docs/" target="_blank" style="color:var(--brand)">Pinggy documentation</a>
+              or send an email to <a href="mailto:support@iraglobaltech.com" style="color:var(--brand)">support@iraglobaltech.com</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 
 // ---- Tunnel helpers ----

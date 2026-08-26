@@ -10,6 +10,7 @@ _ADMIN_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "admin.html"
 _DASHBOARD_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "dashboard.html"
 _LANDING_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "landing.html"
 _LOGIN_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "login.html"
+_DOCS_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "docs.html"
 
 # no-store prevents browser back/forward cache (bfcache) from showing
 # logged-in pages after logout
@@ -21,6 +22,10 @@ async def landing_page():
     """Serve the landing page at root path."""
     return HTMLResponse(content=_LANDING_HTML_PATH.read_text(encoding="utf-8"), headers=_NO_STORE)
 
+@router.get("/docs", response_class=HTMLResponse)
+async def docs_page():
+    """Serve the public documentation page."""
+    return HTMLResponse(content=_DOCS_HTML_PATH.read_text(encoding="utf-8"), headers=_NO_STORE)
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page():

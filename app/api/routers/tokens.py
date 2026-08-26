@@ -21,7 +21,9 @@ class TokenOut(BaseModel):
     name: str | None = None
     custom_domain: str | None = None
     subdomain: str | None = None
+    plan: str | None = None
     created_at: str | None = None
+    updated_at: str | None = None
 
 
 class TokenCreate(BaseModel):
@@ -49,8 +51,9 @@ async def list_tokens(
     db: AsyncConnection = Depends(get_db),
 ):
     """List all tokens for the current user."""
+    user_plan = user.get("plan") or "free"
     cur = await db.execute(
-        "SELECT id, token, name, custom_domain, created_at FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
+        "SELECT id, token, name, custom_domain, created_at, updated_at FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
         (user["email"],),
     )
     rows = await cur.fetchall()
@@ -62,7 +65,9 @@ async def list_tokens(
             name=r[2],
             custom_domain=r[3],
             subdomain=_subdomain_from_token(r[1]),
+            plan=user_plan,
             created_at=r[4].isoformat() if r[4] else None,
+            updated_at=r[5].isoformat() if r[5] else None,
         )
         for r in rows
     ]
@@ -108,10 +113,11 @@ async def create_token(
             custom_domain = cd
 
     token = _generate_token()
+    user_plan = user.get("plan") or "free"
     cur = await db.execute(
         "INSERT INTO tokens (user_email, token, name, custom_domain) "
         "VALUES (%s, %s, %s, %s) "
-        "RETURNING id, token, name, custom_domain, created_at",
+        "RETURNING id, token, name, custom_domain, created_at, updated_at",
         (user["email"], token, body.name, custom_domain),
     )
     row = await cur.fetchone()
@@ -122,7 +128,9 @@ async def create_token(
         name=row[2],
         custom_domain=row[3],
         subdomain=_subdomain_from_token(row[1]),
+        plan=user_plan,
         created_at=row[4].isoformat() if row[4] else None,
+        updated_at=row[5].isoformat() if row[5] else None,
     )
 
 
@@ -171,10 +179,11 @@ async def update_token(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields to update")
 
     params.append(token_id)
+    user_plan = user.get("plan") or "free"
     try:
         cur = await db.execute(
             f"UPDATE tokens SET {', '.join(updates)}, updated_at = now() WHERE id = %s "
-            f"RETURNING id, token, name, custom_domain, created_at",
+            f"RETURNING id, token, name, custom_domain, created_at, updated_at",
             tuple(params),
         )
         row = await cur.fetchone()
@@ -193,7 +202,9 @@ async def update_token(
         name=row[2],
         custom_domain=row[3],
         subdomain=_subdomain_from_token(row[1]),
+        plan=user_plan,
         created_at=row[4].isoformat() if row[4] else None,
+        updated_at=row[5].isoformat() if row[5] else None,
     )
 
 
@@ -223,10 +234,11 @@ async def regenerate_token(
 ):
     """Regenerate the token string (old token stops working)."""
     new_token = _generate_token()
+    user_plan = user.get("plan") or "free"
     try:
         cur = await db.execute(
             "UPDATE tokens SET token = %s, updated_at = now() WHERE id = %s AND user_email = %s "
-            "RETURNING id, token, name, custom_domain, created_at",
+            "RETURNING id, token, name, custom_domain, created_at, updated_at",
             (new_token, token_id, user["email"]),
         )
         row = await cur.fetchone()
@@ -243,7 +255,9 @@ async def regenerate_token(
         name=row[2],
         custom_domain=row[3],
         subdomain=_subdomain_from_token(row[1]),
+        plan=user_plan,
         created_at=row[4].isoformat() if row[4] else None,
+        updated_at=row[5].isoformat() if row[5] else None,
     )
 
 
@@ -258,7 +272,9 @@ class AdminTokenOut(BaseModel):
     custom_domain: str | None = None
     subdomain: str | None = None
     user_email: str
+    plan: str | None = None
     created_at: str | None = None
+    updated_at: str | None = None
 
 
 @router.get("/admin/all", response_model=list[AdminTokenOut])
@@ -269,8 +285,9 @@ async def admin_list_all_tokens(
 ):
     """List all tokens across all users (admin only)."""
     cur = await db.execute(
-        "SELECT id, token, name, custom_domain, user_email, created_at "
-        "FROM tokens ORDER BY created_at DESC LIMIT %s",
+        "SELECT t.id, t.token, t.name, t.custom_domain, t.user_email, t.created_at, t.updated_at, u.plan "
+        "FROM tokens t LEFT JOIN users u ON u.email = t.user_email "
+        "ORDER BY t.created_at DESC LIMIT %s",
         (limit,),
     )
     rows = await cur.fetchall()
@@ -283,7 +300,9 @@ async def admin_list_all_tokens(
             custom_domain=r[3],
             subdomain=_subdomain_from_token(r[1]),
             user_email=r[4],
+            plan=r[7] or "free",
             created_at=r[5].isoformat() if r[5] else None,
+            updated_at=r[6].isoformat() if r[6] else None,
         )
         for r in rows
     ]
@@ -316,11 +335,19 @@ async def admin_regenerate_token(
     new_token = _generate_token()
     cur = await db.execute(
         "UPDATE tokens SET token = %s, updated_at = now() WHERE id = %s "
-        "RETURNING id, token, name, custom_domain, user_email, created_at",
+        "RETURNING id, token, name, custom_domain, user_email, created_at, updated_at",
         (new_token, token_id),
     )
     row = await cur.fetchone()
     await cur.close()
+
+    plan = "free"
+    if row:
+        user_cur = await db.execute("SELECT plan FROM users WHERE email = %s", (row[4],))
+        user_row = await user_cur.fetchone()
+        await user_cur.close()
+        plan = user_row[0] if user_row and user_row[0] else "free"
+
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
     return AdminTokenOut(
@@ -330,5 +357,7 @@ async def admin_regenerate_token(
         custom_domain=row[3],
         subdomain=_subdomain_from_token(row[1]),
         user_email=row[4],
+        plan=plan,
         created_at=row[5].isoformat() if row[5] else None,
+        updated_at=row[6].isoformat() if row[6] else None,
     )

@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+import pathlib
+path = pathlib.Path('c:/Users/gattu/OneDrive/Desktop/officework/pinggy/app/static/landing.html')
+html = '''<!DOCTYPE html>
 <html lang="en" data-color-scheme="light">
 <head>
 <meta charset="UTF-8">
@@ -132,64 +134,26 @@
   .tag:hover { border-color: var(--brand); color: var(--brand); transform: translateY(-2px); }
 
   /* Benefits */
-  .benefit { padding: 2.25rem 1.5rem; max-width: 1140px; margin: 0 auto; }
-  .benefit-panel { background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 2.75rem; box-shadow: 0 24px 80px rgba(74,85,162,.10); position: relative; overflow: hidden; transition: transform .35s, box-shadow .35s; }
-  .benefit-panel:hover { transform: translateY(-3px); box-shadow: 0 30px 90px rgba(74,85,162,.14); }
-  .benefit-panel::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; background: linear-gradient(135deg, rgba(106,166,240,.35), rgba(41,169,127,.25)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: .55; pointer-events: none; }
-  .benefit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5rem; align-items: center; position: relative; z-index: 1; }
-  @media (max-width: 860px) { .benefit-grid { grid-template-columns: 1fr; gap: 2rem; } .benefit-panel { padding: 1.75rem; } }
+  .benefit { padding: 4rem 1.5rem; max-width: 1100px; margin: 0 auto; }
+  .benefit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+  @media (max-width: 800px) { .benefit-grid { grid-template-columns: 1fr; gap: 1.5rem; } }
   .benefit-grid.reverse { direction: rtl; }
   .benefit-grid.reverse > * { direction: ltr; }
-  .benefit-eyebrow { display: inline-flex; align-items: center; gap: .45rem; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--brand); margin-bottom: .75rem; }
-  .benefit-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
-  .benefit-text h2 { font-size: clamp(1.9rem, 3.4vw, 2.6rem); font-weight: 900; line-height: 1.12; margin-bottom: 1rem; letter-spacing: -.02em; }
-  .benefit-text > p { color: var(--text-dim); font-size: 1.05rem; line-height: 1.65; margin-bottom: 1.25rem; }
-  .benefit-list { list-style: none; display: flex; flex-direction: column; gap: .75rem; }
-  .benefit-list li { display: flex; align-items: center; gap: .75rem; font-size: 1rem; color: var(--text); font-weight: 500; }
-  .benefit-list li::before { content: ''; width: 22px; height: 22px; border-radius: 50%; background: var(--green) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E") center no-repeat; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 10px rgba(42,157,143,.2); }
-  .benefit-visual { min-height: 300px; display: flex; align-items: center; justify-content: center; position: relative; }
-  @media (max-width: 860px) { .benefit-visual { min-height: 240px; } }
-
-  /* Visual window cards */
-  .window-card { width: 100%; max-width: 420px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: 0 18px 50px rgba(74,85,162,.12); overflow: hidden; font-family: var(--font-mono); font-size: .8rem; }
-  .window-header { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; background: linear-gradient(180deg, #f8faff, #f0f4ff); border-bottom: 1px solid var(--border); }
-  .window-dots { display: flex; gap: .35rem; }
-  .window-dots span { width: 10px; height: 10px; border-radius: 50%; }
-  .window-dots span:nth-child(1) { background: #ff5f57; } .window-dots span:nth-child(2) { background: #febc2e; } .window-dots span:nth-child(3) { background: #28c840; }
-  .window-title { font-size: .72rem; color: var(--text-muted); font-weight: 600; }
-  .window-body { padding: 1.15rem; line-height: 1.75; }
-  .window-body .line { display: flex; gap: .35rem; margin-bottom: .35rem; }
-  .window-body .cmd { color: var(--brand); font-weight: 700; }
-  .window-body .out { color: var(--text-dim); }
-  .window-body .url { color: var(--green); font-weight: 700; }
-  .window-body .comment { color: var(--text-muted); }
-  .cursor { display: inline-block; width: 8px; height: 16px; background: var(--brand); animation: blink 1s steps(2, start) infinite; vertical-align: middle; margin-left: 2px; }
-  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-
-  .log-stack { display: flex; flex-direction: column; gap: .55rem; width: 100%; max-width: 360px; }
-  .log-item { display: flex; align-items: center; gap: .75rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: .7rem .9rem; box-shadow: 0 4px 14px rgba(74,85,162,.06); }
-  .log-method { font-size: .7rem; font-weight: 800; text-transform: uppercase; padding: .25rem .45rem; border-radius: 6px; background: rgba(42,157,143,.12); color: var(--green); }
-  .log-method.post { background: rgba(74,85,162,.12); color: var(--brand); }
-  .log-path { flex: 1; font-size: .85rem; color: var(--text); font-weight: 500; }
-  .log-meta { font-size: .75rem; font-weight: 700; color: var(--green); }
-
-  .qr-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: 0 14px 40px rgba(74,85,162,.12); text-align: center; }
-  .qr-code { width: 150px; height: 150px; border-radius: 12px; background: #fff; }
-  .qr-label { margin-top: .75rem; font-size: .78rem; color: var(--text-muted); font-weight: 600; }
-
-  .secure-card { width: 100%; max-width: 380px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 1.5rem; box-shadow: 0 18px 50px rgba(74,85,162,.12); }
-  .secure-header { display: flex; align-items: center; gap: .6rem; margin-bottom: .75rem; font-weight: 800; color: var(--text); }
-  .secure-header svg { width: 22px; height: 22px; color: var(--green); }
-  .secure-row { display: flex; align-items: center; gap: .75rem; padding: .85rem 0; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-size: .85rem; }
-  .secure-row:last-child { border-bottom: none; }
-  .secure-row .badge { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: rgba(42,157,143,.12); display: inline-flex; align-items: center; justify-content: center; color: var(--green); font-size: .75rem; }
-  .secure-row .ok { color: var(--green); font-weight: 700; }
-  .secure-row .muted { color: var(--text-muted); }
-
-  .app-stack { display: flex; flex-wrap: wrap; gap: .9rem; justify-content: center; }
-  .app-tile { display: inline-flex; align-items: center; gap: .55rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: .85rem 1.2rem; font-weight: 700; font-size: .95rem; box-shadow: 0 10px 30px rgba(74,85,162,.08); transition: transform .2s, box-shadow .2s, border-color .2s; cursor: default; }
-  .app-tile:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(74,85,162,.14); border-color: rgba(106,166,240,.4); }
-  .app-tile svg { width: 22px; height: 22px; color: var(--brand); }
+  .benefit-text h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; line-height: 1.15; margin-bottom: 1rem; }
+  .benefit-text p { color: var(--text-dim); margin-bottom: 1rem; }
+  .benefit-list { list-style: none; }
+  .benefit-list li { display: flex; align-items: center; gap: .6rem; font-size: .95rem; color: var(--text); margin-bottom: .55rem; }
+  .benefit-list li::before { content: '✓'; width: 20px; height: 20px; border-radius: 50%; background: rgba(42,157,143,.12); color: var(--green); font-size: .7rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .benefit-visual { background: linear-gradient(145deg, #ffffff, #f4f5fb); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 2rem; min-height: 280px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 18px 50px rgba(74,85,162,.08); position: relative; overflow: hidden; }
+  .benefit-visual::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 2px; background: linear-gradient(135deg, rgba(106,166,240,.4), rgba(41,169,127,.35)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: .45; }
+  .mini-term { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; font-family: var(--font-mono); font-size: .8rem; line-height: 1.7; box-shadow: 0 8px 24px rgba(74,85,162,.08); }
+  .mini-term .line { margin-bottom: .25rem; }
+  .mini-term .cmd { color: var(--brand); font-weight: 700; }
+  .mini-term .out { color: var(--text-dim); }
+  .mini-term .url { color: var(--green); font-weight: 700; }
+  .log-row { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--text-dim); margin-bottom: .35rem; }
+  .log-row .status { color: var(--green); font-weight: 700; }
+  .qr-placeholder { width: 120px; height: 120px; background: repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 8px, #fff 8px, #fff 16px); border-radius: var(--radius); margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: .7rem; color: var(--text-muted); }
 
   /* Features grid */
   .features { padding: 4rem 1.5rem; max-width: 1100px; margin: 0 auto; }
@@ -270,6 +234,11 @@
   .form-group label { display: block; font-size: .8rem; color: var(--text-dim); margin-bottom: .3rem; font-weight: 500; }
   .form-group input { width: 100%; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: .55rem .75rem; color: var(--text); font-size: .9rem; font-family: var(--font); outline: none; }
   .form-group input:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-light); }
+  .form-group input::placeholder { color: var(--text-muted); }
+  .auth-error { color: #de5f4b; font-size: .825rem; margin-top: .5rem; display: none; }
+  .auth-success { color: var(--green); font-size: .875rem; margin-top: .5rem; display: none; }
+  .auth-note { font-size: .8rem; color: var(--text-dim); margin-top: 1rem; text-align: center; }
+
   section { scroll-margin-top: 4rem; }
   @media (max-width: 768px) {
     .nav .links a:not(.btn) { display: none; }
@@ -294,7 +263,7 @@
   <div class="links" id="navLinks">
     <a href="/">Home</a>
     <a href="#pricing">Pricing</a>
-    <a href="/docs">Docs</a>
+    <a href="#features">Docs</a>
     <div class="has-dropdown">
       <a href="#">Download ▾</a>
       <div class="dropdown">
@@ -312,7 +281,7 @@
       </div>
     </div>
     <a href="#faq">Help</a>
-    <a href="/login" class="btn">Get Started</a>
+    <a href="#auth" class="btn">Get Started</a>
   </div>
 </nav>
 
@@ -324,9 +293,9 @@
       <p class="desc">Create HTTP, TCP, UDP, or TLS tunnels to your Mac/PC. Even if it is sitting behind firewalls and NATs.</p>
       <div class="hero-cta">
         <input type="email" id="heroEmail" placeholder="Enter your email">
-        <a href="/login" class="btn btn-lg btn-animated btn-glow">Start free trial</a>
+        <a href="#auth" class="btn btn-lg btn-animated btn-glow" onclick="prefillEmail()">Start free trial</a>
       </div>
-      <p class="hero-note"><a href="/login">Or just try it for free →</a></p>
+      <p class="hero-note"><a href="#auth">Or just try it for free →</a></p>
     </div>
     <div class="hero-right">
       <div class="config-card">
@@ -351,7 +320,7 @@
           <div class="hint">Enter "yes" to continue connecting. Enter blank password if prompted.</div>
         </div>
         <div class="config-links">
-          <a href="/docs">📄 Docs</a>
+          <a href="#how">📄 Docs</a>
           <a href="#pricing">⚙️ Advanced Settings</a>
         </div>
       </div>
@@ -369,146 +338,101 @@
 </section>
 
 <section class="benefit" id="how">
-  <div class="benefit-panel">
-    <div class="benefit-grid">
-      <div class="benefit-text">
-        <div class="benefit-eyebrow"><span class="dot"></span> Instant sharing</div>
-        <h2>Share your websites and apps in seconds.</h2>
-        <p>No client to install, no config files to manage. Paste a single SSH command and get a public HTTPS URL instantly.</p>
-        <ul class="benefit-list">
-          <li>Works with any local port</li>
-          <li>Permanent subdomain per token on Pro</li>
-          <li>Custom domain support with Cloudflare</li>
-        </ul>
-      </div>
-      <div class="benefit-visual">
-        <div class="window-card">
-          <div class="window-header"><div class="window-dots"><span></span><span></span><span></span></div><div class="window-title">Terminal</div></div>
-          <div class="window-body">
-            <div class="line"><span class="cmd">$</span> ssh -p 2222 -R0:127.0.0.1:3000 token@ssh.iraglobaltech.com</div>
-            <div class="line"><span class="out">Allocated port 45647 for remote forward</span></div>
-            <div class="line"><span class="out">URL: <span class="url">https://abc1234.iraglobaltech.com</span></span><span class="cursor"></span></div>
-            <div class="line comment"># share with anyone, anywhere</div>
-          </div>
-        </div>
+  <div class="benefit-grid">
+    <div class="benefit-text">
+      <h2>Share your websites and apps in seconds.</h2>
+      <p>No client to install, no config files to manage. Paste a single SSH command and get a public HTTPS URL instantly.</p>
+      <ul class="benefit-list">
+        <li>Works with any local port</li>
+        <li>Permanent subdomain per token on Pro</li>
+        <li>Custom domain support with Cloudflare</li>
+      </ul>
+    </div>
+    <div class="benefit-visual">
+      <div class="mini-term">
+        <div class="line"><span class="cmd">$</span> ssh -p 2222 -R0:127.0.0.1:3000 token@ssh.iraglobaltech.com</div>
+        <div class="line"><span class="out">Allocated port 45647 for remote forward</span></div>
+        <div class="line"><span class="out">URL: <span class="url">https://abc1234.iraglobaltech.com</span></span></div>
       </div>
     </div>
   </div>
 </section>
 
 <section class="benefit">
-  <div class="benefit-panel">
-    <div class="benefit-grid reverse">
-      <div class="benefit-text">
-        <div class="benefit-eyebrow"><span class="dot"></span> Live debugging</div>
-        <h2>Debug on the go.</h2>
-        <p>Inspect headers, replay requests, and watch live logs from any device. The built-in debugger travels with your tunnel.</p>
-        <ul class="benefit-list">
-          <li>Live request log</li>
-          <li>Header & payload inspection</li>
-          <li>One-click replay</li>
-        </ul>
-      </div>
-      <div class="benefit-visual">
-        <div class="log-stack">
-          <div class="log-item"><span class="log-method">GET</span><span class="log-path">/index.html</span><span class="log-meta">200 OK · 12ms</span></div>
-          <div class="log-item"><span class="log-method post">POST</span><span class="log-path">/api/users</span><span class="log-meta">201 · 45ms</span></div>
-          <div class="log-item"><span class="log-method">GET</span><span class="log-path">/static/main.css</span><span class="log-meta">200 OK · 8ms</span></div>
-          <div class="log-item"><span class="log-method">GET</span><span class="log-path">/api/tunnels</span><span class="log-meta">200 OK · 19ms</span></div>
-        </div>
+  <div class="benefit-grid reverse">
+    <div class="benefit-text">
+      <h2>Debug on the go.</h2>
+      <p>Inspect headers, replay requests, and watch live logs from any device. The built-in debugger travels with your tunnel.</p>
+      <ul class="benefit-list">
+        <li>Live request log</li>
+        <li>Header & payload inspection</li>
+        <li>One-click replay</li>
+      </ul>
+    </div>
+    <div class="benefit-visual">
+      <div class="mini-term">
+        <div class="log-row"><span class="status">GET 200 OK</span> /index.html</div>
+        <div class="log-row"><span class="status">POST 201</span> /api/users</div>
+        <div class="log-row"><span class="status">GET 200 OK</span> /static/main.css</div>
+        <div class="log-row"><span class="status">GET 200 OK</span> /api/tunnels</div>
       </div>
     </div>
   </div>
 </section>
 
 <section class="benefit">
-  <div class="benefit-panel">
-    <div class="benefit-grid">
-      <div class="benefit-text">
-        <div class="benefit-eyebrow"><span class="dot"></span> Terminal UI</div>
-        <h2>Rich terminal interface.</h2>
-        <p>Get real-time tunnel status, QR codes, and request summaries right in your terminal. No dashboard required.</p>
-        <ul class="benefit-list">
-          <li>Terminal UI for quick setup</li>
-          <li>QR code for mobile testing</li>
-          <li>Colored status output</li>
-        </ul>
-      </div>
-      <div class="benefit-visual">
-        <div class="window-card">
-          <div class="window-header"><div class="window-dots"><span></span><span></span><span></span></div><div class="window-title">Tunnel status</div></div>
-          <div class="window-body" style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;">
-            <div style="flex:1;min-width:180px;">
-              <div class="line"><span class="out">Connected:</span> <span class="url">abc1234.iraglobaltech.com</span></div>
-              <div class="line"><span class="out">Region:</span> asia-south1</div>
-              <div class="line"><span class="out">Status:</span> <span style="color:var(--green);font-weight:700;">● Live</span></div>
-              <div class="line"><span class="out">Requests:</span> 1,248</div>
-            </div>
-            <div class="qr-card">
-              <div class="qr-code"><svg viewBox="0 0 100 100" style="width:100%;height:100%;"><rect width="100" height="100" fill="#fff"/><path fill="#1a1a2e" d="M10 10h25v25H10zm5 5v15h15V15zm35-5h25v25H55zm5 5v15h15V15zM10 55h25v25H10zm5 5v15h15V60zM45 20h5v5h-5zM60 50h5v5h-5zM20 80h5v5h-5zM80 60h5v5h-5zM50 70h5v5h-5zM70 40h5v5h-5zM35 45h5v5h-5zM85 85h5v5h-5zM55 85h5v5h-5zM75 75h5v5h-5zM45 55h5v5h-5zM65 65h5v5h-5zM90 30h5v5h-5zM30 35h5v5h-5z"/></svg></div>
-              <div class="qr-label">Scan to open</div>
-            </div>
-          </div>
-        </div>
+  <div class="benefit-grid">
+    <div class="benefit-text">
+      <h2>Rich terminal interface.</h2>
+      <p>Get real-time tunnel status, QR codes, and request summaries right in your terminal. No dashboard required.</p>
+      <ul class="benefit-list">
+        <li>Terminal UI for quick setup</li>
+        <li>QR code for mobile testing</li>
+        <li>Colored status output</li>
+      </ul>
+    </div>
+    <div class="benefit-visual" style="align-items:center;">
+      <div class="qr-placeholder">QR Code</div>
+    </div>
+  </div>
+</section>
+
+<section class="benefit">
+  <div class="benefit-grid reverse">
+    <div class="benefit-text">
+      <h2>Secure tunnels to your private network.</h2>
+      <p>Token-based authentication, SSH encryption, and Cloudflare-managed HTTPS keep your local services locked down.</p>
+      <ul class="benefit-list">
+        <li>Revocable access tokens</li>
+        <li>End-to-end SSH encryption</li>
+        <li>No traffic logs stored</li>
+      </ul>
+    </div>
+    <div class="benefit-visual">
+      <div class="mini-term">
+        <div class="line"><span class="cmd">🔒</span> Authenticated as token-7a3f...</div>
+        <div class="line"><span class="out">TLS: enabled (Cloudflare edge)</span></div>
+        <div class="line"><span class="out">Forward: 127.0.0.1:8080 ←→ public URL</span></div>
       </div>
     </div>
   </div>
 </section>
 
 <section class="benefit">
-  <div class="benefit-panel">
-    <div class="benefit-grid reverse">
-      <div class="benefit-text">
-        <div class="benefit-eyebrow"><span class="dot"></span> Enterprise security</div>
-        <h2>Secure tunnels to your private network.</h2>
-        <p>Token-based authentication, SSH encryption, and Cloudflare-managed HTTPS keep your local services locked down.</p>
-        <ul class="benefit-list">
-          <li>Revocable access tokens</li>
-          <li>End-to-end SSH encryption</li>
-          <li>No traffic logs stored</li>
-        </ul>
-      </div>
-      <div class="benefit-visual">
-        <div class="secure-card">
-          <div class="secure-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Connection security</div>
-          <div class="secure-row"><span class="badge">✓</span><span class="muted">Auth:</span><span class="ok">token-7a3f… authenticated</span></div>
-          <div class="secure-row"><span class="badge">🔒</span><span class="muted">TLS:</span><span class="ok">enabled (Cloudflare edge)</span></div>
-          <div class="secure-row"><span class="badge">→</span><span class="muted">Forward:</span><span>127.0.0.1:8080 ⟷ public URL</span></div>
-        </div>
-      </div>
+  <div class="benefit-grid">
+    <div class="benefit-text">
+      <h2>Easy to use apps.</h2>
+      <p>Prefer a GUI? Use the desktop app. Prefer scripts? Use the CLI or SDKs. We meet you wherever you work.</p>
+      <ul class="benefit-list">
+        <li>Cross-platform desktop app</li>
+        <li>CLI for CI/CD pipelines</li>
+        <li>Node.js & Python SDKs</li>
+      </ul>
     </div>
-  </div>
-</section>
-
-<section class="benefit">
-  <div class="benefit-panel">
-    <div class="benefit-grid">
-      <div class="benefit-text">
-        <div class="benefit-eyebrow"><span class="dot"></span> Your workflow</div>
-        <h2>Easy to use apps.</h2>
-        <p>Prefer a GUI? Use the desktop app. Prefer scripts? Use the CLI or SDKs. We meet you wherever you work.</p>
-        <ul class="benefit-list">
-          <li>Cross-platform desktop app</li>
-          <li>CLI for CI/CD pipelines</li>
-          <li>Node.js & Python SDKs</li>
-        </ul>
-      </div>
-      <div class="benefit-visual">
-        <div class="app-stack">
-          <div class="app-tile">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            Desktop App
-          </div>
-          <div class="app-tile">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-            CLI
-          </div>
-          <div class="app-tile">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-            SDK
-          </div>
-        </div>
-      </div>
+    <div class="benefit-visual" style="align-items:center; justify-content:center; gap:1rem; flex-direction:row;">
+      <span class="tag" style="font-size:1rem; padding:.6rem 1rem;">Desktop App</span>
+      <span class="tag" style="font-size:1rem; padding:.6rem 1rem;">CLI</span>
+      <span class="tag" style="font-size:1rem; padding:.6rem 1rem;">SDK</span>
     </div>
   </div>
 </section>
@@ -566,7 +490,7 @@
     <div class="app-card">
       <h3>Command Line App</h3>
       <p>The same powerful SSH command you already know. Automate tunnels in scripts, CI/CD, and remote servers.</p>
-      <a href="/docs" class="btn btn-ghost">View CLI Docs →</a>
+      <a href="#how" class="btn btn-ghost">View CLI Docs →</a>
     </div>
   </div>
 </section>
@@ -588,7 +512,7 @@
         <li>Random subdomains</li>
         <li>Unlimited data transfer</li>
       </ul>
-      <a href="/login" class="btn btn-ghost" style="width:100%">Get Started Free</a>
+      <a href="#auth" class="btn btn-ghost" style="width:100%">Get Started Free</a>
     </div>
     <div class="price-card featured">
       <div class="plan-badge">Most Popular</div>
@@ -603,7 +527,7 @@
         <li>Multiple tunnels</li>
         <li>Priority support</li>
       </ul>
-      <a href="/login" class="btn btn-lg btn-animated btn-glow" style="width:100%">Upgrade to Pro</a>
+      <a href="#auth" class="btn btn-lg btn-animated btn-glow" style="width:100%">Upgrade to Pro</a>
     </div>
     <div class="price-card">
       <div class="plan-name">Enterprise</div>
@@ -655,7 +579,7 @@
     <div class="answer">Yes. Pro includes one custom domain; Enterprise includes unlimited custom domains plus Cloudflare-managed SSL.</div>
   </details>
   <details class="faq-item">
-    <summary><span>The command uses SSH. Doesn't it open up my computer to threats?</span><span class="chevron"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
+    <summary><span>The command uses SSH. Doesn\'t it open up my computer to threats?</span><span class="chevron"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
     <div class="answer">No. Only the specific local port you choose is forwarded. Token authentication and SSH encryption protect the connection end-to-end.</div>
   </details>
   <details class="faq-item">
@@ -671,7 +595,33 @@
 <section class="cta-section">
   <h2>Ready to share your localhost?</h2>
   <p>Start tunneling in seconds. No credit card required, no client to install — just one SSH command.</p>
-  <a href="/login" class="btn btn-lg btn-animated btn-glow">Get Started Free →</a>
+  <a href="#auth" class="btn btn-lg btn-animated btn-glow">Get Started Free →</a>
+</section>
+
+<section class="auth-section" id="auth">
+  <div class="auth-card">
+    <h2>Get Started</h2>
+    <p class="subtitle">Create your account or sign in</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login', this)">Login</button>
+      <button class="auth-tab" onclick="switchAuthTab('register', this)">Sign Up</button>
+    </div>
+    <form class="auth-form active" id="loginForm" onsubmit="event.preventDefault(); doLogin();">
+      <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="you@example.com" required></div>
+      <div class="form-group"><label>Password</label><input type="password" id="loginPassword" placeholder="••••••••" required></div>
+      <button type="submit" class="btn btn-lg btn-animated btn-glow" style="width:100%">Login</button>
+      <div class="auth-error" id="loginError"></div>
+    </form>
+    <form class="auth-form" id="registerForm" onsubmit="event.preventDefault(); doRegister();">
+      <div class="form-group"><label>Full Name</label><input type="text" id="regFullName" placeholder="Jane Doe"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="regEmail" placeholder="you@example.com" required></div>
+      <div class="form-group"><label>Password</label><input type="password" id="regPassword" placeholder="••••••••" required></div>
+      <button type="submit" class="btn btn-lg btn-animated btn-glow" style="width:100%">Create Account</button>
+      <div class="auth-error" id="registerError"></div>
+      <div class="auth-success" id="registerSuccess"></div>
+    </form>
+    <p class="auth-note">By signing up you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</p>
+  </div>
 </section>
 
 <footer class="footer">
@@ -695,7 +645,7 @@
     </div>
     <div class="footer-col">
       <h4>Resources</h4>
-      <a href="/docs">Docs</a>
+      <a href="#how">Docs</a>
       <a href="#use-cases">Quickstart</a>
       <a href="#faq">Help</a>
       <a href="#">Blog</a>
@@ -737,6 +687,76 @@ function copyCmd() {
     setTimeout(() => btn.textContent = old, 1500);
   });
 }
+function prefillEmail() {
+  const val = document.getElementById('heroEmail').value;
+  if (val) document.getElementById('regEmail').value = val;
+  setTimeout(() => {
+    const tab = document.querySelector('.auth-tab:nth-child(2)');
+    if (tab) switchAuthTab('register', tab);
+  }, 50);
+}
+
+function switchAuthTab(tab, el) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(tab + 'Form').classList.add('active');
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('registerError').style.display = 'none';
+  document.getElementById('registerSuccess').style.display = 'none';
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent = 'Please enter email and password'; errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Login failed');
+    localStorage.setItem('pinggy_token', data.access_token);
+    localStorage.setItem('pinggy_user', JSON.stringify(data.user));
+    window.location.href = data.user.role === 'admin' ? '/admin' : '/dashboard';
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+}
+
+async function doRegister() {
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const fullName = document.getElementById('regFullName').value.trim();
+  const errEl = document.getElementById('registerError');
+  const successEl = document.getElementById('registerSuccess');
+  errEl.style.display = 'none'; successEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent = 'Please enter email and password'; errEl.style.display = 'block'; return; }
+  if (password.length < 4) { errEl.textContent = 'Password must be at least 4 characters'; errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch(`${API}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, full_name: fullName || undefined, role: 'user' }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Registration failed');
+    successEl.textContent = 'Account created! Logging you in...';
+    successEl.style.display = 'block';
+    setTimeout(() => doLoginAfterRegister(email, password), 1000);
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+}
+
+async function doLoginAfterRegister(email, password) {
+  try {
+    const res = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error('Login failed after registration');
+    localStorage.setItem('pinggy_token', data.access_token);
+    localStorage.setItem('pinggy_user', JSON.stringify(data.user));
+    window.location.href = '/dashboard';
+  } catch (e) {
+    switchAuthTab('login', document.querySelector('.auth-tab:nth-child(1)'));
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('loginError').textContent = 'Account created! Please login with your credentials.';
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
 (function initParticles() {
   const bg = document.querySelector('.bg-animation');
   if (!bg) return;
@@ -775,7 +795,8 @@ function copyCmd() {
     if (res.ok) {
       const user = await res.json();
       const nav = document.getElementById('navLinks');
-      if (nav) nav.innerHTML = `<a href="/">Home</a><a href="#pricing">Pricing</a><a href="/docs">Docs</a><a href="/dashboard" style="color:var(--text)">${user.email}</a><a href="/dashboard" class="btn">Dashboard →</a>`;
+      if (nav) nav.innerHTML = `<a href="/">Home</a><a href="#pricing">Pricing</a><a href="#features">Docs</a><a href="/dashboard" style="color:var(--text)">${user.email}</a><a href="/dashboard" class="btn">Dashboard →</a>`;
+      document.querySelectorAll('a[href="#auth"]').forEach(a => { a.href = '/dashboard'; });
     }
   } catch {}
 })();
@@ -790,3 +811,6 @@ function copyCmd() {
 </script>
 </body>
 </html>
+'''
+path.write_text(html, encoding='utf-8')
+print('Wrote', path, 'bytes', len(html.encode('utf-8')))

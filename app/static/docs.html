@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en" data-color-scheme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentation — Pinggy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    --brand: #4a55a2;
+    --brand-hover: #3d468a;
+    --brand-light: rgba(74,85,162,.10);
+    --brand-2: #6b8cff;
+    --green: #2a9d8f;
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-1: #f4f5fb;
+    --surface-2: #e8eaf6;
+    --border: rgba(74,85,162,.12);
+    --border-hover: rgba(74,85,162,.22);
+    --text: #1a1a2e;
+    --text-dim: #5a5d7a;
+    --text-muted: #8b8fa8;
+    --radius: 8px;
+    --radius-lg: 14px;
+    --radius-xl: 22px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.65; overflow-x: hidden; position: relative; }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Background */
+  .bg-animation { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: linear-gradient(135deg, #f4f5fb 0%, #e8eaf6 40%, #ffffff 100%); width: 100vw; min-height: 100vh; }
+  .blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .55; animation: blobMove 20s ease-in-out infinite; }
+  .blob:nth-child(1) { width: 55vw; height: 55vw; background: radial-gradient(circle, rgba(138,149,225,.55), transparent); top: -15%; left: -10%; }
+  .blob:nth-child(2) { width: 45vw; height: 45vw; background: radial-gradient(circle, rgba(168,179,235,.5), transparent); bottom: -10%; right: -10%; animation-delay: -7s; }
+  .blob:nth-child(3) { width: 35vw; height: 35vw; background: radial-gradient(circle, rgba(122,188,214,.45), transparent); top: 40%; left: 35%; animation-delay: -14s; }
+  @keyframes blobMove { 0%,100% { transform: translate(0,0) scale(1) rotate(0deg); border-radius: 60% 40% 55% 45% / 55% 45% 60% 40%; } 25% { transform: translate(8%,-6%) scale(1.08) rotate(8deg); border-radius: 45% 55% 40% 60% / 50% 60% 40% 55%; } 50% { transform: translate(-5%,10%) scale(.95) rotate(-5deg); border-radius: 55% 45% 60% 40% / 45% 55% 50% 60%; } 75% { transform: translate(-8%,-4%) scale(1.05) rotate(6deg); border-radius: 50% 50% 45% 55% / 60% 40% 55% 45%; } }
+  .wave-overlay { position: absolute; inset: 0; background: radial-gradient(circle at 20% 30%, rgba(255,255,255,.35) 0%, transparent 35%), radial-gradient(circle at 80% 70%, rgba(255,255,255,.25) 0%, transparent 30%); animation: shimmer 12s ease-in-out infinite; }
+  @keyframes shimmer { 0%,100% { opacity: .6; transform: scale(1); } 50% { opacity: .9; transform: scale(1.04); } }
+
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: rgba(232,238,246,.6); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--brand) 0%, var(--green) 100%); border-radius: 10px; border: 2px solid rgba(232,238,246,.6); }
+  * { scrollbar-width: thin; scrollbar-color: var(--brand) rgba(232,238,246,.6); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; background: var(--brand); color: #fff; border: none; border-radius: var(--radius); padding: .5rem 1.25rem; font-size: .9rem; font-weight: 600; font-family: var(--font); cursor: pointer; transition: .15s; text-decoration: none; }
+  .btn:hover { background: var(--brand-hover); text-decoration: none; }
+  .btn-ghost { background: transparent; color: var(--brand); border: 1.5px solid var(--border); }
+  .btn-ghost:hover { background: var(--brand-light); border-color: var(--brand-hover); }
+
+  /* Nav */
+  .nav { position: sticky; top: 0; z-index: 200; background: rgba(255,255,255,.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: .75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+  .nav .logo { font-size: 1.25rem; font-weight: 900; display: flex; align-items: center; gap: .5rem; color: var(--text); }
+  .nav .links { display: flex; align-items: center; gap: 1.25rem; }
+  .nav .links a { color: var(--text-dim); font-size: .9rem; font-weight: 500; }
+  .nav .links a:hover { color: var(--text); text-decoration: none; }
+  .nav .links a.btn { color: #fff; }
+  .menu-btn { position: relative; z-index: 210; }
+
+  /* Layout */
+  .docs-layout { display: grid; grid-template-columns: 280px 1fr; gap: 2rem; max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem 4rem; position: relative; }
+
+  /* Sidebar */
+  .sidebar { position: sticky; top: 70px; height: calc(100vh - 90px); overflow-y: auto; padding: 1.25rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: 0 14px 40px rgba(74,85,162,.08); }
+  .sidebar-group { margin-bottom: 1.5rem; }
+  .sidebar-group:last-child { margin-bottom: 0; }
+  .sidebar-title { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: .75rem; }
+  .sidebar a { display: block; padding: .55rem .85rem; border-radius: var(--radius); font-size: .9rem; color: var(--text-dim); border-left: 3px solid transparent; margin-bottom: .25rem; }
+  .sidebar a:hover { background: var(--surface-1); color: var(--text); text-decoration: none; }
+  .sidebar a.active { background: var(--brand-light); color: var(--brand); border-left-color: var(--brand); font-weight: 700; }
+
+  /* Mobile menu */
+  .menu-btn { display: none; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: .45rem; color: var(--brand); cursor: pointer; }
+  .menu-btn svg { display: block; width: 22px; height: 22px; }
+  .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(26,26,46,.45); backdrop-filter: blur(2px); z-index: 140; }
+  .mobile-overlay.open { display: block; }
+
+  /* Main content */
+  .main { min-width: 0; }
+  .doc-section { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 2rem 2.25rem; margin-bottom: 2rem; box-shadow: 0 18px 50px rgba(74,85,162,.08); }
+  .doc-section h1 { font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 900; margin-bottom: .75rem; letter-spacing: -.02em; }
+  .doc-section h2 { font-size: clamp(1.4rem, 2.5vw, 1.8rem); font-weight: 800; margin-top: 2rem; margin-bottom: .75rem; }
+  .doc-section h2:first-child { margin-top: 0; }
+  .doc-section h3 { font-size: 1.15rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: .5rem; }
+  .doc-section p { color: var(--text-dim); margin-bottom: 1rem; }
+  .doc-section ul, .doc-section ol { margin-left: 1.25rem; margin-bottom: 1rem; color: var(--text-dim); }
+  .doc-section li { margin-bottom: .5rem; }
+  .doc-section strong { color: var(--text); }
+
+  .eyebrow { display: inline-flex; align-items: center; gap: .45rem; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--brand); margin-bottom: .75rem; }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+  .lead { font-size: 1.15rem; color: var(--text-dim); margin-bottom: 1.5rem; max-width: 700px; }
+
+  .window-card { width: 100%; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: 0 14px 40px rgba(74,85,162,.10); overflow: hidden; font-family: var(--font-mono); font-size: .85rem; margin: 1.25rem 0; }
+  .window-header { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; background: linear-gradient(180deg, #f8faff, #f0f4ff); border-bottom: 1px solid var(--border); }
+  .window-dots { display: flex; gap: .35rem; }
+  .window-dots span { width: 10px; height: 10px; border-radius: 50%; }
+  .window-dots span:nth-child(1) { background: #ff5f57; } .window-dots span:nth-child(2) { background: #febc2e; } .window-dots span:nth-child(3) { background: #28c840; }
+  .window-title { font-size: .72rem; color: var(--text-muted); font-weight: 600; }
+  .window-body { padding: 1.15rem; line-height: 1.75; overflow-x: auto; }
+  .window-body .cmd { color: var(--brand); font-weight: 700; }
+  .window-body .out { color: var(--text-dim); }
+  .window-body .comment { color: var(--text-muted); }
+  .window-body .url { color: var(--green); font-weight: 700; }
+
+  .code-block { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; font-family: var(--font-mono); font-size: .85rem; overflow-x: auto; margin: 1rem 0; }
+  .code-block .cmd { color: var(--brand); font-weight: 700; }
+  .code-block .comment { color: var(--text-muted); }
+
+  .copy-btn { float: right; background: var(--text); color: #fff; border: none; border-radius: var(--radius); padding: .35rem .6rem; font-size: .75rem; cursor: pointer; }
+  .copy-btn:hover { background: var(--brand); }
+
+  .note { background: linear-gradient(90deg, rgba(74,85,162,.08), rgba(42,157,143,.06)); border-left: 4px solid var(--brand); border-radius: var(--radius); padding: 1rem 1.25rem; margin: 1.25rem 0; color: var(--text-dim); }
+  .note strong { color: var(--brand); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+  .card h4 { font-size: 1rem; font-weight: 800; margin-bottom: .5rem; }
+  .card p { font-size: .9rem; margin-bottom: 0; }
+
+  .feature-list { list-style: none; margin-left: 0; }
+  .feature-list li { display: flex; align-items: flex-start; gap: .75rem; }
+  .feature-list li::before { content: ''; width: 22px; height: 22px; border-radius: 50%; background: var(--green) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E") center no-repeat; flex-shrink: 0; box-shadow: 0 4px 10px rgba(42,157,143,.2); }
+
+  /* Footer */
+  .footer { border-top: 1px solid var(--border); background: linear-gradient(180deg, rgba(255,255,255,0), rgba(74,85,162,.04)); padding: 3rem 1.5rem 2rem; }
+  .footer-grid { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1.5fr repeat(4, 1fr); gap: 2rem; }
+  @media (max-width: 800px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+  .footer-brand { font-size: 1.25rem; font-weight: 900; margin-bottom: .75rem; }
+  .footer-brand p { font-size: .85rem; color: var(--text-dim); margin-top: .5rem; line-height: 1.6; }
+  .footer-col h4 { font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--text); margin-bottom: 1rem; }
+  .footer-col a { display: block; font-size: .85rem; color: var(--text-dim); margin-bottom: .55rem; }
+  .footer-col a:hover { color: var(--brand); text-decoration: none; }
+  .footer-bottom { max-width: 1100px; margin: 2rem auto 0; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center; font-size: .8rem; color: var(--text-muted); }
+
+  @media (max-width: 900px) {
+    .docs-layout { grid-template-columns: 1fr; padding: 1rem 1rem 3rem; }
+    .menu-btn { display: inline-flex; align-items: center; justify-content: center; }
+    .nav .links { display: none; }
+    .nav .links.show { display: flex; position: absolute; top: 58px; left: 1.5rem; right: 1.5rem; flex-direction: column; gap: .5rem; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: .75rem; box-shadow: 0 14px 40px rgba(74,85,162,.12); z-index: 150; }
+    .nav .links.show a { padding: .65rem .5rem; color: var(--text); }
+    .nav .links.show a.btn { text-align: center; }
+    .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 280px; max-width: 80vw; z-index: 150; transform: translateX(-110%); transition: transform .25s ease; border-radius: 0; border-right: 1px solid var(--border); border-top: none; border-bottom: none; border-left: none; box-shadow: 4px 0 30px rgba(74,85,162,.15); }
+    .sidebar.open { transform: translateX(0); }
+    .main { padding-left: 0; }
+    .doc-section { padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+  <div class="bg-animation">
+    <div class="blob"></div>
+    <div class="blob"></div>
+    <div class="blob"></div>
+    <div class="wave-overlay"></div>
+  </div>
+
+  <nav class="nav">
+    <a href="/" class="logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Pinggy
+    </a>
+    <div class="links" id="navLinks">
+      <a href="/docs">Docs</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/#features">Features</a>
+      <a href="/login" class="btn">Log in</a>
+    </div>
+    <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
+  </nav>
+
+  <div class="mobile-overlay" id="overlay"></div>
+
+  <div class="docs-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-group">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="#introduction" class="active">Introduction</a>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#cli">CLI Usage</a>
+      </div>
+      <div class="sidebar-group">
+        <div class="sidebar-title">Guides</div>
+        <a href="#tunnel">Create a Tunnel</a>
+        <a href="#custom-domain">Custom Domains</a>
+        <a href="#auth">Access Control</a>
+        <a href="#qr">QR Code Sharing</a>
+      </div>
+      <div class="sidebar-group">
+        <div class="sidebar-title">Reference</div>
+        <a href="#commands">Commands</a>
+        <a href="#config">Configuration</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="doc-section" id="introduction">
+        <div class="eyebrow"><span class="dot"></span> Getting Started</div>
+        <h1>Pinggy Documentation</h1>
+        <p class="lead">Learn how to expose local servers to the internet instantly with secure SSH reverse tunnels. No downloads, no installation, no credit card required.</p>
+        <ul class="feature-list">
+          <li>Public HTTPS URLs for localhost in one command</li>
+          <li>End-to-end encryption over SSH</li>
+          <li>Custom domains, password protection, and request inspection</li>
+        </ul>
+        <div class="note"><strong>Tip:</strong> If you already have an SSH client installed, you can start tunneling immediately. Otherwise use the dashboard to create and manage tunnels.</div>
+      </section>
+
+      <section class="doc-section" id="quickstart">
+        <h2>Quickstart</h2>
+        <p>The fastest way to expose a local service is with the SSH command below. Replace <code>8080</code> with the port your app is running on.</p>
+
+        <div class="window-card">
+          <div class="window-header">
+            <div class="window-dots"><span></span><span></span><span></span></div>
+            <div class="window-title">Terminal</div>
+          </div>
+          <div class="window-body">
+            <div><span class="cmd">ssh</span> -p 2222 -R0:localhost:8080 tunnel@pinggy.local</div>
+            <div class="out">==> public URL: <span class="url">https://a1b2c3d4.pinggy.local</span></div>
+            <div class="out">==> forwarding: 0 -> localhost:8080</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h4>Step 1</h4>
+            <p>Start your local application on any port, e.g. <code>http://localhost:8080</code>.</p>
+          </div>
+          <div class="card">
+            <h4>Step 2</h4>
+            <p>Run the SSH command above and copy the public URL that appears.</p>
+          </div>
+        </div>
+
+        <div class="note"><strong>Free users:</strong> Public URLs are temporary for the session. Upgrade to keep persistent domains and custom subdomains.</div>
+      </section>
+
+      <section class="doc-section" id="cli">
+        <h2>CLI Usage</h2>
+        <p>Pinggy uses the SSH protocol directly, so any standard SSH client works. The command format is:</p>
+
+        <div class="code-block">
+          ssh -p &lt;server_port&gt; -R0:localhost:&lt;local_port&gt; &lt;user&gt;@&lt;host&gt;
+        </div>
+
+        <h3>Common options</h3>
+        <ul>
+          <li><code>-p 2222</code> — connect to the Pinggy tunnel server port</li>
+          <li><code>-R0:localhost:8080</code> — request a remote forward from any available remote port to local port 8080</li>
+          <li><code>-o ServerAliveInterval=30</code> — keep the connection alive behind NAT/firewalls</li>
+        </ul>
+
+        <h3>Example with keepalive</h3>
+        <div class="window-card">
+          <div class="window-header">
+            <div class="window-dots"><span></span><span></span><span></span></div>
+            <div class="window-title">Terminal</div>
+          </div>
+          <div class="window-body">
+            <div><span class="cmd">ssh</span> -p 2222 -o ServerAliveInterval=30 -R0:localhost:3000 tunnel@pinggy.local</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc-section" id="tunnel">
+        <h2>Create a Tunnel</h2>
+        <p>Tunnels map a public URL to a service running on your machine. You can create and manage tunnels from the dashboard or via the CLI.</p>
+
+        <h3>Using the dashboard</h3>
+        <ol>
+          <li>Log in to your account at <a href="/login">/login</a>.</li>
+          <li>Go to the dashboard and click <strong>Create Tunnel</strong>.</li>
+          <li>Enter the local port and choose a domain option.</li>
+          <li>Copy the generated SSH command or token.</li>
+        </ol>
+
+        <h3>Using an access token</h3>
+        <p>For authenticated users, tokens can be used to pre-configure tunnels and enable persistent domains.</p>
+        <div class="code-block">
+          ssh -p 2222 -R0:localhost:8080 &lt;token&gt;@pinggy.local
+        </div>
+      </section>
+
+      <section class="doc-section" id="custom-domain">
+        <h2>Custom Domains</h2>
+        <p>Paid plans allow you to attach your own domain or request a fixed Pinggy subdomain.</p>
+
+        <ul class="feature-list">
+          <li>Bring your own domain and point a CNAME to your tunnel target</li>
+          <li>Reserve a fixed subdomain so URLs stay the same across sessions</li>
+          <li>Automatic HTTPS certificates managed by Pinggy</li>
+        </ul>
+
+        <div class="note"><strong>Setup:</strong> Add your domain in the dashboard under <strong>Domains</strong>, then configure the DNS CNAME record shown.</div>
+      </section>
+
+      <section class="doc-section" id="auth">
+        <h2>Access Control</h2>
+        <p>Protect your public tunnels with password authentication or IP allow-lists.</p>
+
+        <h3>Password protection</h3>
+        <p>Enable basic authentication from the dashboard to require a username and password before requests reach your local app.</p>
+
+        <h3>IP allow-list</h3>
+        <p>Restrict access to specific IP addresses or ranges for additional security. This is available on Pro and Business plans.</p>
+      </section>
+
+      <section class="doc-section" id="qr">
+        <h2>QR Code Sharing</h2>
+        <p>Every tunnel URL can be displayed as a QR code for easy mobile testing. Scan the code to open your local app directly on a phone or tablet.</p>
+        <div class="note"><strong>Use case:</strong> Test responsive designs, mobile APIs, or share a preview with teammates without typing long URLs.</div>
+      </section>
+
+      <section class="doc-section" id="commands">
+        <h2>Commands</h2>
+        <p>Reference list of useful SSH flags and patterns.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h4>Forward HTTP</h4>
+            <p><code>ssh -p 2222 -R0:localhost:8080 tunnel@pinggy.local</code></p>
+          </div>
+          <div class="card">
+            <h4>Forward TCP</h4>
+            <p><code>ssh -p 2222 -R0:localhost:5432 tunnel@pinggy.local</code></p>
+          </div>
+          <div class="card">
+            <h4>Keep alive</h4>
+            <p><code>-o ServerAliveInterval=30 -o ServerAliveCountMax=3</code></p>
+          </div>
+          <div class="card">
+            <h4>Custom subdomain</h4>
+            <p><code>ssh -p 2222 -R myapp:80:localhost:8080 tunnel@pinggy.local</code></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc-section" id="config">
+        <h2>Configuration</h2>
+        <p>Save commonly used settings in your SSH config file at <code>~/.ssh/config</code>:</p>
+        <div class="window-card">
+          <div class="window-header">
+            <div class="window-dots"><span></span><span></span><span></span></div>
+            <div class="window-title">~/.ssh/config</div>
+          </div>
+          <div class="window-body">
+            <div><span class="comment"># Pinggy tunnel host</span></div>
+            <div>Host pinggy</div>
+            <div>&nbsp;&nbsp;HostName pinggy.local</div>
+            <div>&nbsp;&nbsp;Port 2222</div>
+            <div>&nbsp;&nbsp;User tunnel</div>
+            <div>&nbsp;&nbsp;ServerAliveInterval 30</div>
+            <div>&nbsp;&nbsp;ServerAliveCountMax 3</div>
+          </div>
+        </div>
+        <p>After saving, you can simply run:</p>
+        <div class="code-block">
+          ssh -R0:localhost:8080 pinggy
+        </div>
+      </section>
+
+      <section class="doc-section" id="troubleshooting">
+        <h2>Troubleshooting</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h4>Connection refused</h4>
+            <p>Verify that the tunnel server is reachable on port 2222 and that your local service is actually listening on the port you forwarded.</p>
+          </div>
+          <div class="card">
+            <h4>URL not loading</h4>
+            <p>Make sure your local app binds to <code>localhost</code> or <code>0.0.0.0</code>. Binding to a specific LAN IP can prevent the tunnel from reaching it.</p>
+          </div>
+          <div class="card">
+            <h4>Session disconnects</h4>
+            <p>Add keepalive options to your SSH command or config so idle connections are not dropped by routers or firewalls.</p>
+          </div>
+          <div class="card">
+            <h4>Permission denied</h4>
+            <p>Check that you are using a valid token or username. Tokens can be regenerated from the dashboard if needed.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        Pinggy
+        <p>Public URLs for localhost. Secure tunneling for developers and teams.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="/#features">Features</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Documentation</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="/">Home</a>
+        <a href="/login">Login</a>
+        <a href="/#faq">FAQ</a>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="/docs">Docs</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/pricing">Plans</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Contact</a>
+      </div>
+    </div>
+    <div class="footer-bottom">© 2026 Pinggy. All rights reserved.</div>
+  </footer>
+
+  <script>
+    // Sidebar active state on scroll
+    const sections = document.querySelectorAll('.doc-section[id]');
+    const links = document.querySelectorAll('.sidebar a');
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          links.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === '#' + entry.target.id) {
+              link.classList.add('active');
+            }
+          });
+        }
+      });
+    }, { rootMargin: '-20% 0px -60% 0px' });
+    sections.forEach(section => observer.observe(section));
+
+    // Smooth scroll for sidebar links
+    links.forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        closeMenu();
+      });
+    });
+
+    // Mobile menu toggle
+    const menuBtn = document.getElementById('menuBtn');
+    const navLinks = document.getElementById('navLinks');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    let menuOpen = false;
+
+    function closeMenu() {
+      menuOpen = false;
+      menuBtn.setAttribute('aria-expanded', 'false');
+      navLinks.classList.remove('show');
+      sidebar.classList.remove('open');
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function openMenu() {
+      menuOpen = true;
+      menuBtn.setAttribute('aria-expanded', 'true');
+      navLinks.classList.add('show');
+      sidebar.classList.add('open');
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    menuBtn.addEventListener('click', () => menuOpen ? closeMenu() : openMenu());
+    overlay.addEventListener('click', closeMenu);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+  </script>
+</body>
+</html>

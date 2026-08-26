@@ -47,7 +47,7 @@ app = FastAPI(
     debug=settings.APP_DEBUG,
     lifespan=lifespan,
     openapi_url="/api/v1/openapi.json",
-    docs_url="/docs",
+    docs_url="/api/docs",
     redoc_url="/redoc",
 )
 
