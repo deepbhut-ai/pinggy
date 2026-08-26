@@ -362,10 +362,6 @@ async def start_ssh_server() -> asyncio.AbstractServer:
         allow_pty=True,
         keepalive_interval=30,
         login_timeout=300,
-        # No password or public-key auth — token is the SSH username
-        password_auth=False,
-        publickey_auth=False,
-        kbdint_auth=False,
     )
 
     print(f"[ssh] Server listening on {settings.SSH_HOST}:{settings.SSH_PORT}")
