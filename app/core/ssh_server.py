@@ -67,16 +67,19 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                 # Use https:// when behind Cloudflare (port 80 = proxied by CF)
                 scheme = "https" if settings.PROXY_PORT == 80 else "http"
                 url = f"{scheme}://{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
+                custom_domain = self._server._custom_domain
+                custom_url = f"{scheme}://{custom_domain}" if custom_domain else ""
                 lines = [
                     "",
                     "  ╔══════════════════════════════════════════════════════╗",
                     "  ║  pinggy tunnel — ACTIVE                               ║",
                     f"  ║  URL:  {url:<46s}║",
-                    f"  ║  Remote port: {tunnel.remote_port:<37d}║",
-                    f"  ║  User: {self._server._username:<44s}║",
+                ]
+                if custom_url:
+                    lines.append(f"  ║  Custom domain: {custom_url:<37s}║")
+                lines += [
                     "  ╚══════════════════════════════════════════════════════╝",
                     "",
-                    "  Share this URL to access your local service.",
                     "  Press Ctrl+C to stop the tunnel.",
                     "",
                 ]
@@ -240,13 +243,14 @@ class MySSHServer(asyncssh.SSHServer):
             # 1. Check tokens table (multi-token system — what the dashboard uses)
             try:
                 cur = conn.execute(
-                    "SELECT user_email FROM tokens WHERE token = %s",
+                    "SELECT user_email, custom_domain FROM tokens WHERE token = %s",
                     (token,),
                 )
                 row = cur.fetchone()
                 cur.close()
                 if row:
                     self._username = row[0]
+                    self._custom_domain = row[1] or ""
                     self._token = token
                     conn.close()
                     return True
@@ -255,7 +259,7 @@ class MySSHServer(asyncssh.SSHServer):
 
             # 2. Fallback: check users table (legacy single-token)
             cur = conn.execute(
-                "SELECT email FROM users WHERE tunnel_token = %s",
+                "SELECT email, custom_domain FROM users WHERE tunnel_token = %s",
                 (token,),
             )
             row = cur.fetchone()
@@ -263,6 +267,7 @@ class MySSHServer(asyncssh.SSHServer):
             conn.close()
             if row:
                 self._username = row[0]
+                self._custom_domain = row[1] or ""
                 self._token = token
                 return True
             return False
@@ -348,6 +353,7 @@ class MySSHServer(asyncssh.SSHServer):
 
             scheme = "https" if settings.PROXY_PORT == 80 else "http"
             url = f"{scheme}://{subdomain}.{settings.TUNNEL_DOMAIN}"
+            custom_url = f"{scheme}://{self._custom_domain}" if self._custom_domain else ""
             logger.info("Tunnel created: %s → remote port %d (from %s)",
                         url, remote_port, self._peer)
 
@@ -355,8 +361,8 @@ class MySSHServer(asyncssh.SSHServer):
             print(f"\n  ╔══════════════════════════════════════════════════════╗")
             print(f"  ║  tunnel — ACTIVE                                     ║")
             print(f"  ║  URL:  {url:<46s}║")
-            print(f"  ║  Remote port: {remote_port:<37d}║")
-            print(f"  ║  User: {self._username:<44s}║")
+            if custom_url:
+                print(f"  ║  Custom domain: {custom_url:<37s}║")
             print(f"  ╚══════════════════════════════════════════════════════╝\n")
 
         except Exception as e:

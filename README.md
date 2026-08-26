@@ -67,6 +67,91 @@ docker compose up -d
 # SSH: localhost:2222
 ```
 
+## 🖥️ Production Server (Bare Metal / Systemd)
+
+The live production deployment uses **systemd** (not Docker) on a bare metal server.
+
+| Detail | Value |
+|--------|-------|
+| **Server IP** | `13.140.131.204` |
+| **Domain** | `iraglobaltech.com` (Cloudflare proxied) |
+| **Project path** | `/opt/pinggy` |
+| **Deployment method** | Systemd service (`pinggy.service`) |
+| **Service file** | `/etc/systemd/system/pinggy.service` |
+| **Process** | `/opt/pinggy/.venv/bin/python /opt/pinggy/run.py` |
+| **Python env** | `/opt/pinggy/.venv/` (virtualenv) |
+| **Config** | `/opt/pinggy/.env` (EnvironmentFile) |
+| **Auto-restart** | `Restart=always`, `RestartSec=5` |
+| **Logs** | `journalctl -u pinggy` |
+
+### Ports
+
+| Port | Service | Bound to | Purpose |
+|------|---------|----------|---------|
+| `2222` | SSH tunnel server (asyncssh) | `0.0.0.0` (public) | SSH reverse tunnels |
+| `8000` | FastAPI app (uvicorn) | `127.0.0.1` (localhost) | API + proxy (nginx fronts) |
+| `80` | Nginx reverse proxy | `0.0.0.0` (public) | HTTP → FastAPI |
+
+### Request Flow
+
+```
+Browser → Cloudflare (SSL) → Nginx (:80) → FastAPI (:8000 localhost)
+                                                   ↓
+                                          TunnelProxyMiddleware
+                                                   ↓
+                                          SSH reverse tunnel (:2222)
+                                                   ↓
+                                          User's local service
+```
+
+### Deploy Workflow (Git push → server pull → restart)
+
+```bash
+# 1. Local — commit & push
+git add <changed-files>
+git commit -m "your message"
+git push
+
+# 2. SSH into the server
+ssh root@13.140.131.204
+
+# 3. Pull & restart
+cd /opt/pinggy
+git pull
+systemctl restart pinggy
+
+# 4. Verify
+systemctl status pinggy
+journalctl -u pinggy -f --tail=20
+```
+
+### Management Commands (Systemd)
+
+```bash
+# Check status
+systemctl status pinggy
+
+# View logs (live)
+journalctl -u pinggy -f
+
+# View logs (last 100 lines)
+journalctl -u pinggy --tail=100
+
+# Restart service
+systemctl restart pinggy
+
+# Stop / Start
+systemctl stop pinggy
+systemctl start pinggy
+
+# Run database migrations
+cd /opt/pinggy
+.venv/bin/alembic upgrade head
+
+# Access PostgreSQL
+sudo -u postgres psql -d pinggy
+```
+
 ## 🏗️ Architecture
 
 ```
