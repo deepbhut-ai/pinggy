@@ -19,3 +19,6 @@ ssh_host_key.pub
 # OS
 Thumbs.db
 .DS_Store
+
+# Database backups (contain sensitive data — never commit)
+backups/
