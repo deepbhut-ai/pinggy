@@ -230,11 +230,30 @@ class MySSHServer(asyncssh.SSHServer):
 
     def _verify_tunnel_token_sync(self, token: str) -> bool:
         """Synchronous DB check — used from begin_auth which is a sync callback.
-        Original simple flow: only check the users table for tunnel_token."""
+        Checks the tokens table first (multi-token system), then falls back
+        to the users table (legacy single-token)."""
         import psycopg
         from app.core.config import settings
         try:
             conn = psycopg.connect(settings.async_dsn, autocommit=True)
+
+            # 1. Check tokens table (multi-token system — what the dashboard uses)
+            try:
+                cur = conn.execute(
+                    "SELECT user_email FROM tokens WHERE token = %s",
+                    (token,),
+                )
+                row = cur.fetchone()
+                cur.close()
+                if row:
+                    self._username = row[0]
+                    self._token = token
+                    conn.close()
+                    return True
+            except psycopg.errors.UndefinedTable:
+                pass  # tokens table doesn't exist — fall through
+
+            # 2. Fallback: check users table (legacy single-token)
             cur = conn.execute(
                 "SELECT email FROM users WHERE tunnel_token = %s",
                 (token,),
@@ -243,7 +262,7 @@ class MySSHServer(asyncssh.SSHServer):
             cur.close()
             conn.close()
             if row:
-                self._username = row[0]  # Store the real email as username
+                self._username = row[0]
                 self._token = token
                 return True
             return False
