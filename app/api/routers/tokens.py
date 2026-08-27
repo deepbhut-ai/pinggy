@@ -43,6 +43,23 @@ def _subdomain_from_token(token: str) -> str:
     return hashlib.md5(token.encode()).hexdigest()[:7]
 
 
+def _validate_custom_domain(domain: str, user: dict) -> str:
+    """Validate and normalize a custom domain.
+
+    Only admin and support@iraglobaltech.com can use *.iraglobaltech.com subdomains.
+    """
+    cd = domain.strip().lower()
+    # Restrict *.iraglobaltech.com to admin and support only
+    if cd.endswith(".iraglobaltech.com") or cd == "iraglobaltech.com":
+        allowed = user.get("role") == "admin" or user.get("email") == "support@iraglobaltech.com"
+        if not allowed:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Subdomains of iraglobaltech.com can only be set by admin or support@iraglobaltech.com.",
+            )
+    return cd
+
+
 @router.get("", response_model=list[TokenOut])
 async def list_tokens(
     user: dict = Depends(get_current_user),
@@ -93,7 +110,7 @@ async def create_token(
     # Validate custom_domain uniqueness if provided
     custom_domain = None
     if body.custom_domain:
-        cd = body.custom_domain.strip().lower()
+        cd = _validate_custom_domain(body.custom_domain, user)
         if cd:
             cur = await db.execute(
                 "SELECT id FROM tokens WHERE custom_domain = %s", (cd,)
@@ -153,6 +170,7 @@ async def update_token(
         domain_value = body.custom_domain.strip() if body.custom_domain else None
         # Check if domain is already taken by another token
         if domain_value:
+            domain_value = _validate_custom_domain(domain_value, user)
             cur = await db.execute(
                 "SELECT id FROM tokens WHERE custom_domain = %s AND id != %s",
                 (domain_value, token_id),

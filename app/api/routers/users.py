@@ -101,6 +101,15 @@ async def update_user(
         domain_value = custom_domain.strip() if custom_domain else None
         # Check if domain is already taken by another user
         if domain_value:
+            cd = domain_value.lower()
+            # Restrict *.iraglobaltech.com to admin and support only
+            if cd.endswith(".iraglobaltech.com") or cd == "iraglobaltech.com":
+                allowed = admin.get("role") == "admin" or admin.get("email") == "support@iraglobaltech.com"
+                if not allowed:
+                    raise HTTPException(
+                        status.HTTP_403_FORBIDDEN,
+                        "Subdomains of iraglobaltech.com can only be set by admin or support@iraglobaltech.com.",
+                    )
             cur = await db.execute(
                 "SELECT email FROM users WHERE custom_domain = %s AND id != %s",
                 (domain_value, user_id),

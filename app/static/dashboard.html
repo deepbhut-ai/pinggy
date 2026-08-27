@@ -1762,6 +1762,13 @@ async function saveMyCustomDomain(clear) {
   const input = document.getElementById('myCustomDomain') || document.getElementById('domainInput');
   const domain = clear ? '' : input.value.trim();
   if (!clear && !domain) { toast('Enter a domain first', 'error'); return; }
+  if (!clear && domain) {
+    const cd = domain.toLowerCase();
+    if (cd.endsWith('.iraglobaltech.com') || cd === 'iraglobaltech.com') {
+      const allowed = (currentUser.role === 'admin') || (currentUser.email === 'support@iraglobaltech.com');
+      if (!allowed) { toast('Subdomains of iraglobaltech.com can only be set by admin or support.', 'error'); return; }
+    }
+  }
   try {
     await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}`, 'PUT');
     toast(clear ? 'Custom domain cleared' : 'Custom domain saved');
