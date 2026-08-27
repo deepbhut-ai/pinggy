@@ -108,6 +108,7 @@
   input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem .75rem; color: var(--text); font-size: .875rem; font-family: var(--font); outline: none; transition: .15s; }
   input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-light); }
   input::placeholder { color: var(--text-muted); }
+  input[type="checkbox"], input[type="radio"] { width: auto; margin: 0; cursor: pointer; accent-color: var(--brand); }
   .form-group { margin-bottom: 1rem; }
   .form-row { display: flex; gap: 1rem; }
   .form-row .form-group { flex: 1; }
@@ -323,7 +324,7 @@
 // ---- State ----
 let authToken = localStorage.getItem('pinggy_token') || '';
 let currentUser = null;
-let tunnelState = { localPort: 8080, os: 'windows', token: '', tokenVisible: false, info: null };
+let tunnelState = { localPort: 8080, os: 'cmd', token: '', tokenVisible: false, info: null };
 let tunnelPollTimer = null;
 
 // ---- API helper ----
@@ -522,9 +523,13 @@ async function loadQuickstart() {
         </div>
         <div class="tl-card command-panel">
           <div class="os-tabs" id="osTabs">
-            <button class="os-tab active" onclick="switchOS('windows',this)">
+            <button class="os-tab active" onclick="switchOS('cmd',this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-6-6-6"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              CMD
+            </button>
+            <button class="os-tab" onclick="switchOS('powershell',this)">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.5v7H3v-6zM12 4.3L21 3v8.5H12V4.3zM3 12.5h7.5v7L3 18.5v-6zM12 12.5h9V21l-9-1.3v-7.2z"/></svg>
-              Windows
+              PowerShell
             </button>
             <button class="os-tab" onclick="switchOS('linux',this)">
               <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="17" r="2"/><path d="M12 7c-3 0-5 2-5 5s2 5 5 5 5-2 5-5-2-5-5-5z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
@@ -535,8 +540,8 @@ async function loadQuickstart() {
               Mac
             </button>
           </div>
-          <label style="display:flex;align-items:center;gap:.5rem;margin:.75rem 0;font-size:.825rem;color:var(--text-dim)">
-            <input type="checkbox" id="autoReconnectInput" onchange="updateSSHCommand()">
+          <label style="display:flex;align-items:center;gap:.5rem;margin:.75rem 0;font-size:.825rem;color:var(--text-dim);cursor:pointer;user-select:none">
+            <input type="checkbox" id="autoReconnectInput" onchange="updateSSHCommand()" style="width:auto;margin:0;cursor:pointer;accent-color:var(--brand)">
             Automatically reconnect if the server or network disconnects
           </label>
           <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
@@ -1031,8 +1036,8 @@ function selectToken(tokenId, token, name, subdomain, customDomain, sshPort) {
                 <button class="os-tab guide-os-tab" data-os="linux">🐧 Linux</button>
                 <button class="os-tab guide-os-tab" data-os="mac">🍎 Mac</button>
               </div>
-              <label style="display:flex;align-items:center;gap:.5rem;margin-top:.75rem;font-size:.825rem;color:var(--text-dim)">
-                <input type="checkbox" id="tokenAutoReconnect">
+              <label style="display:flex;align-items:center;gap:.5rem;margin-top:.75rem;font-size:.825rem;color:var(--text-dim);cursor:pointer;user-select:none">
+                <input type="checkbox" id="tokenAutoReconnect" style="width:auto;margin:0;cursor:pointer;accent-color:var(--brand)">
                 Automatically reconnect if the server or network disconnects
               </label>
             </div>
@@ -1635,7 +1640,11 @@ function buildSSHCommand() {
   const sshHost = info.domain.includes('iraglobaltech.com') ? 'ssh.iraglobaltech.com' : info.domain;
   const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
   if (!document.getElementById('autoReconnectInput')?.checked) return ssh;
-  if (tunnelState.os === 'windows') {
+  const os = tunnelState.os || 'cmd';
+  if (os === 'cmd') {
+    return `for /L %i in (0,1,2147483647) do @(${ssh} & echo Disconnected. Reconnecting in 5 seconds... & timeout /t 5 /nobreak >nul)`;
+  }
+  if (os === 'powershell') {
     return `while ($true) { ${ssh}; Write-Host "Disconnected. Reconnecting in 5 seconds..."; Start-Sleep -Seconds 5 }`;
   }
   return `while true; do\n  ${ssh}\n  echo "Disconnected. Reconnecting in 5 seconds..."\n  sleep 5\ndone`;
@@ -1657,8 +1666,13 @@ function switchOS(os, el) {
   tunnelState.os = os;
   const hint = document.getElementById('osHint');
   if (hint) {
-    const hints = { windows: 'Open PowerShell and paste the following command:', linux: 'Open terminal and paste the following command:', mac: 'Open Terminal and paste the following command:' };
-    hint.textContent = hints[os] || hints.windows;
+    const hints = {
+      cmd: 'Open Command Prompt (CMD) and paste the following command:',
+      powershell: 'Open PowerShell and paste the following command:',
+      linux: 'Open your terminal (Ctrl+Alt+T) and paste the following command:',
+      mac: 'Open Terminal (Cmd+Space → "Terminal") and paste the following command:'
+    };
+    hint.textContent = hints[os] || hints.cmd;
   }
   updateSSHCommand();
 }
