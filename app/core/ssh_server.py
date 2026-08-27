@@ -55,11 +55,17 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
 
     def write_log(self, message: str) -> None:
         """Write a log line to the user's terminal (called by the proxy)."""
-        if self._chan and not self._chan.exit_status_sent:
-            try:
-                self._chan.write(message + "\n")
-            except Exception:
-                pass
+        if not self._chan:
+            return
+        # asyncssh's SSHServerChannel doesn't have an `exit_status_sent`
+        # attribute — using it raises AttributeError, which was silently
+        # swallowed by log_to_tunnel's except, so NO log lines were ever
+        # shown to the user.  Instead, just attempt the write and let the
+        # try/except guard against a closed channel.
+        try:
+            self._chan.write(message + "\n")
+        except Exception:
+            pass
 
     def session_started(self) -> None:
         """Called when the session starts — try to send tunnel info."""
