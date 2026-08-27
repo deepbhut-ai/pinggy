@@ -170,6 +170,8 @@
       Pinggy
     </a>
     <div class="links" id="navLinks">
+      <a href="/">Home</a>
+      <a href="/blog">Blog</a>
       <a href="/docs">Docs</a>
       <a href="/#pricing">Pricing</a>
       <a href="/#features">Features</a>
@@ -485,6 +487,19 @@
     menuBtn.addEventListener('click', () => menuOpen ? closeMenu() : openMenu());
     overlay.addEventListener('click', closeMenu);
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+    (async function checkLogin() {
+      const token = localStorage.getItem('pinggy_token');
+      if (!token) return;
+      try {
+        const res = await fetch('/api/v1/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) {
+          const user = await res.json();
+          const nav = document.getElementById('navLinks');
+          if (nav) nav.innerHTML = `<a href="/">Home</a><a href="/blog">Blog</a><a href="/docs">Docs</a><a href="/#pricing">Pricing</a><a href="/#features">Features</a><a href="/dashboard" style="color:var(--text)">${user.email}</a><a href="/dashboard" class="btn">Dashboard →</a>`;
+        }
+      } catch {}
+    })();
   </script>
 </body>
 </html>

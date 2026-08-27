@@ -11,6 +11,7 @@ _DASHBOARD_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "dashboa
 _LANDING_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "landing.html"
 _LOGIN_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "login.html"
 _DOCS_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "docs.html"
+_BLOG_HTML_PATH = Path(__file__).resolve().parents[2] / "static" / "blog.html"
 
 # no-store prevents browser back/forward cache (bfcache) from showing
 # logged-in pages after logout
@@ -26,6 +27,12 @@ async def landing_page():
 async def docs_page():
     """Serve the public documentation page."""
     return HTMLResponse(content=_DOCS_HTML_PATH.read_text(encoding="utf-8"), headers=_NO_STORE)
+
+
+@router.get("/blog", response_class=HTMLResponse)
+async def blog_page():
+    """Serve the blog page."""
+    return HTMLResponse(content=_BLOG_HTML_PATH.read_text(encoding="utf-8"), headers=_NO_STORE)
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page():

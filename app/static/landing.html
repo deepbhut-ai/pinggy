@@ -293,6 +293,7 @@
   <div class="logo"><span>⚡</span>Tunnel</div>
   <div class="links" id="navLinks">
     <a href="/">Home</a>
+    <a href="/blog">Blog</a>
     <a href="#pricing">Pricing</a>
     <a href="/docs">Docs</a>
     <div class="has-dropdown">
@@ -775,7 +776,7 @@ function copyCmd() {
     if (res.ok) {
       const user = await res.json();
       const nav = document.getElementById('navLinks');
-      if (nav) nav.innerHTML = `<a href="/">Home</a><a href="#pricing">Pricing</a><a href="/docs">Docs</a><a href="/dashboard" style="color:var(--text)">${user.email}</a><a href="/dashboard" class="btn">Dashboard →</a>`;
+      if (nav) nav.innerHTML = `<a href="/">Home</a><a href="/blog">Blog</a><a href="#pricing">Pricing</a><a href="/docs">Docs</a><a href="/dashboard" style="color:var(--text)">${user.email}</a><a href="/dashboard" class="btn">Dashboard →</a>`;
     }
   } catch {}
 })();

@@ -94,9 +94,24 @@
   .app-header { background: rgba(255,255,255,.9); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
   .app-header .logo { font-size: 1.25rem; font-weight: 800; }
   .app-header .right { display: flex; align-items: center; gap: .75rem; }
-  .user-badge { display: flex; align-items: center; gap: .5rem; padding: .375rem .75rem; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); cursor: pointer; transition: .15s; }
-  .user-badge:hover { border-color: var(--border-hover); background: var(--surface-2); }
+  .user-badge { position: relative; display: flex; align-items: center; gap: .5rem; padding: .375rem .75rem; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); cursor: pointer; transition: .15s; }
+  .user-badge:hover, .user-badge.open { border-color: var(--border-hover); background: var(--surface-2); }
   .user-badge .avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; }
+  .user-badge .chevron { width: 14px; height: 14px; color: var(--text-muted); transition: transform .15s; }
+  .user-badge.open .chevron { transform: rotate(180deg); }
+  .user-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; min-width: 180px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .5rem; box-shadow: 0 18px 45px rgba(74,85,162,.12); z-index: 200; display: none;
+  }
+  .user-menu.show { display: block; }
+  .user-menu button {
+    display: flex; align-items: center; gap: .5rem; width: 100%; padding: .5rem .75rem;
+    background: transparent; border: none; border-radius: var(--radius); color: var(--text);
+    font-size: .85rem; font-family: var(--font); cursor: pointer; text-align: left;
+  }
+  .user-menu button:hover { background: var(--surface-1); }
+  .user-menu button svg { width: 14px; height: 14px; color: var(--text-muted); }
 
   .app-body { display: flex; flex: 1; }
   .app-nav { width: 260px; background: rgba(255,255,255,.82); border-right: 1px solid var(--border); padding: .75rem 0; flex-shrink: 0; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; backdrop-filter: blur(10px); }
@@ -366,12 +381,12 @@
   .dt-wrapper.fullscreen ~ .page-title,
   .dt-wrapper.fullscreen ~ .page-subtitle,
   .dt-wrapper.fullscreen ~ .dt-header { display: none; }
-  .dt-card { position: relative; width: 100%; }
-  .dt-wrapper { width: 100%; }
+  .dt-card { position: relative; width: 100%; overflow: visible; }
+  .dt-wrapper { position: relative; width: 100%; }
   .dt-toolbar {
     display: flex; align-items: center; justify-content: space-between; gap: .75rem;
     padding: .625rem .75rem; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.5);
-    flex-wrap: nowrap;
+    flex-wrap: nowrap; position: static;
   }
   .dt-search { position: relative; min-width: 220px; flex: 1; max-width: 360px; }
   .dt-search svg {
@@ -382,7 +397,7 @@
     width: 100%; padding: .35rem .6rem .35rem 1.8rem; font-size: .8rem;
     background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
   }
-  .dt-actions { display: flex; align-items: center; gap: .25rem; }
+  .dt-actions { position: relative; display: flex; align-items: center; gap: .25rem; }
   .dt-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: .25rem;
     background: var(--bg); color: var(--text-dim); border: 1px solid var(--border);
@@ -394,10 +409,12 @@
   .dt-btn.active { color: var(--brand); border-color: var(--brand); background: var(--brand-light); }
 
   .dt-columns-popover {
-    position: absolute; top: calc(100% + 6px); right: 0; min-width: 180px;
+    position: absolute; top: calc(100% + 4px); right: .75rem; min-width: 180px;
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: .5rem; box-shadow: 0 18px 45px rgba(74,85,162,.12); z-index: 50; display: none;
+    padding: .5rem; box-shadow: 0 18px 45px rgba(74,85,162,.12); z-index: 9999; display: none;
+    max-height: 70vh; overflow-y: auto;
   }
+  .dt-columns-popover label { white-space: nowrap; }
   .dt-columns-popover.show { display: block; }
   .dt-columns-popover label {
     display: flex; align-items: center; gap: .4rem; font-size: .8rem; color: var(--text);
@@ -429,6 +446,19 @@
   .token-mask { font-family: var(--font-mono); font-size: .8rem; color: var(--text-dim); letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
   .token-plain { font-family: var(--font-mono); font-size: .8rem; color: var(--brand); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
   .token-cell .icon-btn { padding: .25rem; flex: 0 0 auto; }
+
+  /* Stack regenerate/edit/delete buttons vertically in the actions column */
+  .token-actions {
+    display: flex;
+
+    gap: .35rem;
+    align-items: stretch;
+    min-width: 100px;
+  }
+  .token-actions .btn {
+    justify-content: flex-start;
+    width: 100%;
+  }
 
   .dt-pagination {
     display: flex; align-items: center; justify-content: space-between; gap: .75rem;
@@ -480,9 +510,16 @@
     <header class="app-header">
       <div class="logo">⚡ pinggy</div>
       <div class="right">
-        <div class="user-badge" id="userBadge" onclick="logout()">
+        <div class="user-badge" id="userBadge" aria-haspopup="true" aria-expanded="false">
           <div class="avatar" id="userAvatar">U</div>
           <span id="userInfo">user</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <div class="user-menu" id="userMenu">
+            <button onclick="logout()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              Logout
+            </button>
+          </div>
         </div>
       </div>
     </header>
@@ -604,6 +641,22 @@ function logout() {
   authToken = '';
   localStorage.removeItem('pinggy_token');
   window.location.href = '/login';
+}
+
+function toggleUserMenu() {
+  const badge = document.getElementById('userBadge');
+  const menu = document.getElementById('userMenu');
+  const open = menu.classList.toggle('show');
+  badge.classList.toggle('open', open);
+  badge.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function closeUserMenu() {
+  const badge = document.getElementById('userBadge');
+  const menu = document.getElementById('userMenu');
+  menu.classList.remove('show');
+  badge.classList.remove('open');
+  badge.setAttribute('aria-expanded', 'false');
 }
 
 async function showApp() {
@@ -788,7 +841,7 @@ async function loadQuickstart() {
         </div>
         <div class="tl-card">
           <p style="font-size:.85rem;margin-bottom:.5rem">Open your terminal and run:</p>
-          <div class="cmd-box"><pre>ssh -p ${info.ssh_port} -R0:127.0.0.1:8000 ${info.domain}</pre><button class="btn btn-sm" onclick="copyToClipboard('ssh -p ${info.ssh_port} -R0:127.0.0.1:8000 ${info.domain}')">📋</button></div>
+          <div class="cmd-box"><pre id="quickRefCmd">ssh -p ${info.ssh_port} -R0:127.0.0.1:8000 ${info.domain}</pre><button class="btn btn-sm copy-btn" onclick="copyToClipboard(document.getElementById('quickRefCmd').textContent)">📋 Copy</button></div>
           <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-dim)">Replace <span style="color:var(--primary)">8000</span> with the port where your service is running.</p>
         </div>
       </div>
@@ -1266,9 +1319,9 @@ function _renderTokenTable() {
     if (colMap['subdomain']) cells.push(`<td class="code">${escapeHtml(t.subdomain || '—')}</td>`);
     if (colMap['customDomain']) cells.push(`<td>${t.custom_domain ? `<span class="badge badge-blue">${escapeHtml(t.custom_domain)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>`);
     if (colMap['actions']) cells.push(`<td class="token-actions" data-token-id="${t.id}" data-name="${escapeHtml(t.name || '')}" data-domain="${escapeHtml(t.custom_domain || '')}">
-      <button class="btn btn-sm btn-ghost regen-token-btn" title="Regenerate">🔄</button>
-      <button class="btn btn-sm btn-ghost edit-token-btn" title="Edit">✏️</button>
-      <button class="btn btn-sm btn-danger del-token-btn" title="Delete">🗑️</button>
+      <button class="btn btn-sm btn-ghost regen-token-btn" title="Regenerate">🔄 Regenerate</button>
+      <button class="btn btn-sm btn-ghost edit-token-btn" title="Edit">✏️ Edit</button>
+      <button class="btn btn-sm btn-danger del-token-btn" title="Delete">🗑️ Delete</button>
     </td>`);
     return `<tr id="tokenRow-${t.id}" class="${selectedTokenId === t.id ? 'selected' : ''}" data-token-id="${t.id}" data-token="${escapeHtml(t.token)}" data-name="${escapeHtml(t.name || 'My Tunnel')}" data-subdomain="${escapeHtml(t.subdomain)}" data-custom-domain="${escapeHtml(t.custom_domain || '')}" data-ssh-port="${state.info.ssh_port}" style="cursor:pointer;transition:.15s">
       ${cells.join('')}
@@ -1302,11 +1355,11 @@ function _renderTokenTable() {
             <input type="text" id="dtSearch" placeholder="Search tokens, names, subdomains, domains..." value="${escapeHtml(state.query)}">
           </div>
           <div class="dt-actions">
-            <button class="dt-btn" id="dtColumnsBtn" title="Show / hide columns" style="position:relative">
+            <button class="dt-btn" id="dtColumnsBtn" title="Show / hide columns">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
               Columns
-              ${columnPopover}
             </button>
+            ${columnPopover}
             <button class="dt-btn ${state.density === 'compact' ? 'active' : ''}" id="dtDensityBtn" title="Toggle density">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
             </button>
@@ -1318,6 +1371,7 @@ function _renderTokenTable() {
             </button>
           </div>
         </div>
+        ${columnPopover}
         <div class="dt-table-wrap">
           <table class="dt-table ${state.density}">
             <thead><tr>${headerCells}</tr></thead>
@@ -2319,6 +2373,17 @@ window.addEventListener('pageshow', (event) => {
   if (await checkAuth()) {
     showApp();
   }
+
+  const userBadge = document.getElementById('userBadge');
+  const userMenu = document.getElementById('userMenu');
+  userBadge?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleUserMenu();
+  });
+  document.addEventListener('click', (e) => {
+    if (!userBadge?.contains(e.target)) closeUserMenu();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeUserMenu(); });
 })();
 </script>
 </body>
