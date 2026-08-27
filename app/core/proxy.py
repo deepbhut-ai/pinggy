@@ -16,7 +16,12 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.config import settings
-from app.core.tunnel_registry import get_tunnel, increment_request_count, log_to_tunnel
+from app.core.tunnel_registry import (
+    get_tunnel,
+    get_tunnel_by_custom_domain,
+    increment_request_count,
+    log_to_tunnel,
+)
 
 logger = logging.getLogger("proxy")
 
@@ -63,87 +68,13 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
         if not subdomain:
             return await call_next(request)
 
-        # Check if this is a custom domain (CNAME pointing to a tunnel)
-        # If the subdomain contains a dot, it's likely a custom domain
-        # Also check if the subdomain is NOT a known tunnel subdomain —
-        # it could be a custom domain that's a subdomain of TUNNEL_DOMAIN
-        # (e.g. trading.iraglobaltech.com → custom_domain in tokens table)
-        is_custom_domain = "." in subdomain and not subdomain.endswith(f".{settings.TUNNEL_DOMAIN}")
-
-        # Also treat it as custom domain if it's a sub of TUNNEL_DOMAIN but
-        # not a 7-char hex subdomain (tunnel subdomains are md5 hashes)
-        if not is_custom_domain and subdomain and "." not in subdomain:
-            # Check if this looks like a tunnel subdomain (7-char hex)
-            import re
-            if not re.match(r'^[0-9a-f]{7}$', subdomain):
-                # Not a tunnel subdomain — could be a custom domain subdomain
-                # Check the tokens table for a matching custom_domain
-                import psycopg
-                from app.core.config import settings as cfg
-                try:
-                    conn = psycopg.connect(cfg.async_dsn, autocommit=True)
-                    cur = conn.execute(
-                        "SELECT token FROM tokens WHERE custom_domain = %s",
-                        (host,),
-                    )
-                    row = cur.fetchone()
-                    cur.close()
-                    conn.close()
-                    if row:
-                        is_custom_domain = True
-                        subdomain = host  # Use full host as custom domain
-                except Exception:
-                    pass
-
-        if is_custom_domain:
-            # Look up the custom domain in the database
-            # to find which tunnel subdomain it points to
-            import hashlib
-            import psycopg
-            from app.core.config import settings as cfg
-            try:
-                conn = psycopg.connect(cfg.async_dsn, autocommit=True)
-
-                # First check tokens table (new multi-token system)
-                cur = conn.execute(
-                    "SELECT token FROM tokens WHERE custom_domain = %s",
-                    (subdomain,),
-                )
-                row = cur.fetchone()
-                cur.close()
-
-                if row:
-                    # Found in tokens table — subdomain from token
-                    subdomain = hashlib.md5(row[0].encode()).hexdigest()[:7]
-                else:
-                    # Fallback: check users table (legacy single-token system)
-                    cur = conn.execute(
-                        "SELECT tunnel_token FROM users WHERE custom_domain = %s",
-                        (subdomain,),
-                    )
-                    row = cur.fetchone()
-                    cur.close()
-
-                    if row:
-                        # Found in users table — subdomain from token
-                        subdomain = hashlib.md5(row[0].encode()).hexdigest()[:7]
-                    else:
-                        # Also try by email (old MD5(email) subdomain format)
-                        cur = conn.execute(
-                            "SELECT email FROM users WHERE custom_domain = %s",
-                            (subdomain,),
-                        )
-                        email_row = cur.fetchone()
-                        cur.close()
-                        if email_row:
-                            subdomain = hashlib.md5(email_row[0].encode()).hexdigest()[:7]
-
-                conn.close()
-            except Exception:
-                pass
-
-        # Look up the tunnel
+        # Look up generated tunnel subdomains first, then custom domains.
+        # SSH assigns a random subdomain, so it cannot be derived from the token.
         tunnel = await get_tunnel(subdomain)
+        if not tunnel:
+            tunnel = await get_tunnel_by_custom_domain(host)
+            if tunnel:
+                subdomain = tunnel.subdomain
         if not tunnel:
             return Response(
                 content=f"<h1>No tunnel found for subdomain: {subdomain}</h1>"

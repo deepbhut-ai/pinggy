@@ -82,6 +82,15 @@ async def get_tunnel(subdomain: str) -> TunnelSession | None:
     return _tunnels.get(subdomain)
 
 
+async def get_tunnel_by_custom_domain(custom_domain: str) -> TunnelSession | None:
+    """Find the active tunnel assigned to a custom domain."""
+    normalized_domain = custom_domain.strip().lower()
+    for tunnel in _tunnels.values():
+        if tunnel.custom_domain.strip().lower() == normalized_domain:
+            return tunnel
+    return None
+
+
 async def get_tunnel_by_port(port: int) -> TunnelSession | None:
     sub = _port_to_subdomain.get(port)
     if sub:
