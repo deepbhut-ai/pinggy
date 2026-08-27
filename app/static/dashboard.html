@@ -427,6 +427,9 @@ async function loadQuickstart() {
     const userTokens = Array.isArray(tokensResp) ? tokensResp : [];
     tunnelState.token = userTokens.length > 0 ? userTokens[0].token : '';
     tunnelState.info = info;
+    // Use custom_domain from the token, not from the legacy user-level field
+    const tokenCustomDomain = userTokens.length > 0 ? (userTokens[0].custom_domain || '') : '';
+    info.custom_domain = tokenCustomDomain || info.custom_domain || '';
 
     let tunnelRows = tunnels.map(t => {
       const urlCell = t.custom_url
