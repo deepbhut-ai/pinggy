@@ -418,12 +418,14 @@ async function loadQuickstart() {
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     // Run all API calls in PARALLEL (not serial) for fast load
-    const [info, tunnels, tokenResp] = await Promise.all([
+    const [info, tunnels, tokensResp] = await Promise.all([
       api('/tunnels/info'),
       api('/tunnels/my'),
-      api('/auth/tunnel-token').catch(() => null),
+      api('/tokens').catch(() => []),
     ]);
-    tunnelState.token = tokenResp ? tokenResp.tunnel_token : 'ERROR';
+    // Use the first token from the tokens table (multi-token system)
+    const userTokens = Array.isArray(tokensResp) ? tokensResp : [];
+    tunnelState.token = userTokens.length > 0 ? userTokens[0].token : '';
     tunnelState.info = info;
 
     let tunnelRows = tunnels.map(t => {
@@ -488,6 +490,11 @@ async function loadQuickstart() {
               <svg id="tokenEye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             </button>
           </div>
+          ${!tunnelState.token ? `
+          <div style="margin-top:.75rem;padding:.75rem 1rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim)">
+            <strong style="color:var(--text)">No token yet.</strong> Go to <a href="#" onclick="navigate('tokens',document.querySelector('[data-page=tokens]'));return false" style="color:var(--brand);font-weight:600">Manage Tokens</a> to create one.
+          </div>` : ''}
+          ${(currentUser.plan || 'free') === 'pro' ? `
           <div class="domain-box">
             <p style="font-size:.8rem;color:var(--text-dim);margin-bottom:.4rem;font-weight:600">Custom Domain</p>
             <div style="display:flex;gap:.5rem;align-items:center">
@@ -511,7 +518,11 @@ async function loadQuickstart() {
                 <p style="margin-top:.6rem;font-weight:600;color:var(--text);margin-bottom:.4rem">Step 4: Enter domain above and click Save</p>
               </div>
             </details>
-          </div>
+          </div>` : `
+          <div style="margin-top:.75rem;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+            <span>🔒 Custom domain is a <strong style="color:var(--text)">Pro</strong> feature.</span>
+            <a href="/#prices" class="btn btn-sm" style="margin-left:auto">Upgrade →</a>
+          </div>`}
         </div>
       </div>
 
@@ -1634,6 +1645,7 @@ function downgradeModal() {
 function buildSSHCommand() {
   const info = tunnelState.info;
   if (!info) return '';
+  if (!tunnelState.token) return 'Create a token first in Manage Tokens →';
   const port = tunnelState.localPort;
   const token = tunnelState.token;
   const sshPort = info.ssh_port;
