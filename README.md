@@ -5,48 +5,56 @@ Exposes local development servers to the internet via SSH reverse tunnels.
 
 ## 🚀 Quick Start
 
-### Production (One Command)
+### Production (Ubuntu + systemd)
 
-On a fresh Ubuntu 22.04+ server:
+The live deployment runs directly on an Ubuntu server with PostgreSQL, a Python
+virtual environment, Nginx, and the systemd unit in `deploy/pinggy.service`.
+
+On a fresh server:
 
 ```bash
-git clone <your-repo-url> /opt/pinggy && cd /opt/pinggy && bash setup.sh
+# Install system packages
+sudo apt update
+sudo apt install -y git python3-venv python3-pip postgresql nginx openssl
+
+# Clone the application
+sudo git clone <your-repo-url> /opt/pinggy
+cd /opt/pinggy
+
+# Create the Python environment and install dependencies
+python3 -m venv .venv
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install -r requirements.txt
+
+# Create production configuration
+cp .env.example .env  # use the repository's environment template
+openssl rand -hex 32  # use the result as JWT_SECRET
+nano .env
+
+# Install and start the service
+sudo cp deploy/pinggy.service /etc/systemd/system/pinggy.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now pinggy
+sudo systemctl --no-pager status pinggy
 ```
 
-This will:
-1. Install Docker + Docker Compose
-2. Create `.env` with secure JWT secret
-3. Build and start all containers (PostgreSQL, FastAPI, nginx)
-4. Create admin user (`admin` / `admin`)
+Set `APP_ENV=production`, `APP_DEBUG=false`, `POSTGRES_*`, `DATABASE_URL`,
+`JWT_SECRET`, `TUNNEL_DOMAIN`, and `PUBLIC_BASE_URL` in `/opt/pinggy/.env`.
+Configure Nginx using the files in `nginx/`, point the main domain to port 80,
+and point the SSH subdomain directly to port 2222. The first application start
+creates the database, enables `pgcrypto`, applies all Alembic migrations, and
+creates the default `admin` / `admin` account only when the database has no
+users.
 
-### Production (Manual)
+### Production (Docker alternative)
+
+Docker deployment is also available, but it is separate from the live systemd
+deployment described above:
 
 ```bash
-# Clone
-git clone <your-repo-url> /opt/pinggy && cd /opt/pinggy
-
-# Configure
 cp .env.docker .env
-nano .env  # Set DOMAIN, JWT_SECRET, payment keys
-
-# Build & start (production compose file)
+nano .env
 docker compose -f docker-compose.prod.yml up -d
-
-# Create admin user
-docker compose -f docker-compose.prod.yml exec app python -c "
-import psycopg, secrets
-from passlib.hash import bcrypt
-conn = psycopg.connect('host=db dbname=pinggy user=pinggy password=pinggy_secret')
-cur = conn.cursor()
-cur.execute('SELECT id FROM users WHERE email = %s', ('admin',))
-if not cur.fetchone():
-    token = secrets.token_hex(8)
-    cur.execute('INSERT INTO users (email, password_hash, full_name, role, tunnel_token, plan) VALUES (%s, %s, %s, %s, %s, %s)', ('admin', bcrypt.hash('admin'), 'Default Admin', 'admin', token, 'free'))
-    conn.commit()
-    print('Admin created: admin / admin')
-cur.close()
-conn.close()
-"
 ```
 
 ### Local Development
@@ -117,7 +125,7 @@ ssh root@13.140.131.204
 
 # 3. Pull & restart
 cd /opt/pinggy
-git pull
+git pull --ff-only origin main
 systemctl restart pinggy
 
 # 4. Verify
