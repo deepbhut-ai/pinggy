@@ -85,6 +85,23 @@
   .app-main { flex: 1; padding: 1.5rem; overflow-y: auto; max-width: 900px; }
   .page-title { font-size: 1.5rem; font-weight: 800; margin-bottom: .25rem; }
   .page-subtitle { color: var(--text-dim); font-size: .875rem; margin-bottom: 1.5rem; }
+  .page-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+  .page-toolbar-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+  .section-label { color: var(--text-dim); font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .quickstart-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; background: linear-gradient(115deg, var(--surface) 0%, var(--surface-1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .quickstart-intro h2 { font-size: 1.15rem; margin: .25rem 0 .35rem; }
+  .quickstart-intro p { color: var(--text-dim); font-size: .85rem; max-width: 560px; }
+  .quickstart-intro .intro-mark { width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid rgba(106,166,240,.35); border-radius: 50%; background: var(--brand-light); color: var(--brand); font-size: 1.5rem; }
+  .quickstart-step .tl-card { box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+  .command-panel { border-color: rgba(106,166,240,.22); }
+  .command-panel .cmd-box { border-color: rgba(106,166,240,.25); }
+  .token-table-wrap { overflow-x: auto; }
+  .token-table { min-width: 760px; }
+  .token-table th:last-child, .token-table td:last-child { text-align: right; }
+  .token-actions { white-space: nowrap; }
+  .token-actions .btn { min-width: 34px; }
+  .token-value { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .45rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .token-meta { color: var(--text-dim); font-size: .75rem; }
 
   /* ---- Forms ---- */
   label { display: block; font-size: .8rem; color: var(--text-dim); margin-bottom: .3rem; font-weight: 500; }
@@ -196,6 +213,13 @@
     .app-nav { display: none; }
     .app-main { padding: 1rem; }
     .form-row { flex-direction: column; }
+    .page-toolbar { flex-direction: column; }
+    .page-toolbar-actions { width: 100%; }
+    .page-toolbar-actions .btn { flex: 1; }
+    .quickstart-intro { grid-template-columns: 1fr; padding: 1rem; }
+    .quickstart-intro .intro-mark { display: none; }
+    .timeline { padding-left: 2rem; }
+    .tl-bullet { left: -2rem; }
   }
 </style>
 </head>
@@ -417,8 +441,17 @@ async function loadQuickstart() {
     if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
 
     c.innerHTML = `
-    <div class="page-title">Quickstart</div>
-    <div class="page-subtitle">Get your tunnel running in under a minute</div>
+    <div class="page-toolbar">
+      <div>
+        <div class="page-title">Quickstart</div>
+        <div class="page-subtitle">Connect a local service and share it securely.</div>
+      </div>
+      <div class="page-toolbar-actions"><span class="badge ${tunnels.length ? 'badge-green' : 'badge-blue'}">${tunnels.length ? `${tunnels.length} active` : 'Ready to connect'}</span></div>
+    </div>
+    <div class="quickstart-intro">
+      <div><div class="section-label">Tunnel setup</div><h2>Expose your local app in three steps</h2><p>Choose a port, copy the command, and keep the terminal open while your tunnel is running.</p></div>
+      <div class="intro-mark">↗</div>
+    </div>
     ${(currentUser.plan || 'free') !== 'pro' ? `
     <div style="margin-bottom:1.25rem;padding:.75rem 1rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
       <span style="font-size:1.25rem">⚠️</span>
@@ -437,7 +470,7 @@ async function loadQuickstart() {
     </div>`}
     <div class="timeline">
       <!-- Step 1: Access token -->
-      <div class="tl-item">
+      <div class="tl-item quickstart-step">
         <div class="tl-bullet">1</div>
         <div class="tl-title">
           <h3>Your access token</h3>
@@ -482,12 +515,12 @@ async function loadQuickstart() {
       </div>
 
       <!-- Step 2: Paste command -->
-      <div class="tl-item">
+      <div class="tl-item quickstart-step">
         <div class="tl-bullet">2</div>
         <div class="tl-title">
           <h3>Paste this command to start tunnel</h3>
         </div>
-        <div class="tl-card">
+        <div class="tl-card command-panel">
           <div class="os-tabs" id="osTabs">
             <button class="os-tab active" onclick="switchOS('windows',this)">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.5v7H3v-6zM12 4.3L21 3v8.5H12V4.3zM3 12.5h7.5v7L3 18.5v-6zM12 12.5h9V21l-9-1.3v-7.2z"/></svg>
@@ -520,7 +553,7 @@ async function loadQuickstart() {
       </div>
 
       <!-- Step 3: Quick Reference -->
-      <div class="tl-item">
+      <div class="tl-item quickstart-step">
         <div class="tl-bullet">3</div>
         <div class="tl-title">
           <h3>Quick Reference</h3>
@@ -868,7 +901,7 @@ async function loadTokens() {
     const tokens = await api('/tokens');
     let tokenRows = tokens.map((t, i) => `<tr id="tokenRow-${t.id}" data-token-id="${t.id}" data-token="${t.token}" data-name="${(t.name || 'My Tunnel').replace(/"/g, '&quot;')}" data-subdomain="${t.subdomain}" data-custom-domain="${t.custom_domain || ''}" data-ssh-port="${info.ssh_port}" style="cursor:pointer;transition:.15s">
       <td>${i + 1}</td>
-      <td><strong class="code">${t.token.substring(0,8)}••••••••</strong> <button class="btn btn-sm copy-token-btn" data-token="${t.token}" style="margin-left:.25rem">📋</button></td>
+      <td><span class="token-value"><strong class="code">${t.token.substring(0,8)}••••••••</strong> <button class="icon-btn copy-token-btn" data-token="${t.token}" title="Copy token">📋</button></span></td>
       <td>${t.name || '—'}</td>
       <td class="code">${t.subdomain}</td>
       <td>${t.custom_domain ? `<span class="badge badge-blue">${t.custom_domain}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
@@ -882,20 +915,20 @@ async function loadTokens() {
     if (!tokenRows) tokenRows = '<tr><td colspan="7" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
 
     c.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+    <div class="page-toolbar">
       <div>
         <div class="page-title">Manage Tokens</div>
-        <div class="page-subtitle">Each token creates a separate tunnel with its own URL</div>
+        <div class="page-subtitle">Create separate credentials for each tunnel or project.</div>
       </div>
-      <button class="btn" id="generateTokenBtn">+ Generate New Token</button>
+      <div class="page-toolbar-actions"><button class="btn" id="generateTokenBtn">+ Generate Token</button></div>
     </div>
     <div class="card">
       <div class="card-header">
-        <h2>Tokens (${tokens.length})</h2>
+        <div><div class="section-label">Credentials</div><h2 style="margin-top:.15rem">Your tokens <span class="token-meta">(${tokens.length})</span></h2></div>
         <button class="btn btn-sm btn-ghost" id="refreshTokensBtn">🔄 Refresh</button>
       </div>
-      <div class="card-body" style="padding:0;overflow-x:auto">
-        <table>
+      <div class="card-body token-table-wrap" style="padding:0">
+        <table class="token-table">
           <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Custom Domain</th><th>Created</th><th>Actions</th></tr></thead>
           <tbody>${tokenRows}</tbody>
         </table>
@@ -1017,10 +1050,17 @@ function selectToken(tokenId, token, name, subdomain, customDomain, sshPort) {
           <div style="display:flex;gap:1rem;align-items:flex-start">
             <div style="width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0">3</div>
             <div style="flex:1">
-              <div style="font-size:.875rem;font-weight:600;margin-bottom:.5rem">Run this command</div>
+              <div style="font-size:.875rem;font-weight:600;margin-bottom:.5rem" id="tokenCmdTitle">Run this PowerShell command</div>
               <div class="cmd-box" style="position:relative">
                 <pre id="tokenSshCmd" style="white-space:pre-wrap;word-break:break-all;font-size:.85rem">${sshCmd.replace('PORT', '8080')}</pre>
                 <button class="btn btn-sm guide-copy-cmd" style="position:absolute;top:.375rem;right:.375rem;padding:.3rem .6rem;font-size:.75rem">📋 Copy</button>
+              </div>
+              <div id="tokenWindowsCmdWrap" style="margin-top:.75rem">
+                <div style="font-size:.75rem;font-weight:600;color:var(--text-dim);margin-bottom:.35rem">Windows Command Prompt (one-time connection)</div>
+                <div class="cmd-box" style="position:relative">
+                  <pre id="tokenWindowsCmd" style="white-space:pre-wrap;word-break:break-all;font-size:.85rem">${sshCmd.replace('PORT', '8080')}</pre>
+                  <button class="btn btn-sm guide-copy-windows-cmd" style="position:absolute;top:.375rem;right:.375rem;padding:.3rem .6rem;font-size:.75rem">📋 Copy</button>
+                </div>
               </div>
               <div id="tokenOsHint" style="margin-top:.5rem;font-size:.825rem;color:var(--text-dim);line-height:1.5">
                 Open <strong>Command Prompt (CMD)</strong> and paste the command above.
@@ -1064,6 +1104,10 @@ function selectToken(tokenId, token, name, subdomain, customDomain, sshPort) {
       const cmd = document.getElementById('tokenSshCmd');
       if (cmd) copyToClipboard(cmd.textContent);
     });
+    document.querySelector('.guide-copy-windows-cmd')?.addEventListener('click', () => {
+      const cmd = document.getElementById('tokenWindowsCmd');
+      if (cmd) copyToClipboard(cmd.textContent);
+    });
     document.querySelectorAll('.guide-os-tab').forEach(tab => {
       tab.addEventListener('click', function() { switchTokenOs(this.dataset.os, this); });
     });
@@ -1079,12 +1123,20 @@ function switchTokenOs(os, btn) {
   btn.classList.add('active');
   if (window._tokenSshConfig) window._tokenSshConfig.os = os;
   const hint = document.getElementById('tokenOsHint');
+  const commandTitle = document.getElementById('tokenCmdTitle');
+  const windowsCommand = document.getElementById('tokenWindowsCmdWrap');
   if (os === 'windows') {
     hint.innerHTML = 'Open <strong>PowerShell</strong> and paste the command above.';
+    if (commandTitle) commandTitle.textContent = 'Run this PowerShell command';
+    if (windowsCommand) windowsCommand.style.display = 'block';
   } else if (os === 'linux') {
     hint.innerHTML = 'Open your <strong>terminal</strong> (Ctrl+Alt+T) and paste the command above.';
+    if (commandTitle) commandTitle.textContent = 'Run this Terminal command';
+    if (windowsCommand) windowsCommand.style.display = 'none';
   } else {
     hint.innerHTML = 'Open <strong>Terminal</strong> (Cmd+Space → "Terminal") and paste the command above.';
+    if (commandTitle) commandTitle.textContent = 'Run this Terminal command';
+    if (windowsCommand) windowsCommand.style.display = 'none';
   }
   updateTokenCmd();
 }
@@ -1103,6 +1155,9 @@ function updateTokenCmd() {
     }
   }
   document.getElementById('tokenSshCmd').textContent = command;
+  const windowsCommand = `ssh -p ${config.sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${config.token}@ssh.iraglobaltech.com`;
+  const windowsCommandEl = document.getElementById('tokenWindowsCmd');
+  if (windowsCommandEl) windowsCommandEl.textContent = windowsCommand;
 }
 
 function closeTokenDetail() {
