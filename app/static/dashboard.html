@@ -502,6 +502,10 @@ async function loadQuickstart() {
               Mac
             </button>
           </div>
+          <label style="display:flex;align-items:center;gap:.5rem;margin:.75rem 0;font-size:.825rem;color:var(--text-dim)">
+            <input type="checkbox" id="autoReconnectInput" onchange="updateSSHCommand()">
+            Automatically reconnect if the server or network disconnects
+          </label>
           <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
             <label style="font-size:.85rem;color:var(--text-dim);white-space:nowrap">Local port:</label>
             <input type="number" id="localPortInput" value="${tunnelState.localPort}" min="1" max="65535" style="width:80px;padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem" onchange="updateLocalPort(this.value)">
@@ -994,6 +998,10 @@ function selectToken(tokenId, token, name, subdomain, customDomain, sshPort) {
                 <button class="os-tab guide-os-tab" data-os="linux">🐧 Linux</button>
                 <button class="os-tab guide-os-tab" data-os="mac">🍎 Mac</button>
               </div>
+              <label style="display:flex;align-items:center;gap:.5rem;margin-top:.75rem;font-size:.825rem;color:var(--text-dim)">
+                <input type="checkbox" id="tokenAutoReconnect">
+                Automatically reconnect if the server or network disconnects
+              </label>
             </div>
           </div>
           <div style="display:flex;gap:1rem;align-items:flex-start">
@@ -1044,7 +1052,7 @@ function selectToken(tokenId, token, name, subdomain, customDomain, sshPort) {
       </div>
     </div>`;
 
-  window._tokenSshTemplate = sshCmd;
+  window._tokenSshConfig = { token, sshPort, os: 'windows', autoReconnect: false };
 
   // Attach event listeners (Cloudflare Rocket Loader safe)
   setTimeout(() => {
@@ -1059,6 +1067,8 @@ function selectToken(tokenId, token, name, subdomain, customDomain, sshPort) {
     document.querySelectorAll('.guide-os-tab').forEach(tab => {
       tab.addEventListener('click', function() { switchTokenOs(this.dataset.os, this); });
     });
+    const reconnectInput = document.getElementById('tokenAutoReconnect');
+    if (reconnectInput) reconnectInput.addEventListener('change', () => updateTokenCmd());
     const portInput = document.getElementById('tokenLocalPort');
     if (portInput) portInput.addEventListener('change', () => updateTokenCmd());
   }, 50);
@@ -1067,23 +1077,32 @@ function selectToken(tokenId, token, name, subdomain, customDomain, sshPort) {
 function switchTokenOs(os, btn) {
   document.querySelectorAll('#tokenOsTabs .os-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
+  if (window._tokenSshConfig) window._tokenSshConfig.os = os;
   const hint = document.getElementById('tokenOsHint');
   if (os === 'windows') {
-    hint.innerHTML = 'Open <strong>Command Prompt (CMD)</strong> or <strong>PowerShell</strong> and paste the command above.';
+    hint.innerHTML = 'Open <strong>PowerShell</strong> and paste the command above.';
   } else if (os === 'linux') {
     hint.innerHTML = 'Open your <strong>terminal</strong> (Ctrl+Alt+T) and paste the command above.';
   } else {
     hint.innerHTML = 'Open <strong>Terminal</strong> (Cmd+Space → "Terminal") and paste the command above.';
   }
+  updateTokenCmd();
 }
 
 function updateTokenCmd() {
   const port = document.getElementById('tokenLocalPort').value || '8080';
-  const cmd = (window._tokenSshTemplate || '').replace(/:\d+:/, `:${port}:`);
-  // Actually replace PORT placeholder
-  const template = window._tokenSshTemplate || '';
-  const realCmd = template.replace('PORT', port);
-  document.getElementById('tokenSshCmd').textContent = realCmd;
+  const config = window._tokenSshConfig;
+  if (!config) return;
+  const ssh = `ssh -p ${config.sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${config.token}@ssh.iraglobaltech.com`;
+  let command = ssh;
+  if (document.getElementById('tokenAutoReconnect')?.checked) {
+    if (config.os === 'windows') {
+      command = `while ($true) { ${ssh}; Write-Host "Disconnected. Reconnecting in 5 seconds..."; Start-Sleep -Seconds 5 }`;
+    } else {
+      command = `while true; do\n  ${ssh}\n  echo "Disconnected. Reconnecting in 5 seconds..."\n  sleep 5\ndone`;
+    }
+  }
+  document.getElementById('tokenSshCmd').textContent = command;
 }
 
 function closeTokenDetail() {
@@ -1559,7 +1578,12 @@ function buildSSHCommand() {
   const token = tunnelState.token;
   const sshPort = info.ssh_port;
   const sshHost = info.domain.includes('iraglobaltech.com') ? 'ssh.iraglobaltech.com' : info.domain;
-  return `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
+  const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
+  if (!document.getElementById('autoReconnectInput')?.checked) return ssh;
+  if (tunnelState.os === 'windows') {
+    return `while ($true) { ${ssh}; Write-Host "Disconnected. Reconnecting in 5 seconds..."; Start-Sleep -Seconds 5 }`;
+  }
+  return `while true; do\n  ${ssh}\n  echo "Disconnected. Reconnecting in 5 seconds..."\n  sleep 5\ndone`;
 }
 
 function updateSSHCommand() {
@@ -1578,9 +1602,10 @@ function switchOS(os, el) {
   tunnelState.os = os;
   const hint = document.getElementById('osHint');
   if (hint) {
-    const hints = { windows: 'Open Command Prompt (CMD) and paste the following command:', linux: 'Open terminal and paste the following command:', mac: 'Open Terminal and paste the following command:' };
+    const hints = { windows: 'Open PowerShell and paste the following command:', linux: 'Open terminal and paste the following command:', mac: 'Open Terminal and paste the following command:' };
     hint.textContent = hints[os] || hints.windows;
   }
+  updateSSHCommand();
 }
 
 // ---- Polling ----
