@@ -365,7 +365,14 @@ class MySSHServer(asyncssh.SSHServer):
 
 async def start_ssh_server() -> asyncio.AbstractServer:
     """Start the SSH server. Must be called within the async event loop."""
-    host_key_path = "ssh_host_key"
+    # Use a dedicated directory for SSH host keys (Docker mounts a volume here).
+    host_key_dir = os.environ.get("SSH_KEY_DIR", "ssh_host_key")
+    # If ssh_host_key is a directory (Docker volume), store the key file inside it.
+    if os.path.isdir(host_key_dir):
+        host_key_path = os.path.join(host_key_dir, "ssh_host_ed25519_key")
+    else:
+        host_key_path = host_key_dir
+
     if not os.path.exists(host_key_path):
         logger.info("Generating SSH host key...")
         key = asyncssh.generate_private_key("ssh-ed25519")
