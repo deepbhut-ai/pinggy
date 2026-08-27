@@ -1,6 +1,6 @@
 ## 🖥️ Production Server (Bare Metal / Systemd)
 
-The live production deployment uses **systemd** (not Docker) on a bare metal server.
+The live production deployment uses **systemd** on a bare metal server.
 
 | Detail | Value |
 |--------|-------|

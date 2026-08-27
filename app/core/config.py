@@ -70,6 +70,16 @@ class Settings(BaseSettings):
     # Subdomain length (random string)
     SUBDOMAIN_LENGTH: int = 7
 
+    # ---- Redis (IP monitoring + cache) ----
+    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_ENABLED: bool = True
+    # IP monitoring thresholds
+    IP_RATE_WINDOW: int = 60          # seconds — sliding window for rate calc
+    IP_RATE_BLOCK_THRESHOLD: int = 500  # requests in window → auto-block
+    IP_BLOCK_DURATION: int = 3600     # seconds — auto-block duration (1 hour)
+    IP_GEO_API_URL: str = "http://ip-api.com/json/"  # free geo API
+    IP_GEO_ENABLED: bool = True       # enable geo lookups
+
     @property
     def async_dsn(self) -> str:
         """psycopg3 async connection string (no +psycopg scheme)."""

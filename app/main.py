@@ -14,7 +14,9 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.core.db import close_pool, init_pool
 from app.api.routers.admin import router as admin_router
+from app.core.ip_monitor import IPMonitorMiddleware
 from app.core.proxy import TunnelProxyMiddleware
+from app.core.redis import close_redis, init_redis
 from app.core.tunnel_registry import init_registry
 
 
@@ -24,6 +26,11 @@ async def lifespan(app: FastAPI):
     # before the server starts. Here we just init the pool.
     await init_pool()
     print(f"[{settings.APP_NAME}] DB pool ready on {settings.async_dsn}")
+
+    # Initialize Redis (for IP monitoring + cache)
+    await init_redis()
+    if settings.REDIS_ENABLED:
+        print(f"[{settings.APP_NAME}] Redis {'connected' if True else 'failed'} on {settings.REDIS_URL}")
 
     # Initialize tunnel registry
     init_registry(settings.TUNNEL_DOMAIN, settings.PROXY_PORT)
@@ -38,6 +45,8 @@ async def lifespan(app: FastAPI):
     ssh_server.close()
     await ssh_server.wait_closed()
     print(f"[{settings.APP_NAME}] SSH server stopped")
+    await close_redis()
+    print(f"[{settings.APP_NAME}] Redis closed")
     await close_pool()
     print(f"[{settings.APP_NAME}] DB pool closed")
 
@@ -58,6 +67,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# IP monitor — must be FIRST (before tunnel proxy) so it sees all requests
+app.add_middleware(IPMonitorMiddleware)
 # Tunnel proxy — must be added AFTER CORS so it runs before route matching
 app.add_middleware(TunnelProxyMiddleware)
 
