@@ -27,3 +27,6 @@ httpx==0.27.2
 
 # Redis (IP monitoring + cache)
 redis[hiredis]==5.0.8
+
+# QR codes (command builder 2.0)
+qrcode==7.4.2

@@ -942,26 +942,42 @@ async function loadConfigure() {
       `<option value="${t.token}">${t.name || 'Unnamed'} — ${t.token.substring(0,8)}... (→ ${t.subdomain}.iraglobaltech.com)</option>`
     ).join('');
 
+    // App presets catalog (v0.7.0) — name, default port
+    const APP_PRESETS = [
+      { n: 'Custom / manual', p: 8080 },
+      { n: 'Django (runserver)', p: 8000 }, { n: 'Flask', p: 5000 },
+      { n: 'Jupyter Notebook', p: 8888 }, { n: 'Node.js / Express', p: 3000 },
+      { n: 'React / Vite dev', p: 5173 }, { n: 'Next.js', p: 3000 },
+      { n: 'Vue / Nuxt', p: 3000 }, { n: 'Laravel (artisan)', p: 8000 },
+      { n: 'WordPress', p: 80 }, { n: 'Nginx', p: 80 }, { n: 'Apache', p: 8080 },
+      { n: 'MySQL', p: 3306 }, { n: 'PostgreSQL', p: 5432 },
+      { n: 'MongoDB', p: 27017 }, { n: 'Redis', p: 6379 },
+    ];
+    const presetOptions = APP_PRESETS.map(a => `<option value="${a.p}">${a.n} — :${a.p}</option>`).join('');
+
     c.innerHTML = `
     <div class="page-title">Configure Tunnel</div>
     <div class="page-subtitle">Build and customize your tunnel command</div>
 
     <div class="card">
-      <div class="card-header"><h2>Tunnel Settings</h2><button class="btn btn-sm" onclick="resetConfig()">Reset</button></div>
+      <div class="card-header"><h2>Tunnel Settings</h2>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" onclick="saveBuilderConfig()">💾 Save</button>
+          <select id="cfgSavedList" style="max-width:150px;padding:.3rem .4rem;font-size:.78rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+            <option value="">📂 Load saved…</option>
+          </select>
+          <button class="btn btn-sm" onclick="resetConfig()">Reset</button>
+        </div>
+      </div>
       <div class="card-body">
         <div class="form-row">
+          <div class="form-group" style="max-width:240px">
+            <label>App / Service preset</label>
+            <select id="cfgPreset" onchange="applyPreset()">${presetOptions}</select>
+          </div>
           <div class="form-group">
             <label>Local address — what you want to share</label>
             <input type="text" id="cfgLocalAddr" value="127.0.0.1:${tunnelState.localPort}" placeholder="127.0.0.1:8080" onchange="updateCfgCommand()">
-          </div>
-          <div class="form-group" style="max-width:140px">
-            <label>Tunnel type</label>
-            <select id="cfgTunnelType" onchange="updateCfgCommand()">
-              <option value="http" selected>HTTP</option>
-              <option value="tcp" disabled>TCP (soon)</option>
-              <option value="tls" disabled>TLS (soon)</option>
-              <option value="udp" disabled>UDP (soon)</option>
-            </select>
           </div>
         </div>
         <div class="form-row">
@@ -980,28 +996,37 @@ async function loadConfigure() {
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label>Region</label>
-          <select id="cfgRegion" onchange="updateCfgCommand()">
-            <option value="auto" selected>Auto (closest server)</option>
-            <option value="eu" disabled>Europe (soon)</option>
-            <option value="us" disabled>US East (soon)</option>
-            <option value="asia" disabled>Asia (soon)</option>
-          </select>
-        </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-header"><h2>Generated Command</h2><button class="btn btn-sm" onclick="copyCfgCmd()">📋 Copy</button></div>
+      <div class="card-header"><h2>Generated Command</h2>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" onclick="copyCfgCmd()">📋 Copy</button>
+          <button class="btn btn-sm" onclick="downloadCommand('sh')" title="Download macOS/Linux script">⬇️ .sh</button>
+          <button class="btn btn-sm" onclick="downloadCommand('bat')" title="Download Windows batch file">⬇️ .bat</button>
+          <button class="btn btn-sm" onclick="downloadCommand('command')" title="Download double-clickable macOS app">⬇️ .command</button>
+        </div>
+      </div>
       <div class="card-body">
+        <div class="tabs" style="margin-bottom:.75rem">
+          <button class="tab active" id="ctab-ssh" onclick="switchCmdTab('ssh')">SSH</button>
+          <button class="tab" id="ctab-docker" onclick="switchCmdTab('docker')">Docker</button>
+        </div>
         <p style="font-size:.825rem;color:var(--text-dim);margin-bottom:.5rem" id="cfgPlatformHint">Open Command Prompt (CMD) and paste the following command:</p>
         <div class="cmd-box">
           <pre id="cfgCommand">${buildConfigCommand()}</pre>
         </div>
-        <div style="margin-top:.75rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim)">
-          <strong style="color:var(--text)">Your tunnel URL will be:</strong><br>
-          <span id="cfgUrl" style="color:var(--brand);font-family:var(--font-mono)">https://—.iraglobaltech.com</span>
+        <div style="margin-top:.75rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <strong style="color:var(--text)">Your tunnel URL will be:</strong><br>
+            <span id="cfgUrl" style="color:var(--brand);font-family:var(--font-mono)">https://—.iraglobaltech.com</span>
+          </div>
+          <button class="btn btn-sm" onclick="showQr()">📱 QR Code</button>
+        </div>
+        <div id="qrBox" style="display:none;margin-top:.75rem;text-align:center;padding:.75rem;background:#fff;border-radius:var(--radius)">
+          <img id="qrImg" alt="Tunnel QR" style="height:180px;width:180px">
+          <div style="font-size:.75rem;color:#475569;margin-top:.35rem">Scan to open this tunnel URL on your phone</div>
         </div>
       </div>
     </div>
@@ -1015,6 +1040,10 @@ async function loadConfigure() {
             Keep Alive (30s interval)
           </label>
           <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--text)">
+            <input type="checkbox" id="cfgAutoReconnect" onchange="updateCfgCommand()" style="width:auto">
+            Auto-Reconnect (in downloaded script)
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--text)">
             <input type="checkbox" id="cfgStrictHostKey" onchange="updateCfgCommand()" style="width:auto">
             Strict Host Key Check
           </label>
@@ -1026,28 +1055,142 @@ async function loadConfigure() {
       </div>
     </div>`;
     updateCfgCommand();
+    loadSavedConfigs();
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
-function buildConfigCommand() {
+// ---- Builder 2.0 helpers (v0.7.0) ----
+let cmdTab = 'ssh';
+
+function switchCmdTab(tab) {
+  cmdTab = tab;
+  document.getElementById('ctab-ssh')?.classList.toggle('active', tab === 'ssh');
+  document.getElementById('ctab-docker')?.classList.toggle('active', tab === 'docker');
+  updateCfgCommand();
+}
+
+function applyPreset() {
+  const port = document.getElementById('cfgPreset').value;
+  if (port) document.getElementById('cfgLocalAddr').value = `127.0.0.1:${port}`;
+  updateCfgCommand();
+}
+
+function builderState() {
   const info = tunnelState.info;
-  if (!info) return '';
   const addr = document.getElementById('cfgLocalAddr')?.value || `127.0.0.1:${tunnelState.localPort}`;
   const port = addr.split(':').pop() || '8080';
-  const token = document.getElementById('cfgToken')?.value || tunnelState.token;
-  const platform = document.getElementById('cfgPlatform')?.value || 'windows';
-  const keepAlive = document.getElementById('cfgKeepAlive')?.checked !== false;
-  const strictHost = document.getElementById('cfgStrictHostKey')?.checked;
-  const verbose = document.getElementById('cfgVerbose')?.checked;
+  return {
+    info,
+    port,
+    token: document.getElementById('cfgToken')?.value || tunnelState.token,
+    platform: document.getElementById('cfgPlatform')?.value || 'windows',
+    keepAlive: document.getElementById('cfgKeepAlive')?.checked !== false,
+    autoReconnect: document.getElementById('cfgAutoReconnect')?.checked,
+    strictHost: document.getElementById('cfgStrictHostKey')?.checked,
+    verbose: document.getElementById('cfgVerbose')?.checked,
+  };
+}
 
+function buildDockerCommand(s) {
+  return `docker run --rm -i alpine/openssh-client ssh \\\n  -p ${s.info.ssh_port} -R0:127.0.0.1:${s.port} \\\n  -o StrictHostKeyChecking=no ${s.keepAlive ? '-o ServerAliveInterval=30 ' : ''}\\\n  ${s.token}@ssh.iraglobaltech.com`;
+}
+
+function buildConfigCommand() {
+  const s = builderState();
+  if (!s.info) return '';
+  if (cmdTab === 'docker') return buildDockerCommand(s);
   let cmd = 'ssh';
-  if (verbose) cmd += ' -v';
-  cmd += ` -p ${info.ssh_port}`;
-  cmd += ` -R0:127.0.0.1:${port}`;
-  if (keepAlive) cmd += ' -o ServerAliveInterval=30';
-  if (!strictHost) cmd += ' -o StrictHostKeyChecking=no';
-  cmd += ` ${token}@ssh.iraglobaltech.com`;
+  if (s.verbose) cmd += ' -v';
+  cmd += ` -p ${s.info.ssh_port}`;
+  cmd += ` -R0:127.0.0.1:${s.port}`;
+  if (s.keepAlive) cmd += ' -o ServerAliveInterval=30';
+  if (!s.strictHost) cmd += ' -o StrictHostKeyChecking=no';
+  cmd += ` ${s.token}@ssh.iraglobaltech.com`;
   return cmd;
+}
+
+function downloadCommand(kind) {
+  const s = builderState();
+  const cmd = buildConfigCommand();
+  let content, filename;
+  if (kind === 'bat') {
+    content = `@echo off\r\nREM Tunnel startup script (Windows)\r\n${cmd}\r\npause\r\n`;
+    filename = 'start-tunnel.bat';
+  } else {
+    const inner = s.autoReconnect
+      ? `while true; do\n  ${cmd}\n  echo "Tunnel dropped — reconnecting in 3s..."\n  sleep 3\ndone`
+      : cmd;
+    content = `#!/bin/sh\n# Tunnel startup script (generated)\n${inner}\n`;
+    filename = kind === 'command' ? 'start-tunnel.command' : 'start-tunnel.sh';
+  }
+  const blob = new Blob([content], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Downloaded ' + filename);
+}
+
+async function showQr() {
+  const url = document.getElementById('cfgUrl')?.textContent;
+  if (!url || url.includes('—')) { toast('Start a tunnel first (URL unknown)', 'error'); return; }
+  try {
+    const res = await fetch(`${API}/tunnels/qr?text=${encodeURIComponent(url)}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!res.ok) throw new Error('QR failed');
+    const svg = await res.text();
+    const box = document.getElementById('qrBox');
+    document.getElementById('qrImg').src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+    box.style.display = 'block';
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function collectBuilderConfig() {
+  return {
+    preset: document.getElementById('cfgPreset')?.value || '',
+    local_addr: document.getElementById('cfgLocalAddr')?.value || '',
+    platform: document.getElementById('cfgPlatform')?.value || 'windows',
+    token: document.getElementById('cfgToken')?.value || '',
+    keep_alive: document.getElementById('cfgKeepAlive')?.checked !== false,
+    auto_reconnect: document.getElementById('cfgAutoReconnect')?.checked || false,
+    strict_host: document.getElementById('cfgStrictHostKey')?.checked || false,
+    verbose: document.getElementById('cfgVerbose')?.checked || false,
+  };
+}
+
+async function saveBuilderConfig() {
+  const name = prompt('Name this configuration:', 'My tunnel');
+  if (!name) return;
+  try {
+    await api('/configs', 'POST', { name, config: collectBuilderConfig() });
+    toast('Configuration saved');
+    loadSavedConfigs();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadSavedConfigs() {
+  try {
+    const list = await api('/configs');
+    const sel = document.getElementById('cfgSavedList');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">📂 Load saved…</option>' +
+      list.map(x => `<option value='${JSON.stringify(x.config).replace(/'/g, "&#39;")}' data-id="${x.id}">${x.name}</option>`).join('');
+    sel.onchange = () => {
+      if (!sel.value) return;
+      try {
+        const cfg = JSON.parse(sel.value);
+        if (cfg.local_addr) document.getElementById('cfgLocalAddr').value = cfg.local_addr;
+        if (cfg.platform) document.getElementById('cfgPlatform').value = cfg.platform;
+        if (cfg.keep_alive !== undefined) document.getElementById('cfgKeepAlive').checked = cfg.keep_alive;
+        if (cfg.auto_reconnect !== undefined) document.getElementById('cfgAutoReconnect').checked = cfg.auto_reconnect;
+        if (cfg.strict_host !== undefined) document.getElementById('cfgStrictHostKey').checked = cfg.strict_host;
+        if (cfg.verbose !== undefined) document.getElementById('cfgVerbose').checked = cfg.verbose;
+        updateCfgCommand();
+        toast('Configuration loaded');
+      } catch (e) { toast('Could not load config', 'error'); }
+      sel.value = '';
+    };
+  } catch (e) { /* silent */ }
 }
 
 function updateCfgCommand() {

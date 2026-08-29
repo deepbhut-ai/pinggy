@@ -1,5 +1,22 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.7.0 — 2026-08-29 — Command Builder 2.0 (roadmap Track 1)
+
+### Added
+- Migration 0017: `tunnel_configs` + /configs CRUD API (saved configurations).
+- GET /tunnels/qr — SVG QR codes for tunnel URLs (authed).
+- Configure page rebuilt: 16 app presets, SSH/Docker command tabs, download
+  buttons (.sh/.bat/.command with optional auto-reconnect loop), QR code display,
+  Save/Load named configurations, Auto-Reconnect toggle.
+- `qrcode` dependency; `Doc/tests/v0.7.0/` evidence (5 assertions + 2 screenshots).
+
+### Changed
+- Dashboard Configure page drops the placeholder Tunnel-type/Region selects
+  (disabled "soon" options) — real support lands with v1.0.0 TCP/TLS.
+
+### Removed
+- none
+
 ## v0.6.1 — 2026-08-29 — competitive analysis report (docs only)
 
 ### Added

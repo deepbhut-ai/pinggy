@@ -1,0 +1,38 @@
+# v0.7.0 — Command Builder 2.0 (Track 1) — 2026-08-29
+
+Per competitive analysis roadmap (Doc/reports/pinggy-competitive-analysis.md).
+
+## Changes
+1. Migration 0017: `tunnel_configs` (saved builder configs per user, JSON blob).
+2. `configs.py` router: GET/POST/PUT/DELETE /configs (owner-scoped).
+3. GET /tunnels/qr?text= → SVG QR code (qrcode pkg; authed; 512-char cap).
+4. dashboard.html Configure page → **Builder 2.0**:
+   - **16 app presets** (Django/Flask/Jupyter/Node/React-Vite/Next/Vue/Laravel/
+     WordPress/Nginx/Apache/MySQL/PostgreSQL/MongoDB/Redis/custom) — selecting one
+     fills the local address.
+   - **Download buttons**: .sh, .bat, .command scripts (auto-reconnect wraps the ssh
+     command in a reconnect loop when the toggle is on).
+   - **SSH / Docker tabs** (Docker emits alpine/openssh-client one-liner).
+   - **QR Code** button renders the tunnel URL as a scannable SVG.
+   - **Save / Load saved configurations** (persisted via /configs API).
+   - Auto-Reconnect toggle (affects downloaded scripts).
+
+## Machine assertions (all PASS)
+  F1 POST /configs → 201 ("Django dev")
+  F2 GET /configs → 1 row with config.local_addr=127.0.0.1:8000
+  F3 GET /tunnels/qr → 200, valid SVG (6821 bytes)
+  F4 GET /tunnels/qr no-auth → 403
+  F5 tunnel E2E regression → HTTP 200 through proxy (builder touched nothing in the
+     tunnel path — confirmed)
+
+## Browser verification
+  Configure page: presets dropdown (16), Save/Load saved…/Reset header, Copy +
+  3 download buttons, SSH/Docker tabs, QR button + URL preview, Advanced Options
+  incl. new Auto-Reconnect. Selecting "Django (runserver)" sets address to
+  127.0.0.1:8000 and both command tabs regenerate. Screenshots:
+  screenshot-builder.png (full), screenshot-builder-docker.png (docker tab).
+
+## Notes
+- Removed the placeholder "Tunnel type" and "Region" selects (disabled "soon"
+  options) — type lands in v1.0.0 (TCP/TLS), region deferred until multi-region.
+- qrcode==7.4.2 added to requirements.txt.

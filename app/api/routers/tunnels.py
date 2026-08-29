@@ -11,6 +11,25 @@ from app.schemas.tunnel import TunnelOut
 router = APIRouter(prefix="/tunnels", tags=["tunnels"])
 
 
+@router.get("/qr")
+async def tunnel_qr(
+    text: str,
+    user: dict = Depends(get_current_user),
+):
+    """QR code (SVG) for a tunnel URL — mobile-friendly testing (v0.7.0)."""
+    from fastapi import HTTPException, status
+    if not text or len(text) > 512:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "text required (max 512 chars)")
+    import io
+    import qrcode
+    import qrcode.image.svg
+    buf = io.BytesIO()
+    img = qrcode.make(text[:512], image_factory=qrcode.image.svg.SvgPathImage)
+    img.save(buf)
+    from fastapi.responses import Response
+    return Response(content=buf.getvalue(), media_type="image/svg+xml")
+
+
 @router.get("/info")
 async def tunnel_info(user: dict = Depends(get_current_user)):
     """Return SSH connection instructions for the current user.

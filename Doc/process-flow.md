@@ -94,6 +94,7 @@ browser → http://abc123.localhost:8020  (Host: abc123.localhost:8020)
 | announcements.py | /announcements | GET "" (users: active only; admin: all), POST "" , PUT/DELETE /{id} (admin), POST /campaign (SMTP-gated), GET /logs, GET /smtp-status |
 | plans.py | /plans | GET "" (public, active) · PUT /{id} (admin, audited) |
 | invoices.py | /invoices | GET /my (own) · GET /admin/all (admin, ?status=) · GET /{id} (owner-or-admin) · POST /{id}/void (admin) · GET /{id}/print?token= (printable HTML) |
+| configs.py | /configs | CRUD — saved command-builder configurations (owner-scoped) |
 | admin.py (pages, no prefix) | / | GET /, /login, /admin, /dashboard (static HTML) + /docs /redoc /health |
 
 Auth: JWT Bearer (JWT_SECRET, HS256, claims sub=user_id, email, role).

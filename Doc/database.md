@@ -156,6 +156,13 @@ Seeded free/pro/enterprise. Read by GET /plans (public), edited via admin UI.
 | amount / currency / status | NUMERIC / VARCHAR / paid\|void |
 | issued_at | TIMESTAMPTZ | |
 
+## tunnel_configs  (0017 — saved builder configurations)
+| column | type | notes |
+|---|---|---|
+| user_email | VARCHAR(255) | owner |
+| name | VARCHAR(120) | user label |
+| config | TEXT | JSON blob (preset, local_addr, platform, flags) |
+
 ## Non-DB state
 - Redis (db 0): per-IP request counters + blocklist for IP monitoring (TTL = window /
   block duration). Flush-safe — purely ephemeral.
