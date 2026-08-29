@@ -103,10 +103,27 @@ async def list_tunnels() -> list[TunnelSession]:
 
 
 async def increment_request_count(subdomain: str, bytes_count: int = 0) -> None:
+    """Increment traffic counters for a tunnel.
+
+    Updates the in-memory session AND writes through to the tunnels table so
+    per-token traffic (tokens views) and daily analytics see real numbers.
+    DB failure must never break the proxied request — swallowed.
+    """
     tunnel = _tunnels.get(subdomain)
     if tunnel:
         tunnel.request_count += 1
         tunnel.bytes_transferred += bytes_count
+        try:
+            from app.core.db import get_conn
+            async with get_conn() as db:
+                cur = await db.execute(
+                    "UPDATE tunnels SET request_count = %s, bytes_transferred = %s "
+                    "WHERE subdomain = %s AND status = 'active'",
+                    (tunnel.request_count, tunnel.bytes_transferred, subdomain),
+                )
+                await cur.close()
+        except Exception:
+            pass  # stats write-through is best-effort
 
 
 def log_to_tunnel(subdomain: str, message: str) -> None:

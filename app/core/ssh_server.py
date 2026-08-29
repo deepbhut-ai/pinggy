@@ -372,14 +372,14 @@ class MySSHServer(asyncssh.SSHServer):
                 )
                 await cur.close()
 
-                # Now insert the new tunnel
+                # Now insert the new tunnel (token links traffic stats to the token)
                 cur = await db.execute(
                     """
                     INSERT INTO tunnels (tunnel_id, subdomain, remote_port, local_port,
-                                         protocol, user_email, ssh_peer, status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'active')
+                                         protocol, user_email, ssh_peer, status, token)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'active', %s)
                     """,
-                    (tunnel_id, subdomain, remote_port, 0, "http", self._username, self._peer),
+                    (tunnel_id, subdomain, remote_port, 0, "http", self._username, self._peer, self._token or None),
                 )
                 await cur.close()
 

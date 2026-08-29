@@ -18,6 +18,11 @@
 | update_my_custom_domain | users.py:176 | PUT /users/me/custom-domain | UPDATE users.custom_domain | dashboard.html |
 | get_user_tunnels | users.py:217 | GET /users/{user_id}/tunnels | reads tunnels | admin.html |
 
+## Analytics
+| Function | File | Endpoint | Notes |
+|---|---|---|---|
+| analytics_overview | app/api/routers/analytics.py | GET /analytics/overview?days=30 | admin; generate_series daily + 12-month monthly LEFT JOIN aggregations + today/month summary |
+
 ## Tunnels / tokens
 | Function | File | Endpoint | Notes |
 |---|---|---|---|
@@ -28,7 +33,7 @@
 | stop_tunnel (admin) | tunnels.py:127 | DELETE /tunnels/{subdomain} | force-stop any tunnel (admin): close SSH + mark row disconnected |
 | user_stop_tunnel | tunnels.py:152 | POST /tunnels/{subdomain}/stop | stop OWN tunnel only (ownership check, 403 otherwise) |
 | tunnel_stats | tunnels.py:181 | GET /tunnels/stats | totals: users, tunnels, active, requests, bytes (admin) |
-| list/create/update/delete/regenerate token | tokens.py:63/88/146/218/236 | /tokens CRUD | custom_domain validation: *.iraglobaltech.com restricted to admin + support@iraglobaltech.com (tokens.py:49) |
+| list/create/update/delete/regenerate token | tokens.py:63/88/146/218/236 | /tokens CRUD | responses include per-token traffic (total_requests/total_bytes/active_tunnels via _token_traffic) |
 | admin token variants | tokens.py:282/310/327 | /tokens/admin/* | get_admin_user |
 
 ## Payments

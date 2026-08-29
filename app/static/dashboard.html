@@ -1164,6 +1164,9 @@ async function loadTokens() {
       <td>${t.name || '—'}</td>
       <td class="code">${t.subdomain}</td>
       <td>${t.custom_domain ? `<span class="badge badge-blue">${t.custom_domain}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td>${t.total_requests || 0}</td>
+      <td>${(t.total_bytes || 0) >= 1048576 ? ((t.total_bytes||0)/1048576).toFixed(1)+' MB' : ((t.total_bytes||0)/1024).toFixed(1)+' KB'}</td>
+      <td><span class="badge ${t.active_tunnels > 0 ? 'badge-green' : ''}">${t.active_tunnels || 0}</span></td>
       <td>${t.created_at ? t.created_at.substring(0,10) : '—'}</td>
       <td class="token-actions" data-token-id="${t.id}" data-name="${(t.name || '').replace(/"/g, '&quot;')}" data-domain="${t.custom_domain || ''}">
         <button class="btn btn-sm btn-ghost edit-token-btn" title="Edit">✏️</button>
@@ -1171,7 +1174,7 @@ async function loadTokens() {
         <button class="btn btn-sm btn-danger del-token-btn" title="Delete">🗑️</button>
       </td>
     </tr>`).join('');
-    if (!tokenRows) tokenRows = '<tr><td colspan="7" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
+    if (!tokenRows) tokenRows = '<tr><td colspan="10" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
 
     c.innerHTML = `
     <div class="page-toolbar">
@@ -1188,7 +1191,7 @@ async function loadTokens() {
       </div>
       <div class="card-body token-table-wrap" style="padding:0">
         <table class="token-table">
-          <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Custom Domain</th><th>Created</th><th>Actions</th></tr></thead>
+          <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Custom Domain</th><th>Requests</th><th>Data</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>
           <tbody>${tokenRows}</tbody>
         </table>
       </div>

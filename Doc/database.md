@@ -33,6 +33,7 @@ Read/write: auth (register/login), users CRUD, tokens (via email FK), ssh_server
 | subdomain | VARCHAR(50) UNIQUE NOT NULL | random 7 chars per connect |
 | remote_port / local_port | INTEGER | server-side / client-side (-R0:localhost:PORT) |
 | protocol | VARCHAR(10) DEFAULT 'http' | |
+| token | VARCHAR(64) | (0011) SSH token that created the tunnel — basis for per-token traffic |
 | user_email | VARCHAR(255) | owner (no FK) |
 | ssh_peer | VARCHAR(100) | client address |
 | status | VARCHAR(20) DEFAULT 'active' | |
@@ -40,8 +41,9 @@ Read/write: auth (register/login), users CRUD, tokens (via email FK), ssh_server
 | created_at / closed_at | TIMESTAMPTZ | |
 
 Indexes: idx_tunnels_subdomain, idx_tunnels_status. Written by ssh_server on connect
-(deletes previous row for same subdomain first) and on close; read by admin dashboard,
-/tunnels/info, /users/{id}/tunnels.
+(deletes previous row for same subdomain first) and on close; request_count/bytes now
+write-through updated by tunnel_registry.increment_request_count (v0.3.0 — previously
+in-memory only); read by admin dashboard, /tunnels/*, /tokens aggregation, analytics.
 
 ## tokens  (multi-tunnel tokens — what the dashboard manages)
 | column | type | notes |

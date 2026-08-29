@@ -299,7 +299,7 @@ function navigate(page, el) {
   document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
   if (el) el.classList.add('active');
   const c = document.getElementById('pageContent');
-  if (page === 'dashboard') { c.innerHTML = renderDashboard(); loadAdminStats(); loadSystemInfo(); }
+  if (page === 'dashboard') { c.innerHTML = renderDashboard(); loadAdminStats(); loadSystemInfo(); loadInsights(); }
   else if (page === 'users') loadUsers();
   else if (page === 'tokens') loadAllTokens();
   else if (page === 'tunnels') loadAllTunnels();
@@ -332,6 +332,15 @@ function renderDashboard() {
     </div>
     <div id="adminStats" style="margin-bottom:1.5rem"></div>
     ${adminCards}
+    <div class="card" style="margin-top:1.5rem">
+      <div class="card-header"><h2>📈 Insights (Daily / Monthly)</h2>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" id="insRangeBtn" onclick="cycleInsightsRange()">📅 30d</button>
+          <button class="btn btn-sm" onclick="loadInsights()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="card-body" id="insightsBody"><p class="empty">Loading insights…</p></div>
+    </div>
     <div id="recentActivity" style="margin-top:1.5rem"></div>
     <div class="card">
       <div class="card-header"><h2>System Info</h2></div>
@@ -346,6 +355,75 @@ function renderDashboard() {
         </table>
       </div>
     </div>`;
+}
+
+// ---- Insights (Job 7): dependency-free bar charts ----
+let insightsState = { range: 30, tab: 'daily', data: null };
+
+function cycleInsightsRange() {
+  insightsState.range = insightsState.range === 30 ? 60 : insightsState.range === 60 ? 90 : 30;
+  loadInsights();
+}
+
+async function loadInsights() {
+  const btn = document.getElementById('insRangeBtn');
+  if (btn) btn.textContent = `📅 ${insightsState.range}d`;
+  try {
+    insightsState.data = await api(`/analytics/overview?days=${insightsState.range}`);
+    renderInsights();
+  } catch (e) {
+    const el = document.getElementById('insightsBody');
+    if (el) el.innerHTML = `<p style="color:var(--red)">${e.message}</p>`;
+  }
+}
+
+function barChart(title, points, fmt = v => v) {
+  // points: [{label, value}] — renders vertical bars with max-height scaling
+  const max = Math.max(1, ...points.map(p => p.value));
+  const bars = points.map(p => `
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:.25rem" title="${esc(p.label)}: ${fmt(p.value)}">
+      <div style="width:70%;height:${Math.max(2, Math.round((p.value / max) * 90))}px;background:var(--primary);border-radius:3px 3px 0 0;opacity:.85"></div>
+      <div style="font-size:.6rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${esc(p.label)}</div>
+    </div>`).join('');
+  return `<div style="margin-bottom:1rem">
+    <div style="font-size:.8rem;font-weight:600;margin-bottom:.4rem">${title} <span style="color:var(--text-dim);font-weight:400">(max ${fmt(max)})</span></div>
+    <div style="display:flex;align-items:flex-end;gap:2px;height:110px">${bars}</div>
+  </div>`;
+}
+
+function renderInsights() {
+  const el = document.getElementById('insightsBody');
+  if (!el || !insightsState.data) return;
+  const d = insightsState.data;
+  const s = d.summary;
+  let charts = '';
+  if (insightsState.tab === 'daily') {
+    const pts = k => d.daily.map(x => ({ label: x.day.slice(5), value: x[k] }));
+    charts = barChart('Signups / day', pts('signups'))
+           + barChart('Tunnels created / day', pts('tunnels'))
+           + barChart('Tunnel requests / day', pts('requests'))
+           + barChart('Revenue / day (₹)', pts('revenue'), v => '₹' + v);
+  } else {
+    const pts = k => d.monthly.map(x => ({ label: x.month.slice(2), value: x[k] }));
+    charts = barChart('Signups / month', pts('signups'))
+           + barChart('Tunnels created / month', pts('tunnels'))
+           + barChart('Tunnel requests / month', pts('requests'))
+           + barChart('Revenue / month (₹)', pts('revenue'), v => '₹' + v);
+  }
+  el.innerHTML = `
+    <div class="stat-grid" style="margin-bottom:1rem">
+      <div class="stat-card"><div class="label">Signups today</div><div class="value">${s.signups_today}</div></div>
+      <div class="stat-card"><div class="label">Signups this month</div><div class="value">${s.signups_this_month}</div></div>
+      <div class="stat-card"><div class="label">Tunnels today</div><div class="value">${s.tunnels_today}</div></div>
+      <div class="stat-card"><div class="label">Tunnels this month</div><div class="value">${s.tunnels_this_month}</div></div>
+      <div class="stat-card"><div class="label">Revenue this month</div><div class="value">₹${s.revenue_this_month}</div></div>
+      <div class="stat-card"><div class="label">Pro users</div><div class="value">${s.pro_users} / ${s.total_users}</div></div>
+    </div>
+    <div class="tabs" style="margin-bottom:1rem">
+      <button class="tab ${insightsState.tab === 'daily' ? 'active' : ''}" onclick="insightsState.tab='daily';renderInsights()">📅 Daily</button>
+      <button class="tab ${insightsState.tab === 'monthly' ? 'active' : ''}" onclick="insightsState.tab='monthly';renderInsights()">🗓️ Monthly</button>
+    </div>
+    ${charts}`;
 }
 
 // ---- System Info (settings-driven via /tunnels/info) ----
@@ -829,6 +907,9 @@ async function loadAllTokens() {
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const tokens = await api('/tokens/admin/all');
+    const totReq = tokens.reduce((s, t) => s + (t.total_requests || 0), 0);
+    const totByt = tokens.reduce((s, t) => s + (t.total_bytes || 0), 0);
+    const fmtData = b => b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB';
     let rows = tokens.map((t, i) => `<tr>
       <td>${i + 1}</td>
       <td class="code">${t.token}</td>
@@ -836,21 +917,26 @@ async function loadAllTokens() {
       <td>${t.user_email}</td>
       <td class="code">${t.subdomain}</td>
       <td>${t.custom_domain || '—'}</td>
+      <td>${t.total_requests || 0}</td>
+      <td>${fmtData(t.total_bytes || 0)}</td>
+      <td><span class="badge ${t.active_tunnels > 0 ? 'badge-green' : ''}">${t.active_tunnels || 0}</span></td>
       <td>${t.created_at ? t.created_at.replace('T',' ').substring(0,19) : '—'}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="adminRegenToken('${t.id}')">🔄 Regen</button>
         <button class="btn btn-sm btn-danger" onclick="adminDeleteToken('${t.id}')">🗑️</button>
       </td>
     </tr>`).join('');
-    if (!rows) rows = '<tr><td colspan="8" class="empty">No tokens found</td></tr>';
+    if (!rows) rows = '<tr><td colspan="11" class="empty">No tokens found</td></tr>';
     c.innerHTML = `
     <div class="stat-grid">
       <div class="stat-card"><div class="label">Total Tokens</div><div class="value">${tokens.length}</div></div>
+      <div class="stat-card"><div class="label">Total Requests (all tokens)</div><div class="value">${totReq}</div></div>
+      <div class="stat-card"><div class="label">Total Data (all tokens)</div><div class="value">${fmtData(totByt)}</div></div>
     </div>
     <div class="card">
       <div class="card-header"><h2>All Tokens (${tokens.length})</h2><button class="btn btn-sm" onclick="loadAllTokens()">🔄 Refresh</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>#</th><th>Token</th><th>Name</th><th>User</th><th>Subdomain</th><th>Custom Domain</th><th>Created</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>#</th><th>Token</th><th>Name</th><th>User</th><th>Subdomain</th><th>Custom Domain</th><th>Requests</th><th>Data</th><th>Active Tunnels</th><th>Created</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }

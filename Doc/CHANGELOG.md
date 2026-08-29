@@ -1,5 +1,29 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.3.0 — 2026-08-29 — Phase B: per-token traffic + daily/monthly insights
+
+### Added
+- Migration 0011: `tunnels.token` column (+index, +backfill) linking tunnels to the
+  token that created them.
+- Per-token traffic: `/tokens` and `/tokens/admin/all` responses now include
+  total_requests / total_bytes / active_tunnels; admin "All Tokens" table gained
+  Requests / Data / Active Tunnels columns + total stat cards; user dashboard token
+  table gained the same columns (Job 4).
+- `GET /api/v1/analytics/overview` (admin): daily series (signups, tunnels, requests,
+  revenue) + 12-month monthly series + today/this-month summary.
+- Admin dashboard "📈 Insights" card: summary cards, Daily/Monthly tabs, 30/60/90-day
+  range cycler, dependency-free CSS bar charts (Job 7).
+- `Doc/tests/v0.3.0/` evidence (2 screenshots + assertions).
+
+### Changed
+- `tunnel_registry.increment_request_count` now writes counters through to the
+  `tunnels` table (bug fix: previously in-memory only → all tunnel rows showed 0
+  traffic forever; required for per-token stats and daily analytics).
+- `ssh_server._setup_tunnel` records the authenticating token in the tunnels row.
+
+### Removed
+- none
+
 ## v0.2.0 — 2026-08-29 — Phase A: user management + account control + audit log + IP auto-block toggle
 
 ### Added

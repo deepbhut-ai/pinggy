@@ -89,6 +89,7 @@ browser → http://abc123.localhost:8020  (Host: abc123.localhost:8020)
 | payments.py | /payments | POST /checkout, POST /webhook/stripe, POST /webhook/paypal, GET /paypal/capture/{order_id}, POST /webhook/nowpayments, GET /my, GET /admin/all, GET /admin/stats |
 | ip_monitor.py | /ip-monitor | GET /stats, GET /ips, GET /ips/{ip}, POST /block, POST /unblock, GET /blocked, POST /geo/{ip}, GET /config (effective view), PUT /config (runtime overrides → Redis) |
 | audit.py | /audit | GET "" (admin, newest first, ?limit&offset) |
+| analytics.py | /analytics | GET /overview?days=7..180 (daily series, 12-month monthly series, summary — admin) |
 | admin.py (pages, no prefix) | / | GET /, /login, /admin, /dashboard (static HTML) + /docs /redoc /health |
 
 Auth: JWT Bearer (JWT_SECRET, HS256, claims sub=user_id, email, role).

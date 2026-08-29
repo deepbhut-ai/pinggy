@@ -22,6 +22,22 @@ class TokenOut(BaseModel):
     custom_domain: str | None = None
     subdomain: str | None = None
     created_at: str | None = None
+    total_requests: int = 0
+    total_bytes: int = 0
+    active_tunnels: int = 0
+
+
+async def _token_traffic(db: AsyncConnection, token: str) -> tuple[int, int, int]:
+    """Aggregate (total_requests, total_bytes, active_tunnels) for one token's tunnels."""
+    cur = await db.execute(
+        "SELECT COALESCE(SUM(request_count),0), COALESCE(SUM(bytes_transferred),0), "
+        "COUNT(*) FILTER (WHERE status = 'active') "
+        "FROM tunnels WHERE token = %s",
+        (token,),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    return int(row[0]), int(row[1]), int(row[2])
 
 
 class TokenCreate(BaseModel):
@@ -72,17 +88,21 @@ async def list_tokens(
     )
     rows = await cur.fetchall()
     await cur.close()
-    return [
-        TokenOut(
+    out = []
+    for r in rows:
+        req, byt, act = await _token_traffic(db, r[1])
+        out.append(TokenOut(
             id=str(r[0]),
             token=r[1],
             name=r[2],
             custom_domain=r[3],
             subdomain=_subdomain_from_token(r[1]),
             created_at=r[4].isoformat() if r[4] else None,
-        )
-        for r in rows
-    ]
+            total_requests=req,
+            total_bytes=byt,
+            active_tunnels=act,
+        ))
+    return out
 
 
 @router.post("", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
@@ -277,6 +297,9 @@ class AdminTokenOut(BaseModel):
     subdomain: str | None = None
     user_email: str
     created_at: str | None = None
+    total_requests: int = 0
+    total_bytes: int = 0
+    active_tunnels: int = 0
 
 
 @router.get("/admin/all", response_model=list[AdminTokenOut])
@@ -293,8 +316,10 @@ async def admin_list_all_tokens(
     )
     rows = await cur.fetchall()
     await cur.close()
-    return [
-        AdminTokenOut(
+    out = []
+    for r in rows:
+        req, byt, act = await _token_traffic(db, r[1])
+        out.append(AdminTokenOut(
             id=str(r[0]),
             token=r[1],
             name=r[2],
@@ -302,9 +327,11 @@ async def admin_list_all_tokens(
             subdomain=_subdomain_from_token(r[1]),
             user_email=r[4],
             created_at=r[5].isoformat() if r[5] else None,
-        )
-        for r in rows
-    ]
+            total_requests=req,
+            total_bytes=byt,
+            active_tunnels=act,
+        ))
+    return out
 
 
 @router.delete("/admin/{token_id}", status_code=status.HTTP_200_OK)
