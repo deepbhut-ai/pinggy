@@ -3,12 +3,12 @@
 Env: alembic.ini + alembic/env.py (reads settings.DATABASE_URL from app config).
 Applied automatically on every startup by auto_setup._run_migrations().
 
-## Next migration number: **0018**
+## Next migration number: **0019**
 
 | # | Up file | Down in same file | Change | Status |
 |---|---|---|---|---|
+| 0018 | 0018_token_security.py | DROP 5 cols | tokens: basic auth, ip_whitelist, bearer_key, https_only | applied (local, v0.8.0) |
 | 0017 | 0017_tunnel_configs.py | DROP tunnel_configs | saved command-builder configs per user | applied (local, v0.7.0) |
-| 0016 | 0016_invoices.py | DROP invoices | invoices table + UNIQUE payment_id + indexes | applied (local, v0.6.0) |
 | 0014 | 0014_announcements.py | DROP announcements | announcements table + active idx | applied (local, v0.5.0) |
 | 0011 | 0011_add_token_to_tunnels.py | DROP idx + col | tunnels.token VARCHAR(64) + idx + backfill from users.tunnel_token | applied (local, v0.3.0) |
 | 0010 | 0010_user_active_and_audit_logs.py | DROP audit_logs + is_active col | users.is_active BOOLEAN, audit_logs table + 2 indexes | applied (local, v0.2.0) |

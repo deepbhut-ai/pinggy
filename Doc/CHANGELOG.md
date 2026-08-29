@@ -1,5 +1,24 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.8.0 — 2026-08-29 — tunnel security options + bandwidth widget (Tracks 2 & 8)
+
+### Added
+- Migration 0018: per-token security (basic auth, IP whitelist, API/bearer key,
+  HTTPS-only) — all OFF by default; enforced in TunnelProxyMiddleware with
+  constant-time compares and CIDR support; blocked requests counted + SSH-logged.
+- PUT /tokens/{id} security fields ("auto" bearer generation, empty clears);
+  masked security view on GET /tokens; audited (token.security entries).
+- Dashboard edit-token modal 🔒 Security section.
+- Subscription page Bandwidth Usage widget.
+- `Doc/tests/v0.8.0/` evidence (9-assertion live proxy matrix + 2 screenshots).
+
+### Changed
+- TunnelSession carries the authenticating token (needed for proxy security
+  lookups).
+
+### Removed
+- none
+
 ## v0.7.0 — 2026-08-29 — Command Builder 2.0 (roadmap Track 1)
 
 ### Added

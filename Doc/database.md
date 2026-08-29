@@ -53,6 +53,10 @@ in-memory only); read by admin dashboard, /tunnels/*, /tokens aggregation, analy
 | token | VARCHAR(64) UNIQUE | 16-hex chars, SSH username |
 | name | VARCHAR(120) | label |
 | custom_domain | VARCHAR(255) UNIQUE | per-token custom domain |
+| basic_auth_user / basic_auth_pass | VARCHAR(120) | (0018) HTTP Basic auth enforced by proxy |
+| ip_whitelist | TEXT | (0018) comma list of IPs/CIDRs; empty = allow all |
+| bearer_key | VARCHAR(64) | (0018) require X-Api-Key / Bearer on every request |
+| https_only | BOOLEAN default FALSE | (0018) reject plain HTTP |
 | created_at / updated_at | TIMESTAMPTZ | |
 
 Indexes: idx_tokens_user_email, idx_tokens_token.

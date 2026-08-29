@@ -1,0 +1,44 @@
+# v0.8.0 — Tunnel security options + bandwidth widget (Track 2 + 8) — 2026-08-29
+
+## Changes
+1. Migration 0018: tokens += basic_auth_user/pass, ip_whitelist, bearer_key,
+   https_only (all NULL/FALSE by default — zero behavior change until enabled).
+2. proxy.py: `_get_token_security` (loads per-token settings; returns None when
+   unconfigured = zero-overhead passthrough) + `_check_security` enforcing:
+   - Basic auth (constant-time compare, WWW-Authenticate challenge)
+   - IP whitelist (exact IPs + CIDR, CF/X-Real-IP/XFF-aware client IP)
+   - Bearer/API-key (X-Api-Key or Authorization: Bearer)
+   - HTTPS-only (also honors x-forwarded-proto behind a proxy)
+   Blocked requests are counted + logged to the user's SSH terminal.
+3. ssh_server/tunnel_registry: TunnelSession now carries the authenticating
+   `token` (required for the proxy lookup; fixed mid-test — initially security
+   was silently skipped because the field was missing).
+4. tokens.py PUT /tokens/{id}: accepts the 5 security fields ("auto" generates a
+   bearer key; empty string clears); TokenOut.security exposes a masked view
+   (passwords never returned; bearer shown as ***set***); all changes audited.
+5. dashboard edit-token modal: 🔒 Security section (basic auth user/pass,
+   IP whitelist, API key, HTTPS-only toggle) — loads current masked state.
+6. Subscription page: Bandwidth Usage progress widget (lifetime transfer,
+   "no cap" messaging).
+
+## Machine assertions (all PASS — live proxy matrix)
+  S0 no security → 200
+  S1 basic auth: no creds 401 · bad creds 401 · good creds 200
+  S2 IP whitelist: foreign IP 403 · whitelisted 127.0.0.1 200 (CIDR parsing OK)
+  S3 bearer: none 401 · X-Api-Key 200 · Authorization Bearer 200
+  S4 https_only: plain http 403
+  S5 clear all → 200 (full return-to-default verified)
+  S6 GET /tokens security view masked ({bearer_key: '***set***'})
+  S7 audit trail shows every change (token.security entries)
+
+## Browser verification
+  Edit-token modal renders 🔒 Security section with all four options.
+  Subscription page shows Bandwidth Usage card ("unlimited on every plan").
+  Screenshots: screenshot-token-security.png, screenshot-bandwidth.png.
+
+## Bug found & fixed during verification
+  TunnelSession lacked the token field → security lookups silently no-oped.
+  Caught by the assertion matrix (S1 returned 200 instead of 401), fixed by
+  threading the auth token into the session, re-verified green.
+  Also fixed a duplicated `const totalBytes` line (SyntaxError froze the
+  dashboard; caught by page console).

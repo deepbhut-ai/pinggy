@@ -1652,6 +1652,13 @@ function showUpgradeModal() {
 }
 
 async function editToken(tokenId, currentName, currentDomain) {
+  // fetch current security settings
+  let sec = { basic_auth_user: '', ip_whitelist: '', bearer_key: '', https_only: false };
+  try {
+    const list = await api('/tokens');
+    const t = list.find(x => x.id === tokenId);
+    if (t && t.security) sec = { ...t.security, basic_auth_user: t.security.basic_auth_user || '' };
+  } catch (e) {}
   showModal('Edit Token', `
     <div class="form-group">
       <label>Token name</label>
@@ -1661,12 +1668,42 @@ async function editToken(tokenId, currentName, currentDomain) {
       <label>Custom domain (leave empty for none)</label>
       <input type="text" id="editTokenDomain" value="${currentDomain}" placeholder="e.g. serverira.com">
     </div>
+    <div style="border-top:1px solid var(--border);margin:.75rem 0;padding-top:.75rem">
+      <strong style="font-size:.85rem">🔒 Security</strong>
+      <div class="form-group" style="margin-top:.5rem">
+        <label>Basic auth — username:password (empty = off)</label>
+        <input type="text" id="editBasicUser" value="${(sec.basic_auth_user || '')}" placeholder="admin" style="margin-bottom:.3rem">
+        <input type="password" id="editBasicPass" placeholder="${sec.basic_auth_user ? '(unchanged — type to change)' : 'password'}">
+      </div>
+      <div class="form-group">
+        <label>IP whitelist (comma-separated IPs/CIDRs, empty = allow all)</label>
+        <input type="text" id="editIpWhitelist" value="${(sec.ip_whitelist || '')}" placeholder="203.0.113.5, 10.0.0.0/8">
+      </div>
+      <div class="form-group">
+        <label>API key required on requests (empty = off, "auto" = generate)</label>
+        <input type="text" id="editBearerKey" placeholder="${sec.bearer_key ? '(key set — hidden)' : 'auto'}">
+      </div>
+      <label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;cursor:pointer">
+        <input type="checkbox" id="editHttpsOnly" ${sec.https_only ? 'checked' : ''} style="width:auto">
+        HTTPS only (reject plain HTTP requests)
+      </label>
+    </div>
   `, async () => {
     const name = document.getElementById('editTokenName').value.trim();
     const domain = document.getElementById('editTokenDomain').value.trim();
+    const payload = { name, custom_domain: domain };
+    const bu = document.getElementById('editBasicUser').value.trim();
+    const bp = document.getElementById('editBasicPass').value;
+    if (bu || bp) { payload.basic_auth_user = bu; payload.basic_auth_pass = bp || undefined; }
+    const wl = document.getElementById('editIpWhitelist').value.trim();
+    if (wl !== (sec.ip_whitelist || '')) payload.ip_whitelist = wl;
+    const bk = document.getElementById('editBearerKey').value.trim();
+    if (bk) payload.bearer_key = bk;
+    if (document.getElementById('editHttpsOnly').checked !== !!sec.https_only)
+      payload.https_only = document.getElementById('editHttpsOnly').checked;
     try {
       closeModal();
-      await api(`/tokens/${tokenId}`, 'PUT', JSON.stringify({ name, custom_domain: domain }));
+      await api(`/tokens/${tokenId}`, 'PUT', payload);
       toast('Token updated');
       loadTokens();
     } catch (e) { toast(e.message, 'error'); }
@@ -1848,6 +1885,18 @@ async function loadSubscription() {
       <div class="stat-card"><div class="label">Total Requests</div><div class="value">${totalRequests}</div></div>
       <div class="stat-card"><div class="label">Data Transfer</div><div class="value">${usageStr}</div></div>
       ${isPro ? `<div class="stat-card"><div class="label">Plan</div><div class="value" style="color:var(--green);font-size:1.25rem">Pro${daysLeft !== null ? ' · ' + daysLeft + 'd' : ''}</div></div>` : `<div class="stat-card"><div class="label">Plan</div><div class="value" style="font-size:1.25rem">Free</div></div>`}
+    </div>
+
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="card-header"><h2>Bandwidth Usage</h2><span style="font-size:.8rem;color:var(--text-dim)">${totalBytes > 1073741824 ? (totalBytes / 1073741824).toFixed(2) + ' GB' : (totalBytes / 1048576).toFixed(1) + ' MB'} transferred · unlimited on every plan</span></div>
+      <div class="card-body">
+        <div style="background:var(--bg);border-radius:99px;height:10px;overflow:hidden">
+          <div style="width:${Math.min(100, (totalBytes / 1073741824) * 100).toFixed(1)}%;height:100%;background:linear-gradient(90deg,var(--brand),#22c55e)"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-dim);margin-top:.3rem">
+          <span>${usageStr} used</span><span>No cap — pinggy-style throttling doesn't apply here 🚀</span>
+        </div>
+      </div>
     </div>
 
     <div class="card">

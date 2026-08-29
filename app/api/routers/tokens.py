@@ -25,6 +25,7 @@ class TokenOut(BaseModel):
     total_requests: int = 0
     total_bytes: int = 0
     active_tunnels: int = 0
+    security: dict | None = None  # masked security view (never returns basic_auth_pass / full bearer when set)
 
 
 async def _token_traffic(db: AsyncConnection, token: str) -> tuple[int, int, int]:
@@ -48,6 +49,11 @@ class TokenCreate(BaseModel):
 class TokenUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=120)
     custom_domain: str | None = None
+    basic_auth_user: str | None = Field(default=None, max_length=120)
+    basic_auth_pass: str | None = Field(default=None, max_length=120)
+    ip_whitelist: str | None = None
+    bearer_key: str | None = Field(default=None, max_length=64)
+    https_only: bool | None = None
 
 
 def _generate_token() -> str:
@@ -83,7 +89,7 @@ async def list_tokens(
 ):
     """List all tokens for the current user."""
     cur = await db.execute(
-        "SELECT id, token, name, custom_domain, created_at FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
+        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
         (user["email"],),
     )
     rows = await cur.fetchall()
@@ -101,6 +107,12 @@ async def list_tokens(
             total_requests=req,
             total_bytes=byt,
             active_tunnels=act,
+            security={
+                "basic_auth_user": r[5],
+                "ip_whitelist": r[6],
+                "bearer_key": "***set***" if r[7] else None,
+                "https_only": r[8],
+            },
         ))
     return out
 
@@ -170,7 +182,7 @@ async def update_token(
     user: dict = Depends(get_current_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """Update a token's name or custom domain."""
+    """Update a token's name, custom domain, or security options (v0.8.0)."""
     # Verify ownership
     cur = await db.execute(
         "SELECT id FROM tokens WHERE id = %s AND user_email = %s",
@@ -204,6 +216,30 @@ async def update_token(
             await cur.close()
         updates.append("custom_domain = %s")
         params.append(domain_value)
+    # ---- security options (v0.8.0): empty string clears a setting ----
+    import secrets as _secrets
+    sec_changed = []
+    if body.basic_auth_user is not None:
+        u = body.basic_auth_user.strip() or None
+        if u and not body.basic_auth_pass:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "basic_auth_pass required when setting basic_auth_user")
+        updates.append("basic_auth_user = %s"); params.append(u)
+        sec_changed.append("basic_auth" if u else "basic_auth=off")
+    if body.basic_auth_pass is not None:
+        updates.append("basic_auth_pass = %s"); params.append(body.basic_auth_pass.strip() or None)
+    if body.ip_whitelist is not None:
+        wl = ",".join(s.strip() for s in body.ip_whitelist.split(",") if s.strip()) or None
+        updates.append("ip_whitelist = %s"); params.append(wl)
+        sec_changed.append(f"ip_whitelist({len(wl.split(',')) if wl else 0})")
+    if body.bearer_key is not None:
+        bk = body.bearer_key.strip() or None
+        if bk == "auto":
+            bk = _secrets.token_hex(16)
+        updates.append("bearer_key = %s"); params.append(bk)
+        sec_changed.append("bearer_key" if bk else "bearer_key=off")
+    if body.https_only is not None:
+        updates.append("https_only = %s"); params.append(body.https_only)
+        sec_changed.append(f"https_only={body.https_only}")
 
     if not updates:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields to update")
@@ -217,6 +253,9 @@ async def update_token(
         )
         row = await cur.fetchone()
         await cur.close()
+        if sec_changed:
+            from app.core.audit import log_audit
+            await log_audit(db, user["email"], "token.security", row[1], ", ".join(sec_changed))
     except Exception as e:
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise HTTPException(

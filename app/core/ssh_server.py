@@ -366,6 +366,7 @@ class MySSHServer(asyncssh.SSHServer):
                 ssh_peer=self._peer,
                 ssh_conn=self._conn,
                 custom_domain=self._custom_domain,
+                token=self._token or "",
                 log_callback=self._info_session.write_log if self._info_session else None,
             )
 

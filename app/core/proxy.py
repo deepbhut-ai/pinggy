@@ -26,6 +26,126 @@ from app.core.tunnel_registry import (
 logger = logging.getLogger("proxy")
 
 
+async def _get_token_security(tunnel) -> dict | None:
+    """Load the tunnel's token security settings from the DB (best-effort).
+    Returns None when nothing is configured (zero overhead default path)."""
+    token = getattr(tunnel, "token", None) if tunnel else None
+    if not token:
+        return None
+    try:
+        import psycopg
+        from app.core.config import settings
+        def _q():
+            with psycopg.connect(settings.async_dsn, autocommit=True) as conn:
+                cur = conn.execute(
+                    "SELECT basic_auth_user, basic_auth_pass, ip_whitelist, bearer_key, https_only "
+                    "FROM tokens WHERE token = %s",
+                    (token,),
+                )
+                row = cur.fetchone()
+                cur.close()
+                return row
+        import asyncio
+        row = await asyncio.to_thread(_q)
+        if not row:
+            return None
+        return {
+            "basic_user": row[0], "basic_pass": row[1],
+            "ip_whitelist": row[2], "bearer_key": row[3], "https_only": row[4],
+        }
+    except Exception as e:
+        logger.debug("token security lookup failed: %s", e)
+        return None
+
+
+def _client_ip(request: Request) -> str:
+    for h in ("CF-Connecting-IP", "X-Real-IP"):
+        v = request.headers.get(h)
+        if v:
+            return v.strip()
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "0.0.0.0"
+
+
+def _ip_allowed(client_ip: str, whitelist: str) -> bool:
+    """Comma-separated entries: exact IPs or CIDR ranges."""
+    import ipaddress
+    try:
+        cip = ipaddress.ip_address(client_ip)
+    except ValueError:
+        return False
+    for entry in (whitelist or "").split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        try:
+            if "/" in entry:
+                if cip in ipaddress.ip_network(entry, strict=False):
+                    return True
+            elif cip == ipaddress.ip_address(entry):
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+def _check_security(request: Request, sec: dict, scheme: str):
+    """Returns a Response when the request must be denied, else None."""
+    import base64
+    import hmac as _hmac
+
+    # HTTPS-only
+    if sec.get("https_only") and scheme != "https" and request.headers.get("x-forwarded-proto") != "https":
+        return Response(
+            content="<h1>403 — HTTPS required</h1><p>This tunnel only accepts HTTPS requests.</p>",
+            status_code=403, media_type="text/html",
+        )
+
+    # IP whitelist
+    wl = sec.get("ip_whitelist")
+    if wl and wl.strip():
+        if not _ip_allowed(_client_ip(request), wl):
+            return Response(
+                content="<h1>403 — IP not allowed</h1><p>Your IP is not on this tunnel's whitelist.</p>",
+                status_code=403, media_type="text/html",
+            )
+
+    # Bearer-key auth
+    bk = sec.get("bearer_key")
+    if bk:
+        provided = request.headers.get("x-api-key") or ""
+        auth = request.headers.get("authorization") or ""
+        token_val = auth[7:] if auth.lower().startswith("bearer ") else provided
+        if not token_val or not _hmac.compare_digest(str(bk), token_val):
+            return Response(
+                content="<h1>401 — API key required</h1><p>Send header: X-Api-Key: &lt;key&gt;</p>",
+                status_code=401, media_type="text/html",
+            )
+
+    # Basic auth
+    bu, bp = sec.get("basic_user"), sec.get("basic_pass")
+    if bu and bp:
+        auth = request.headers.get("authorization") or ""
+        ok = False
+        if auth.lower().startswith("basic "):
+            try:
+                decoded = base64.b64decode(auth[6:]).decode()
+                u, _, p = decoded.partition(":")
+                ok = _hmac.compare_digest(u, bu) and _hmac.compare_digest(p, bp)
+            except Exception:
+                ok = False
+        if not ok:
+            return Response(
+                content="<h1>401 — Authentication required</h1>",
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="Tunnel"'},
+                media_type="text/html",
+            )
+    return None
+
+
 def _extract_subdomain(host: str) -> str | None:
     """Extract the tunnel subdomain from a Host header.
 
@@ -82,6 +202,16 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                 status_code=502,
                 media_type="text/html",
             )
+
+        # ---- Token-level security options (v0.8.0) — all OFF by default ----
+        sec = await _get_token_security(tunnel)
+        if sec:
+            denied = _check_security(request, sec, request.url.scheme)
+            if denied is not None:
+                # count blocked requests too
+                await increment_request_count(subdomain, 0)
+                log_to_tunnel(subdomain, f"  [{datetime.now().strftime('%H:%M:%S')}] {request.method:<6s} {request.url.path or '/':<30s} → {denied.status_code}  (blocked: security)")
+                return denied
 
         # Forward the request through the SSH reverse tunnel
         # The SSH -R0:localhost:PORT creates a listener on the server at

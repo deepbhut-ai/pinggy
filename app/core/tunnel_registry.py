@@ -22,6 +22,7 @@ class TunnelSession:
     user_email: str           # SSH username used to connect
     ssh_peer: str             # remote address of SSH client
     custom_domain: str = ""  # custom domain (if token has one)
+    token: str = ""           # authenticating tunnel token (security lookups, v0.8.0)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     request_count: int = 0
     bytes_transferred: int = 0
