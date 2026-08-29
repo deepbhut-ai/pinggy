@@ -54,6 +54,8 @@ in-memory only); read by admin dashboard, /tunnels/*, /tokens aggregation, analy
 | name | VARCHAR(120) | label |
 | custom_domain | VARCHAR(255) UNIQUE | per-token custom domain |
 | fixed_subdomain | VARCHAR(50) UNIQUE | (0019) permanent subdomain; backfilled md5(token)[:7]; SSH reuses it on every connect |
+| tunnel_mode | VARCHAR(10) default 'http' | (0021) http \| tcp — Pro only for tcp |
+| tcp_port | INTEGER UNIQUE | (0021) persistent public TCP port for tcp-mode tokens (Pro) |
 | basic_auth_user / basic_auth_pass | VARCHAR(120) | (0018) HTTP Basic auth enforced by proxy |
 | ip_whitelist | TEXT | (0018) comma list of IPs/CIDRs; empty = allow all |
 | bearer_key | VARCHAR(64) | (0018) require X-Api-Key / Bearer on every request |

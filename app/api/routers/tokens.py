@@ -51,6 +51,8 @@ class TokenUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=120)
     custom_domain: str | None = None
     fixed_subdomain: str | None = Field(default=None, max_length=50)
+    tunnel_mode: str | None = None       # http | tcp (v1.0.0, Pro)
+    tcp_port: int | None = Field(default=None, ge=1024, le=65535)
     basic_auth_user: str | None = Field(default=None, max_length=120)
     basic_auth_pass: str | None = Field(default=None, max_length=120)
     ip_whitelist: str | None = None
@@ -239,6 +241,28 @@ async def update_token(
             await cur.close()
         updates.append("fixed_subdomain = %s")
         params.append(sub)
+    # ---- TCP mode + persistent port (v1.0.0, Pro only) ----
+    if body.tunnel_mode is not None or body.tcp_port is not None:
+        if (user.get("plan") or "free") != "pro":
+            raise HTTPException(
+                status.HTTP_402_PAYMENT_REQUIRED,
+                "TCP tunnels are a Pro feature. Upgrade to enable them.",
+            )
+        if body.tunnel_mode is not None:
+            mode = body.tunnel_mode.lower().strip()
+            if mode not in ("http", "tcp"):
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "tunnel_mode must be http or tcp")
+            updates.append("tunnel_mode = %s"); params.append(mode)
+        if body.tcp_port is not None:
+            cur = await db.execute(
+                "SELECT id FROM tokens WHERE tcp_port = %s AND id != %s",
+                (body.tcp_port, token_id),
+            )
+            if await cur.fetchone():
+                await cur.close()
+                raise HTTPException(status.HTTP_409_CONFLICT, "That TCP port is already taken.")
+            await cur.close()
+            updates.append("tcp_port = %s"); params.append(body.tcp_port)
     # ---- security options (v0.8.0): empty string clears a setting ----
     import secrets as _secrets
     sec_changed = []

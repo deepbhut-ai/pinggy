@@ -200,6 +200,12 @@ class MySSHServer(asyncssh.SSHServer):
                     pass
         except Exception as e:
             logger.warning("Failed to update tunnel status in DB: %s", e)
+        # Close any TCP relay owned by this tunnel (v1.0.0)
+        try:
+            from app.core.tcp_relay import stop_relay_for_subdomain
+            await stop_relay_for_subdomain(tunnel.subdomain)
+        except Exception:
+            pass
         logger.info("Tunnel %s (%s) removed", tunnel.tunnel_id, tunnel.subdomain)
 
     def begin_auth(self, username: str) -> bool:
@@ -354,7 +360,7 @@ class MySSHServer(asyncssh.SSHServer):
                     from app.core.db import get_conn
                     async with get_conn() as db:
                         cur = await db.execute(
-                            "SELECT fixed_subdomain FROM tokens WHERE token = %s",
+                            "SELECT fixed_subdomain, tunnel_mode, tcp_port FROM tokens WHERE token = %s",
                             (self._token,),
                         )
                         row = await cur.fetchone()
@@ -362,8 +368,10 @@ class MySSHServer(asyncssh.SSHServer):
                         if row and row[0]:
                             subdomain = row[0]
                             self._last_fixed_sub = subdomain
+                        self._tunnel_mode = (row[1] if row else "http") or "http"
+                        self._tcp_port = row[2] if row else None
                 except Exception as e:
-                    logger.debug("fixed subdomain lookup failed: %s", e)
+                    logger.debug("token lookup failed: %s", e)
             if not subdomain:
                 subdomain = _generate_subdomain()
 
@@ -418,6 +426,12 @@ class MySSHServer(asyncssh.SSHServer):
                 await cur.close()
 
             await register_tunnel(self._tunnel)
+
+            # TCP mode (v1.0.0): open the public relay for this token's port
+            if getattr(self, "_tunnel_mode", "http") == "tcp" and getattr(self, "_tcp_port", None):
+                from app.core.tcp_relay import start_relay
+                ok = await start_relay(self._tcp_port, remote_port, subdomain)
+                self._relay_port = self._tcp_port if ok else None
 
             scheme = "https" if settings.PROXY_PORT == 80 else "http"
             url = f"{scheme}://{subdomain}.{settings.TUNNEL_DOMAIN}"

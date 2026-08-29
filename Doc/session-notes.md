@@ -115,6 +115,25 @@
 - **Watch out:** pinggy Pro is $2.5/mo — our ₹199 ≈ $2.38 is fine; free-tier
   unlimited data is a marketing angle they can't match (they throttle).
 
+## 2026-08-29 — v0.7.0 → v1.0.0 (full roadmap executed, user pre-approved)
+- **Done:** ALL competitive-roadmap tracks shipped & tagged:
+  v0.7.0 Command Builder 2.0 (presets/downloads/QR/saved configs/Docker tab) ·
+  v0.8.0 tunnel security (basic-auth/IP-whitelist/API-key/HTTPS-only) + bandwidth
+  widget · v0.9.0 persistent subdomains (+md5 backfill = stable URLs for all) ·
+  v0.10.0 API keys + /manage REST + Python SDK (sdk/pinggy_sdk.py) ·
+  v0.11.0 Web Debugger (capture+replay) · v1.0.0 TCP tunnels + persistent ports
+  (Pro-gated, full echo E2E verified).
+- **Bugs found & fixed during verification:** TunnelSession lacked token field
+  (v0.8.0 security silently no-oped); duplicated const totalBytes (dashboard
+  SyntaxError); get_api_user fallback 500; ssh_server multi-edit reported success
+  but left old SELECT (TCP relay never started) — all caught by assertions.
+- **In progress:** nothing. Server on 8020. 16 tags total (v0.1.0→v1.0.0).
+- **Next:** await user — deploy to prod when ready (git pull + .env.production +
+  systemd restart; migrations 0010-0021 auto-apply). Deferred: drag-drop domain
+  UI, Teams, UDP tunnels, region selection, header-rewrite rules.
+- **Watch out:** TCP ports 10000-19999 now used for relays; check port conflicts
+  before deploy. vtest is Pro with token tools (sdktest/sdk-made may linger).
+
 ## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
 - **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the
   real 7 routes (process-flow, functions, page-map). Drift exposed by a live-log 200

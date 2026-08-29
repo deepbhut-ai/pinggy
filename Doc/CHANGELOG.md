@@ -1,5 +1,25 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v1.0.0 — 2026-08-29 — TCP tunnels + persistent ports (Track 5) 🎉
+
+### Added
+- Migration 0021: tokens.tunnel_mode (http|tcp) + tokens.tcp_port (UNIQUE,
+  persistent, Pro-only).
+- `app/core/tcp_relay.py`: public TCP listeners relaying both directions to the
+  token's SSH-forwarded port; auto-closed when the tunnel disconnects.
+- SSH server starts/stops relays with the tunnel lifecycle.
+- PUT /tokens/{id}: tunnel_mode + tcp_port — Pro-gated (402), unique (409).
+- Configure page: Tunnel type selector (HTTP / TCP Pro); edit-token modal:
+  Tunnel type + Persistent TCP port fields.
+- `Doc/tests/v1.0.0/` evidence (Pro gating, listener lifecycle, full TCP
+  echo E2E through the public port).
+
+### Changed
+- Token lookup in _setup_tunnel now also loads tunnel_mode/tcp_port.
+
+### Removed
+- none
+
 ## v0.11.0 — 2026-08-29 — Web Debugger v1: inspect + replay (Track 6)
 
 ### Added
