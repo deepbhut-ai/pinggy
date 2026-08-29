@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>pinggy Admin</title>
+<title>IRAGT Admin</title>
 <style>
   :root {
     --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
@@ -162,7 +162,7 @@
 <!-- ============ LOGIN VIEW (hidden — auth is on /login page) ============ -->
 <div id="loginView" style="display:none">
   <div class="login-card">
-    <h1>pinggy Admin</h1>
+    <h1>IRAGT Admin</h1>
     <p>Sign in with your account</p>
     <div id="loginError" style="color:var(--red);font-size:.8rem;margin-bottom:.75rem;display:none;"></div>
     <div class="form-group">
@@ -181,7 +181,7 @@
 <!-- ============ APP VIEW ============ -->
 <div id="appView">
   <div class="topbar">
-    <h1>⚡ pinggy Admin</h1>
+    <h1>⚡ IRAGT Admin</h1>
     <div class="right">
       <span class="user-info" id="topbarUser"></span>
       <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
@@ -393,15 +393,15 @@ async function loadInsights() {
 }
 
 function barChart(title, points, fmt = v => v) {
-  // points: [{label, value}] — renders vertical bars with max-height scaling
+  // points: [{label, value}] — renders vertical bars with max-height scaling + tooltip
   const max = Math.max(1, ...points.map(p => p.value));
   const bars = points.map(p => `
-    <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:.25rem" title="${esc(p.label)}: ${fmt(p.value)}">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:.25rem;position:relative" title="${esc(p.label)}: ${fmt(p.value)}">
       <div style="width:70%;height:${Math.max(2, Math.round((p.value / max) * 90))}px;background:var(--primary);border-radius:3px 3px 0 0;opacity:.85"></div>
       <div style="font-size:.6rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${esc(p.label)}</div>
     </div>`).join('');
   return `<div style="margin-bottom:1rem">
-    <div style="font-size:.8rem;font-weight:600;margin-bottom:.4rem">${title} <span style="color:var(--text-dim);font-weight:400">(max ${fmt(max)})</span></div>
+    <div style="font-size:.8rem;font-weight:600;margin-bottom:.4rem">${title} <span style="color:var(--text-dim);font-weight:400">(hover bars for values)</span></div>
     <div style="display:flex;align-items:flex-end;gap:2px;height:110px">${bars}</div>
   </div>`;
 }

@@ -1,4 +1,21 @@
-# CHANGELOG — pinggy (IRAGT)
+# CHANGELOG — IRAGT (formerly pinggy)
+
+## v1.3.0 — 2026-08-30 — Branding & UX batch
+
+### Added
+- IRAGT rebrand across all UI, titles, SSH banner, emails, invoice, health.
+- Platform auto-detect on Configure (manual choice pins it).
+- API Docs page (endpoints reference + curl + SDK).
+- Login-alert and API-key-created emails (best-effort, logged).
+- Styled hover tooltips on usage charts (user + admin).
+
+### Changed
+- Billing Monthly/Yearly toggle fixed (re-render no longer resets active state).
+- User-side design polish pass (hover states, focus rings, animations, scrollbar).
+
+### Removed
+- All user-visible "pinggy"/"⚡ Tunnel" branding (localStorage keys + internal
+  DB names intentionally kept for session/data compatibility).
 
 ## v1.2.0 — 2026-08-30 — Active Tunnels: Sent ↑ / Received ↓ data
 

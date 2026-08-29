@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login — Tunnel</title>
+<title>Login — IRAGT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -58,11 +58,20 @@
   .back-link { text-align: center; margin-top: 1.5rem; font-size: .825rem; }
   .back-link a { color: var(--text-dim); }
 </style>
+<style>
+  /* v1.3 polish */
+  .auth-card { transition: box-shadow .2s, transform .2s; }
+  .auth-card:hover { box-shadow: 0 24px 48px -20px rgba(0,0,0,.55); }
+  .btn { transition: transform .12s, box-shadow .12s; }
+  .btn:hover { transform: translateY(-1px); }
+  input:focus { outline: 2px solid color-mix(in srgb, var(--primary, #6366f1) 55%, transparent); outline-offset: 1px; }
+  .auth-tab { transition: background .15s, color .15s; }
+</style>
 </head>
 <body>
 
 <div class="auth-card">
-  <div class="logo">⚡ Tunnel</div>
+  <div class="logo">⚡ IRAGT</div>
   <div class="subtitle">Secure tunnels to localhost</div>
 
   <div class="auth-tabs">

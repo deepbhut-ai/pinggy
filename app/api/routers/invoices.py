@@ -170,7 +170,7 @@ async def print_invoice(
   @media print {{ .noprint {{ display:none; }} }}
 </style></head><body>
 <div class="head">
-  <div><h1>⚡ Tunnel</h1><div class="muted">Secure tunnels to localhost</div></div>
+  <div><h1>⚡ IRAGT</h1><div class="muted">Secure tunnels to localhost</div></div>
   <div style="text-align:right"><strong>INVOICE</strong><br><span class="muted">{inv['invoice_no']}</span><br>
   <span class="muted">{inv['issued_at'][:10] if inv['issued_at'] else ''}</span></div>
 </div>

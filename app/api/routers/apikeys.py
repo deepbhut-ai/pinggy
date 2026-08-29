@@ -88,6 +88,19 @@ async def create_api_key(
     r = await cur.fetchone()
     await cur.close()
     await log_audit(db, user["email"], "apikey.create", body.name, f"prefix={raw[:8]}")
+    # Notification email (v1.3.0) — best-effort; the raw key is NOT emailed (shown once in UI)
+    try:
+        from app.core.email import send_email
+        await send_email(
+            db, user["email"],
+            "Your IRAGT API key was created",
+            f"Hi {user['email']},\n\nAn API key '{body.name}' ({raw[:8]}…) was just created on your IRAGT account.\n"
+            "The full key was shown once in your dashboard — copy it from there if you haven't already.\n\n"
+            "If this wasn't you, revoke the key immediately under Dashboard → API Keys.",
+            kind="apikey",
+        )
+    except Exception:
+        pass
     return ApiKeyCreated(
         id=str(r[0]), name=r[1], prefix=r[2],
         created_at=r[3].isoformat() if r[3] else None,

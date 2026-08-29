@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — pinggy</title>
+<title>Dashboard — IRAGT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -275,7 +275,7 @@
 <!-- Loading screen (shown while checking auth) -->
 <div id="loadingScreen" style="display:flex;align-items:center;justify-content:center;min-height:100vh">
   <div style="text-align:center">
-    <div style="font-size:1.5rem;font-weight:800;margin-bottom:1rem">⚡ Tunnel</div>
+    <div style="font-size:1.5rem;font-weight:800;margin-bottom:1rem">⚡ IRAGT</div>
     <div style="color:var(--text-dim);font-size:.875rem">Loading...</div>
   </div>
 </div>
@@ -303,7 +303,7 @@
   <div class="app-shell">
     <!-- Header -->
     <header class="app-header">
-      <div class="logo">⚡ pinggy</div>
+      <div class="logo">⚡ IRAGT</div>
       <div class="right">
         <div class="user-badge" id="userBadge" onclick="logout()">
           <div class="avatar" id="userAvatar">U</div>
@@ -343,6 +343,10 @@
         <div class="nav-item" data-page="apikeys" onclick="navigate('apikeys', this)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           API Keys
+        </div>
+        <div class="nav-item" data-page="apidocs" onclick="navigate('apidocs', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          API Docs
         </div>
         <div class="nav-item" data-page="usage" onclick="navigate('usage', this)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -506,6 +510,7 @@ function navigate(page, el) {
   else if (page === 'inspector') loadInspector();
   else if (page === 'tokens') loadTokens();
   else if (page === 'apikeys') loadApiKeys();
+  else if (page === 'apidocs') loadApiDocs();
   else if (page === 'usage') loadMyUsage();
   else if (page === 'announcements') loadAnnouncementsPage();
   else if (page === 'subscription') loadSubscription();
@@ -524,6 +529,67 @@ function renderAnnouncements(anns) {
 
 async function fetchAnnouncements() {
   try { return await api('/announcements'); } catch { return []; }
+}
+
+// ---- API Docs page (v1.3.0) ----
+async function loadApiDocs() {
+  const c = document.getElementById('pageContent');
+  const base = location.origin;
+  c.innerHTML = `
+  <div class="page-title">API Documentation</div>
+  <div class="page-subtitle">Manage IRAGT from scripts, CI pipelines, and the Python SDK</div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header"><h2>Authentication</h2></div>
+    <div class="card-body">
+      <p style="font-size:.85rem;color:var(--text-dim)">Create a key under <strong>API Keys</strong>, then send it on every request:</p>
+      <div class="cmd-box"><pre>X-Api-Key: pk_your_key_here</pre></div>
+      <p style="font-size:.75rem;color:var(--text-dim)">All endpoints live under <span class="code">${base}/api/v1</span>. JWT Bearer tokens (your dashboard login) also work.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header"><h2>Endpoints</h2></div>
+    <div class="card-body" style="padding:0;overflow-x:auto">
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-green">GET</span></td><td class="code">/manage/tunnels</td><td>Your live tunnels + recent history</td></tr>
+          <tr><td><span class="badge">POST</span></td><td class="code">/manage/tunnels/{sub}/stop</td><td>Stop one of your live tunnels</td></tr>
+          <tr><td><span class="badge badge-green">GET</span></td><td class="code">/manage/tokens</td><td>List your tunnel tokens</td></tr>
+          <tr><td><span class="badge">POST</span></td><td class="code">/manage/tokens</td><td>Create a token — {name, fixed_subdomain?, custom_domain?}</td></tr>
+          <tr><td><span class="badge badge-red">DELETE</span></td><td class="code">/manage/tokens/{id}</td><td>Delete a token</td></tr>
+          <tr><td><span class="badge badge-green">GET</span></td><td class="code">/apikeys</td><td>List your API keys</td></tr>
+          <tr><td><span class="badge">POST</span></td><td class="code">/apikeys</td><td>Create a key — {name} (raw key returned once)</td></tr>
+          <tr><td><span class="badge badge-red">DELETE</span></td><td class="code">/apikeys/{id}</td><td>Revoke a key</td></tr>
+          <tr><td><span class="badge badge-green">GET</span></td><td class="code">/plans</td><td>Public pricing</td></tr>
+          <tr><td><span class="badge badge-green">GET</span></td><td class="code">/analytics/my?days=30</td><td>Your usage summary + daily series</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header"><h2>curl example</h2></div>
+    <div class="card-body">
+      <div class="cmd-box"><pre>curl -H "X-Api-Key: pk_your_key" ${base}/api/v1/manage/tunnels</pre></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Python SDK</h2></div>
+    <div class="card-body">
+      <div class="cmd-box"><pre>from sdk.pinggy_sdk import TunnelClient
+
+client = TunnelClient("${base}", api_key="pk_your_key")
+
+client.tokens()                       # list tokens
+t = client.create_token(name="ci")    # create one
+client.stop_tunnel("mysub")           # stop a live tunnel
+print(client.tunnels()["live"])        # live sessions</pre></div>
+      <p style="font-size:.75rem;color:var(--text-dim)">The SDK is dependency-free (stdlib only) — copy <span class="code">sdk/pinggy_sdk.py</span> into your project or serve it from this repo.</p>
+    </div>
+  </div>`;
 }
 
 // ---- API Keys (v0.10.0) ----
@@ -1144,6 +1210,14 @@ async function loadConfigure() {
     </div>`;
     updateCfgCommand();
     loadSavedConfigs();
+    // Auto-detect platform (v1.3.0) — default the selector to the visitor's OS
+    try {
+      const ua = navigator.userAgent;
+      const detected = /Mac|iPhone|iPad|iPod/i.test(ua) ? 'mac' : /Win/i.test(ua) ? 'windows' : 'linux';
+      const sel = document.getElementById('cfgPlatform');
+      if (sel && !tunnelState.platformPinned) sel.value = detected;
+      updateCfgCommand();
+    } catch (e) {}
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
@@ -1282,6 +1356,9 @@ async function loadSavedConfigs() {
 }
 
 function updateCfgCommand() {
+  // Remember an explicit user/platform choice so auto-detect doesn't override it
+  const platSel = document.getElementById('cfgPlatform');
+  if (platSel && platSel.value) tunnelState.platformPinned = true;
   const el = document.getElementById('cfgCommand');
   if (el) el.textContent = buildConfigCommand();
 
@@ -1542,12 +1619,12 @@ async function loadMyUsage() {
     const bar = (pts, color) => {
       const max = Math.max(1, ...pts.map(p => p.value));
       return pts.map(p => `
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:.2rem" title="${p.label}: ${p.title}">
-          <div style="width:68%;height:${Math.max(2, Math.round((p.value / max) * 90))}px;background:${color};border-radius:3px 3px 0 0;opacity:.85"></div>
-          <div style="font-size:.58rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${p.label}</div>
+        <div class="bar-cell" data-tip="${p.tip}">
+          <div class="bar-fill" style="height:${Math.max(2, Math.round((p.value / max) * 90))}px;background:${color}"></div>
+          <div class="bar-label">${p.label}</div>
         </div>`).join('');
     };
-    const mk = key => d.daily.map(x => ({ label: x.day.slice(5), value: x[key], title: x[key] }));
+    const mk = key => d.daily.map(x => ({ label: x.day.slice(5), value: x[key], title: x[key], tip: `${x.day} — ${key === 'bytes' ? fmtBytes(x.bytes) : x[key] + ' ' + key}` }));
     c.innerHTML = `
     <div class="page-title">My Usage</div>
     <div class="page-subtitle">Your tunnel activity over the last 30 days</div>
@@ -1558,7 +1635,7 @@ async function loadMyUsage() {
       <div class="stat-card"><div class="label">Tunnels Today</div><div class="value">${s.tunnels_today}</div></div>
       <div class="stat-card"><div class="label">Requests This Month</div><div class="value">${s.requests_this_month}</div></div>
     </div>
-    ${[['Requests / day', mk('requests'), 'var(--brand)'], ['Tunnels created / day', mk('tunnels'), '#22c55e'], ['Data / day', d.daily.map(x => ({ label: x.day.slice(5), value: Math.round(x.bytes/1024), title: fmtBytes(x.bytes) })), '#f59e0b']].map(([t, pts, col]) => `
+    ${[['Requests / day', mk('requests'), 'var(--brand)'], ['Tunnels created / day', mk('tunnels'), '#22c55e'], ['Data / day', d.daily.map(x => ({ label: x.day.slice(5), value: Math.round(x.bytes/1024), title: fmtBytes(x.bytes), tip: `${x.day} — ${fmtBytes(x.bytes)}` })), '#f59e0b']].map(([t, pts, col]) => `
     <div class="card" style="margin-bottom:1rem">
       <div class="card-header"><h2>${t}</h2></div>
       <div class="card-body"><div style="display:flex;align-items:flex-end;gap:2px;height:110px">${bar(pts, col)}</div></div>
@@ -2238,7 +2315,7 @@ async function loadSubscription() {
           <div style="width:${Math.min(100, (totalBytes / 1073741824) * 100).toFixed(1)}%;height:100%;background:linear-gradient(90deg,var(--brand),#22c55e)"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-dim);margin-top:.3rem">
-          <span>${usageStr} used</span><span>No cap — pinggy-style throttling doesn't apply here 🚀</span>
+          <span>${usageStr} used</span><span>No caps, no throttling — unlimited on every IRAGT plan 🚀</span>
         </div>
       </div>
     </div>
@@ -2257,8 +2334,8 @@ async function loadSubscription() {
       <h2 style="font-size:1.35rem;font-weight:800;margin-bottom:.25rem">Subscribe to the easiest localhost tunneling.</h2>
       <p style="font-size:.875rem;color:var(--text-dim)">Make your development experience smoother by unlocking the full potential.</p>
       <div style="display:inline-flex;gap:.25rem;background:var(--bg);border-radius:var(--radius);padding:.25rem;margin-top:1rem" id="cycleToggle">
-        <button class="btn btn-sm" style="min-width:90px" id="btnMonthly" onclick="setCycle('monthly')">Monthly</button>
-        <button class="btn btn-ghost btn-sm" style="min-width:90px" id="btnYearly" onclick="setCycle('yearly')">Yearly</button>
+        <button class="btn ${billingCycle === 'monthly' ? '' : 'btn-ghost'} btn-sm" style="min-width:90px" id="btnMonthly" onclick="setCycle('monthly')">Monthly</button>
+        <button class="btn ${billingCycle === 'yearly' ? '' : 'btn-ghost'} btn-sm" style="min-width:90px" id="btnYearly" onclick="setCycle('yearly')">Yearly</button>
       </div>
     </div>
 

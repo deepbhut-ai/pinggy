@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Secure Tunnels to Localhost — Fast & Simple</title>
+<title>IRAGT — Secure Tunnels to Localhost, Fast & Simple</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -141,12 +141,21 @@
     .nav .links a:not(.btn) { display: none; }
   }
 </style>
+<style>
+  /* v1.3 polish */
+  .price-card { transition: transform .18s, box-shadow .18s, border-color .18s; }
+  .price-card:hover { transform: translateY(-6px); box-shadow: 0 22px 44px -18px rgba(0,0,0,.5); }
+  .feature, [class*="feature"] { transition: transform .18s, box-shadow .18s; }
+  .feature:hover { transform: translateY(-4px); }
+  .btn { transition: transform .12s, box-shadow .12s; }
+  .btn:hover { transform: translateY(-1px); }
+</style>
 </head>
 <body>
 
 <!-- Nav -->
 <nav class="nav">
-  <div class="logo">⚡ <span>Tunnel</span></div>
+  <div class="logo">⚡ <span>IRAGT</span></div>
   <div class="links" id="navLinks">
     <a href="#features">Features</a>
     <a href="#how">How it Works</a>

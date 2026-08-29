@@ -75,6 +75,21 @@ async def login(payload: UserLogin, db: AsyncConnection = Depends(get_db)):
 
     user = UserOut(id=str(row[0]), email=row[1], full_name=row[3], role=row[4], tunnel_token=row[5], is_active=row[6])
     token = create_access_token(subject=user.id, extra={"email": user.email, "role": user.role})
+    from app.core.audit import log_audit
+    await log_audit(db, user.email, "auth.login", user.email, "password login")
+    # Login alert email (v1.3.0) — best-effort
+    try:
+        from app.core.email import send_email
+        await send_email(
+            db, user.email,
+            "New login to your IRAGT account",
+            "Hi,\n\nA successful login to your IRAGT account just occurred.\n"
+            "If this wasn't you, reset your password immediately from the login page.\n"
+            "\nTip: enable Two-Factor Authentication from your dashboard for extra security.",
+            kind="login",
+        )
+    except Exception:
+        pass
     return Token(access_token=token, user=user, tunnel_token=row[5])
 
 

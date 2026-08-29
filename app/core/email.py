@@ -17,7 +17,7 @@ logger = logging.getLogger("email")
 SMTP_KEYS = ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_from", "smtp_enabled"]
 
 TEMPLATES = {
-    "welcome": ("Welcome to Tunnel ⚡", "Hi {name},\n\nYour account is ready. Run your first tunnel:\n  ssh -p {ssh_port} -R0:localhost:8080 <your-token>@{ssh_host}\n\nHappy tunneling!"),
+    "welcome": ("Welcome to IRAGT ⚡", "Hi {name},\n\nYour IRAGT account is ready. Run your first tunnel:\n  ssh -p {ssh_port} -R0:localhost:8080 <your-token>@{ssh_host}\n\nHappy tunneling!"),
     "reset": ("Reset your Tunnel password", "Hi,\n\nUse this link to reset your password (valid {minutes} minutes):\n{base_url}/login?reset={token}\n\nIf you didn't request this, ignore this email."),
     "tunnel_stopped": ("Your tunnel was stopped", "Your tunnel {subdomain} has been disconnected.\nRe-run your SSH command to start a new tunnel."),
 }

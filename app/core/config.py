@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     )
 
     # App
-    APP_NAME: str = "pinggy"
+    APP_NAME: str = "IRAGT"
     APP_ENV: str = "dev"
     APP_DEBUG: bool = True
     APP_HOST: str = "0.0.0.0"

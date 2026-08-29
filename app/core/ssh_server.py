@@ -86,7 +86,7 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                 lines = [
                     "",
                     "  ╔══════════════════════════════════════════════════════╗",
-                    "  ║  pinggy tunnel — ACTIVE                               ║",
+                    "  ║  IRAGT tunnel — ACTIVE                                ║",
                     f"  ║  URL:  {url:<46s}║",
                 ]
                 if custom_url:
