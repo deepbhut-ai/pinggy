@@ -1608,26 +1608,28 @@ async function loadTunnels() {
         }
       }
       tunnelRateTracker[tunnelId] = { lastBytes: t.bytes_transferred || 0, lastTime: now };
+      const fmtB = b => b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB';
       return `<tr>
       <td>${i + 1}</td>
       ${urlCell}
       <td class="code">${t.subdomain}</td>
       <td>${t.request_count}</td>
-      <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td style="color:var(--green)">↓ ${fmtB(t.bytes_received || 0)}</td>
+      <td style="color:var(--brand)">↑ ${fmtB(t.bytes_sent || 0)}</td>
       <td>${kbps} KB/s</td>
       <td><span class="badge badge-green">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
       <td><button class="btn btn-sm btn-ghost" onclick="openDebugger('${t.subdomain}')" title="Inspect captured requests">🔍 Debug</button></td>
     </tr>`;
     }).join('');
-    if (!rows) rows = '<tr><td colspan="9" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
+    if (!rows) rows = '<tr><td colspan="10" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
     c.innerHTML = `
     <h2 style="margin-bottom:1rem">Active Tunnels</h2>
     <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">${tunnels.length} active session${tunnels.length !== 1 ? 's' : ''}</p>
     <div class="card">
       <div class="card-body" style="padding:0;overflow-x:auto">
         <table>
-          <thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Transfer Rate</th><th>Status</th><th>Created</th><th>Inspector</th></tr></thead>
+          <thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>↓ Received</th><th>↑ Sent</th><th>Transfer Rate</th><th>Status</th><th>Created</th><th>Inspector</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>

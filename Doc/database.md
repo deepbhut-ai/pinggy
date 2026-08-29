@@ -37,7 +37,8 @@ Read/write: auth (register/login), users CRUD, tokens (via email FK), ssh_server
 | user_email | VARCHAR(255) | owner (no FK) |
 | ssh_peer | VARCHAR(100) | client address |
 | status | VARCHAR(20) DEFAULT 'active' | |
-| request_count / bytes_transferred | INTEGER / BIGINT | updated by proxy |
+| request_count / bytes_transferred | INTEGER / BIGINT | updated by proxy; total = sent + received |
+| bytes_sent / bytes_received | BIGINT | (0022) response bytes out ↑ / request bytes in ↓ |
 | created_at / closed_at | TIMESTAMPTZ | |
 
 Indexes: idx_tunnels_subdomain, idx_tunnels_status. Written by ssh_server on connect

@@ -142,6 +142,12 @@
 - **Watch out:** node --check on extracted <script> blocks is the fast way to
   catch dashboard.html JS syntax slips (map-arrow template bug broke whole page).
 
+## 2026-08-30 — v1.2.0 (user-requested)
+- **Done:** Active Tunnels now shows per-direction data: ↓ Received / ↑ Sent
+  columns (user + admin). Migration 0022; proxy counts request-bytes-in vs
+  response-bytes-out; verified with asymmetric payload (5000↓/11↑) in API, DB,
+  and live UI. Committed + tagged v1.2.0.
+
 
 ## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
 - **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the

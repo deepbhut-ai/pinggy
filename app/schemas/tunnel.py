@@ -23,4 +23,6 @@ class TunnelOut(BaseModel):
     status: str  # "active" or "disconnected"
     request_count: int
     bytes_transferred: int
+    bytes_sent: int = 0      # responses out of the local service (v1.2.0)
+    bytes_received: int = 0  # requests into the local service (v1.2.0)
     created_at: str

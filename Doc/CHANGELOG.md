@@ -1,5 +1,23 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v1.2.0 — 2026-08-30 — Active Tunnels: Sent ↑ / Received ↓ data
+
+### Added
+- Migration 0022: per-direction traffic counters (bytes_sent / bytes_received)
+  with write-through from the proxy (received = request bytes in, sent =
+  response bytes out).
+- TunnelOut + /tunnels/my, /tunnels, /tunnels/history expose both fields.
+- User Active Tunnels table: ↓ Received and ↑ Sent columns (replaces single
+  Data column); admin All Tunnels likewise.
+- `Doc/tests/v1.2.0/` evidence (asymmetric-payload E2E: 5000↓/11↑ verified in
+  API + DB + live UI).
+
+### Changed
+- bytes_transferred now counts requests + responses (previously response-only).
+
+### Removed
+- none
+
 ## v1.1.0 — 2026-08-29 — User Dashboard Parity
 
 ### Added

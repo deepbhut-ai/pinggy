@@ -522,6 +522,7 @@ async function loadAllTunnels() {
   try {
     const tunnels = await api('/tunnels/history?limit=500');
     const active = tunnels.filter(t => t.status === 'active');
+    const fmtB = b => b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB';
     let rows = tunnels.map((t, i) => `<tr>
       <td>${i + 1}</td>
       <td class="code">${t.subdomain}</td>
@@ -529,11 +530,12 @@ async function loadAllTunnels() {
       <td><a href="${t.url}" target="_blank" style="color:var(--primary)">${t.url}</a></td>
       <td>${t.remote_port}</td>
       <td>${t.request_count}</td>
-      <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td>↓ ${fmtB(t.bytes_received || 0)}</td>
+      <td>↑ ${fmtB(t.bytes_sent || 0)}</td>
       <td><span class="badge ${t.status === 'active' ? 'badge-green' : 'badge-red'}">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
     </tr>`).join('');
-    if (!rows) rows = '<tr><td colspan="9" class="empty">No tunnels found</td></tr>';
+    if (!rows) rows = '<tr><td colspan="10" class="empty">No tunnels found</td></tr>';
     c.innerHTML = `
     <div class="stat-grid">
       <div class="stat-card"><div class="label">Total Tunnels</div><div class="value">${tunnels.length}</div></div>
@@ -543,7 +545,7 @@ async function loadAllTunnels() {
     <div class="card">
       <div class="card-header"><h2>All Tunnels (${tunnels.length})</h2><button class="btn btn-sm" onclick="loadAllTunnels()">🔄 Refresh</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>#</th><th>Subdomain</th><th>User</th><th>URL</th><th>Port</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>#</th><th>Subdomain</th><th>User</th><th>URL</th><th>Port</th><th>Requests</th><th>↓ Received</th><th>↑ Sent</th><th>Status</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }

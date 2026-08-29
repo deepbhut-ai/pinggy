@@ -26,6 +26,8 @@ class TunnelSession:
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     request_count: int = 0
     bytes_transferred: int = 0
+    bytes_sent: int = 0      # responses out of the local service (v1.2.0)
+    bytes_received: int = 0  # requests into the local service (v1.2.0)
     # Reference to the asyncssh SSHServerConnection for cleanup
     ssh_conn: Any = None
     # Callback to send log lines to the user's SSH terminal (live request log)
@@ -103,24 +105,33 @@ async def list_tunnels() -> list[TunnelSession]:
     return list(_tunnels.values())
 
 
-async def increment_request_count(subdomain: str, bytes_count: int = 0) -> None:
+async def increment_request_count(subdomain: str, bytes_count: int = 0, sent: int = 0, received: int = 0) -> None:
     """Increment traffic counters for a tunnel.
 
+    sent     = response bytes leaving the local service (↑)
+    received = request bytes arriving at the local service (↓)
+    bytes_count = total for this request (sent + received) — keeps
+    bytes_transferred as the combined total.
+
     Updates the in-memory session AND writes through to the tunnels table so
-    per-token traffic (tokens views) and daily analytics see real numbers.
-    DB failure must never break the proxied request — swallowed.
+    per-token traffic and analytics see real numbers. DB failure must never
+    break the proxied request — swallowed.
     """
     tunnel = _tunnels.get(subdomain)
     if tunnel:
         tunnel.request_count += 1
         tunnel.bytes_transferred += bytes_count
+        tunnel.bytes_sent += sent
+        tunnel.bytes_received += received
         try:
             from app.core.db import get_conn
             async with get_conn() as db:
                 cur = await db.execute(
-                    "UPDATE tunnels SET request_count = %s, bytes_transferred = %s "
+                    "UPDATE tunnels SET request_count = %s, bytes_transferred = %s, "
+                    "bytes_sent = %s, bytes_received = %s "
                     "WHERE subdomain = %s AND status = 'active'",
-                    (tunnel.request_count, tunnel.bytes_transferred, subdomain),
+                    (tunnel.request_count, tunnel.bytes_transferred,
+                     tunnel.bytes_sent, tunnel.bytes_received, subdomain),
                 )
                 await cur.close()
         except Exception:

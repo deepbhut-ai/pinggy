@@ -281,8 +281,11 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                     follow_redirects=False,
                 )
 
-            # Track stats
-            await increment_request_count(subdomain, len(resp.content))
+            # Track stats — per-direction (v1.2.0): received = request bytes in,
+            # sent = response bytes out; total keeps bytes_transferred meaning.
+            req_len = len(body) if body else 0
+            resp_len = len(resp.content)
+            await increment_request_count(subdomain, req_len + resp_len, sent=resp_len, received=req_len)
 
             # Log to user's SSH terminal
             elapsed_ms = int((time.monotonic() - req_start) * 1000)
