@@ -89,7 +89,7 @@ browser → http://abc123.localhost:8020  (Host: abc123.localhost:8020)
 | payments.py | /payments | POST /checkout, POST /webhook/stripe, POST /webhook/paypal, GET /paypal/capture/{order_id}, POST /webhook/nowpayments, GET /my, GET /admin/all, GET /admin/stats |
 | ip_monitor.py | /ip-monitor | GET /stats, GET /ips, GET /ips/{ip}, POST /block, POST /unblock, GET /blocked, POST /geo/{ip}, GET /config (effective view), PUT /config (runtime overrides → Redis) |
 | audit.py | /audit | GET "" (admin, newest first, ?limit&offset) |
-| analytics.py | /analytics | GET /overview?days=7..180 (daily series, 12-month monthly series, summary — admin) |
+| analytics.py | /analytics | GET /overview?days=7..180 (admin) · GET /my?days=7..90 (user-scoped, v1.1.0) |
 | settings.py | /settings | GET "" (masked view), PUT "" (update, audited), GET/POST /coupons, PUT/DELETE /coupons/{id}, GET /coupons/public |
 | announcements.py | /announcements | GET "" (users: active only; admin: all), POST "" , PUT/DELETE /{id} (admin), POST /campaign (SMTP-gated), GET /logs, GET /smtp-status |
 | plans.py | /plans | GET "" (public, active) · PUT /{id} (admin, audited) |

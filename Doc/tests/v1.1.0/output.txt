@@ -1,0 +1,45 @@
+# v1.1.0 — User Dashboard Parity — 2026-08-29
+
+User feedback: "features went to the Admin side; the user menu is thin." All four
+requested improvements selected (Insights for users, visible hidden features,
+Billing menu item, full parity rebuild) — delivered in one release.
+
+## User menu before → after
+Before: Quickstart · Configure · Domains · Active Tunnels · Manage Tokens · API Keys · Subscription
+After:  Quickstart · Configure · Domains · Active Tunnels · **Inspector** ·
+Manage Tokens (+Type/Security columns) · API Keys · **My Usage** ·
+**Announcements** · **Billing & Invoices** (renamed)
+
+## Changes
+1. **GET /analytics/my** — user-scoped daily series (tunnels/requests/bytes) +
+   summary (total/today/this-month). /analytics/overview stays admin-only.
+2. **My Usage page** — 5 stat cards + 3 dependency-free bar charts (requests/day,
+   tunnels/day, data/day) with "unlimited data" reassurance line.
+3. **Inspector page** — standalone web debugger: tunnel selector (live ● +
+   token subdomains), captured requests table, expandable headers/body,
+   per-row Replay, Clear. (Previously hidden behind a small 🔍 button.)
+4. **Announcements page** — user view of active announcements (level-colored),
+   in addition to the quickstart banner.
+5. **Manage Tokens table** — new visible columns: Type (HTTP / TCP:port badge)
+   and Security (🔐 basic · 🌐 IP whitelist · 🔑 API key · 🔒 HTTPS-only badges);
+   📌 marker on pinned (fixed) subdomains. Settings still editable via ✏️.
+6. **Subscription → Billing & Invoices** menu item + page title.
+7. tokens list API now returns tunnel_mode + tcp_port (needed for the badges).
+
+## Machine assertions (all PASS)
+  U1 GET /analytics/my?days=7 → summary + 7 daily rows (user-scoped values)
+  U2 GET /tokens → tunnel_mode/tcp_port/fixed_subdomain exposed
+  U3 /analytics/my no-auth → 403
+  U4 /analytics/overview still admin-gated → 403 for user
+  JS: `node --check` on extracted script → OK (after fixing a map-arrow
+  syntax slip caught by this very check)
+
+## Browser verification (vtest user session, 0 JS errors)
+  Nav shows all 10 items in order. My Usage renders stat cards + charts.
+  Inspector renders tunnel selector. Announcements lists the active post.
+  Tokens table shows TYPE + SECURITY columns. Billing & Invoices renamed.
+  Screenshots: my-usage, announcements, tokens-panel, billing.
+
+## Bugs caught during this version
+  - Template-arrow slip in loadTokens (map((t,i)=>{…` `).join) broke the whole
+    dashboard script → found via node --check extraction, fixed, re-verified.

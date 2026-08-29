@@ -332,6 +332,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           Active Tunnels
         </div>
+        <div class="nav-item" data-page="inspector" onclick="navigate('inspector', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Inspector
+        </div>
         <div class="nav-item" data-page="tokens" onclick="navigate('tokens', this)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           Manage Tokens
@@ -340,10 +344,18 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           API Keys
         </div>
+        <div class="nav-item" data-page="usage" onclick="navigate('usage', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          My Usage
+        </div>
+        <div class="nav-item" data-page="announcements" onclick="navigate('announcements', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          Announcements
+        </div>
         <div class="nav-sep"></div>
         <div class="nav-item" data-page="subscription" onclick="navigate('subscription', this)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          Subscription
+          Billing & Invoices
         </div>
       </nav>
 
@@ -491,8 +503,11 @@ function navigate(page, el) {
   else if (page === 'configure') loadConfigure();
   else if (page === 'domains') loadDomains();
   else if (page === 'tunnels') loadTunnels();
+  else if (page === 'inspector') loadInspector();
   else if (page === 'tokens') loadTokens();
   else if (page === 'apikeys') loadApiKeys();
+  else if (page === 'usage') loadMyUsage();
+  else if (page === 'announcements') loadAnnouncementsPage();
   else if (page === 'subscription') loadSubscription();
 }
 
@@ -1452,6 +1467,124 @@ async function clearDebugger(subdomain) {
   catch (e) { toast(e.message, 'error'); }
 }
 
+// ---- Inspector page (v1.1.0 — standalone web debugger) ----
+let inspectorSub = null;
+async function loadInspector() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const [tunnels, tokens] = await Promise.all([
+      api('/tunnels/my'),
+      api('/tokens').catch(() => []),
+    ]);
+    const liveSubs = tunnels.filter(t => t.status === 'active').map(t => t.subdomain);
+    const allSubs = [...new Set([...liveSubs, ...tokens.map(t => t.subdomain).filter(Boolean)])];
+    c.innerHTML = `
+    <div class="page-title">Inspector</div>
+    <div class="page-subtitle">Inspect and replay requests hitting your tunnels</div>
+    <div class="card">
+      <div class="card-header"><h2>Tunnel</h2>
+        <div style="display:flex;gap:.5rem">
+          <select id="inspSelect" onchange="pickInspector()" style="padding:.35rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+            <option value="">Select a tunnel…</option>
+            ${allSubs.map(s => `<option value="${s}" ${s === inspectorSub ? 'selected' : ''}>${s}${liveSubs.includes(s) ? ' ● live' : ''}</option>`).join('')}
+          </select>
+          <button class="btn btn-sm" onclick="refreshInspector()">🔄</button>
+        </div>
+      </div>
+      <div class="card-body" id="inspBody"><p class="empty">Pick a tunnel to see its captured traffic (last 100 requests, 1 hour).</p></div>
+    </div>`;
+    if (inspectorSub && allSubs.includes(inspectorSub)) refreshInspector();
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function pickInspector() {
+  inspectorSub = document.getElementById('inspSelect').value || null;
+  refreshInspector();
+}
+
+async function refreshInspector() {
+  const body = document.getElementById('inspBody');
+  if (!inspectorSub) { body.innerHTML = '<p class="empty">Pick a tunnel above.</p>'; return; }
+  try {
+    const d = await api(`/debugger/${inspectorSub}`);
+    const rows = (d.entries || []).map((e, i) => `
+      <tr style="cursor:pointer" onclick="const el=document.getElementById('insp-det-${i}');el.style.display=el.style.display==='none'?'table-row':'none'">
+        <td class="code" style="font-size:.72rem">${new Date(e.ts * 1000).toLocaleTimeString()}</td>
+        <td><span class="badge">${e.method}</span></td>
+        <td class="code" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.path}</td>
+        <td><span class="badge ${e.status < 400 ? 'badge-green' : 'badge-red'}">${e.status}</span></td>
+        <td><button class="btn btn-sm" onclick="event.stopPropagation();replayCapture('${inspectorSub}',${i})">↻ Replay</button></td>
+      </tr>
+      <tr id="insp-det-${i}" style="display:none"><td colspan="5" style="background:var(--bg)">
+        <div style="font-size:.72rem;white-space:pre-wrap;font-family:var(--font-mono);max-height:220px;overflow:auto">REQUEST HEADERS:\n${Object.entries(e.req_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nRESPONSE HEADERS:\n${Object.entries(e.resp_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nBODY:\n${(e.body || '').substring(0, 2048)}</div>
+      </td></tr>`).join('');
+    body.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+        <span style="font-size:.8rem;color:var(--text-dim)">${d.count} captured request${d.count !== 1 ? 's' : ''}</span>
+        <button class="btn btn-sm btn-danger" onclick="api('/debugger/${inspectorSub}','DELETE').then(()=>refreshInspector())">🗑 Clear</button>
+      </div>
+      <div style="overflow-x:auto"><table style="font-size:.82rem">
+        <thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" class="empty">No captured requests yet — send some traffic to this tunnel first.</td></tr>'}</tbody>
+      </table></div>`;
+  } catch (e) { body.innerHTML = `<p style="color:var(--red)">${e.message}</p>`; }
+}
+
+// ---- My Usage page (v1.1.0 — user-scoped analytics) ----
+async function loadMyUsage() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const d = await api('/analytics/my?days=30');
+    const s = d.summary;
+    const fmtBytes = b => b >= 1073741824 ? (b/1073741824).toFixed(2)+' GB' : b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB';
+    const bar = (pts, color) => {
+      const max = Math.max(1, ...pts.map(p => p.value));
+      return pts.map(p => `
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:.2rem" title="${p.label}: ${p.title}">
+          <div style="width:68%;height:${Math.max(2, Math.round((p.value / max) * 90))}px;background:${color};border-radius:3px 3px 0 0;opacity:.85"></div>
+          <div style="font-size:.58rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${p.label}</div>
+        </div>`).join('');
+    };
+    const mk = key => d.daily.map(x => ({ label: x.day.slice(5), value: x[key], title: x[key] }));
+    c.innerHTML = `
+    <div class="page-title">My Usage</div>
+    <div class="page-subtitle">Your tunnel activity over the last 30 days</div>
+    <div class="stat-grid" style="margin-bottom:1rem">
+      <div class="stat-card"><div class="label">Total Tunnels</div><div class="value">${s.total_tunnels}</div></div>
+      <div class="stat-card"><div class="label">Total Requests</div><div class="value">${s.total_requests}</div></div>
+      <div class="stat-card"><div class="label">Data Transferred</div><div class="value">${fmtBytes(s.total_bytes)}</div></div>
+      <div class="stat-card"><div class="label">Tunnels Today</div><div class="value">${s.tunnels_today}</div></div>
+      <div class="stat-card"><div class="label">Requests This Month</div><div class="value">${s.requests_this_month}</div></div>
+    </div>
+    ${[['Requests / day', mk('requests'), 'var(--brand)'], ['Tunnels created / day', mk('tunnels'), '#22c55e'], ['Data / day', d.daily.map(x => ({ label: x.day.slice(5), value: Math.round(x.bytes/1024), title: fmtBytes(x.bytes) })), '#f59e0b']].map(([t, pts, col]) => `
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header"><h2>${t}</h2></div>
+      <div class="card-body"><div style="display:flex;align-items:flex-end;gap:2px;height:110px">${bar(pts, col)}</div></div>
+    </div>`).join('')}
+    <div class="card"><div class="card-body" style="font-size:.8rem;color:var(--text-dim)">Unlimited data on every plan — these charts are informational, not a quota.</div></div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Announcements page (v1.1.0 — user view) ----
+async function loadAnnouncementsPage() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const anns = await api('/announcements');
+    c.innerHTML = `
+    <div class="page-title">Announcements</div>
+    <div class="page-subtitle">News and updates from the team</div>
+    ${anns.length ? anns.map(a => `
+      <div style="border:1px solid var(--border);border-left-width:4px;border-left-color:${a.level === 'warning' ? '#f59e0b' : a.level === 'success' ? '#22c55e' : 'var(--brand)'};border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:.75rem;background:var(--surface)">
+        <strong>${a.title}</strong>
+        <div style="font-size:.72rem;color:var(--text-dim);margin-top:.15rem">${a.created_at ? a.created_at.substring(0,10) : ''}</div>
+        <div style="font-size:.875rem;color:var(--text-dim);margin-top:.4rem;white-space:pre-line">${a.body}</div>
+      </div>`).join('') : '<div class="card"><div class="card-body"><p class="empty">No announcements right now.</p></div></div>'}`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
 async function loadTunnels() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
@@ -1511,11 +1644,23 @@ async function loadTokens() {
   try {
     const info = await api('/tunnels/info');
     const tokens = await api('/tokens');
-    let tokenRows = tokens.map((t, i) => `<tr id="tokenRow-${t.id}" data-token-id="${t.id}" data-token="${t.token}" data-name="${(t.name || 'My Tunnel').replace(/"/g, '&quot;')}" data-subdomain="${t.subdomain}" data-custom-domain="${t.custom_domain || ''}" data-ssh-port="${info.ssh_port}" style="cursor:pointer;transition:.15s">
+    let tokenRows = tokens.map((t, i) => {
+      const sec = t.security || {};
+      const badges = [];
+      if (sec.basic_auth_user) badges.push('<span class="badge" title="Basic auth enabled">🔐</span>');
+      if (sec.ip_whitelist) badges.push('<span class="badge" title="IP whitelist: ' + sec.ip_whitelist + '">🌐</span>');
+      if (sec.bearer_key) badges.push('<span class="badge" title="API key required">🔑</span>');
+      if (sec.https_only) badges.push('<span class="badge" title="HTTPS only">🔒</span>');
+      const typeBadge = t.tunnel_mode === 'tcp'
+        ? `<span class="badge badge-blue" title="TCP tunnel on port ${t.tcp_port || '?'}">TCP${t.tcp_port ? ':' + t.tcp_port : ''}</span>`
+        : '<span class="badge" title="HTTP tunnel">HTTP</span>';
+      return `<tr id="tokenRow-${t.id}" data-token-id="${t.id}" data-token="${t.token}" data-name="${(t.name || 'My Tunnel').replace(/"/g, '&quot;')}" data-subdomain="${t.subdomain}" data-custom-domain="${t.custom_domain || ''}" data-ssh-port="${info.ssh_port}" style="cursor:pointer;transition:.15s">
       <td>${i + 1}</td>
       <td><span class="token-value"><strong class="code">${t.token.substring(0,8)}••••••••</strong> <button class="icon-btn copy-token-btn" data-token="${t.token}" title="Copy token">📋</button></span></td>
       <td>${t.name || '—'}</td>
-      <td class="code">${t.subdomain}</td>
+      <td class="code">${t.subdomain}${t.fixed_subdomain ? ' 📌' : ''}</td>
+      <td>${typeBadge}</td>
+      <td>${badges.length ? badges.join(' ') : '<span style="color:var(--text-dim)">—</span>'}</td>
       <td>${t.custom_domain ? `<span class="badge badge-blue">${t.custom_domain}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
       <td>${t.total_requests || 0}</td>
       <td>${(t.total_bytes || 0) >= 1048576 ? ((t.total_bytes||0)/1048576).toFixed(1)+' MB' : ((t.total_bytes||0)/1024).toFixed(1)+' KB'}</td>
@@ -1526,8 +1671,9 @@ async function loadTokens() {
         <button class="btn btn-sm btn-ghost regen-token-btn" title="Regenerate">🔄</button>
         <button class="btn btn-sm btn-danger del-token-btn" title="Delete">🗑️</button>
       </td>
-    </tr>`).join('');
-    if (!tokenRows) tokenRows = '<tr><td colspan="10" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
+    </tr>`;
+    }).join('');
+    if (!tokenRows) tokenRows = '<tr><td colspan="12" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
 
     c.innerHTML = `
     <div class="page-toolbar">
@@ -1544,7 +1690,7 @@ async function loadTokens() {
       </div>
       <div class="card-body token-table-wrap" style="padding:0">
         <table class="token-table">
-          <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Custom Domain</th><th>Requests</th><th>Data</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>
+          <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Type</th><th>Security</th><th>Custom Domain</th><th>Requests</th><th>Data</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>
           <tbody>${tokenRows}</tbody>
         </table>
       </div>
@@ -2047,8 +2193,8 @@ async function loadSubscription() {
     ${paymentBanner}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem">
       <div>
-        <div class="page-title">Subscription</div>
-        <div class="page-subtitle" style="margin-bottom:0">Manage your plan and payment methods</div>
+        <div class="page-title">Billing & Invoices</div>
+        <div class="page-subtitle" style="margin-bottom:0">Plan, payments, and invoice history</div>
       </div>
     </div>
 

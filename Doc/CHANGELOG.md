@@ -1,5 +1,22 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v1.1.0 — 2026-08-29 — User Dashboard Parity
+
+### Added
+- **My Usage** page: user-scoped analytics (GET /analytics/my) — 5 stat cards +
+  3 daily bar charts of the user's own tunnels/requests/data.
+- **Inspector** page: standalone web debugger (tunnel picker, captures,
+  expandable details, replay, clear) — no longer hidden behind a button.
+- **Announcements** page (user view; banner on Quickstart remains).
+- Manage Tokens: visible **Type** (HTTP/TCP:port) and **Security** badge
+  columns + 📌 pinned-subdomain marker; tunnel_mode/tcp_port returned by API.
+
+### Changed
+- "Subscription" renamed to **Billing & Invoices** (menu + page).
+
+### Removed
+- none
+
 ## v1.0.0 — 2026-08-29 — TCP tunnels + persistent ports (Track 5) 🎉
 
 ### Added

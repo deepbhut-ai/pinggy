@@ -5,13 +5,64 @@ from fastapi import APIRouter, Depends, Query
 from psycopg import AsyncConnection
 
 from app.core.db import get_db
-from app.core.deps import get_admin_user
+from app.core.deps import get_admin_user, get_current_user
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 def _d(r) -> str:
     return r.isoformat() if r else ""
+
+
+@router.get("/my")
+async def my_analytics(
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+    days: int = Query(30, ge=7, le=90),
+):
+    """User-scoped analytics: daily series of the caller's tunnel usage (v1.1.0)."""
+    since = date.today() - timedelta(days=days - 1)
+    email = user["email"]
+    cur = await db.execute(
+        """
+        SELECT d.day::date,
+               COALESCE(t.n, 0), COALESCE(t.reqs, 0), COALESCE(t.bytes, 0)
+        FROM generate_series(%s::date, now()::date, interval '1 day') AS d(day)
+        LEFT JOIN (
+            SELECT created_at::date AS day, COUNT(*) AS n, SUM(request_count) AS reqs,
+                   SUM(bytes_transferred) AS bytes
+            FROM tunnels WHERE user_email = %s AND created_at >= %s GROUP BY 1
+        ) t ON t.day = d.day::date
+        ORDER BY 1
+        """,
+        (since, email, since),
+    )
+    daily = [
+        {"day": _d(r[0]), "tunnels": r[1], "requests": r[2], "bytes": int(r[3] or 0)}
+        for r in await cur.fetchall()
+    ]
+    await cur.close()
+    cur = await db.execute(
+        """
+        SELECT
+          (SELECT COUNT(*) FROM tunnels WHERE user_email = %s),
+          (SELECT COALESCE(SUM(request_count),0) FROM tunnels WHERE user_email = %s),
+          (SELECT COALESCE(SUM(bytes_transferred),0) FROM tunnels WHERE user_email = %s),
+          (SELECT COUNT(*) FROM tunnels WHERE user_email = %s AND created_at::date = now()::date),
+          (SELECT COALESCE(SUM(request_count),0) FROM tunnels WHERE user_email = %s AND created_at >= date_trunc('month', now()))
+        """,
+        (email, email, email, email, email),
+    )
+    r = await cur.fetchone()
+    await cur.close()
+    return {
+        "days": days,
+        "daily": daily,
+        "summary": {
+            "total_tunnels": r[0], "total_requests": r[1], "total_bytes": int(r[2]),
+            "tunnels_today": r[3], "requests_this_month": r[4],
+        },
+    }
 
 
 @router.get("/overview")

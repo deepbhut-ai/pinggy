@@ -26,6 +26,8 @@ class TokenOut(BaseModel):
     total_bytes: int = 0
     active_tunnels: int = 0
     fixed_subdomain: str | None = None
+    tunnel_mode: str | None = None
+    tcp_port: int | None = None
     security: dict | None = None  # masked security view (never returns basic_auth_pass / full bearer when set)
 
 
@@ -93,7 +95,7 @@ async def list_tokens(
 ):
     """List all tokens for the current user."""
     cur = await db.execute(
-        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only, fixed_subdomain FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
+        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only, fixed_subdomain, tunnel_mode, tcp_port FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
         (user["email"],),
     )
     rows = await cur.fetchall()
@@ -112,6 +114,8 @@ async def list_tokens(
             total_bytes=byt,
             active_tunnels=act,
             fixed_subdomain=r[9],
+            tunnel_mode=r[10],
+            tcp_port=r[11],
             security={
                 "basic_auth_user": r[5],
                 "ip_whitelist": r[6],

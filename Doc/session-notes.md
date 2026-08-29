@@ -134,6 +134,15 @@
 - **Watch out:** TCP ports 10000-19999 now used for relays; check port conflicts
   before deploy. vtest is Pro with token tools (sdktest/sdk-made may linger).
 
+## 2026-08-29 — v1.1.0 (user dashboard parity, user-requested)
+- **Done:** user menu rebuilt — Inspector (standalone debugger), My Usage
+  (user-scoped /analytics/my + charts), Announcements page, Billing & Invoices
+  rename, Manage Tokens Type/Security badge columns. Verified 0 JS errors.
+  Committed + tagged v1.1.0.
+- **Watch out:** node --check on extracted <script> blocks is the fast way to
+  catch dashboard.html JS syntax slips (map-arrow template bug broke whole page).
+
+
 ## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
 - **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the
   real 7 routes (process-flow, functions, page-map). Drift exposed by a live-log 200
