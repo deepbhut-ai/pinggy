@@ -199,6 +199,8 @@
       <a href="#" data-page="settings" onclick="navigate('settings', this)" id="navSettings" style="display:none">⚙️ Settings</a>
       <a href="#" data-page="coupons" onclick="navigate('coupons', this)" id="navCoupons" style="display:none">🎟️ Coupons</a>
       <a href="#" data-page="announce" onclick="navigate('announce', this)" id="navAnnounce" style="display:none">📣 Announcements</a>
+      <a href="#" data-page="plans" onclick="navigate('plans', this)" id="navPlans" style="display:none">💎 Plans</a>
+      <a href="#" data-page="invoices" onclick="navigate('invoices', this)" id="navInvoices" style="display:none">🧾 Invoices</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
     </div>
     <div class="content" id="pageContent"></div>
@@ -293,6 +295,8 @@ async function showApp() {
     document.getElementById('navSettings').style.display = 'block';
     document.getElementById('navCoupons').style.display = 'block';
     document.getElementById('navAnnounce').style.display = 'block';
+    document.getElementById('navPlans').style.display = 'block';
+    document.getElementById('navInvoices').style.display = 'block';
     document.getElementById('navRegister').style.display = 'block';
   }
   navigate('dashboard', document.querySelector('.sidebar a'));
@@ -315,6 +319,8 @@ function navigate(page, el) {
   else if (page === 'settings') loadSettings();
   else if (page === 'coupons') loadCoupons();
   else if (page === 'announce') loadAnnouncements();
+  else if (page === 'plans') loadPlans();
+  else if (page === 'invoices') loadInvoices();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
 }
 
@@ -1260,6 +1266,127 @@ async function sendCampaign() {
       loadEmailLogs();
     } catch (e) { toast(e.message, 'error'); }
   }, 'Send');
+}
+
+// ---- Plans editor (Job 1) ----
+async function loadPlans() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const plans = await api('/plans?include_inactive=true');
+    c.innerHTML = plans.map(p => `
+    <div class="card" style="margin-bottom:1rem${p.active ? '' : ';opacity:.55'}">
+      <div class="card-header"><h2>${p.id === 'pro' ? '⭐ ' : ''}${esc(p.name)} <span class="badge" style="font-size:.65rem">${p.id}</span>${p.active ? '' : ' <span class="badge badge-red">hidden</span>'}</h2>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" onclick="editPlan('${p.id}')">✏️ Edit</button>
+          <button class="btn btn-sm" onclick="togglePlan('${p.id}', ${!p.active})">${p.active ? '🙈 Hide' : '👁️ Show'}</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+          <div><span style="color:var(--text-dim);font-size:.8rem">INR</span> <strong>₹${p.price_inr}</strong>/mo</div>
+          <div><span style="color:var(--text-dim);font-size:.8rem">USD</span> <strong>$${p.price_usd}</strong>/mo</div>
+          <div style="color:var(--text-dim);font-size:.85rem">${esc(p.tagline || '')}</div>
+        </div>
+        <ul style="font-size:.85rem;color:var(--text-dim);margin:0;padding-left:1.1rem">${(p.features||[]).map(f => `<li>${esc(f)}</li>`).join('')}</ul>
+      </div>
+    </div>`).join('') + '<p style="font-size:.78rem;color:var(--text-dim)">These plans power the public landing pricing, checkout prices, and the upgrade flow.</p>';
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function editPlan(id) {
+  api('/plans?include_inactive=true').then(plans => {
+    const p = plans.find(x => x.id === id);
+    if (!p) return;
+    showModal(`Edit Plan — ${esc(p.name)}`, `
+      <div class="form-group"><label>Name</label><input type="text" id="plName" value="${esc(p.name)}"></div>
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+        <div class="form-group"><label>Price INR / month</label><input type="number" step="0.01" id="plInr" value="${p.price_inr}"></div>
+        <div class="form-group"><label>Price USD / month</label><input type="number" step="0.01" id="plUsd" value="${p.price_usd}"></div>
+      </div>
+      <div class="form-group"><label>Tagline</label><input type="text" id="plTagline" value="${esc(p.tagline || '')}"></div>
+      <div class="form-group"><label>Features (one per line)</label><textarea id="plFeatures" rows="6" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">${esc((p.features||[]).join('\n'))}</textarea></div>
+      <div class="form-group"><label>CTA label</label><input type="text" id="plCta" value="${esc(p.cta_label || '')}"></div>
+    `, async () => {
+      try {
+        await api(`/plans/${id}`, 'PUT', {
+          name: document.getElementById('plName').value.trim(),
+          price_inr: parseFloat(document.getElementById('plInr').value) || 0,
+          price_usd: parseFloat(document.getElementById('plUsd').value) || 0,
+          tagline: document.getElementById('plTagline').value.trim(),
+          features: document.getElementById('plFeatures').value.split('\n').map(s => s.trim()).filter(Boolean),
+          cta_label: document.getElementById('plCta').value.trim() || undefined,
+        });
+        closeModal(); toast('Plan saved — landing updated'); loadPlans();
+      } catch (e) { toast(e.message, 'error'); }
+    }, 'Save Plan');
+  }).catch(e => toast(e.message, 'error'));
+}
+
+async function togglePlan(id, active) {
+  try { await api(`/plans/${id}`, 'PUT', { active }); toast(active ? 'Plan visible' : 'Plan hidden'); loadPlans(); }
+  catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Invoices (Job 8) ----
+async function loadInvoices() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const invs = await api('/invoices/admin/all');
+    const paidCount = invs.filter(i => i.status === 'paid').length;
+    const revenue = invs.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0);
+    const rows = invs.map(i => `<tr>
+      <td class="code">${esc(i.invoice_no)}</td>
+      <td>${esc(i.user_email)}</td>
+      <td>${i.plan}</td>
+      <td>${i.seats}</td>
+      <td>${i.coupon_code ? `<span class="badge">${esc(i.coupon_code)}</span>` : '—'}</td>
+      <td>${i.currency === 'INR' ? '₹' : '$'}${i.amount}</td>
+      <td><span class="badge ${i.status === 'paid' ? 'badge-green' : 'badge-red'}">${i.status}</span></td>
+      <td>${i.issued_at ? i.issued_at.replace('T',' ').substring(0,16) : '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="viewInvoice('${i.id}')">👁️ View</button>
+        ${i.status === 'paid' ? `<button class="btn btn-sm btn-danger" onclick="voidInvoice('${i.id}')">Void</button>` : ''}
+      </td>
+    </tr>`).join('') || '<tr><td colspan="9" class="empty">No invoices yet (created automatically when a payment is paid)</td></tr>';
+    c.innerHTML = `
+    <div class="stat-grid" style="margin-bottom:1rem">
+      <div class="stat-card"><div class="label">Invoices</div><div class="value">${invs.length}</div></div>
+      <div class="stat-card"><div class="label">Paid</div><div class="value">${paidCount}</div></div>
+      <div class="stat-card"><div class="label">Invoiced Revenue</div><div class="value">₹${revenue.toFixed(2)}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>🧾 Invoices</h2><button class="btn btn-sm" onclick="loadInvoices()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Invoice #</th><th>User</th><th>Plan</th><th>Seats</th><th>Coupon</th><th>Amount</th><th>Status</th><th>Issued</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function viewInvoice(id) {
+  try {
+    const i = await api(`/invoices/${id}`);
+    showModal(`Invoice ${esc(i.invoice_no)}`, `
+      <table style="font-size:.85rem">
+        <tr><td>Invoice #</td><td class="code">${esc(i.invoice_no)}</td></tr>
+        <tr><td>Billed to</td><td>${esc(i.user_email)}</td></tr>
+        <tr><td>Plan</td><td>${i.plan} (${i.seats} seat${i.seats !== 1 ? 's' : ''})</td></tr>
+        <tr><td>Coupon</td><td>${i.coupon_code || '—'}</td></tr>
+        <tr><td>Amount</td><td><strong>${i.currency === 'INR' ? '₹' : '$'}${i.amount}</strong></td></tr>
+        <tr><td>Status</td><td>${i.status}</td></tr>
+        <tr><td>Issued</td><td>${i.issued_at ? i.issued_at.replace('T',' ').substring(0,19) : '—'}</td></tr>
+      </table>
+    `, async () => { closeModal(); window.open(`/api/v1/invoices/${i.id}/print?token=${encodeURIComponent(token)}`, '_blank'); }, '🖨️ Print', '');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function voidInvoice(id) {
+  showModal('Void Invoice', '<p style="font-size:.875rem;color:var(--text-dim)">Void this invoice? It stays on record but is marked void.</p>', async () => {
+    try { closeModal(); await api(`/invoices/${id}/void`, 'POST'); toast('Invoice voided'); loadInvoices(); }
+    catch (e) { toast(e.message, 'error'); }
+  }, 'Void', 'btn-danger');
 }
 
 // ---- IP Monitor ----

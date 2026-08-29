@@ -506,6 +506,28 @@ async function fetchAnnouncements() {
   try { return await api('/announcements'); } catch { return []; }
 }
 
+// ---- My Invoices (Job 8) ----
+async function loadMyInvoices(target) {
+  try {
+    const invs = await api('/invoices/my');
+    const rows = invs.map(i => `<tr>
+      <td class="code">${i.invoice_no}</td>
+      <td>${i.plan}</td>
+      <td>${i.coupon_code || '—'}</td>
+      <td>${i.currency === 'INR' ? '₹' : '$'}${i.amount}</td>
+      <td><span class="badge ${i.status === 'paid' ? 'badge-green' : 'badge-red'}">${i.status}</span></td>
+      <td>${i.issued_at ? i.issued_at.substring(0,10) : '—'}</td>
+      <td><a href="/api/v1/invoices/${i.id}/print?token=${encodeURIComponent(authToken)}" target="_blank" style="color:var(--primary)">🖨️ Invoice</a></td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty">No invoices yet — they appear here after a successful payment.</td></tr>';
+    target.innerHTML = `<div class="card">
+      <div class="card-header"><h2>🧾 My Invoices</h2></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Invoice #</th><th>Plan</th><th>Coupon</th><th>Amount</th><th>Status</th><th>Issued</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>`;
+  } catch (e) { target.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
 // ---- Quickstart (Page 1) ----
 async function loadQuickstart() {
   const c = document.getElementById('pageContent');
@@ -1765,7 +1787,9 @@ async function loadSubscription() {
           <tbody>${historyRows}</tbody>
         </table>
       </div>
-    </div>`;
+    </div>
+    <div id="myInvoicesBox" style="margin-top:1rem"></div>`;
+    loadMyInvoices(document.getElementById('myInvoicesBox'));
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 

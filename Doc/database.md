@@ -136,6 +136,26 @@ Written by app/core/email.py (every send attempt); read by admin Email Logs.
 | title / body / level | VARCHAR / TEXT / VARCHAR | level: info \| warning \| success |
 | active | BOOLEAN | shown on user dashboard banner when true |
 
+## plans  (0015 — admin-editable pricing; powers landing + checkout)
+| column | type | notes |
+|---|---|---|
+| id | VARCHAR(20) PK | free \| pro \| enterprise |
+| name / tagline / cta_label | VARCHAR | display |
+| price_inr / price_usd | NUMERIC(10,2) | monthly |
+| features | TEXT | newline-separated list |
+| popular / active / sort_order | BOOL/BOOL/INT | MOST POPULAR badge, visibility, order |
+
+Seeded free/pro/enterprise. Read by GET /plans (public), edited via admin UI.
+
+## invoices  (0016 — auto-created when a payment turns paid)
+| column | type | notes |
+|---|---|---|
+| invoice_no | VARCHAR(24) UNIQUE | INV-YYYYMM-XXXXXXXX |
+| payment_id | UUID UNIQUE | one invoice per payment (idempotent webhook replays) |
+| user_email / plan / seats / coupon_code | | snapshot at payment time |
+| amount / currency / status | NUMERIC / VARCHAR / paid\|void |
+| issued_at | TIMESTAMPTZ | |
+
 ## Non-DB state
 - Redis (db 0): per-IP request counters + blocklist for IP monitoring (TTL = window /
   block duration). Flush-safe — purely ephemeral.

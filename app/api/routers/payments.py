@@ -121,6 +121,12 @@ async def _mark_paid_and_upgrade(db: AsyncConnection, provider_ref: str, payload
             await cur.close()
     except Exception:
         pass  # coupons column may not exist yet — ignore
+    # Auto-create invoice for the paid payment (Job 8) — idempotent
+    try:
+        from app.api.routers.invoices import create_invoice_for_payment
+        await create_invoice_for_payment(db, payment_id)
+    except Exception as e:
+        print(f"[payments] invoice creation skipped: {e}")
     return True
 
 

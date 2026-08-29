@@ -92,6 +92,8 @@ browser → http://abc123.localhost:8020  (Host: abc123.localhost:8020)
 | analytics.py | /analytics | GET /overview?days=7..180 (daily series, 12-month monthly series, summary — admin) |
 | settings.py | /settings | GET "" (masked view), PUT "" (update, audited), GET/POST /coupons, PUT/DELETE /coupons/{id}, GET /coupons/public |
 | announcements.py | /announcements | GET "" (users: active only; admin: all), POST "" , PUT/DELETE /{id} (admin), POST /campaign (SMTP-gated), GET /logs, GET /smtp-status |
+| plans.py | /plans | GET "" (public, active) · PUT /{id} (admin, audited) |
+| invoices.py | /invoices | GET /my (own) · GET /admin/all (admin, ?status=) · GET /{id} (owner-or-admin) · POST /{id}/void (admin) · GET /{id}/print?token= (printable HTML) |
 | admin.py (pages, no prefix) | / | GET /, /login, /admin, /dashboard (static HTML) + /docs /redoc /health |
 
 Auth: JWT Bearer (JWT_SECRET, HS256, claims sub=user_id, email, role).

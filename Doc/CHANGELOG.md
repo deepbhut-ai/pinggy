@@ -1,5 +1,25 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.6.0 — 2026-08-29 — Phase E: editable plans + invoice tracking
+
+### Added
+- Migration 0015: `plans` table (seeded free/pro/enterprise) — admin 💎 Plans editor
+  (prices, features, tagline, CTA, visibility) with landing pricing now rendered
+  dynamically from GET /api/v1/plans (Job 1).
+- Migration 0016: `invoices` table. Invoices auto-generate when payments turn paid
+  (idempotent); admin 🧾 Invoices view (stats + void + printable invoice page);
+  user dashboard 🧾 My Invoices with print links (Job 8).
+- `plans.py` + `invoices.py` routers; print endpoint (?token= auth, owner-or-admin).
+- `Doc/tests/v0.6.0/` evidence (3 screenshots + 13 assertions).
+
+### Changed
+- `_mark_paid_and_upgrade` auto-creates the invoice after upgrade.
+- Landing pricing section is DB-driven (static markup retained only as loading fallback).
+
+### Removed
+- Hardcoded Pro/Enterprise pricing cards in landing.html (now DB-driven via plans
+  table; the hardcoded Free card remains only as the pre-fetch placeholder).
+
 ## v0.5.0 — 2026-08-29 — Phase D: email system + announcements + password reset
 
 ### Added

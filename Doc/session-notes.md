@@ -95,6 +95,17 @@
 - **Watch out:** SMTP off locally (expected) — all email flows log to email_logs with
   status=failed until smtp_* settings are filled. vtest pw back to NewPass@77.
 
+## 2026-08-29 — v0.6.0 (Phase E) — ALL PHASES COMPLETE
+- **Done:** Job 1 (plans table + admin 💎 Plans editor + DB-driven landing pricing)
+  + Job 8 (invoices auto-created on paid; admin 🧾 Invoices w/ void + printable page;
+  user 🧾 My Invoices). Migrations 0015/0016. All assertions PASS (Doc/tests/v0.6.0/).
+  ALL 9 JOBS + approved suggestions delivered across v0.2.0–v0.6.0.
+- **In progress:** nothing. Dev server on 8020 (f9dbe947-…).
+- **Next:** await user. Production deployment notes: copy .env.production → .env on
+  server, git pull, restart systemd (auto_setup runs migrations 0010–0016).
+- **Watch out:** invoice print uses ?token= JWT (new-tab auth); vtest is now pro
+  (webhook test) — set back to free if needed: PUT /users/{id}?plan=free.
+
 ## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
 - **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the
   real 7 routes (process-flow, functions, page-map). Drift exposed by a live-log 200
