@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="en" data-color-scheme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — pinggy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Mantine-inspired dark theme matching pinggy.io */
+    --font: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+
+    /* Brand colors */
+    --brand: #6aa6f0;
+    --brand-hover: #4785ea;
+    --brand-light: rgba(106,166,240,.15);
+    --brand-light-hover: rgba(106,166,240,.2);
+
+    /* Slate dark theme */
+    --bg: #141618;
+    --surface: #1b1e21;
+    --surface-1: #222529;
+    --surface-2: #2a2d31;
+    --border: rgba(255,255,255,.08);
+    --border-hover: rgba(255,255,255,.12);
+    --text: #f1f3f5;
+    --text-dim: #8a9099;
+    --text-muted: #adb3ba;
+
+    /* Status colors */
+    --green: #29a97f;
+    --green-bg: rgba(41,169,127,.15);
+    --red: #de5f4b;
+    --red-bg: rgba(222,95,75,.15);
+    --amber: #f59e0b;
+    --amber-bg: rgba(245,158,11,.15);
+
+    /* Radius */
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-lg: 12px;
+
+    /* Spacing */
+    --sp-xs: .375rem;
+    --sp-sm: .5rem;
+    --sp-md: 1rem;
+    --sp-lg: 1.5rem;
+    --sp-xl: 2rem;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ::selection { background: var(--brand-light); }
+
+  /* ---- Login ---- */
+  #loginView { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; width: 100%; max-width: 380px; }
+  .login-card .logo { font-size: 1.75rem; font-weight: 800; margin-bottom: .25rem; }
+  .login-card .subtitle { color: var(--text-dim); font-size: .875rem; margin-bottom: 1.5rem; }
+
+  /* ---- AppShell Layout ---- */
+  #appView { display: none; }
+  .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+  .app-header { background: rgba(27, 30, 33, 0.92); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 62px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,.14); }
+  .app-header .logo { font-size: 1.3rem; font-weight: 800; letter-spacing: -.03em; }
+  .app-header .right { display: flex; align-items: center; gap: .75rem; }
+  .user-badge { display: flex; align-items: center; gap: .5rem; padding: .375rem .75rem; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); cursor: pointer; transition: .15s; }
+  .user-badge:hover { border-color: var(--border-hover); background: var(--surface-2); }
+  .user-badge .avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; }
+
+  .app-body { display: flex; flex: 1; }
+  .app-nav { width: 260px; background: linear-gradient(180deg, rgba(27,30,33,1) 0%, rgba(20,22,24,1) 100%); border-right: 1px solid var(--border); padding: .75rem 0; flex-shrink: 0; position: sticky; top: 62px; height: calc(100vh - 62px); overflow-y: auto; }
+  .nav-item { display: flex; align-items: center; gap: .625rem; padding: .55rem 1.25rem; color: var(--text-dim); font-size: .875rem; font-weight: 500; border-left: 3px solid transparent; transition: .15s; cursor: pointer; margin: 0 .5rem; border-radius: 10px; }
+  .nav-item:hover { background: var(--surface-1); color: var(--text); }
+  .nav-item.active { color: var(--brand); border-left-color: var(--brand); background: linear-gradient(90deg, rgba(106,166,240,.12), rgba(106,166,240,.04)); box-shadow: inset 0 0 0 1px rgba(106,166,240,.08); }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav-sep { height: 1px; background: var(--border); margin: .5rem 1rem; }
+  .nav-section { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); padding: .5rem 1.25rem; font-weight: 600; }
+
+  .app-main { flex: 1; padding: 1.5rem; overflow-y: auto; max-width: 1100px; }
+  .page-title { font-size: 1.6rem; font-weight: 800; letter-spacing: -.03em; margin-bottom: .25rem; }
+  .page-subtitle { color: var(--text-dim); font-size: .875rem; margin-bottom: 1.5rem; }
+  .page-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+  .page-toolbar-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+  .section-label { color: var(--text-dim); font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .quickstart-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; background: linear-gradient(115deg, var(--surface) 0%, var(--surface-1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 18px 34px rgba(0,0,0,.10); }
+  .quickstart-intro h2 { font-size: 1.15rem; margin: .25rem 0 .35rem; }
+  .quickstart-intro p { color: var(--text-dim); font-size: .85rem; max-width: 560px; }
+  .quickstart-intro .intro-mark { width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid rgba(106,166,240,.35); border-radius: 50%; background: var(--brand-light); color: var(--brand); font-size: 1.5rem; box-shadow: 0 0 0 8px rgba(106,166,240,.05); }
+  .feature-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+  .feature-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .6rem; border-radius: 999px; background: rgba(255,255,255,.02); border: 1px solid var(--border); color: var(--text-dim); font-size: .72rem; font-weight: 600; }
+  .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0 0 1.25rem; }
+  .summary-card { background: linear-gradient(180deg, var(--surface) 0%, var(--surface-1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; box-shadow: inset 0 1px 0 rgba(255,255,255,.02); }
+  .summary-label { font-size: .725rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom: .5rem; }
+  .summary-value { font-size: 1.05rem; color: var(--text); font-weight: 700; line-height: 1.4; word-break: break-word; }
+  .summary-sub { margin-top: .35rem; color: var(--text-dim); font-size: .78rem; }
+  .pill { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .5rem; border-radius: 999px; background: var(--brand-light); border: 1px solid rgba(106,166,240,.25); color: var(--brand); font-size: .72rem; font-weight: 700; }
+  .workspace-strip { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .85rem 1rem; margin-bottom: 1.25rem; background: linear-gradient(135deg, rgba(106,166,240,.09), rgba(41,169,127,.07)); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+  .workspace-strip .left { display: flex; align-items: center; gap: .75rem; }
+  .workspace-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px rgba(41,169,127,.9); }
+  .workspace-name { font-weight: 700; }
+  .workspace-meta { color: var(--text-dim); font-size: .78rem; }
+  .workspace-chips { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; padding: .3rem .6rem; border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,.02); color: var(--text-dim); font-size: .72rem; font-weight: 600; }
+  .live-overview { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+  .live-overview-card { background: linear-gradient(135deg, rgba(106,166,240,.08) 0%, rgba(41,169,127,.08) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; box-shadow: inset 0 1px 0 rgba(255,255,255,.02); }
+  .live-overview-card .heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .75rem; }
+  .live-overview-card .heading strong { font-size: .82rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); }
+  .live-link { display: inline-flex; align-items: center; gap: .5rem; background: rgba(0,0,0,.18); border: 1px solid rgba(106,166,240,.25); color: var(--brand); padding: .5rem .75rem; border-radius: var(--radius); font-weight: 700; font-size: .92rem; word-break: break-all; }
+  .live-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem; }
+  .meta-box { background: rgba(0,0,0,.18); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem; }
+  .meta-box .label { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: .35rem; }
+  .meta-box .value { font-size: .96rem; color: var(--text); font-weight: 700; word-break: break-word; }
+  .quickstart-step .tl-card { box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+  .command-panel { border-color: rgba(106,166,240,.22); }
+  .command-panel .cmd-box { border-color: rgba(106,166,240,.25); }
+  .token-table-wrap { overflow-x: auto; }
+  .token-table { min-width: 760px; }
+  .token-table th:last-child, .token-table td:last-child { text-align: right; }
+  .token-actions { white-space: nowrap; }
+  .token-actions .btn { min-width: 34px; }
+  .token-value { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .45rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .token-meta { color: var(--text-dim); font-size: .75rem; }
+
+  /* ---- Forms ---- */
+  label { display: block; font-size: .8rem; color: var(--text-dim); margin-bottom: .3rem; font-weight: 500; }
+  input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem .75rem; color: var(--text); font-size: .875rem; font-family: var(--font); outline: none; transition: .15s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-light); }
+  input::placeholder { color: var(--text-muted); }
+  input[type="checkbox"], input[type="radio"] { width: auto; margin: 0; cursor: pointer; accent-color: var(--brand); }
+  .form-group { margin-bottom: 1rem; }
+  .form-row { display: flex; gap: 1rem; }
+  .form-row .form-group { flex: 1; }
+
+  /* ---- Buttons ---- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; background: var(--brand); color: #fff; border: none; border-radius: var(--radius); padding: .5rem 1rem; font-size: .875rem; font-weight: 600; font-family: var(--font); cursor: pointer; transition: .15s; }
+  .btn:hover { background: var(--brand-hover); }
+  .btn-sm { padding: .3rem .625rem; font-size: .8rem; }
+  .btn-lg { padding: .625rem 1.25rem; font-size: .95rem; }
+  .btn-ghost { background: var(--surface-1); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface-2); border-color: var(--border-hover); }
+  .btn-danger { background: var(--red); }
+  .btn-danger:hover { background: #c85740; }
+  .btn svg { width: 16px; height: 16px; }
+
+  /* ---- Cards (Paper) ---- */
+  .card { background: linear-gradient(180deg, rgba(27,30,33,1) 0%, rgba(22,24,27,1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1rem; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.12); }
+  .card-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-header h2 { font-size: 1rem; font-weight: 700; }
+  .card-body { padding: 1rem; }
+
+  /* ---- Tables ---- */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--border); font-size: .825rem; }
+  th { color: var(--text-dim); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; }
+  tr:hover td { background: var(--surface-1); }
+  tr:last-child td { border-bottom: none; }
+
+  /* ---- Badges ---- */
+  .badge { display: inline-flex; align-items: center; gap: .25rem; padding: .125rem .5rem; border-radius: var(--radius-sm); font-size: .75rem; font-weight: 600; }
+  .badge-green { background: var(--green-bg); color: var(--green); }
+  .badge-red { background: var(--red-bg); color: var(--red); }
+  .badge-amber { background: var(--amber-bg); color: var(--amber); }
+  .badge-blue { background: var(--brand-light); color: var(--brand); }
+
+  /* ---- Toast ---- */
+  #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: .625rem 1rem; font-size: .825rem; display: none; z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+  #toast.show { display: block; animation: slideIn .3s; }
+  #toast.success { border-color: var(--green); }
+  #toast.error { border-color: var(--red); }
+  @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+  .empty { text-align: center; color: var(--text-dim); padding: 2rem; font-size: .875rem; }
+  .code { font-family: var(--font-mono); font-size: .8rem; color: var(--text-dim); }
+
+  /* ---- Timeline (pinggy.io style) ---- */
+  .timeline { position: relative; padding-left: 2.5rem; }
+  .timeline::before { content: ''; position: absolute; left: .875rem; top: 1.5rem; bottom: 1rem; width: 2px; background: var(--border); }
+  .tl-item { position: relative; margin-bottom: 1.25rem; }
+  .tl-bullet { position: absolute; left: -2.5rem; top: 0; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: var(--surface-1); border: 2px solid var(--brand); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; z-index: 1; }
+  .tl-title h3 { font-size: 1rem; font-weight: 700; margin-bottom: .125rem; }
+  .tl-title p { font-size: .825rem; color: var(--text-dim); margin-bottom: .5rem; }
+  .tl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; margin-top: .5rem; }
+
+  /* ---- OS tabs ---- */
+  .os-tabs { display: flex; gap: .25rem; margin-bottom: .75rem; }
+  .os-tab { display: flex; align-items: center; gap: .375rem; padding: .375rem .75rem; cursor: pointer; color: var(--text-dim); font-size: .825rem; font-weight: 500; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); transition: .15s; }
+  .os-tab:hover { color: var(--text); border-color: var(--border-hover); }
+  .os-tab.active { color: var(--brand); border-color: var(--brand); background: var(--brand-light); }
+  .os-tab svg { width: 16px; height: 16px; }
+
+  /* ---- Command box ---- */
+  .cmd-box { position: relative; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .625rem 2.75rem .625rem .75rem; }
+  .cmd-box pre { font-family: var(--font-mono); font-size: .8rem; white-space: pre-wrap; word-break: break-all; color: var(--text); line-height: 1.5; }
+  .cmd-box .copy-btn { position: absolute; top: .375rem; right: .375rem; }
+
+  /* ---- Token row ---- */
+  .token-row { display: flex; gap: .375rem; align-items: center; }
+  .token-row input { flex: 1; }
+  .icon-btn { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: .375rem; cursor: pointer; color: var(--text-dim); display: flex; align-items: center; justify-content: center; transition: .15s; }
+  .icon-btn:hover { color: var(--text); border-color: var(--border-hover); background: var(--surface-2); }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  /* ---- Tunnel banner ---- */
+  .tunnel-banner { padding: .75rem 1rem; background: var(--green-bg); border: 1px solid rgba(41,169,127,.3); border-radius: var(--radius-lg); display: flex; align-items: center; gap: .75rem; }
+  .tunnel-banner .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; flex-shrink: 0; }
+  .tunnel-banner .url { font-size: 1rem; font-weight: 700; color: var(--brand); background: var(--bg); padding: .375rem .75rem; border-radius: var(--radius); border: 1px solid var(--border); }
+
+  /* ---- Domain section ---- */
+  .domain-box { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+  details summary { cursor: pointer; }
+  details summary:focus { outline: none; }
+
+  /* ---- Info box ---- */
+  .info-box { padding: .75rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); line-height: 1.6; }
+  .info-box strong { color: var(--text); }
+
+  /* ---- Analytics section ---- */
+  .analytics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0; }
+  @media (max-width: 1024px) { .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .metric-card { background: linear-gradient(180deg, rgba(106,166,240,.05) 0%, rgba(106,166,240,.02) 100%); border: 1px solid rgba(106,166,240,.15); border-radius: var(--radius-lg); padding: .85rem; display: flex; flex-direction: column; justify-content: space-between; }
+  .metric-card .metric-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); font-weight: 700; margin-bottom: .4rem; }
+  .metric-card .metric-value { font-size: 1.8rem; font-weight: 800; color: var(--text); line-height: 1; }
+  .metric-card .metric-sub { font-size: .75rem; color: var(--text-dim); margin-top: .3rem; }
+  .metric-card.accent { background: linear-gradient(180deg, rgba(41,169,127,.05) 0%, rgba(41,169,127,.02) 100%); border-color: rgba(41,169,127,.15); }
+  .domain-health-panel { background: linear-gradient(135deg, rgba(106,166,240,.06), rgba(41,169,127,.05)); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; margin: 1.25rem 0; }
+  .domain-health-panel .health-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
+  .domain-health-panel .health-title { font-weight: 700; color: var(--text); }
+  .domain-health-status { display: flex; align-items: center; gap: .5rem; padding: .5rem .75rem; border-radius: var(--radius); background: rgba(0,0,0,.15); border: 1px solid rgba(41,169,127,.2); }
+  .domain-health-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(41,169,127,.8); }
+  .domain-health-status .status-text { font-size: .825rem; color: var(--green); font-weight: 600; }
+  .domain-health-items { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin-top: .75rem; }
+  .health-item { background: rgba(0,0,0,.2); border: 1px solid var(--border); border-radius: var(--radius); padding: .65rem; display: flex; justify-content: space-between; align-items: center; }
+  .health-item .item-label { font-size: .775rem; color: var(--text-dim); font-weight: 600; }
+  .health-item .item-value { font-size: .85rem; color: var(--text); font-weight: 700; }
+
+  /* ---- Stat cards (subscription page) ---- */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }
+  .stat-card .label { font-size: .75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; margin-bottom: .25rem; }
+  .stat-card .value { font-size: 1.5rem; font-weight: 800; color: var(--text); }
+
+  /* ---- Payment buttons ---- */
+  .pay-btn { display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: 1rem; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: pointer; transition: .15s; }
+  .pay-btn:hover { border-color: var(--brand); background: var(--surface-2); }
+  .pay-btn-disabled { opacity: .5; cursor: not-allowed; }
+  .pay-btn-disabled:hover { border-color: var(--border); background: var(--surface-1); }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 768px) {
+    .app-nav { display: none; }
+    .app-main { padding: 1rem; }
+    .summary-grid { grid-template-columns: 1fr; }
+    .live-overview { grid-template-columns: 1fr; }
+    .form-row { flex-direction: column; }
+    .page-toolbar { flex-direction: column; }
+    .page-toolbar-actions { width: 100%; }
+    .page-toolbar-actions .btn { flex: 1; }
+    .quickstart-intro { grid-template-columns: 1fr; padding: 1rem; }
+    .quickstart-intro .intro-mark { display: none; }
+    .timeline { padding-left: 2rem; }
+    .tl-bullet { left: -2rem; }
+    .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading screen (shown while checking auth) -->
+<div id="loadingScreen" style="display:flex;align-items:center;justify-content:center;min-height:100vh">
+  <div style="text-align:center">
+    <div style="font-size:1.5rem;font-weight:800;margin-bottom:1rem">⚡ Tunnel</div>
+    <div style="color:var(--text-dim);font-size:.875rem">Loading...</div>
+  </div>
+</div>
+
+<!-- Login View (hidden — auth is on /login page) -->
+<div id="loginView" style="display:none">
+  <div class="login-card">
+    <div class="logo">⚡ pinggy</div>
+    <div class="subtitle">Sign in to manage your tunnels</div>
+    <div class="form-group">
+      <label>Email / Username</label>
+      <input type="text" id="loginEmail" placeholder="user@example.com" value="test">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Password" value="test">
+    </div>
+    <button class="btn" style="width:100%" onclick="doLogin()">Login</button>
+    <p style="margin-top:1rem;font-size:.8rem;color:var(--text-dim)">Default: <strong>admin</strong> / <strong>admin</strong> (change after first login)</p>
+  </div>
+</div>
+
+<!-- App View -->
+<div id="appView">
+  <div class="app-shell">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">⚡ pinggy</div>
+      <div class="right">
+        <div class="user-badge" id="userBadge" onclick="logout()">
+          <div class="avatar" id="userAvatar">U</div>
+          <span id="userInfo">user</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <!-- Navbar -->
+      <nav class="app-nav">
+        <div class="nav-item active" data-page="quickstart" onclick="navigate('quickstart', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Quickstart
+        </div>
+        <div class="nav-sep"></div>
+        <div class="nav-item" data-page="configure" onclick="navigate('configure', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configure Tunnel
+        </div>
+        <div class="nav-item" data-page="domains" onclick="navigate('domains', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Domains
+        </div>
+        <div class="nav-item" data-page="tunnels" onclick="navigate('tunnels', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Active Tunnels
+        </div>
+        <div class="nav-item" data-page="tokens" onclick="navigate('tokens', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Manage Tokens
+        </div>
+        <div class="nav-sep"></div>
+        <div class="nav-item" data-page="subscription" onclick="navigate('subscription', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          Subscription
+        </div>
+      </nav>
+
+      <!-- Main content -->
+      <main class="app-main" id="pageContent">
+        <div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Modal Dialog -->
+<div id="modalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:998;align-items:center;justify-content:center">
+  <div id="modalBox" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;width:100%;max-width:420px;margin:1rem">
+    <h3 id="modalTitle" style="font-size:1.1rem;font-weight:700;margin-bottom:1rem"></h3>
+    <div id="modalBody"></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1.25rem">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-sm" id="modalConfirm" onclick="">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- State ----
+let authToken = localStorage.getItem('pinggy_token') || '';
+let currentUser = null;
+let tunnelState = { localPort: 8080, os: 'cmd', token: '', tokenVisible: false, info: null };
+let tunnelPollTimer = null;
+let tunnelRateTracker = {}; // Track {tunnelId: {lastBytes, lastTime, kbps}}
+let dailyTunnelStats = JSON.parse(localStorage.getItem('dailyTunnelStats') || '{}'); // Track {date_subdomain: {sent, received}}
+let tunnelRateTracker = {}; // Track {tunnelId: {lastBytes, lastTime, kbps}}
+
+// ---- API helper ----
+async function api(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+  };
+  if (body) opts.body = body;
+  const resp = await fetch('/api/v1' + path, opts);
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(err.detail || `HTTP ${resp.status}`);
+  }
+  const text = await resp.text();
+  return text ? JSON.parse(text) : {};
+}
+
+// ---- Toast ----
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => t.className = '', 3000);
+}
+
+// ---- Daily Stats Helper ----
+function getDailyKey(subdomain) {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  return `${today}_${subdomain}`;
+}
+
+function updateDailyStats(subdomain, bytesTransferred) {
+  const key = getDailyKey(subdomain);
+  if (!dailyTunnelStats[key]) {
+    dailyTunnelStats[key] = { sent: 0, received: bytesTransferred };
+  }
+  // Estimate: add new bytes to daily total (simplified: assume all is "received")
+  dailyTunnelStats[key].received = bytesTransferred;
+  localStorage.setItem('dailyTunnelStats', JSON.stringify(dailyTunnelStats));
+}
+
+function getDailyStats(subdomain) {
+  const key = getDailyKey(subdomain);
+  return dailyTunnelStats[key] || { sent: 0, received: 0 };
+}
+
+function getDomainDailyTotals(tunnels) {
+  let totalSent = 0, totalReceived = 0;
+  tunnels.forEach(t => {
+    const stats = getDailyStats(t.subdomain);
+    totalSent += stats.sent;
+    totalReceived += stats.received;
+  });
+  return { sent: totalSent, received: totalReceived };
+}
+
+// ---- Auth ----
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  try {
+    const resp = await fetch('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!resp.ok) throw new Error('Invalid credentials');
+    const data = await resp.json();
+    authToken = data.access_token;
+    localStorage.setItem('pinggy_token', authToken);
+    currentUser = data.user;
+    showApp();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function logout() {
+  authToken = '';
+  localStorage.removeItem('pinggy_token');
+  window.location.href = '/login';
+}
+
+async function showApp() {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('loginView').style.display = 'none';
+  document.getElementById('appView').style.display = 'block';
+  document.getElementById('userInfo').textContent = currentUser.email;
+  document.getElementById('userAvatar').textContent = (currentUser.email || 'U')[0].toUpperCase();
+
+  // Payment redirect feedback — show toast and navigate to subscription
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentStatus = urlParams.get('payment');
+  if (paymentStatus === 'success') {
+    window.history.replaceState({}, '', '/dashboard');
+    toast('🎉 Payment successful! Your Pro plan is being activated.');
+    navigate('subscription', document.querySelector('[data-page=subscription]'));
+    return;
+  } else if (paymentStatus === 'cancel') {
+    window.history.replaceState({}, '', '/dashboard');
+    toast('Payment cancelled — no charge was made', 'error');
+  }
+
+  navigate('quickstart', document.querySelector('[data-page=quickstart]'));
+}
+
+// ---- Navigation ----
+function navigate(page, el) {
+  document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('active'));
+  if (el) el.classList.add('active');
+  stopTunnelPolling();
+  if (page === 'quickstart') loadQuickstart();
+  else if (page === 'configure') loadConfigure();
+  else if (page === 'domains') loadDomains();
+  else if (page === 'tunnels') loadTunnels();
+  else if (page === 'tokens') loadTokens();
+  else if (page === 'subscription') loadSubscription();
+}
+
+// ---- Quickstart (Page 1) ----
+async function loadQuickstart() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    // Run all API calls in PARALLEL (not serial) for fast load
+    const [info, tunnels, tokensResp] = await Promise.all([
+      api('/tunnels/info'),
+      api('/tunnels/my'),
+      api('/tokens').catch(() => []),
+    ]);
+    // Use the first token from the tokens table (multi-token system)
+    const userTokens = Array.isArray(tokensResp) ? tokensResp : [];
+    tunnelState.token = userTokens.length > 0 ? userTokens[0].token : '';
+    tunnelState.info = info;
+    // Use custom_domain from the token only — never from the legacy user-level field
+    const tokenCustomDomain = userTokens.length > 0 ? (userTokens[0].custom_domain || '') : '';
+    info.custom_domain = tokenCustomDomain;
+
+    let tunnelRows = tunnels.map(t => {
+      const urlCell = t.custom_url
+        ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
+        : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+      // Calculate KB/s for this tunnel
+      const tunnelId = t.id || t.subdomain;
+      let kbps = '—';
+      const now = Date.now();
+      if (tunnelRateTracker[tunnelId]) {
+        const prev = tunnelRateTracker[tunnelId];
+        const bytesDelta = (t.bytes_transferred || 0) - prev.lastBytes;
+        const timeDeltaMs = now - prev.lastTime;
+        if (timeDeltaMs > 0) {
+          const kbpsDelta = (bytesDelta / 1024) / (timeDeltaMs / 1000);
+          kbps = kbpsDelta.toFixed(2);
+        }
+      }
+      tunnelRateTracker[tunnelId] = { lastBytes: t.bytes_transferred || 0, lastTime: now };
+      return `<tr>
+      ${urlCell}
+      <td class="code">${t.subdomain}</td>
+      <td>${t.request_count}</td>
+      <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td>${kbps} KB/s</td>
+      <td><span class="badge badge-green">${t.status}</span></td>
+      <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+    </tr>`;
+    }).join('');
+    if (!tunnelRows) tunnelRows = '<tr><td colspan="7" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
+
+    c.innerHTML = `
+    <div class="page-toolbar">
+      <div>
+        <div class="page-title">Quickstart</div>
+        <div class="page-subtitle">Connect a local service and share it securely.</div>
+      </div>
+      <div class="page-toolbar-actions"><span class="badge ${tunnels.length ? 'badge-green' : 'badge-blue'}">${tunnels.length ? `${tunnels.length} active` : 'Ready to connect'}</span></div>
+    </div>
+    <div class="workspace-strip">
+      <div class="left">
+        <span class="workspace-dot"></span>
+        <div>
+          <div class="workspace-name">Workspace overview</div>
+          <div class="workspace-meta">Primary tunnel environment</div>
+        </div>
+      </div>
+      <div class="workspace-chips">
+        <span class="chip">${tunnels.length ? 'Connected' : 'Ready'}</span>
+        <span class="chip">${(currentUser.plan || 'free').toUpperCase()}</span>
+        <span class="chip">${userTokens.length} token${userTokens.length !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
+    <div class="quickstart-intro">
+      <div>
+        <div class="section-label">Tunnel setup</div>
+        <h2>Expose your local app in three steps</h2>
+        <p>Choose a port, copy the command, and keep the terminal open while your tunnel is running.</p>
+        <div class="feature-row">
+          <span class="feature-badge">⚡ Fast share</span>
+          <span class="feature-badge">🔒 Secure</span>
+          <span class="feature-badge">🌐 Custom domain ready</span>
+        </div>
+      </div>
+      <div class="intro-mark">↗</div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Current tunnel</div>
+        <div class="summary-value">${tunnels[0] ? (tunnels[0].custom_url || tunnels[0].url) : 'No active tunnel yet'}</div>
+        <div class="summary-sub">Live public URL for your workspace</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Custom domain</div>
+        <div class="summary-value">${(userTokens.length > 0 && userTokens[0].custom_domain) ? userTokens[0].custom_domain : 'Not set yet'}</div>
+        <div class="summary-sub">Uses the canonical domain for this token</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Status</div>
+        <div class="summary-value"><span class="pill">${tunnels.length ? 'Active' : 'Ready'}</span></div>
+        <div class="summary-sub">${tunnels.length ? `${tunnels.length} tunnel${tunnels.length !== 1 ? 's' : ''} currently running` : 'Wait for the terminal to connect'}</div>
+      </div>
+    </div>
+    <div class="live-overview">
+      <div class="live-overview-card">
+        <div class="heading">
+          <strong>Live tunnel overview</strong>
+          <span class="pill">${tunnels.length ? 'Connected' : 'Waiting'}</span>
+        </div>
+        <div class="live-link">${tunnels[0] ? (tunnels[0].custom_url || tunnels[0].url) : 'https://your-tunnel-url.example'}</div>
+        <div class="live-meta">
+          <div class="meta-box">
+            <div class="label">Token</div>
+            <div class="value">${tunnelState.token ? tunnelState.token.substring(0, 10) + '••••' : 'Not created'}</div>
+          </div>
+          <div class="meta-box">
+            <div class="label">Custom domain</div>
+            <div class="value">${(userTokens.length > 0 && userTokens[0].custom_domain) ? userTokens[0].custom_domain : 'Not assigned'}</div>
+          </div>
+        </div>
+      </div>
+      <div class="live-overview-card">
+        <div class="heading">
+          <strong>Traffic</strong>
+          <span class="pill">Live</span>
+        </div>
+        <div class="live-meta">
+          <div class="meta-box">
+            <div class="label">Requests</div>
+            <div class="value">${tunnels[0] ? tunnels[0].request_count : 0}</div>
+          </div>
+          <div class="meta-box">
+            <div class="label">Data</div>
+            <div class="value">${tunnels[0] ? `${(tunnels[0].bytes_transferred / 1024).toFixed(1)} KB` : '0 KB'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="analytics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Active Tunnels</div>
+        <div class="metric-value">${tunnels.length}</div>
+        <div class="metric-sub">Running now</div>
+      </div>
+      <div class="metric-card accent">
+        <div class="metric-label">Total Requests</div>
+        <div class="metric-value">${tunnels.reduce((sum, t) => sum + (t.request_count || 0), 0)}</div>
+        <div class="metric-sub">All tunnels</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Data Transferred</div>
+        <div class="metric-value">${((tunnels.reduce((sum, t) => sum + (t.bytes_transferred || 0), 0)) / (1024 * 1024)).toFixed(1)}</div>
+        <div class="metric-sub">MB</div>
+      </div>
+      <div class="metric-card accent">
+        <div class="metric-label">Uptime Status</div>
+        <div class="metric-value" style="color:var(--green);">✓ OK</div>
+        <div class="metric-sub">All systems running</div>
+      </div>
+    </div>
+    <div class="domain-health-panel">
+      <div class="health-header">
+        <span class="health-title">🌐 Domain Health</span>
+        <div class="domain-health-status">
+          <span class="dot"></span>
+          <span class="status-text">Healthy</span>
+        </div>
+      </div>
+      <div class="domain-health-items">
+        <div class="health-item">
+          <span class="item-label">DNS</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+        <div class="health-item">
+          <span class="item-label">SSL/TLS</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+        <div class="health-item">
+          <span class="item-label">Connectivity</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+        <div class="health-item">
+          <span class="item-label">Performance</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+      </div>
+    </div>
+    ${(currentUser.plan || 'free') !== 'pro' ? `
+    <div style="margin-bottom:1.25rem;padding:.75rem 1rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <span style="font-size:1.25rem">⚠️</span>
+      <div style="flex:1;min-width:200px">
+        <strong style="font-size:.9rem">Free plan</strong>
+        <span style="font-size:.825rem;color:var(--text-dim)"> — tunnels disconnect after 60 min & get a random subdomain each time.</span>
+      </div>
+      <a href="/#prices" class="btn btn-sm">Upgrade to Pro →</a>
+    </div>` : `
+    <div style="margin-bottom:1.25rem;padding:.75rem 1rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem">
+      <span style="font-size:1.25rem">⭐</span>
+      <div>
+        <strong style="font-size:.9rem">Pro plan</strong>
+        <span style="font-size:.825rem;color:var(--text-dim)"> — persistent tunnels, fixed subdomains, custom domain.</span>
+      </div>
+    </div>`}
+    <div class="timeline">
+      <!-- Step 1: Access token -->
+      <div class="tl-item quickstart-step">
+        <div class="tl-bullet">1</div>
+        <div class="tl-title">
+          <h3>Your access token</h3>
+          <p>Use this token to authenticate your tunnel connection.</p>
+        </div>
+        <div class="tl-card">
+          <p style="font-size:.8rem;color:var(--text-dim);margin-bottom:.4rem;font-weight:600">Access token</p>
+          <div class="token-row">
+            <input type="text" id="accessToken" value="${tunnelState.token}" readonly>
+            <button class="icon-btn" onclick="copyToken()" title="Copy token">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+            <button class="icon-btn" onclick="toggleTokenVisibility()" title="Show/Hide token">
+              <svg id="tokenEye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+          </div>
+          ${!tunnelState.token ? `
+          <div style="margin-top:.75rem;padding:.75rem 1rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim)">
+            <strong style="color:var(--text)">No token yet.</strong> Go to <a href="#" onclick="navigate('tokens',document.querySelector('[data-page=tokens]'));return false" style="color:var(--brand);font-weight:600">Manage Tokens</a> to create one.
+          </div>` : ''}
+          ${(currentUser.plan || 'free') === 'pro' ? `
+          <div class="domain-box">
+            <p style="font-size:.8rem;color:var(--text-dim);margin-bottom:.4rem;font-weight:600">Custom Domain</p>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <input type="text" id="myCustomDomain" value="${info.custom_domain || ''}" placeholder="e.g. serverira.com" style="flex:1;padding:.4rem .6rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem">
+              <button class="btn btn-sm" onclick="saveMyCustomDomain()">Save</button>
+              ${info.custom_domain ? '<button class="btn btn-sm btn-ghost" onclick="saveMyCustomDomain(true)">Clear</button>' : ''}
+            </div>
+            <details style="margin-top:.6rem">
+              <summary style="font-size:.85rem;color:var(--primary);cursor:pointer;font-weight:600">📋 How to set up your custom domain</summary>
+              <div style="margin-top:.6rem;padding:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;color:var(--text-dim);line-height:1.6">
+                <p style="font-weight:600;color:var(--text);margin-bottom:.4rem">Step 1: Add your domain to Cloudflare</p>
+                <p>• Go to <a href="https://dash.cloudflare.com" target="_blank">Cloudflare Dashboard</a> → Add Site → enter your domain</p>
+                <p>• Cloudflare will give you 2 nameservers</p>
+                <p>• Change nameservers at your domain registrar</p>
+                <p style="margin-top:.6rem;font-weight:600;color:var(--text);margin-bottom:.4rem">Step 2: Add DNS A Record</p>
+                <div style="margin:.4rem 0;padding:.5rem;background:var(--surface);border-radius:4px;font-family:monospace">
+                  <div>Type: <span style="color:var(--primary)">A</span> | Name: <span style="color:var(--primary)">@</span> | Content: <span style="color:var(--primary)">13.140.131.204</span> | Proxy: <span style="color:var(--green)">Proxied</span></div>
+                </div>
+                <p style="margin-top:.6rem;font-weight:600;color:var(--text);margin-bottom:.4rem">Step 3: Set SSL mode</p>
+                <p>• Cloudflare → SSL/TLS → Overview → set to <span style="color:var(--green);font-weight:600">Flexible</span></p>
+                <p style="margin-top:.6rem;font-weight:600;color:var(--text);margin-bottom:.4rem">Step 4: Enter domain above and click Save</p>
+              </div>
+            </details>
+          </div>` : `
+          <div style="margin-top:.75rem;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+            <span>🔒 Custom domain is a <strong style="color:var(--text)">Pro</strong> feature.</span>
+            <a href="/#prices" class="btn btn-sm" style="margin-left:auto">Upgrade →</a>
+          </div>`}
+        </div>
+      </div>
+
+      <!-- Step 2: Paste command -->
+      <div class="tl-item quickstart-step">
+        <div class="tl-bullet">2</div>
+        <div class="tl-title">
+          <h3>Paste this command to start tunnel</h3>
+        </div>
+        <div class="tl-card command-panel">
+          <div class="os-tabs" id="osTabs">
+            <button class="os-tab active" onclick="switchOS('cmd',this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-6-6-6"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              CMD
+            </button>
+            <button class="os-tab" onclick="switchOS('powershell',this)">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.5v7H3v-6zM12 4.3L21 3v8.5H12V4.3zM3 12.5h7.5v7L3 18.5v-6zM12 12.5h9V21l-9-1.3v-7.2z"/></svg>
+              PowerShell
+            </button>
+            <button class="os-tab" onclick="switchOS('linux',this)">
+              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="17" r="2"/><path d="M12 7c-3 0-5 2-5 5s2 5 5 5 5-2 5-5-2-5-5-5z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+              Linux
+            </button>
+            <button class="os-tab" onclick="switchOS('mac',this)">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.14-1.69 2.27-3.05 2.29-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.46C2.86 16.36 1.62 11.3 4.1 7.86c1.25-1.73 3.49-2.83 5.87-2.86 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.14 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13.54 3.03c.69-.84 1.16-2.01 1.03-3.18-1 .04-2.21.66-2.92 1.5-.64.74-1.2 1.93-1.05 3.08 1.12.09 2.25-.57 2.94-1.4"/></svg>
+              Mac
+            </button>
+          </div>
+          <label style="display:flex;align-items:center;gap:.5rem;margin:.75rem 0;font-size:.825rem;color:var(--text-dim);cursor:pointer;user-select:none">
+            <input type="checkbox" id="autoReconnectInput" onchange="updateSSHCommand()" style="width:auto;margin:0;cursor:pointer;accent-color:var(--brand)">
+            Automatically reconnect if the server or network disconnects
+          </label>
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+            <label style="font-size:.85rem;color:var(--text-dim);white-space:nowrap">Local port:</label>
+            <input type="number" id="localPortInput" value="${tunnelState.localPort}" min="1" max="65535" style="width:80px;padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem" onchange="updateLocalPort(this.value)">
+            <span style="font-size:.8rem;color:var(--text-dim)">The port your local service runs on</span>
+          </div>
+          <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:.5rem" id="osHint">Open Command Prompt (CMD) and paste the following command:</p>
+          <div class="cmd-box">
+            <pre id="sshCommand">${buildSSHCommand()}</pre>
+            <button class="btn btn-sm copy-btn" onclick="copySSHCmd()">📋 Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Quick Reference -->
+      <div class="tl-item quickstart-step">
+        <div class="tl-bullet">3</div>
+        <div class="tl-title">
+          <h3>Quick Reference</h3>
+          <p>Alternative SSH command format</p>
+        </div>
+        <div class="tl-card">
+          <p style="font-size:.85rem;margin-bottom:.5rem">Open your terminal and run:</p>
+          <div class="cmd-box"><pre>ssh -p ${info.ssh_port} -R0:127.0.0.1:8000 ${info.domain}</pre><button class="btn btn-sm" onclick="copyToClipboard('ssh -p ${info.ssh_port} -R0:127.0.0.1:8000 ${info.domain}')">📋</button></div>
+          <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-dim)">Replace <span style="color:var(--primary)">8000</span> with the port where your service is running.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active tunnel banner -->
+    <div id="tunnelBanner" style="display:none;margin-top:1.5rem"></div>
+
+    <!-- Active tunnels table -->
+    <div class="card" style="margin-top:1.5rem">
+      <div class="card-header"><h2>🔗 My Active Tunnels (<span id="tunnelCount">${tunnels.length}</span>)</h2><button class="btn btn-sm" onclick="loadQuickstart()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Transfer Rate</th><th>Status</th><th>Created</th></tr></thead><tbody id="tunnelTableBody">${tunnelRows}</tbody></table>
+      </div>
+    </div>`;
+
+    // Premium product polish: emphasize the live tunnel summary in the active tunnel section.
+    const tunnelTable = document.getElementById('tunnelTableBody');
+    if (tunnelTable && tunnelTable.querySelector('tr')) {
+      tunnelTable.querySelector('tr').style.boxShadow = 'inset 0 0 0 1px rgba(106,166,240,.2)';
+    }
+
+  // Attach event listeners (Cloudflare Rocket Loader safe — replaces inline onclick)
+  setTimeout(() => {
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      if (btn.textContent.includes('Copy')) {
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', () => copySSHCmd());
+      }
+    });
+    document.querySelectorAll('.os-tab').forEach(tab => {
+      const os = tab.textContent.trim().toLowerCase();
+      tab.removeAttribute('onclick');
+      tab.addEventListener('click', function() { switchOS(os, this); });
+    });
+    const portInput = document.getElementById('localPortInput');
+    if (portInput) {
+      portInput.removeAttribute('onchange');
+      portInput.addEventListener('change', function() { updateLocalPort(this.value); });
+    }
+    document.querySelectorAll('.cmd-box button:not(.copy-btn)').forEach(btn => {
+      if (btn.textContent.includes('📋')) {
+        const pre = btn.parentElement.querySelector('pre');
+        if (pre) {
+          btn.removeAttribute('onclick');
+          btn.addEventListener('click', () => copyToClipboard(pre.textContent));
+        }
+      }
+    });
+    document.querySelectorAll('button').forEach(btn => {
+      if (btn.textContent.includes('Refresh') && btn.getAttribute('onclick')?.includes('loadQuickstart')) {
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', () => loadQuickstart());
+      }
+    });
+    const copyTokenBtn = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('onclick')?.includes('copyToken'));
+    if (copyTokenBtn) {
+      copyTokenBtn.removeAttribute('onclick');
+      copyTokenBtn.addEventListener('click', () => {
+        const tokenInput = document.getElementById('accessToken');
+        if (tokenInput) copyToClipboard(tokenInput.value);
+      });
+    }
+    const toggleBtn = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('onclick')?.includes('toggleTokenVisibility'));
+    if (toggleBtn) {
+      toggleBtn.removeAttribute('onclick');
+      toggleBtn.addEventListener('click', () => toggleTokenVisibility());
+    }
+    // Tunnel URL copy button in the green banner
+    document.querySelectorAll('button').forEach(btn => {
+      if (btn.getAttribute('onclick')?.includes('copyToClipboard') && btn.closest('[style*="green-bg"]')) {
+        btn.removeAttribute('onclick');
+        const link = btn.parentElement.querySelector('a');
+        if (link) btn.addEventListener('click', () => copyToClipboard(link.href));
+      }
+    });
+    // Save custom domain button
+    const saveDomainBtn = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('onclick')?.includes('saveMyCustomDomain'));
+    if (saveDomainBtn) {
+      saveDomainBtn.removeAttribute('onclick');
+      saveDomainBtn.addEventListener('click', () => saveMyCustomDomain());
+    }
+  }, 100);
+
+    updateSSHCommand();
+    updateTunnelBanner(tunnels);
+    startTunnelPolling();
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Configure Tunnel (Page 2) ----
+async function loadConfigure() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const info = await api('/tunnels/info');
+    const tokens = await api('/tokens');
+    tunnelState.info = info;
+
+    // Token options for the dropdown
+    const tokenOptions = tokens.map(t => 
+      `<option value="${t.token}">${t.name || 'Unnamed'} — ${t.token.substring(0,8)}... (→ ${t.subdomain}.iraglobaltech.com)</option>`
+    ).join('');
+
+    c.innerHTML = `
+    <div class="page-title">Configure Tunnel</div>
+    <div class="page-subtitle">Build and customize your tunnel command</div>
+
+    <div class="card">
+      <div class="card-header"><h2>Tunnel Settings</h2><button class="btn btn-sm" onclick="resetConfig()">Reset</button></div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Local address — what you want to share</label>
+            <input type="text" id="cfgLocalAddr" value="127.0.0.1:${tunnelState.localPort}" placeholder="127.0.0.1:8080" onchange="updateCfgCommand()">
+          </div>
+          <div class="form-group" style="max-width:140px">
+            <label>Tunnel type</label>
+            <select id="cfgTunnelType" onchange="updateCfgCommand()">
+              <option value="http" selected>HTTP</option>
+              <option value="tcp" disabled>TCP (soon)</option>
+              <option value="tls" disabled>TLS (soon)</option>
+              <option value="udp" disabled>UDP (soon)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="max-width:180px">
+            <label>Platform</label>
+            <select id="cfgPlatform" onchange="updateCfgCommand()">
+              <option value="windows" selected>Windows (CMD)</option>
+              <option value="linux">Linux</option>
+              <option value="mac">Mac</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Access token</label>
+            <select id="cfgToken" onchange="updateCfgCommand()">
+              ${tokenOptions}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Region</label>
+          <select id="cfgRegion" onchange="updateCfgCommand()">
+            <option value="auto" selected>Auto (closest server)</option>
+            <option value="eu" disabled>Europe (soon)</option>
+            <option value="us" disabled>US East (soon)</option>
+            <option value="asia" disabled>Asia (soon)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2>Generated Command</h2><button class="btn btn-sm" onclick="copyCfgCmd()">📋 Copy</button></div>
+      <div class="card-body">
+        <p style="font-size:.825rem;color:var(--text-dim);margin-bottom:.5rem" id="cfgPlatformHint">Open Command Prompt (CMD) and paste the following command:</p>
+        <div class="cmd-box">
+          <pre id="cfgCommand">${buildConfigCommand()}</pre>
+        </div>
+        <div style="margin-top:.75rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim)">
+          <strong style="color:var(--text)">Your tunnel URL will be:</strong><br>
+          <span id="cfgUrl" style="color:var(--brand);font-family:var(--font-mono)">https://—.iraglobaltech.com</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2>Advanced Options</h2></div>
+      <div class="card-body">
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--text)">
+            <input type="checkbox" id="cfgKeepAlive" checked onchange="updateCfgCommand()" style="width:auto">
+            Keep Alive (30s interval)
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--text)">
+            <input type="checkbox" id="cfgStrictHostKey" onchange="updateCfgCommand()" style="width:auto">
+            Strict Host Key Check
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--text)">
+            <input type="checkbox" id="cfgVerbose" onchange="updateCfgCommand()" style="width:auto">
+            Verbose output (-v)
+          </label>
+        </div>
+      </div>
+    </div>`;
+    updateCfgCommand();
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function buildConfigCommand() {
+  const info = tunnelState.info;
+  if (!info) return '';
+  const addr = document.getElementById('cfgLocalAddr')?.value || `127.0.0.1:${tunnelState.localPort}`;
+  const port = addr.split(':').pop() || '8080';
+  const token = document.getElementById('cfgToken')?.value || tunnelState.token;
+  const platform = document.getElementById('cfgPlatform')?.value || 'windows';
+  const keepAlive = document.getElementById('cfgKeepAlive')?.checked !== false;
+  const strictHost = document.getElementById('cfgStrictHostKey')?.checked;
+  const verbose = document.getElementById('cfgVerbose')?.checked;
+
+  let cmd = 'ssh';
+  if (verbose) cmd += ' -v';
+  cmd += ` -p ${info.ssh_port}`;
+  cmd += ` -R0:127.0.0.1:${port}`;
+  if (keepAlive) cmd += ' -o ServerAliveInterval=30';
+  if (!strictHost) cmd += ' -o StrictHostKeyChecking=no';
+  cmd += ` ${token}@ssh.iraglobaltech.com`;
+  return cmd;
+}
+
+function updateCfgCommand() {
+  const el = document.getElementById('cfgCommand');
+  if (el) el.textContent = buildConfigCommand();
+
+  // Update URL preview
+  const tokenSelect = document.getElementById('cfgToken');
+  const urlEl = document.getElementById('cfgUrl');
+  if (tokenSelect && urlEl) {
+    const token = tokenSelect.value;
+    import_hash = (s => { let h=0; for(let i=0;i<s.length;i++) h=((h<<5)-h+s.charCodeAt(i))|0; return Math.abs(h).toString(16).substring(0,7); })(token);
+    // Use MD5-like hash for display
+    let hash = 0;
+    for (let i = 0; i < token.length; i++) { hash = ((hash << 5) - hash + token.charCodeAt(i)) | 0; }
+    const sub = Math.abs(hash).toString(16).substring(0, 7).padStart(7, '0');
+    urlEl.textContent = `https://${sub}.iraglobaltech.com`;
+  }
+
+  // Update platform hint
+  const platform = document.getElementById('cfgPlatform')?.value || 'windows';
+  const hint = document.getElementById('cfgPlatformHint');
+  if (hint) {
+    const hints = {
+      windows: 'Open Command Prompt (CMD) and paste the following command:',
+      linux: 'Open terminal and paste the following command:',
+      mac: 'Open Terminal and paste the following command:'
+    };
+    hint.textContent = hints[platform];
+  }
+}
+
+function resetConfig() {
+  tunnelState.localPort = 8080;
+  loadConfigure();
+  toast('Configuration reset');
+}
+
+function applyConfig() {
+  const addr = document.getElementById('cfgLocalAddr').value;
+  const port = addr.split(':').pop();
+  tunnelState.localPort = parseInt(port) || 8080;
+  const token = document.getElementById('cfgToken')?.value;
+  if (token) tunnelState.token = token;
+  toast('Configuration saved');
+  navigate('quickstart', document.querySelector('[data-page=quickstart]'));
+}
+
+// ---- Domains (Page 3) ----
+async function loadDomains() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const info = await api('/tunnels/info');
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Domains</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Manage your custom domain and subdomain</p>
+    <div class="card">
+      <div class="card-header"><h2>Custom Domain</h2></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Your custom domain</label>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <input type="text" id="domainInput" value="${info.custom_domain || ''}" placeholder="e.g. serverira.com">
+            <button class="btn btn-sm" onclick="saveMyCustomDomain()">Save</button>
+            ${info.custom_domain ? '<button class="btn btn-sm btn-ghost" onclick="saveMyCustomDomain(true)">Clear</button>' : ''}
+          </div>
+        </div>
+        <div style="margin-top:1rem;padding:1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;color:var(--text-dim);line-height:1.6">
+          <p style="font-weight:600;color:var(--text);margin-bottom:.4rem">📋 Setup Instructions</p>
+          <p><strong>Step 1:</strong> Add your domain to Cloudflare → Add Site</p>
+          <p><strong>Step 2:</strong> Change nameservers at your registrar to Cloudflare's</p>
+          <p><strong>Step 3:</strong> Add DNS A Record: Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied</p>
+          <p><strong>Step 4:</strong> Set SSL/TLS mode to Flexible</p>
+          <p><strong>Step 5:</strong> Enter your domain above and click Save</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Default Subdomain</h2></div>
+      <div class="card-body">
+        <p style="font-size:.9rem;color:var(--text-dim)">Your tunnel is always accessible via your default subdomain:</p>
+        <p style="font-size:1.1rem;color:var(--primary);font-weight:600;margin-top:.5rem">https://098f6bc.iraglobaltech.com</p>
+        <p style="font-size:.8rem;color:var(--text-dim);margin-top:.5rem">This subdomain is automatically generated from your account and cannot be changed.</p>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Active Tunnels (Page 4) ----
+async function loadTunnels() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const tunnels = await api('/tunnels/my');
+    const now = Date.now();
+    let rows = tunnels.map((t, i) => {
+      const urlCell = t.custom_url
+        ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
+        : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+      // Calculate KB/s for this tunnel
+      const tunnelId = t.id || t.subdomain;
+      let kbps = '—';
+      if (tunnelRateTracker[tunnelId]) {
+        const prev = tunnelRateTracker[tunnelId];
+        const bytesDelta = (t.bytes_transferred || 0) - prev.lastBytes;
+        const timeDeltaMs = now - prev.lastTime;
+        if (timeDeltaMs > 0) {
+          const kbpsDelta = (bytesDelta / 1024) / (timeDeltaMs / 1000);
+          kbps = kbpsDelta.toFixed(2);
+        }
+      }
+      tunnelRateTracker[tunnelId] = { lastBytes: t.bytes_transferred || 0, lastTime: now };
+      return `<tr>
+      <td>${i + 1}</td>
+      ${urlCell}
+      <td class="code">${t.subdomain}</td>
+      <td>${t.request_count}</td>
+      <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td>${kbps} KB/s</td>
+      <td><span class="badge badge-green">${t.status}</span></td>
+      <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+    </tr>`;
+    }).join('');
+    if (!rows) rows = '<tr><td colspan="8" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Active Tunnels</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">${tunnels.length} active session${tunnels.length !== 1 ? 's' : ''}</p>
+    <div class="card">
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table>
+          <thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Transfer Rate</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Manage Tokens (Page 5) ----
+let selectedTokenId = null;
+
+async function loadTokens() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const info = await api('/tunnels/info');
+    const tokens = await api('/tokens');
+    let tokenRows = tokens.map((t, i) => `<tr id="tokenRow-${t.id}" data-token-id="${t.id}" data-token="${t.token}" data-name="${(t.name || 'My Tunnel').replace(/"/g, '&quot;')}" data-subdomain="${t.subdomain}" data-custom-domain="${t.custom_domain || ''}" data-ssh-port="${info.ssh_port}" style="cursor:pointer;transition:.15s">
+      <td>${i + 1}</td>
+      <td><span class="token-value"><strong class="code">${t.token.substring(0,8)}••••••••</strong> <button class="icon-btn copy-token-btn" data-token="${t.token}" title="Copy token">📋</button></span></td>
+      <td>${t.name || '—'}</td>
+      <td class="code">${t.subdomain}</td>
+      <td>${t.custom_domain ? `<span class="badge badge-blue">${t.custom_domain}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td>${t.created_at ? t.created_at.substring(0,10) : '—'}</td>
+      <td class="token-actions" data-token-id="${t.id}" data-name="${(t.name || '').replace(/"/g, '&quot;')}" data-domain="${t.custom_domain || ''}">
+        <button class="btn btn-sm btn-ghost edit-token-btn" title="Edit">✏️</button>
+        <button class="btn btn-sm btn-ghost regen-token-btn" title="Regenerate">🔄</button>
+        <button class="btn btn-sm btn-danger del-token-btn" title="Delete">🗑️</button>
+      </td>
+    </tr>`).join('');
+    if (!tokenRows) tokenRows = '<tr><td colspan="7" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
+
+    c.innerHTML = `
+    <div class="page-toolbar">
+      <div>
+        <div class="page-title">Manage Tokens</div>
+        <div class="page-subtitle">Create separate credentials for each tunnel or project.</div>
+      </div>
+      <div class="page-toolbar-actions"><button class="btn" id="generateTokenBtn">+ Generate Token</button></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div><div class="section-label">Credentials</div><h2 style="margin-top:.15rem">Your tokens <span class="token-meta">(${tokens.length})</span></h2></div>
+        <button class="btn btn-sm btn-ghost" id="refreshTokensBtn">🔄 Refresh</button>
+      </div>
+      <div class="card-body token-table-wrap" style="padding:0">
+        <table class="token-table">
+          <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Custom Domain</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody>${tokenRows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div id="tokenDetailPanel"></div>`;
+
+    // Attach event listeners to token rows (delayed for Cloudflare Rocket Loader)
+    setTimeout(() => {
+      document.querySelectorAll('tbody tr[data-token-id]').forEach(tr => {
+        tr.addEventListener('click', function(e) {
+          if (e.target.closest('.token-actions') || e.target.closest('.copy-token-btn')) return;
+          selectToken(
+            this.dataset.tokenId,
+            this.dataset.token,
+            this.dataset.name,
+            this.dataset.subdomain,
+            this.dataset.customDomain,
+            parseInt(this.dataset.sshPort)
+          );
+        });
+      });
+      document.querySelectorAll('.copy-token-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          copyToClipboard(this.dataset.token);
+        });
+      });
+      document.querySelectorAll('.edit-token-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const td = this.closest('.token-actions');
+          editToken(td.dataset.tokenId, td.dataset.name, td.dataset.domain);
+        });
+      });
+      document.querySelectorAll('.regen-token-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const td = this.closest('.token-actions');
+          regenerateToken(td.dataset.tokenId);
+        });
+      });
+      document.querySelectorAll('.del-token-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const td = this.closest('.token-actions');
+          deleteToken(td.dataset.tokenId);
+        });
+      });
+      // Generate New Token button
+      const genBtn = document.getElementById('generateTokenBtn');
+      if (genBtn) genBtn.addEventListener('click', () => showCreateTokenDialog());
+      // Refresh button
+      const refreshBtn = document.getElementById('refreshTokensBtn');
+      if (refreshBtn) refreshBtn.addEventListener('click', () => loadTokens());
+    }, 100);
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function selectToken(tokenId, token, name, subdomain, customDomain, sshPort) {
+  selectedTokenId = tokenId;
+  document.querySelectorAll('tbody tr').forEach(tr => { tr.style.background = ''; tr.style.borderLeft = ''; });
+  const row = document.getElementById('tokenRow-' + tokenId);
+  if (row) { row.style.background = 'var(--brand-light)'; row.style.borderLeft = '3px solid var(--brand)'; }
+
+  const tunnelUrl = customDomain ? `https://${customDomain}` : `https://${subdomain}.iraglobaltech.com`;
+  const sshCmd = `ssh -p ${sshPort} -R0:127.0.0.1:PORT -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@ssh.iraglobaltech.com`;
+
+  const panel = document.getElementById('tokenDetailPanel');
+  panel.innerHTML = `
+    <div class="card" style="border:1px solid var(--brand);margin-top:1rem;overflow:visible">
+      <div class="card-header" style="background:var(--brand-light)">
+        <h2 style="display:flex;align-items:center;gap:.5rem;font-size:1rem"><span style="font-size:1.1rem">🔌</span> ${name} — Connection Guide</h2>
+        <button class="btn btn-sm btn-ghost" id="closeTokenGuideBtn">✕ Close</button>
+      </div>
+      <div class="card-body" style="padding:1.5rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div style="padding:.875rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">
+            <div style="font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem">Access Token</div>
+            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+              <code style="font-size:.875rem;font-weight:700;color:var(--brand)">${token}</code>
+              <button class="btn btn-sm guide-copy-token" data-token="${token}" style="padding:.2rem .5rem;font-size:.75rem">📋 Copy</button>
+            </div>
+          </div>
+          <div style="padding:.875rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">
+            <div style="font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem">Tunnel URL</div>
+            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+              <a href="${tunnelUrl}" target="_blank" style="font-size:.85rem;font-weight:700;color:var(--brand);word-break:break-all">${tunnelUrl}</a>
+              <button class="btn btn-sm guide-copy-url" data-url="${tunnelUrl}" style="padding:.2rem .5rem;font-size:.75rem">📋</button>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:1.25rem">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0">1</div>
+            <div style="flex:1">
+              <div style="font-size:.875rem;font-weight:600;margin-bottom:.5rem">Choose your OS</div>
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap" id="tokenOsTabs">
+                <button class="os-tab active guide-os-tab" data-os="windows">🪟 Windows</button>
+                <button class="os-tab guide-os-tab" data-os="linux">🐧 Linux</button>
+                <button class="os-tab guide-os-tab" data-os="mac">🍎 Mac</button>
+              </div>
+              <label style="display:flex;align-items:center;gap:.5rem;margin-top:.75rem;font-size:.825rem;color:var(--text-dim);cursor:pointer;user-select:none">
+                <input type="checkbox" id="tokenAutoReconnect" style="width:auto;margin:0;cursor:pointer;accent-color:var(--brand)">
+                Automatically reconnect if the server or network disconnects
+              </label>
+            </div>
+          </div>
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0">2</div>
+            <div style="flex:1">
+              <div style="font-size:.875rem;font-weight:600;margin-bottom:.5rem">Enter your local port</div>
+              <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+                <input type="number" id="tokenLocalPort" value="8080" min="1" max="65535" style="width:100px">
+                <span style="font-size:.8rem;color:var(--text-dim)">The port your local service runs on (e.g. 8080, 3000, 8000)</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0">3</div>
+            <div style="flex:1">
+              <div style="font-size:.875rem;font-weight:600;margin-bottom:.5rem" id="tokenCmdTitle">Run this PowerShell command</div>
+              <div class="cmd-box" style="position:relative">
+                <pre id="tokenSshCmd" style="white-space:pre-wrap;word-break:break-all;font-size:.85rem">${sshCmd.replace('PORT', '8080')}</pre>
+                <button class="btn btn-sm guide-copy-cmd" style="position:absolute;top:.375rem;right:.375rem;padding:.3rem .6rem;font-size:.75rem">📋 Copy</button>
+              </div>
+              <div id="tokenWindowsCmdWrap" style="margin-top:.75rem">
+                <div style="font-size:.75rem;font-weight:600;color:var(--text-dim);margin-bottom:.35rem">Windows Command Prompt (one-time connection)</div>
+                <div class="cmd-box" style="position:relative">
+                  <pre id="tokenWindowsCmd" style="white-space:pre-wrap;word-break:break-all;font-size:.85rem">${sshCmd.replace('PORT', '8080')}</pre>
+                  <button class="btn btn-sm guide-copy-windows-cmd" style="position:absolute;top:.375rem;right:.375rem;padding:.3rem .6rem;font-size:.75rem">📋 Copy</button>
+                </div>
+              </div>
+              <div id="tokenOsHint" style="margin-top:.5rem;font-size:.825rem;color:var(--text-dim);line-height:1.5">
+                Open <strong>Command Prompt (CMD)</strong> and paste the command above.
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0">4</div>
+            <div style="flex:1">
+              <div style="font-size:.875rem;font-weight:600;margin-bottom:.5rem">Access your tunnel</div>
+              <div style="padding:.875rem 1rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.3);border-radius:var(--radius);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+                <span style="font-size:1.25rem">🌐</span>
+                <div style="flex:1;min-width:200px">
+                  <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:.15rem">Your tunnel will be available at:</div>
+                  <a href="${tunnelUrl}" target="_blank" style="font-size:.95rem;font-weight:700;color:var(--green);word-break:break-all">${tunnelUrl}</a>
+                </div>
+                <button class="btn btn-sm guide-copy-url2" data-url="${tunnelUrl}" style="padding:.3rem .6rem;font-size:.75rem">📋</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:1.25rem;padding:.875rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;color:var(--text-dim);line-height:1.7">
+          <strong style="color:var(--text)">💡 Tips:</strong><br>
+          • Keep the terminal window open while you need the tunnel — closing it disconnects the tunnel.<br>
+          • The <code style="color:var(--brand)">-R0:</code> flag auto-assigns a remote port. Your tunnel URL stays the same.<br>
+          • <code style="color:var(--brand)">ServerAliveInterval=30</code> keeps the connection alive with periodic keep-alive packets.<br>
+          ${customDomain ? '• Visitors to your custom domain will be routed through this tunnel.' : '• Your subdomain <code style="color:var(--brand)">' + subdomain + '</code> is fixed for this token — it will not change between connections.'}
+        </div>
+      </div>
+    </div>`;
+
+  window._tokenSshConfig = { token, sshPort, os: 'windows', autoReconnect: false };
+
+  // Attach event listeners (Cloudflare Rocket Loader safe)
+  setTimeout(() => {
+    document.getElementById('closeTokenGuideBtn')?.addEventListener('click', () => closeTokenDetail());
+    document.querySelector('.guide-copy-token')?.addEventListener('click', function() { copyToClipboard(this.dataset.token); });
+    document.querySelector('.guide-copy-url')?.addEventListener('click', function() { copyToClipboard(this.dataset.url); });
+    document.querySelector('.guide-copy-url2')?.addEventListener('click', function() { copyToClipboard(this.dataset.url); });
+    document.querySelector('.guide-copy-cmd')?.addEventListener('click', () => {
+      const cmd = document.getElementById('tokenSshCmd');
+      if (cmd) copyToClipboard(cmd.textContent);
+    });
+    document.querySelector('.guide-copy-windows-cmd')?.addEventListener('click', () => {
+      const cmd = document.getElementById('tokenWindowsCmd');
+      if (cmd) copyToClipboard(cmd.textContent);
+    });
+    document.querySelectorAll('.guide-os-tab').forEach(tab => {
+      tab.addEventListener('click', function() { switchTokenOs(this.dataset.os, this); });
+    });
+    const reconnectInput = document.getElementById('tokenAutoReconnect');
+    if (reconnectInput) reconnectInput.addEventListener('change', () => updateTokenCmd());
+    const portInput = document.getElementById('tokenLocalPort');
+    if (portInput) portInput.addEventListener('change', () => updateTokenCmd());
+  }, 50);
+}
+
+function switchTokenOs(os, btn) {
+  document.querySelectorAll('#tokenOsTabs .os-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  if (window._tokenSshConfig) window._tokenSshConfig.os = os;
+  const hint = document.getElementById('tokenOsHint');
+  const commandTitle = document.getElementById('tokenCmdTitle');
+  const windowsCommand = document.getElementById('tokenWindowsCmdWrap');
+  if (os === 'windows') {
+    hint.innerHTML = 'Open <strong>PowerShell</strong> and paste the command above.';
+    if (commandTitle) commandTitle.textContent = 'Run this PowerShell command';
+    if (windowsCommand) windowsCommand.style.display = 'block';
+  } else if (os === 'linux') {
+    hint.innerHTML = 'Open your <strong>terminal</strong> (Ctrl+Alt+T) and paste the command above.';
+    if (commandTitle) commandTitle.textContent = 'Run this Terminal command';
+    if (windowsCommand) windowsCommand.style.display = 'none';
+  } else {
+    hint.innerHTML = 'Open <strong>Terminal</strong> (Cmd+Space → "Terminal") and paste the command above.';
+    if (commandTitle) commandTitle.textContent = 'Run this Terminal command';
+    if (windowsCommand) windowsCommand.style.display = 'none';
+  }
+  updateTokenCmd();
+}
+
+function updateTokenCmd() {
+  const port = document.getElementById('tokenLocalPort').value || '8080';
+  const config = window._tokenSshConfig;
+  if (!config) return;
+  const ssh = `ssh -p ${config.sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${config.token}@ssh.iraglobaltech.com`;
+  let command = ssh;
+  if (document.getElementById('tokenAutoReconnect')?.checked) {
+    if (config.os === 'windows') {
+      command = `while ($true) { ${ssh}; Write-Host "Disconnected. Reconnecting in 5 seconds..."; Start-Sleep -Seconds 5 }`;
+    } else {
+      command = `while true; do\n  ${ssh}\n  echo "Disconnected. Reconnecting in 5 seconds..."\n  sleep 5\ndone`;
+    }
+  }
+  document.getElementById('tokenSshCmd').textContent = command;
+  const windowsCommand = `ssh -p ${config.sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${config.token}@ssh.iraglobaltech.com`;
+  const windowsCommandEl = document.getElementById('tokenWindowsCmd');
+  if (windowsCommandEl) windowsCommandEl.textContent = windowsCommand;
+}
+
+function closeTokenDetail() {
+  selectedTokenId = null;
+  document.querySelectorAll('tbody tr').forEach(tr => { tr.style.background = ''; tr.style.borderLeft = ''; });
+  document.getElementById('tokenDetailPanel').innerHTML = '';
+}
+
+async function showCreateTokenDialog() {
+  showModal('Generate New Token', `
+    <div class="form-group">
+      <label>Token name</label>
+      <input type="text" id="newTokenName" placeholder="e.g. My API Server" value="New Token">
+    </div>
+    <div class="form-group">
+      <label>Custom domain (optional — Pro only)</label>
+      <input type="text" id="newTokenDomain" placeholder="e.g. api.myapp.com">
+      <div style="font-size:.75rem;color:var(--text-dim);margin-top:.3rem">Point your domain's A record to 13.140.131.204 via Cloudflare (Proxied, SSL Flexible).</div>
+    </div>
+  `, async () => {
+    const name = document.getElementById('newTokenName').value.trim() || 'New Token';
+    const domain = document.getElementById('newTokenDomain').value.trim();
+    try {
+      closeModal();
+      const payload = { name };
+      if (domain) payload.custom_domain = domain;
+      const result = await api('/tokens', 'POST', JSON.stringify(payload));
+      toast('Token created: ' + result.token + (domain ? ' · domain: ' + domain : ''));
+      loadTokens();
+    } catch (e) {
+      if (e.message.toLowerCase().includes('free plan') || e.message.toLowerCase().includes('upgrade')) {
+        showUpgradeModal();
+      } else { toast(e.message, 'error'); }
+    }
+  });
+}
+
+function showUpgradeModal() {
+  showModal('Upgrade Required', `
+    <div style="text-align:center;padding:.5rem 0">
+      <div style="font-size:2.5rem;margin-bottom:.5rem">🔒</div>
+      <p style="font-size:.925rem;line-height:1.6;margin-bottom:.25rem"><strong>Free plan allows only 1 tunnel.</strong></p>
+      <p style="font-size:.825rem;color:var(--text-dim);line-height:1.6">Upgrade to Pro for multiple tunnels, persistent URLs (no 60-min timeout) and custom domains.</p>
+    </div>
+  `, () => {
+    closeModal();
+    navigate('subscription', document.querySelector('[data-page=subscription]'));
+  }, 'Upgrade to Pro →');
+}
+
+async function editToken(tokenId, currentName, currentDomain) {
+  showModal('Edit Token', `
+    <div class="form-group">
+      <label>Token name</label>
+      <input type="text" id="editTokenName" value="${currentName}">
+    </div>
+    <div class="form-group">
+      <label>Custom domain (leave empty for none)</label>
+      <input type="text" id="editTokenDomain" value="${currentDomain}" placeholder="e.g. serverira.com">
+    </div>
+  `, async () => {
+    const name = document.getElementById('editTokenName').value.trim();
+    const domain = document.getElementById('editTokenDomain').value.trim();
+    try {
+      closeModal();
+      await api(`/tokens/${tokenId}`, 'PUT', JSON.stringify({ name, custom_domain: domain }));
+      toast('Token updated');
+      loadTokens();
+    } catch (e) { toast(e.message, 'error'); }
+  });
+}
+
+async function regenerateToken(tokenId) {
+  showModal('Regenerate Token', `
+    <p style="font-size:.875rem;color:var(--text-dim);line-height:1.5">Are you sure? The old token will stop working immediately. Any active tunnels using it will be disconnected.</p>
+  `, async () => {
+    try {
+      closeModal();
+      const result = await api(`/tokens/${tokenId}/regenerate`, 'POST');
+      toast('Token regenerated: ' + result.token);
+      loadTokens();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Regenerate', 'btn-danger');
+}
+
+async function deleteToken(tokenId) {
+  showModal('Delete Token', `
+    <p style="font-size:.875rem;color:var(--text-dim);line-height:1.5">Are you sure? This token will be permanently deleted. Active tunnels using it will be disconnected.</p>
+  `, async () => {
+    try {
+      closeModal();
+      await api(`/tokens/${tokenId}`, 'DELETE');
+      toast('Token deleted');
+      loadTokens();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Delete', 'btn-danger');
+}
+
+// ---- Modal helpers ----
+function showModal(title, bodyHtml, onConfirm, confirmText = 'Confirm', confirmClass = '') {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  const confirmBtn = document.getElementById('modalConfirm');
+  confirmBtn.textContent = confirmText;
+  confirmBtn.className = 'btn btn-sm ' + confirmClass;
+  confirmBtn.onclick = onConfirm;
+  document.getElementById('modalOverlay').style.display = 'flex';
+  // Focus first input
+  setTimeout(() => {
+    const firstInput = document.querySelector('#modalBody input');
+    if (firstInput) firstInput.focus();
+  }, 50);
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').style.display = 'none';
+}
+
+// ---- Subscription (Page 6) ----
+let billingCycle = 'monthly';
+let proSeats = 1;
+
+async function loadSubscription() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    // Payment redirect feedback (?payment=success|cancel)
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    let paymentBanner = '';
+    if (paymentStatus === 'success') {
+      paymentBanner = `<div style="margin-bottom:1rem;padding:.85rem 1.25rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.4);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem">
+        <span style="font-size:1.25rem">🎉</span>
+        <div style="flex:1"><strong>Payment successful!</strong> <span style="color:var(--text-dim);font-size:.85rem">Your Pro plan is being activated — it may take a moment to confirm.</span></div>
+      </div>`;
+      // Clean the query param
+      window.history.replaceState({}, '', '/dashboard');
+    } else if (paymentStatus === 'cancel') {
+      paymentBanner = `<div style="margin-bottom:1rem;padding:.85rem 1.25rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.4);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem">
+        <span style="font-size:1.25rem">ℹ️</span>
+        <div style="flex:1"><strong>Payment cancelled.</strong> <span style="color:var(--text-dim);font-size:.85rem">No charge was made. You can try again anytime.</span></div>
+      </div>`;
+      window.history.replaceState({}, '', '/dashboard');
+    }
+    const [info, pay, myTunnels] = await Promise.all([
+      api('/auth/me').catch(() => ({})),
+      api('/payments/my'),
+      api('/tunnels/my').catch(() => []),
+    ]);
+    const isPro = (info.plan || pay.plan || 'free') === 'pro';
+    const enabled = pay.enabled || {};
+    const priceInr = pay.price_inr || 199;
+    const priceUsd = pay.price_usd || 2.99;
+    const yearlyInr = Math.round(priceInr * 10); // 12 months for price of 10 (save ~17%)
+
+    // Usage stats (from live tunnels + history of payments page)
+    const totalRequests = (myTunnels || []).reduce((s, t) => s + (t.request_count || 0), 0);
+    const totalBytes = (myTunnels || []).reduce((s, t) => s + (t.bytes_transferred || 0), 0);
+    const usageStr = totalBytes > 1048576 ? (totalBytes / 1048576).toFixed(2) + ' MB' : (totalBytes / 1024).toFixed(1) + ' KB';
+
+    // Days left on Pro
+    let daysLeft = null;
+    let renewalDate = null;
+    if (isPro && info.plan_expires_at) {
+      const end = new Date(info.plan_expires_at);
+      renewalDate = info.plan_expires_at.substring(0, 10);
+      daysLeft = Math.max(0, Math.ceil((end - new Date()) / 86400000));
+    }
+
+    // Payment history
+    const historyRows = (pay.history || []).map(p => {
+      const statusClass = p.status === 'paid' ? 'badge-green' : (p.status === 'failed' || p.status === 'expired') ? 'badge-red' : 'badge-amber';
+      const dt = p.created_at ? p.created_at.substring(0, 10) : '—';
+      return `<tr>
+      <td>${dt}</td>
+      <td style="text-transform:capitalize">${p.method}</td>
+      <td style="text-transform:capitalize">${p.plan}</td>
+      <td>${p.amount.toFixed(2)} ${p.currency}</td>
+      <td><span class="badge ${statusClass}">${p.status}</span></td>
+    </tr>`;
+    }).join('') || '<tr><td colspan="5" class="empty">No payments yet</td></tr>';
+
+    // Active subscriptions — real plan period from plan_expires_at (admin or payment activated)
+    let activeRows = '';
+    if (isPro) {
+      // Paid payment rows take precedence (show actual purchase period)
+      const paidRows = (pay.history || []).filter(p => p.status === 'paid').map(p => {
+        const start = p.created_at ? p.created_at.substring(0, 10) : '—';
+        const endDt = new Date(p.created_at);
+        endDt.setMonth(endDt.getMonth() + 1);
+        return `<tr><td>Tunnel Pro</td><td>1</td><td>${start}</td><td>${endDt.toISOString().substring(0, 10)}</td></tr>`;
+      });
+      if (paidRows.length) {
+        activeRows = paidRows.join('');
+      } else if (renewalDate) {
+        // Admin-activated plan — derive start from expiry minus 30d default
+        const startDt = new Date(info.plan_expires_at);
+        startDt.setDate(startDt.getDate() - 30);
+        activeRows = `<tr><td>Tunnel Pro</td><td>1</td><td>${startDt.toISOString().substring(0, 10)}</td><td>${renewalDate}</td></tr>`;
+      } else {
+        activeRows = `<tr><td>Tunnel Pro</td><td>1</td><td>—</td><td>—</td></tr>`;
+      }
+    } else {
+      activeRows = '<tr><td colspan="4" class="empty">No active subscriptions</td></tr>';
+    }
+
+    const proPriceDisplay = billingCycle === 'monthly' ? `₹${priceInr * proSeats}/mo` : `₹${yearlyInr * proSeats}/yr`;
+    const proSub = billingCycle === 'monthly' ? '' : `<div style="font-size:.75rem;color:var(--text-dim);margin-top:.15rem">(₹${yearlyInr} per year · save 17%)</div>`;
+
+    c.innerHTML = `
+    ${paymentBanner}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem">
+      <div>
+        <div class="page-title">Subscription</div>
+        <div class="page-subtitle" style="margin-bottom:0">Manage your plan and payment methods</div>
+      </div>
+    </div>
+
+    ${isPro ? `
+    <div style="margin-bottom:1.25rem;padding:1rem 1.25rem;background:var(--green-bg);border:1px solid rgba(41,169,127,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <span style="font-size:1.5rem">⭐</span>
+      <div style="flex:1;min-width:200px">
+        <strong style="font-size:1rem">You are on Pro</strong>
+        <div style="font-size:.825rem;color:var(--text-dim)">Persistent tunnels, fixed subdomains, custom domain${renewalDate ? ' · renews ' + renewalDate : ''}${daysLeft !== null ? ' · <strong style="color:var(--green)">' + daysLeft + ' days left</strong>' : ''}</div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="loadSubscription()">🔄 Refresh</button>
+        <button class="btn btn-ghost btn-sm" onclick="scrollToPay()">➕ Extend / Add Seats</button>
+      </div>
+    </div>` : `
+    <div style="margin-bottom:1.25rem;padding:1rem 1.25rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <span style="font-size:1.5rem">🆓</span>
+      <div style="flex:1;min-width:200px">
+        <strong style="font-size:.95rem">You are on Free</strong>
+        <div style="font-size:.825rem;color:var(--text-dim)">1 tunnel · 60-minute timeout · random subdomain each connect</div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="loadSubscription()">🔄 Refresh</button>
+        <button class="btn btn-sm" onclick="scrollToPlans()">Upgrade Plan</button>
+      </div>
+    </div>`}
+
+    <div class="stat-grid" style="margin-bottom:1.25rem">
+      <div class="stat-card"><div class="label">Active Tunnels</div><div class="value">${(myTunnels || []).length}</div></div>
+      <div class="stat-card"><div class="label">Total Requests</div><div class="value">${totalRequests}</div></div>
+      <div class="stat-card"><div class="label">Data Transfer</div><div class="value">${usageStr}</div></div>
+      ${isPro ? `<div class="stat-card"><div class="label">Plan</div><div class="value" style="color:var(--green);font-size:1.25rem">Pro${daysLeft !== null ? ' · ' + daysLeft + 'd' : ''}</div></div>` : `<div class="stat-card"><div class="label">Plan</div><div class="value" style="font-size:1.25rem">Free</div></div>`}
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2 style="color:var(--green)">Your Active Subscriptions</h2></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table>
+          <thead><tr><th>Plan</th><th>Number of seats</th><th>Start Date</th><th>End / Renewal Date</th></tr></thead>
+          <tbody>${activeRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin:2rem 0 1.25rem">
+      <h2 style="font-size:1.35rem;font-weight:800;margin-bottom:.25rem">Subscribe to the easiest localhost tunneling.</h2>
+      <p style="font-size:.875rem;color:var(--text-dim)">Make your development experience smoother by unlocking the full potential.</p>
+      <div style="display:inline-flex;gap:.25rem;background:var(--bg);border-radius:var(--radius);padding:.25rem;margin-top:1rem" id="cycleToggle">
+        <button class="btn btn-sm" style="min-width:90px" id="btnMonthly" onclick="setCycle('monthly')">Monthly</button>
+        <button class="btn btn-ghost btn-sm" style="min-width:90px" id="btnYearly" onclick="setCycle('yearly')">Yearly</button>
+      </div>
+    </div>
+
+    <div id="plansSection" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;align-items:stretch;margin-bottom:1.5rem">
+      <div class="card" style="display:flex;flex-direction:column">
+        <div class="card-body" style="text-align:center;flex:1">
+          <div style="font-size:1.5rem;font-weight:800">Free</div>
+          <div style="color:var(--text-dim);font-size:.85rem;margin-top:.35rem">Free forever</div>
+          <div style="font-size:2rem;font-weight:900;margin-top:.5rem">₹0<span style="font-size:.875rem;font-weight:500;color:var(--text-dim)">/mo</span></div>
+        </div>
+        <div style="padding:0 1rem .5rem;flex:1">
+          <table style="font-size:.85rem">
+            <tr><td style="padding:.3rem 0">Single command tunneling</td></tr>
+            <tr><td style="padding:.3rem 0">HTTP(S) tunnels</td></tr>
+            <tr><td style="padding:.3rem 0;font-weight:700">60 minutes tunnel timeout</td></tr>
+            <tr><td style="padding:.3rem 0">Random subdomains</td></tr>
+            <tr><td style="padding:.3rem 0">1 tunnel at a time</td></tr>
+          </table>
+        </div>
+        <div style="padding:1rem">
+          ${isPro ? `<button class="btn btn-ghost" style="width:100%;opacity:.6" onclick="downgradeModal()">Downgrade to Free</button>` : `<button class="btn btn-ghost" style="width:100%" onclick="toast('You are already on the Free plan')">Current Plan</button>`}
+        </div>
+      </div>
+
+      <div class="card" style="display:flex;flex-direction:column;border:2px solid var(--brand);position:relative;overflow:visible;margin-top:1rem">
+        <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;font-size:.7rem;font-weight:700;padding:.2rem .75rem;border-radius:999px;letter-spacing:.05em;white-space:nowrap">MOST POPULAR</div>
+        <div class="card-body" style="text-align:center;flex:1;padding-bottom:.5rem">
+          <div style="font-size:1.5rem;font-weight:800">Pro</div>
+          <div style="color:var(--text-dim);font-size:.85rem;margin-top:.35rem">For developers who need more</div>
+          <div style="font-size:2rem;font-weight:900;margin-top:.75rem;color:var(--brand)">₹${billingCycle === 'yearly' ? yearlyInr * proSeats : priceInr * proSeats}<span style="font-size:.875rem;font-weight:500;color:var(--text-dim)">/${billingCycle === 'yearly' ? 'yr' : 'mo'}</span></div>
+          ${proSub}
+          <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:.75rem;padding:.5rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">
+            <button class="icon-btn" onclick="changeSeats(-1)" style="width:28px;height:28px;font-size:1rem">−</button>
+            <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
+              <input type="text" value="${proSeats}" readonly style="width:48px;text-align:center;padding:.25rem .3rem;font-weight:700;border:none;background:transparent">
+              <span style="font-size:.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em">seat${proSeats > 1 ? 's' : ''}</span>
+            </div>
+            <button class="icon-btn" onclick="changeSeats(1)" style="width:28px;height:28px;font-size:1rem">+</button>
+          </div>
+        </div>
+        <div style="padding:0 1rem .5rem;flex:1">
+          <table style="font-size:.85rem">
+            <tr><td style="padding:.3rem 0">Everything in Free plan</td></tr>
+            <tr><td style="padding:.3rem 0;font-weight:700">Unlimited tunnel duration</td></tr>
+            <tr><td style="padding:.3rem 0;font-weight:700">Multiple tunnels (${proSeats} seat${proSeats > 1 ? 's' : ''})</td></tr>
+            <tr><td style="padding:.3rem 0;font-weight:700">Fixed subdomain per token</td></tr>
+            <tr><td style="padding:.3rem 0;font-weight:700">1 Custom domain</td></tr>
+            <tr><td style="padding:.3rem 0">Priority support</td></tr>
+          </table>
+        </div>
+        <div style="padding:1rem">
+          ${isPro ? `<button class="btn" style="width:100%" onclick="showCheckoutModal()">Extend / Add ${proSeats} Seat${proSeats > 1 ? 's' : ''} — ${proPriceDisplay}</button>` : `<button class="btn" style="width:100%" onclick="showCheckoutModal()">Buy Pro — ${proPriceDisplay}</button>`}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2>Payment History</h2></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table>
+          <thead><tr><th>Date</th><th>Method</th><th>Plan</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody>${historyRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function setCycle(cycle) {
+  billingCycle = cycle;
+  const m = document.getElementById('btnMonthly');
+  const y = document.getElementById('btnYearly');
+  if (m && y) {
+    if (cycle === 'monthly') { m.className = 'btn btn-sm'; y.className = 'btn btn-ghost btn-sm'; }
+    else { y.className = 'btn btn-sm'; m.className = 'btn btn-ghost btn-sm'; }
+  }
+  loadSubscription();
+}
+
+function changeSeats(delta) {
+  proSeats = Math.max(1, Math.min(10, proSeats + delta));
+  loadSubscription();
+}
+
+function scrollToPlans() {
+  const el = document.getElementById('plansSection');
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
+}
+
+function showCheckoutModal() {
+  const priceInr = 199;
+  const priceUsd = 2.99;
+  const months = billingCycle === 'yearly' ? 12 : 1;
+  const inrTotal = billingCycle === 'yearly' ? priceInr * proSeats * 10 : priceInr * proSeats;
+  const usdTotal = billingCycle === 'yearly' ? priceUsd * proSeats * 10 : priceUsd * proSeats;
+  const cycleLabel = billingCycle === 'yearly' ? 'year' : 'month';
+  const perMonthInr = Math.round(inrTotal / (billingCycle === 'yearly' ? 12 : 1));
+
+  showModal('Checkout', `
+    <div style="margin-bottom:1rem">
+      <div style="font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;margin-bottom:.5rem">Order Summary</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+          <span style="font-weight:700">Tunnel Pro</span>
+          <span class="badge badge-blue">${billingCycle === 'yearly' ? 'Yearly' : 'Monthly'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--text-dim);margin-bottom:.25rem">
+          <span>Seats</span><span>${proSeats}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--text-dim);margin-bottom:.25rem">
+          <span>Billing cycle</span><span>${billingCycle === 'yearly' ? '12 months (pay for 10)' : '1 month'}</span>
+        </div>
+        ${billingCycle === 'yearly' ? `<div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--green);margin-bottom:.25rem"><span>Savings</span><span>₹${priceInr * proSeats * 2}</span></div>` : ''}
+        <div style="border-top:1px solid var(--border);margin-top:.5rem;padding-top:.5rem;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:700">Total</span>
+          <div style="text-align:right">
+            <div style="font-size:1.25rem;font-weight:900;color:var(--brand)">₹${inrTotal}</div>
+            <div style="font-size:.75rem;color:var(--text-dim)">≈ $${usdTotal.toFixed(2)} USD</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;margin-bottom:.5rem">Choose Payment Method</div>
+    <div id="checkoutPayMethods" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem">
+      <label class="checkout-pay-opt" style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:var(--bg);border:2px solid var(--brand);border-radius:var(--radius);cursor:pointer;transition:.15s">
+        <input type="radio" name="payMethod" value="stripe" checked style="width:auto">
+        <span style="font-size:1.3rem">💳</span>
+        <div style="flex:1">
+          <strong>Stripe</strong>
+          <div style="font-size:.75rem;color:var(--text-dim)">Card · UPI · NetBanking · INR</div>
+        </div>
+      </label>
+      <label class="checkout-pay-opt" style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:.15s">
+        <input type="radio" name="payMethod" value="paypal" style="width:auto">
+        <span style="font-size:1.3rem">🅿️</span>
+        <div style="flex:1">
+          <strong>PayPal</strong>
+          <div style="font-size:.75rem;color:var(--text-dim)">Wallet · $${usdTotal.toFixed(2)} USD</div>
+        </div>
+      </label>
+      <label class="checkout-pay-opt" style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:.15s">
+        <input type="radio" name="payMethod" value="nowpayments" style="width:auto">
+        <span style="font-size:1.3rem">🪙</span>
+        <div style="flex:1">
+          <strong>Crypto</strong>
+          <div style="font-size:.75rem;color:var(--text-dim)">BTC · ETH · USDT · NowPayments</div>
+        </div>
+      </label>
+    </div>
+
+    <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:.75rem;line-height:1.5">
+      🔒 Payments are processed securely. You'll be redirected to the payment provider to complete your purchase.
+    </div>
+  `, async () => {
+    const method = document.querySelector('input[name="payMethod"]:checked')?.value || 'stripe';
+    closeModal();
+    await startCheckout(method);
+  }, 'Pay Now → ₹' + inrTotal, 'btn');
+
+  // Add radio button selection styling
+  document.querySelectorAll('#checkoutPayMethods label').forEach(lbl => {
+    const radio = lbl.querySelector('input[type="radio"]');
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('#checkoutPayMethods label').forEach(l => {
+        l.style.border = '1px solid var(--border)';
+        l.style.background = 'var(--bg)';
+      });
+      lbl.style.border = '2px solid var(--brand)';
+      lbl.style.background = 'var(--brand-light)';
+    });
+  });
+}
+
+async function startCheckout(method) {
+  try {
+    toast('Creating payment...');
+    const resp = await api('/payments/checkout', 'POST', JSON.stringify({ method, plan: 'pro', seats: proSeats || 1, cycle: billingCycle || 'monthly' }));
+    if (resp.url) {
+      window.location.href = resp.url;
+    } else {
+      toast('No payment URL returned', 'error');
+    }
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function downgradeModal() {
+  showModal('Downgrade to Free', `
+    <p style="font-size:.875rem;color:var(--text-dim);line-height:1.6">
+      Are you sure you want to downgrade to <strong style="color:var(--text)">Free</strong>?
+    </p>
+    <div style="margin-top:.75rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim)">
+      You will lose: persistent tunnels, fixed subdomains, custom domain.<br>
+      Free limits: 1 tunnel · 60-minute timeout · random subdomain.
+    </div>
+    <p style="font-size:.78rem;color:var(--text-dim);margin-top:.6rem">Note: an admin will process your downgrade. Your Pro stays active until then.</p>
+  `, () => {
+    closeModal();
+    toast('Downgrade requested — contact support or admin to process', 'success');
+  }, 'Request Downgrade', 'btn-danger');
+}
+
+// ---- Tunnel helpers ----
+function buildSSHCommand() {
+  const info = tunnelState.info;
+  if (!info) return '';
+  if (!tunnelState.token) return 'Create a token first in Manage Tokens →';
+  const port = tunnelState.localPort;
+  const token = tunnelState.token;
+  const sshPort = info.ssh_port;
+  const sshHost = info.domain.includes('iraglobaltech.com') ? 'ssh.iraglobaltech.com' : info.domain;
+  const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
+  if (!document.getElementById('autoReconnectInput')?.checked) return ssh;
+  const os = tunnelState.os || 'cmd';
+  if (os === 'cmd') {
+    return `for /L %i in (0,1,2147483647) do @(${ssh} & echo Disconnected. Reconnecting in 5 seconds... & timeout /t 5 /nobreak >nul)`;
+  }
+  if (os === 'powershell') {
+    return `while ($true) { ${ssh}; Write-Host "Disconnected. Reconnecting in 5 seconds..."; Start-Sleep -Seconds 5 }`;
+  }
+  return `while true; do\n  ${ssh}\n  echo "Disconnected. Reconnecting in 5 seconds..."\n  sleep 5\ndone`;
+}
+
+function updateSSHCommand() {
+  const el = document.getElementById('sshCommand');
+  if (el) el.textContent = buildSSHCommand();
+}
+
+function updateLocalPort(port) {
+  tunnelState.localPort = parseInt(port) || 8080;
+  updateSSHCommand();
+}
+
+function switchOS(os, el) {
+  document.querySelectorAll('#osTabs .os-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  tunnelState.os = os;
+  const hint = document.getElementById('osHint');
+  if (hint) {
+    const hints = {
+      cmd: 'Open Command Prompt (CMD) and paste the following command:',
+      powershell: 'Open PowerShell and paste the following command:',
+      linux: 'Open your terminal (Ctrl+Alt+T) and paste the following command:',
+      mac: 'Open Terminal (Cmd+Space → "Terminal") and paste the following command:'
+    };
+    hint.textContent = hints[os] || hints.cmd;
+  }
+  updateSSHCommand();
+}
+
+// ---- Polling ----
+function startTunnelPolling() {
+  stopTunnelPolling();
+  tunnelPollTimer = setInterval(async () => {
+    if (!document.getElementById('sshCommand')) return;
+    try {
+      const tunnels = await api('/tunnels/my');
+      updateTunnelBanner(tunnels);
+      updateTunnelTable(tunnels);
+    } catch {}
+  }, 5000);
+}
+
+function stopTunnelPolling() {
+  if (tunnelPollTimer) { clearInterval(tunnelPollTimer); tunnelPollTimer = null; }
+}
+
+function updateTunnelBanner(tunnels) {
+  const banner = document.getElementById('tunnelBanner');
+  if (!banner) return;
+  if (tunnels.length > 0) {
+    const t = tunnels[0];
+    banner.style.display = 'block';
+    banner.className = 'tunnel-banner';
+    const customUrlHtml = t.custom_url
+      ? `<div style="margin-top:.25rem"><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-weight:600;font-size:.95rem">${t.custom_url}</a> <button class="btn btn-sm" style="padding:.2rem .5rem;font-size:.75rem" onclick="copyToClipboard('${t.custom_url}')">📋</button></div>`
+      : '';
+    banner.innerHTML = `
+      <div class="dot"></div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:1.1rem;color:var(--primary)">Tunnel Active!</div>
+        <div style="font-size:.9rem;color:var(--text-dim)">Your tunnel URL:</div>
+        ${customUrlHtml}
+      </div>
+      <a href="${t.url}" target="_blank" class="url">${t.url}</a>
+      <button class="btn btn-sm" onclick="copyToClipboard('${t.url}')">📋 Copy</button>`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function updateTunnelTable(tunnels) {
+  const tbody = document.getElementById('tunnelTableBody');
+  const countEl = document.getElementById('tunnelCount');
+  if (!tbody) return;
+  if (countEl) countEl.textContent = tunnels.length;
+  if (tunnels.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
+    return;
+  }
+  const now = Date.now();
+  tbody.innerHTML = tunnels.map(t => {
+    const urlCell = t.custom_url
+      ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
+      : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+    // Calculate KB/s for this tunnel
+    const tunnelId = t.id || t.subdomain;
+    let kbps = '—';
+    if (tunnelRateTracker[tunnelId]) {
+      const prev = tunnelRateTracker[tunnelId];
+      const bytesDelta = (t.bytes_transferred || 0) - prev.lastBytes;
+      const timeDeltaMs = now - prev.lastTime;
+      if (timeDeltaMs > 0) {
+        const kbpsDelta = (bytesDelta / 1024) / (timeDeltaMs / 1000);
+        kbps = kbpsDelta.toFixed(2);
+      }
+    }
+    tunnelRateTracker[tunnelId] = { lastBytes: t.bytes_transferred || 0, lastTime: now };
+    return `<tr>
+    ${urlCell}
+    <td class="code">${t.subdomain}</td>
+    <td>${t.request_count}</td>
+    <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+    <td>${kbps} KB/s</td>
+    <td><span class="badge badge-green">${t.status}</span></td>
+    <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+  </tr>`;
+  }).join('');
+}
+
+// ---- Custom Domain ----
+async function saveMyCustomDomain(clear) {
+  const input = document.getElementById('myCustomDomain') || document.getElementById('domainInput');
+  const domain = clear ? '' : input.value.trim();
+  if (!clear && !domain) { toast('Enter a domain first', 'error'); return; }
+  if (!clear && domain) {
+    const cd = domain.toLowerCase();
+    if (cd.endsWith('.iraglobaltech.com') || cd === 'iraglobaltech.com') {
+      const allowed = (currentUser.role === 'admin') || (currentUser.email === 'support@iraglobaltech.com');
+      if (!allowed) { toast('Subdomains of iraglobaltech.com can only be set by admin or support.', 'error'); return; }
+    }
+  }
+  try {
+    await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}`, 'PUT');
+    toast(clear ? 'Custom domain cleared' : 'Custom domain saved');
+    if (clear) input.value = '';
+    loadQuickstart();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Clipboard helpers ----
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard')).catch(() => {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('Copied to clipboard'); } catch { toast('Copy failed', 'error'); }
+    document.body.removeChild(ta);
+  });
+}
+function copyToken() { copyToClipboard(tunnelState.token); }
+function copySSHCmd() { copyToClipboard(buildSSHCommand()); }
+function copyCfgCmd() { copyToClipboard(buildSSHCommand()); }
+function toggleTokenVisibility() {
+  const el = document.getElementById('accessToken');
+  if (el) { el.type = el.type === 'password' ? 'text' : 'password'; }
+}
+
+// ---- Init ----
+async function checkAuth() {
+  if (!authToken) {
+    window.location.replace('/login');
+    return false;
+  }
+  try {
+    const resp = await fetch('/api/v1/auth/me', { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!resp.ok) throw new Error('Token expired');
+    currentUser = await resp.json();
+    return true;
+  } catch {
+    localStorage.removeItem('pinggy_token');
+    authToken = '';
+    window.location.replace('/login');
+    return false;
+  }
+}
+
+// Detect back/forward navigation (bfcache) — immediately hide and check auth
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted || (performance && performance.getEntriesByType && performance.getEntriesByType('navigation').some(n => n.type === 'back_forward'))) {
+    // Page restored from bfcache — immediately hide ALL content synchronously
+    if (!localStorage.getItem('pinggy_token')) {
+      document.documentElement.style.visibility = 'hidden';
+      window.location.replace('/login');
+    } else {
+      checkAuth();
+    }
+  }
+});
+
+(async function init() {
+  if (await checkAuth()) {
+    showApp();
+  }
+})();
+</script>
+</body>
+</html>

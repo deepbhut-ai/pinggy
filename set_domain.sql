@@ -1,0 +1,1 @@
+UPDATE users SET custom_domain = 'serveraira.com' WHERE email = 'test';

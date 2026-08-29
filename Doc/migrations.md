@@ -1,0 +1,25 @@
+# migrations.md — Alembic tracker
+
+Env: alembic.ini + alembic/env.py (reads settings.DATABASE_URL from app config).
+Applied automatically on every startup by auto_setup._run_migrations().
+
+## Next migration number: **0010**
+
+| # | Up file | Down in same file | Change | Status |
+|---|---|---|---|---|
+| 0001 | 0001_create_users.py | DROP TABLE users | users table + idx_users_email | applied (local + prod) |
+| 0002 | 0002_add_role_and_admin.py | DROP COLUMN role | users.role + idx_users_role + seed admin | applied |
+| 0003 | 0003_create_tunnels.py | DROP TABLE tunnels | tunnels table + 2 indexes | applied |
+| 0004 | 0004_add_tunnel_token.py | DROP COLUMN tunnel_token | users.tunnel_token UNIQUE | applied |
+| 0005 | 0005_add_custom_domain.py | DROP COLUMN custom_domain | users.custom_domain UNIQUE | applied |
+| 0006 | 0006_create_tokens_table.py | DROP TABLE tokens | tokens table + backfill from users.tunnel_token | applied (⚠ backfill no-op locally: admin seeded after migrations) |
+| 0007 | 0007_add_plan_columns.py | DROP plan cols | users.plan, tunnels.tunnel_expires_at | applied |
+| 0008 | 0008_add_payments.py | DROP payments + col | users.plan_expires_at, payments table | applied |
+| 0009 | 0009_add_seats.py | DROP COLUMN seats | users.seats | applied |
+
+All migrations use raw SQL via op.execute with IF NOT EXISTS / IF EXISTS guards — idempotent,
+safe to re-run on startup. Downgrades exist inline in each file.
+No separate .down.sql files (single-file up/down convention in this project).
+
+## schema-version tracking
+Alembic's own alembic_version table (SELECT version_num FROM alembic_version; → 0009).
