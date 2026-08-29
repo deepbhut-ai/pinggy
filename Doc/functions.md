@@ -18,6 +18,14 @@
 | update_my_custom_domain | users.py:176 | PUT /users/me/custom-domain | UPDATE users.custom_domain | dashboard.html |
 | get_user_tunnels | users.py:217 | GET /users/{user_id}/tunnels | reads tunnels | admin.html |
 
+## Settings / coupons
+| Function | File | Endpoint | Notes |
+|---|---|---|---|
+| get_settings_view / update_settings | app/api/routers/settings.py | GET/PUT /settings | masked secrets + source badges; audited |
+| coupons CRUD | settings.py | /settings/coupons* | percent 1-100, max 0=∞; audited |
+| get_setting / set_setting / payment_method_enabled | app/core/app_settings.py | (internal) | DB > env resolution |
+| _apply_coupon / validate_coupon_endpoint | payments.py | POST /payments/coupon/validate | returns discounted INR preview |
+
 ## Analytics
 | Function | File | Endpoint | Notes |
 |---|---|---|---|

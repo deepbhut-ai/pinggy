@@ -73,6 +73,16 @@
 - **Watch out:** analytics `days` param must be ≥7 (422 otherwise — intentional);
   hidden browser tab can make locator.click time out — reopen the page instead.
 
+## 2026-08-29 — v0.4.0 (Phase C)
+- **Done:** Job 3 (Settings page: payment keys masked, DB>env, no restart) + coupons
+  (CRUD + checkout discounts + redemption). Migration 0012. All assertions PASS —
+  fake-key checkout reaches Stripe (proves key flow). Committed + tagged v0.4.0.
+- **In progress:** Phase D (v0.5.0): email system (SMTP settings, forgot/reset,
+  welcome/tunnel-stopped hooks, campaigns) + announcements.
+- **Next:** Phase E (plans + invoices, v0.6.0).
+- **Watch out:** payments.coupon_code column lands in Phase E migration — the
+  code is defensive about it. Test stripe key stored in local app_settings (fake).
+
 ## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
 - **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the
   real 7 routes (process-flow, functions, page-map). Drift exposed by a live-log 200

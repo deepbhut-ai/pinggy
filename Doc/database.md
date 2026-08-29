@@ -90,6 +90,28 @@ Indexes: idx_payments_user, idx_payments_ref.
 Indexes: idx_audit_created (DESC), idx_audit_actor. Written via app/core/audit.py
 (fire-and-forget) from users/auth/ip_monitor routers; read by GET /audit + admin page.
 
+## app_settings  (0012 — runtime config; DB value > env default)
+| column | type | notes |
+|---|---|---|
+| key | VARCHAR(64) PK | stripe_secret_key, stripe_webhook_secret, stripe_enabled, paypal_client_id/secret/mode/enabled, nowpayments_api_key/ipn_secret/enabled, public_base_url, pro_price_inr, pro_price_usd (SMTP keys added in 0013) |
+| value | TEXT | secrets stored plaintext in DB — admin API always masks them |
+| updated_by / updated_at | VARCHAR / TIMESTAMPTZ | last editor (audited) |
+
+Managed by app/core/app_settings.py; read by payments checkout + settings router.
+
+## coupons  (0012 — promo codes)
+| column | type | notes |
+|---|---|---|
+| id | UUID PK | |
+| code | VARCHAR(32) UNIQUE | uppercase at create |
+| percent_off | INT 1–100 | percent discount at checkout |
+| max_redemptions / redeemed | INT / INT | 0 = unlimited; incremented on payment success |
+| active / expires_at | BOOLEAN / TIMESTAMPTZ | toggle + expiry |
+| created_at | TIMESTAMPTZ | |
+
+Index: idx_coupons_code. Validated at checkout (_apply_coupon), redeemed in
+_mark_paid_and_upgrade; admin CRUD in settings router.
+
 ## Non-DB state
 - Redis (db 0): per-IP request counters + blocklist for IP monitoring (TTL = window /
   block duration). Flush-safe — purely ephemeral.

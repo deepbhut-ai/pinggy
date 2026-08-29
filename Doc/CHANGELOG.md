@@ -1,5 +1,24 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.4.0 — 2026-08-29 — Phase C: payment-key settings UI + coupons
+
+### Added
+- Migration 0012: `app_settings` KV table + `coupons` table.
+- ⚙️ Settings admin page: Stripe/PayPal/NowPayments API keys (masked, DB-stored,
+  no restart needed), enable flags, prices, public base URL — env fallback preserved.
+- 🎟️ Coupons: admin CRUD + create form; percent-off checkout discounts on all 3
+  gateways; redemption counting; POST /payments/coupon/validate preview.
+- `app/core/app_settings.py` settings store (DB > env resolution).
+- `Doc/tests/v0.4.0/` evidence.
+
+### Changed
+- payments.py checkout path reads keys/URLs/mode/prices from the settings store;
+  payments rows record coupon_code (defensively until the column exists).
+- Coupons redeemed automatically when a payment is marked paid.
+
+### Removed
+- none
+
 ## v0.3.0 — 2026-08-29 — Phase B: per-token traffic + daily/monthly insights
 
 ### Added

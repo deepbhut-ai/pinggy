@@ -196,6 +196,8 @@
       <a href="#" data-page="payments" onclick="navigate('payments', this)" id="navPayments" style="display:none">💳 Payments</a>
       <a href="#" data-page="ipmonitor" onclick="navigate('ipmonitor', this)" id="navIpMonitor" style="display:none">🛡️ IP Monitor</a>
       <a href="#" data-page="audit" onclick="navigate('audit', this)" id="navAudit" style="display:none">📋 Audit Log</a>
+      <a href="#" data-page="settings" onclick="navigate('settings', this)" id="navSettings" style="display:none">⚙️ Settings</a>
+      <a href="#" data-page="coupons" onclick="navigate('coupons', this)" id="navCoupons" style="display:none">🎟️ Coupons</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
     </div>
     <div class="content" id="pageContent"></div>
@@ -287,6 +289,8 @@ async function showApp() {
     document.getElementById('navPayments').style.display = 'block';
     document.getElementById('navIpMonitor').style.display = 'block';
     document.getElementById('navAudit').style.display = 'block';
+    document.getElementById('navSettings').style.display = 'block';
+    document.getElementById('navCoupons').style.display = 'block';
     document.getElementById('navRegister').style.display = 'block';
   }
   navigate('dashboard', document.querySelector('.sidebar a'));
@@ -306,6 +310,8 @@ function navigate(page, el) {
   else if (page === 'payments') loadAllPayments();
   else if (page === 'ipmonitor') loadIpMonitor();
   else if (page === 'audit') loadAuditLog();
+  else if (page === 'settings') loadSettings();
+  else if (page === 'coupons') loadCoupons();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
 }
 
@@ -1006,6 +1012,132 @@ async function loadAllPayments() {
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Settings (payment gateway keys etc.) ----
+async function loadSettings() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const rows = await api('/settings');
+    const groups = {};
+    rows.forEach(s => {
+      const g = s.key.startsWith('stripe') ? 'Stripe' : s.key.startsWith('paypal') ? 'PayPal'
+              : s.key.startsWith('nowpayments') ? 'NowPayments (crypto)' : 'General';
+      (groups[g] = groups[g] || []).push(s);
+    });
+    const order = ['Stripe', 'PayPal', 'NowPayments (crypto)', 'General'];
+    const html = order.filter(g => groups[g]).map(g => `
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-header"><h2>${g}</h2></div>
+        <div class="card-body">${groups[g].map(s => `
+          <div class="form-group">
+            <label>${s.label} <span class="badge" style="font-size:.65rem">${s.source === 'db' ? 'DB override' : 'env default'}${s.is_set ? '' : ' · not set'}</span></label>
+            <div style="display:flex;gap:.5rem">
+              <input type="text" data-setting-key="${s.key}" value="${esc(s.value)}" placeholder="${s.is_secret ? '(unchanged — enter new value to replace)' : ''}" style="flex:1" ${s.is_secret && s.is_set ? 'autocomplete="off"' : ''}>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`).join('');
+    c.innerHTML = `
+      <div class="card">
+        <div class="card-header"><h2>⚙️ Settings</h2>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-sm" onclick="saveSettings()">💾 Save All</button>
+            <button class="btn btn-sm btn-ghost" onclick="loadSettings()">🔄 Refresh</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <p style="font-size:.78rem;color:var(--text-dim);margin-bottom:1rem">Secrets are masked (sk_1••••abc). Leave a field empty to keep the stored value; type a new value to replace it. Changes apply immediately (no server restart). Non-secret fields (prices, URLs, toggles) always save what you type. Toggles accept true/false.</p>
+          ${html}
+        </div>
+      </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function saveSettings() {
+  const inputs = document.querySelectorAll('[data-setting-key]');
+  const values = {};
+  inputs.forEach(i => { if (i.value.trim() !== '') values[i.dataset.settingKey] = i.value.trim(); });
+  if (!Object.keys(values).length) { toast('No changes (empty fields keep stored values)'); return; }
+  try {
+    await api('/settings', 'PUT', { values });
+    toast(`Saved ${Object.keys(values).length} setting(s)`);
+    loadSettings();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Coupons ----
+async function loadCoupons() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const coupons = await api('/settings/coupons');
+    const rows = coupons.map(cp => `<tr>
+      <td class="code">${esc(cp.code)}</td>
+      <td>${cp.percent_off}%</td>
+      <td>${cp.max_redemptions || '∞'}</td>
+      <td>${cp.redeemed}</td>
+      <td><span class="badge ${cp.active ? 'badge-green' : 'badge-red'}">${cp.active ? 'Active' : 'Inactive'}</span></td>
+      <td>${cp.expires_at ? cp.expires_at.substring(0,10) : '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm" onclick="toggleCoupon('${cp.id}', ${!cp.active})">${cp.active ? '⏸️ Disable' : '▶️ Enable'}</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteCoupon('${cp.id}')">🗑️</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty">No coupons yet</td></tr>';
+    c.innerHTML = `
+    <div class="card">
+      <div class="card-header"><h2>🎟️ Coupons (${coupons.length})</h2><button class="btn btn-sm" onclick="loadCoupons()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Code</th><th>Discount</th><th>Max Uses</th><th>Redeemed</th><th>Status</th><th>Expires</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>Create Coupon</h2></div>
+      <div class="card-body">
+        <div class="form-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem">
+          <div class="form-group"><label>Code (blank = auto)</label><input type="text" id="cpCode" placeholder="SAVE20"></div>
+          <div class="form-group"><label>Percent off</label><input type="number" id="cpPct" value="20" min="1" max="100"></div>
+          <div class="form-group"><label>Max uses (0=∞)</label><input type="number" id="cpMax" value="0" min="0"></div>
+          <div class="form-group"><label>Expires (optional)</label><input type="date" id="cpExp"></div>
+        </div>
+        <button class="btn btn-sm" onclick="createCoupon()">➕ Create</button>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function createCoupon() {
+  try {
+    const body = {
+      code: document.getElementById('cpCode').value.trim() || null,
+      percent_off: parseInt(document.getElementById('cpPct').value) || 20,
+      max_redemptions: parseInt(document.getElementById('cpMax').value) || 0,
+      expires_at: document.getElementById('cpExp').value || null,
+    };
+    const cp = await api('/settings/coupons', 'POST', body);
+    toast(`Coupon ${cp.code} created`);
+    loadCoupons();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function toggleCoupon(id, active) {
+  try {
+    await api(`/settings/coupons/${id}`, 'PUT', { active });
+    toast(active ? 'Coupon enabled' : 'Coupon disabled');
+    loadCoupons();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteCoupon(id) {
+  showModal('Delete Coupon', '<p style="font-size:.875rem;color:var(--text-dim)">Delete this coupon? Users will no longer be able to redeem it.</p>', async () => {
+    try {
+      closeModal();
+      await api(`/settings/coupons/${id}`, 'DELETE');
+      toast('Coupon deleted');
+      loadCoupons();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Delete', 'btn-danger');
 }
 
 // ---- IP Monitor ----
