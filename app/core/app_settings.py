@@ -27,6 +27,12 @@ SETTING_DEFS: list[tuple[str, bool, str, str]] = [
     ("public_base_url", False, "PUBLIC_BASE_URL", "Public Base URL (redirects)"),
     ("pro_price_inr", False, "PRO_PRICE_INR", "Pro price INR"),
     ("pro_price_usd", False, "PRO_PRICE_USD", "Pro price USD"),
+    ("smtp_host", False, "", "SMTP Host"),
+    ("smtp_port", False, "", "SMTP Port"),
+    ("smtp_user", False, "", "SMTP Username"),
+    ("smtp_password", True, "", "SMTP Password"),
+    ("smtp_from", False, "", "SMTP From address"),
+    ("smtp_enabled", False, "", "SMTP Enabled"),
 ]
 
 
@@ -42,9 +48,9 @@ async def get_setting(db: AsyncConnection, key: str, default: Any = None) -> Any
             return row[0]
     except Exception as e:
         logger.debug("get_setting(%s) db error: %s", key, e)
-    # env fallback
+    # env fallback (empty env_attr → no env default; DB-only keys like SMTP)
     for k, _secret, env_attr, _label in SETTING_DEFS:
-        if k == key:
+        if k == key and env_attr:
             return getattr(env_settings, env_attr, None)
     return default
 

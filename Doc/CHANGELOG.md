@@ -1,5 +1,28 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.5.0 — 2026-08-29 — Phase D: email system + announcements + password reset
+
+### Added
+- Migration 0013: email_logs, password_resets, payments.coupon_code. Migration 0014:
+  announcements.
+- Email core (SMTP configurable at runtime in ⚙️ Settings; every send logged;
+  graceful degradation when unconfigured).
+- Forgot/reset password flow: API endpoints + login-page UI + ?reset=TOKEN deep
+  link; single-use expiring tokens (SHA-256 hashed at rest).
+- Trigger emails: welcome on signup, tunnel-stopped on SSH disconnect.
+- 📣 Announcements: admin CRUD + publish form; user dashboard banner; campaign
+  composer (all/pro/free audiences, SMTP-gated) + admin Email Logs view.
+- `Doc/tests/v0.5.0/` evidence (3 screenshots + assertions).
+
+### Changed
+- admin.html: SMTP settings keys surfaced in ⚙️ Settings (masked password).
+
+### Removed
+- **Duplicate `let tunnelRateTracker` declaration in dashboard.html** (pre-existing
+  bug inherited from the prod-server copy): a SyntaxError that prevented the ENTIRE
+  user dashboard from ever loading. The dashboard now works (first time in this
+  codebase's local history).
+
 ## v0.4.0 — 2026-08-29 — Phase C: payment-key settings UI + coupons
 
 ### Added

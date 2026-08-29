@@ -75,7 +75,8 @@ migrations).
 | provider_payload | TEXT | raw webhook JSON |
 | created_at / updated_at | TIMESTAMPTZ | |
 
-Indexes: idx_payments_user, idx_payments_ref.
+Index: idx_payments_user, idx_payments_ref. coupon_code column (0013) records the
+promo code applied at checkout; redeemed count increments on payment success.
 
 ## audit_logs  (0010 — admin/user action history)
 | column | type | notes |
@@ -111,6 +112,29 @@ Managed by app/core/app_settings.py; read by payments checkout + settings router
 
 Index: idx_coupons_code. Validated at checkout (_apply_coupon), redeemed in
 _mark_paid_and_upgrade; admin CRUD in settings router.
+
+## email_logs  (0013 — every outgoing email, sent or failed)
+| column | type | notes |
+|---|---|---|
+| id / to_email / subject | UUID / VARCHAR / VARCHAR | |
+| kind | VARCHAR(40) | welcome \| reset \| tunnel_stopped \| campaign \| test |
+| status / error | VARCHAR(20) / TEXT | pending \| sent \| failed + reason (e.g. "SMTP not configured") |
+| created_at | TIMESTAMPTZ | |
+
+Written by app/core/email.py (every send attempt); read by admin Email Logs.
+
+## password_resets  (0013)
+| column | type | notes |
+|---|---|---|
+| user_email | VARCHAR(255) | |
+| token_hash | VARCHAR(64) UNIQUE | SHA-256 of the URL token — raw token never stored |
+| expires_at / used_at | TIMESTAMPTZ | 30-min TTL; single-use |
+
+## announcements  (0014)
+| column | type | notes |
+|---|---|---|
+| title / body / level | VARCHAR / TEXT / VARCHAR | level: info \| warning \| success |
+| active | BOOLEAN | shown on user dashboard banner when true |
 
 ## Non-DB state
 - Redis (db 0): per-IP request counters + blocklist for IP monitoring (TTL = window /

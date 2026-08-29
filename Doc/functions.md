@@ -18,6 +18,13 @@
 | update_my_custom_domain | users.py:176 | PUT /users/me/custom-domain | UPDATE users.custom_domain | dashboard.html |
 | get_user_tunnels | users.py:217 | GET /users/{user_id}/tunnels | reads tunnels | admin.html |
 
+## Email / announcements / password reset
+| Function | File | Endpoint | Notes |
+|---|---|---|---|
+| forgot_password / reset_password | auth.py | POST /auth/forgot-password, POST /auth/reset-password | SHA-256 hashed single-use 30-min tokens; no account enumeration; audited |
+| send_email / send_template / smtp_configured | app/core/email.py | (internal) | SMTP via app_settings; logs to email_logs; best-effort |
+| announcements CRUD / campaign / logs / smtp-status | announcements.py | /announcements* | campaign gated 503 until SMTP configured; audited |
+
 ## Settings / coupons
 | Function | File | Endpoint | Notes |
 |---|---|---|---|

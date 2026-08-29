@@ -192,6 +192,12 @@ class MySSHServer(asyncssh.SSHServer):
                     (tunnel.tunnel_id,),
                 )
                 await cur.close()
+                # Tunnel-stopped notification email (Job 6) — best-effort
+                try:
+                    from app.core.email import send_template
+                    await send_template(db, self._username, "tunnel_stopped", subdomain=tunnel.subdomain)
+                except Exception:
+                    pass
         except Exception as e:
             logger.warning("Failed to update tunnel status in DB: %s", e)
         logger.info("Tunnel %s (%s) removed", tunnel.tunnel_id, tunnel.subdomain)

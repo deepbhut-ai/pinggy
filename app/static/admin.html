@@ -198,6 +198,7 @@
       <a href="#" data-page="audit" onclick="navigate('audit', this)" id="navAudit" style="display:none">📋 Audit Log</a>
       <a href="#" data-page="settings" onclick="navigate('settings', this)" id="navSettings" style="display:none">⚙️ Settings</a>
       <a href="#" data-page="coupons" onclick="navigate('coupons', this)" id="navCoupons" style="display:none">🎟️ Coupons</a>
+      <a href="#" data-page="announce" onclick="navigate('announce', this)" id="navAnnounce" style="display:none">📣 Announcements</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
     </div>
     <div class="content" id="pageContent"></div>
@@ -291,6 +292,7 @@ async function showApp() {
     document.getElementById('navAudit').style.display = 'block';
     document.getElementById('navSettings').style.display = 'block';
     document.getElementById('navCoupons').style.display = 'block';
+    document.getElementById('navAnnounce').style.display = 'block';
     document.getElementById('navRegister').style.display = 'block';
   }
   navigate('dashboard', document.querySelector('.sidebar a'));
@@ -312,6 +314,7 @@ function navigate(page, el) {
   else if (page === 'audit') loadAuditLog();
   else if (page === 'settings') loadSettings();
   else if (page === 'coupons') loadCoupons();
+  else if (page === 'announce') loadAnnouncements();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
 }
 
@@ -1138,6 +1141,125 @@ async function deleteCoupon(id) {
       loadCoupons();
     } catch (e) { toast(e.message, 'error'); }
   }, 'Delete', 'btn-danger');
+}
+
+// ---- Announcements + Campaigns + Email logs (Job 6) ----
+async function loadAnnouncements() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const [anns, smtp] = await Promise.all([api('/announcements?active_only=false'), api('/announcements/smtp-status')]);
+    const rows = anns.map(a => `<tr>
+      <td>${esc(a.title)}</td>
+      <td><span class="badge ${a.level === 'warning' ? 'badge-red' : a.level === 'success' ? 'badge-green' : ''}">${a.level}</span></td>
+      <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(a.body)}">${esc(a.body)}</td>
+      <td><span class="badge ${a.active ? 'badge-green' : 'badge-red'}">${a.active ? 'Active' : 'Hidden'}</span></td>
+      <td>${a.created_at ? a.created_at.replace('T',' ').substring(0,16) : '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm" onclick="toggleAnnouncement('${a.id}', ${!a.active})">${a.active ? '🙈 Hide' : '👁️ Show'}</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteAnnouncement('${a.id}')">🗑️</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No announcements</td></tr>';
+    c.innerHTML = `
+    <div class="stat-grid" style="margin-bottom:1rem">
+      <div class="stat-card"><div class="label">SMTP</div><div class="value" style="font-size:1rem"><span class="badge ${smtp.configured ? 'badge-green' : 'badge-red'}">${smtp.configured ? 'Configured' : 'Not configured'}</span></div></div>
+      <div class="stat-card"><div class="label">Announcements</div><div class="value">${anns.length}</div></div>
+    </div>
+    ${smtp.configured ? '' : `<div class="card" style="margin-bottom:1rem"><div class="card-body" style="font-size:.8rem;color:var(--text-dim)">⚠️ SMTP is not configured — password-reset links and campaigns won't send. Set SMTP Host/Port/User/Password/From in ⚙️ Settings, then enable smtp_enabled.</div></div>`}
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header"><h2>📣 Announcements</h2><button class="btn btn-sm" onclick="loadAnnouncements()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Title</th><th>Level</th><th>Body</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem">
+      <div class="card">
+        <div class="card-header"><h2>New Announcement</h2></div>
+        <div class="card-body">
+          <div class="form-group"><label>Title</label><input type="text" id="annTitle" placeholder="Scheduled maintenance"></div>
+          <div class="form-group"><label>Body</label><textarea id="annBody" rows="3" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)"></textarea></div>
+          <div class="form-group"><label>Level</label>
+            <select id="annLevel" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+              <option value="info">info</option><option value="warning">warning</option><option value="success">success</option>
+            </select></div>
+          <button class="btn btn-sm" onclick="createAnnouncement()">➕ Publish</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>✉️ Email Campaign</h2></div>
+        <div class="card-body">
+          <div class="form-group"><label>Subject</label><input type="text" id="cmpSubject" placeholder="Big news!"></div>
+          <div class="form-group"><label>Body</label><textarea id="cmpBody" rows="3" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)"></textarea></div>
+          <div class="form-group"><label>Audience</label>
+            <select id="cmpAudience" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+              <option value="all">All users</option><option value="pro">Pro users</option><option value="free">Free users</option>
+            </select></div>
+          <button class="btn btn-sm" onclick="sendCampaign()">🚀 Send</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>📬 Email Logs</h2></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>To</th><th>Subject</th><th>Kind</th><th>Status</th><th>Error</th><th>Created</th></tr></thead><tbody id="emailLogBody"></tbody></table>
+      </div>
+    </div>`;
+    loadEmailLogs();
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function loadEmailLogs() {
+  try {
+    const logs = await api('/announcements/logs');
+    const rows = logs.map(l => `<tr>
+      <td>${esc(l.to_email)}</td><td>${esc(l.subject)}</td>
+      <td><span class="badge">${esc(l.kind)}</span></td>
+      <td><span class="badge ${l.status === 'sent' ? 'badge-green' : l.status === 'failed' ? 'badge-red' : ''}">${l.status}</span></td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(l.error || '')}">${esc(l.error || '—')}</td>
+      <td>${l.created_at ? l.created_at.replace('T',' ').substring(0,19) : '—'}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No emails yet</td></tr>';
+    const el = document.getElementById('emailLogBody');
+    if (el) el.innerHTML = rows;
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function createAnnouncement() {
+  try {
+    await api('/announcements', 'POST', {
+      title: document.getElementById('annTitle').value.trim(),
+      body: document.getElementById('annBody').value.trim(),
+      level: document.getElementById('annLevel').value,
+    });
+    toast('Announcement published');
+    loadAnnouncements();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function toggleAnnouncement(id, active) {
+  try { await api(`/announcements/${id}`, 'PUT', { active }); toast(active ? 'Shown' : 'Hidden'); loadAnnouncements(); }
+  catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteAnnouncement(id) {
+  showModal('Delete Announcement', '<p style="font-size:.875rem;color:var(--text-dim)">Remove this announcement?</p>', async () => {
+    try { closeModal(); await api(`/announcements/${id}`, 'DELETE'); toast('Deleted'); loadAnnouncements(); }
+    catch (e) { toast(e.message, 'error'); }
+  }, 'Delete', 'btn-danger');
+}
+
+async function sendCampaign() {
+  showModal('Send Campaign', '<p style="font-size:.875rem;color:var(--text-dim)">Email every user in the selected audience. This cannot be undone.</p>', async () => {
+    try {
+      closeModal();
+      const r = await api('/announcements/campaign', 'POST', {
+        subject: document.getElementById('cmpSubject').value.trim(),
+        body: document.getElementById('cmpBody').value.trim(),
+        audience: document.getElementById('cmpAudience').value,
+      });
+      toast(r.detail);
+      loadEmailLogs();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Send');
 }
 
 // ---- IP Monitor ----

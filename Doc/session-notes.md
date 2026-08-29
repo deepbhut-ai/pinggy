@@ -83,6 +83,18 @@
 - **Watch out:** payments.coupon_code column lands in Phase E migration — the
   code is defensive about it. Test stripe key stored in local app_settings (fake).
 
+## 2026-08-29 — v0.5.0 (Phase D)
+- **Done:** Job 6 email system (SMTP runtime settings, welcome/reset/tunnel-stopped
+  templates, campaigns), announcements (admin CRUD + dashboard banner), forgot/reset
+  password flow (single-use hashed tokens). **CRITICAL pre-existing bug fixed: duplicate
+  `let tunnelRateTracker` made the user dashboard 100% broken (never loaded).**
+  Migrations 0013/0014. All assertions + browser checks PASS (Doc/tests/v0.5.0/).
+- **In progress:** Phase E (v0.6.0): plans table + admin Plans editor + dynamic
+  landing pricing + invoices.
+- **Next:** final wrap-up after Phase E.
+- **Watch out:** SMTP off locally (expected) — all email flows log to email_logs with
+  status=failed until smtp_* settings are filled. vtest pw back to NewPass@77.
+
 ## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
 - **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the
   real 7 routes (process-flow, functions, page-map). Drift exposed by a live-log 200

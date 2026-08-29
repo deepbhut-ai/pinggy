@@ -374,7 +374,6 @@ let tunnelState = { localPort: 8080, os: 'cmd', token: '', tokenVisible: false, 
 let tunnelPollTimer = null;
 let tunnelRateTracker = {}; // Track {tunnelId: {lastBytes, lastTime, kbps}}
 let dailyTunnelStats = JSON.parse(localStorage.getItem('dailyTunnelStats') || '{}'); // Track {date_subdomain: {sent, received}}
-let tunnelRateTracker = {}; // Track {tunnelId: {lastBytes, lastTime, kbps}}
 
 // ---- API helper ----
 async function api(path, method = 'GET', body = null) {
@@ -492,6 +491,21 @@ function navigate(page, el) {
   else if (page === 'subscription') loadSubscription();
 }
 
+// ---- Announcements banner (Job 6) ----
+function renderAnnouncements(anns) {
+  if (!anns || !anns.length) return '';
+  const color = { info: 'var(--primary)', warning: '#f59e0b', success: '#22c55e' };
+  return `<div id="annBanner">${anns.map(a => `
+    <div style="border:1px solid ${color[a.level] || 'var(--border)'};border-left-width:4px;border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:.6rem;background:var(--surface)">
+      <strong>${a.title}</strong>
+      <div style="font-size:.85rem;color:var(--text-dim);margin-top:.2rem;white-space:pre-line">${a.body}</div>
+    </div>`).join('')}</div>`;
+}
+
+async function fetchAnnouncements() {
+  try { return await api('/announcements'); } catch { return []; }
+}
+
 // ---- Quickstart (Page 1) ----
 async function loadQuickstart() {
   const c = document.getElementById('pageContent');
@@ -541,7 +555,9 @@ async function loadQuickstart() {
     }).join('');
     if (!tunnelRows) tunnelRows = '<tr><td colspan="7" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
 
+    const announcements = await fetchAnnouncements();
     c.innerHTML = `
+    ${renderAnnouncements(announcements)}
     <div class="page-toolbar">
       <div>
         <div class="page-title">Quickstart</div>

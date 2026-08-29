@@ -44,6 +44,18 @@ async def register(
     token = create_access_token(subject=user.id, extra={"email": user.email, "role": user.role})
     from app.core.audit import log_audit
     await log_audit(db, user.email, "user.register", user.email, "self-service signup")
+    # Welcome email (Job 6) — best-effort; logged to email_logs even when SMTP is off
+    try:
+        from app.core.email import send_template
+        from app.core.config import settings as _settings
+        await send_template(
+            db, user.email, "welcome",
+            name=payload.full_name or user.email,
+            ssh_port=_settings.SSH_PORT,
+            ssh_host=_settings.TUNNEL_DOMAIN.split(":")[0],
+        )
+    except Exception:
+        pass
     return Token(access_token=token, user=user, tunnel_token=row[4])
 
 
@@ -100,3 +112,67 @@ async def regenerate_tunnel_token(user: dict = Depends(get_current_user), db: As
     row = await cur.fetchone()
     await cur.close()
     return {"tunnel_token": row[0], "message": "Tunnel token regenerated. Use the new token for SSH connections."}
+
+
+# ================================================================ Password reset (Job 6)
+RESET_MINUTES = 30
+
+
+@router.post("/forgot-password")
+async def forgot_password(payload: dict, db: AsyncConnection = Depends(get_db)):
+    """Request a reset link. Always returns 200 (no account enumeration)."""
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "email required")
+    cur = await db.execute("SELECT id FROM users WHERE email = %s", (email,))
+    row = await cur.fetchone()
+    await cur.close()
+    if row:
+        import secrets as _secrets
+        import hashlib as _hashlib
+        raw = _secrets.token_urlsafe(32)
+        token_hash = _hashlib.sha256(raw.encode()).hexdigest()
+        from datetime import datetime, timedelta, timezone
+        cur = await db.execute(
+            "INSERT INTO password_resets (user_email, token_hash, expires_at) VALUES (%s, %s, %s)",
+            (email, token_hash, datetime.now(timezone.utc) + timedelta(minutes=RESET_MINUTES)),
+        )
+        await cur.close()
+        from app.core.app_settings import get_setting
+        from app.core.email import send_template
+        base_url = await get_setting(db, "public_base_url", "")
+        await send_template(db, email, "reset", token=raw, minutes=RESET_MINUTES, base_url=base_url or "")
+        from app.core.audit import log_audit
+        await log_audit(db, email, "auth.forgot_password", email, "reset link requested")
+    return {"detail": "If that email is registered, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(payload: dict, db: AsyncConnection = Depends(get_db)):
+    """Complete a reset: {token, new_password}. Token is single-use, 30min TTL."""
+    import hashlib as _hashlib
+    from datetime import datetime, timezone
+    raw = (payload.get("token") or "").strip()
+    new_password = payload.get("new_password") or ""
+    if not raw or len(new_password) < 4:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "token and new_password (min 4 chars) required")
+    token_hash = _hashlib.sha256(raw.encode()).hexdigest()
+    cur = await db.execute(
+        "SELECT id, user_email, expires_at, used_at FROM password_resets WHERE token_hash = %s",
+        (token_hash,),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    if not row or row[3] or row[2] < datetime.now(timezone.utc):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired reset token")
+    reset_id, email = row[0], row[1]
+    cur = await db.execute(
+        "UPDATE users SET password_hash = %s, updated_at = now() WHERE email = %s",
+        (hash_password(new_password), email),
+    )
+    await cur.close()
+    cur = await db.execute("UPDATE password_resets SET used_at = now() WHERE id = %s", (reset_id,))
+    await cur.close()
+    from app.core.audit import log_audit
+    await log_audit(db, email, "auth.reset_password", email, "password reset via email token")
+    return {"detail": "Password updated. You can now log in."}
