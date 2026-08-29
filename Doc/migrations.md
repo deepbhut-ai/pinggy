@@ -3,12 +3,11 @@
 Env: alembic.ini + alembic/env.py (reads settings.DATABASE_URL from app config).
 Applied automatically on every startup by auto_setup._run_migrations().
 
-## Next migration number: **0021**
+## Next migration number: **0021** (no migration in v0.11.0 — Redis-only capture)
 
 | # | Up file | Down in same file | Change | Status |
 |---|---|---|---|---|
 | 0020 | 0020_api_keys.py | DROP api_keys | api_keys table (hashed keys, prefix, last_used) | applied (local, v0.10.0) |
-| 0019 | 0019_persistent_subdomains.py | DROP col | tokens.fixed_subdomain UNIQUE + md5 backfill | applied (local, v0.9.0) |
 | 0014 | 0014_announcements.py | DROP announcements | announcements table + active idx | applied (local, v0.5.0) |
 | 0011 | 0011_add_token_to_tunnels.py | DROP idx + col | tunnels.token VARCHAR(64) + idx + backfill from users.tunnel_token | applied (local, v0.3.0) |
 | 0010 | 0010_user_active_and_audit_logs.py | DROP audit_logs + is_active col | users.is_active BOOLEAN, audit_logs table + 2 indexes | applied (local, v0.2.0) |

@@ -1,5 +1,22 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.11.0 — 2026-08-29 — Web Debugger v1: inspect + replay (Track 6)
+
+### Added
+- Request/response capture in the tunnel proxy (Redis ring buffer: last 100
+  per tunnel, 1h TTL — ephemeral by design).
+- /debugger/{sub}: list (owner-or-admin), clear, and replay (captured index or
+  crafted request) endpoints.
+- Dashboard Active Tunnels: 🔍 Debug inspector modal — capture table, expandable
+  headers/body, per-row replay.
+- `Doc/tests/v0.11.0/` evidence (live capture → replay → clear matrix).
+
+### Changed
+- none
+
+### Removed
+- none
+
 ## v0.10.0 — 2026-08-29 — API keys + management REST + Python SDK (Track 4)
 
 ### Added

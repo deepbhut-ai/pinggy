@@ -1347,6 +1347,104 @@ async function loadDomains() {
 }
 
 // ---- Active Tunnels (Page 4) ----
+// ---- Web Debugger (v0.11.0) ----
+async function openDebugger(subdomain) {
+  showModal(`🔍 Debugger — ${subdomain}`, '<p class="empty">Loading captures…</p>', () => closeModal(), 'Close', 'btn-ghost');
+  document.getElementById('modalConfirm').style.display = 'none';
+  try {
+    const d = await api(`/debugger/${subdomain}`);
+    const rows = (d.entries || []).map((e, i) => `
+      <tr style="cursor:pointer" onclick="toggleDbgRow(${i})" id="dbg-row-${i}">
+        <td class="code" style="font-size:.72rem">${new Date(e.ts * 1000).toLocaleTimeString()}</td>
+        <td><span class="badge">${e.method}</span></td>
+        <td class="code" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.path}</td>
+        <td><span class="badge ${e.status < 400 ? 'badge-green' : 'badge-red'}">${e.status}</span></td>
+        <td><button class="btn btn-sm" onclick="event.stopPropagation();replayCapture('${subdomain}',${i})" title="Replay this request">↻</button></td>
+      </tr>
+      <tr id="dbg-detail-${i}" style="display:none"><td colspan="5" style="background:var(--bg)">
+        <div style="font-size:.7rem;white-space:pre-wrap;font-family:var(--font-mono);max-height:200px;overflow:auto">REQ HEADERS:\n${Object.entries(e.req_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nRESP HEADERS:\n${Object.entries(e.resp_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nBODY (first 2KB):\n${(e.body || '').substring(0, 2048)}</div>
+      </td></tr>`).join('');
+    document.getElementById('modalBody').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+        <span style="font-size:.8rem;color:var(--text-dim)">${d.count} captured request${d.count !== 1 ? 's' : ''} (last 100, 1h)</span>
+        <button class="btn btn-sm btn-danger" onclick="clearDebugger('${subdomain}')">Clear</button>
+      </div>
+      <div style="max-height:50vh;overflow:auto"><table style="font-size:.8rem">
+        <thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Replay</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" class="empty">No captured requests yet — send some traffic to this tunnel first.</td></tr>'}</tbody>
+      </table></div>`;
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = `<p style="color:var(--red)">${e.message}</p>`;
+  }
+}
+
+function toggleDbgRow(i) {
+  const el = document.getElementById(`dbg-detail-${i}`);
+  if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+}
+
+async function replayCapture(subdomain, index) {
+  try {
+    const r = await api(`/debugger/${subdomain}/replay`, 'POST', { index });
+    toast(`Replayed → ${r.status} (${r.elapsed_ms}ms)`);
+    openDebugger(subdomain);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function clearDebugger(subdomain) {
+  try { await api(`/debugger/${subdomain}`, 'DELETE'); openDebugger(subdomain); }
+  catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Web Debugger (v0.11.0) ----
+async function openDebugger(subdomain) {
+  showModal(`🔍 Debugger — ${subdomain}`, '<p class="empty">Loading captures…</p>', () => closeModal(), 'Close', 'btn-ghost');
+  document.getElementById('modalConfirm').style.display = 'none';
+  try {
+    const d = await api(`/debugger/${subdomain}`);
+    const rows = (d.entries || []).map((e, i) => `
+      <tr style="cursor:pointer" onclick="toggleDbgRow(${i})" id="dbg-row-${i}">
+        <td class="code" style="font-size:.72rem">${new Date(e.ts * 1000).toLocaleTimeString()}</td>
+        <td><span class="badge">${e.method}</span></td>
+        <td class="code" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.path}</td>
+        <td><span class="badge ${e.status < 400 ? 'badge-green' : 'badge-red'}">${e.status}</span></td>
+        <td><button class="btn btn-sm" onclick="event.stopPropagation();replayCapture('${subdomain}',${i})" title="Replay this request">↻</button></td>
+      </tr>
+      <tr id="dbg-detail-${i}" style="display:none"><td colspan="5" style="background:var(--bg)">
+        <div style="font-size:.7rem;white-space:pre-wrap;font-family:var(--font-mono);max-height:200px;overflow:auto">REQ HEADERS:\n${Object.entries(e.req_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nRESP HEADERS:\n${Object.entries(e.resp_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nBODY (first 2KB):\n${(e.body || '').substring(0, 2048)}</div>
+      </td></tr>`).join('');
+    document.getElementById('modalBody').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+        <span style="font-size:.8rem;color:var(--text-dim)">${d.count} captured request${d.count !== 1 ? 's' : ''} (last 100, 1h)</span>
+        <button class="btn btn-sm btn-danger" onclick="clearDebugger('${subdomain}')">Clear</button>
+      </div>
+      <div style="max-height:50vh;overflow:auto"><table style="font-size:.8rem">
+        <thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Replay</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" class="empty">No captured requests yet — send some traffic to this tunnel first.</td></tr>'}</tbody>
+      </table></div>`;
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = `<p style="color:var(--red)">${e.message}</p>`;
+  }
+}
+
+function toggleDbgRow(i) {
+  const el = document.getElementById(`dbg-detail-${i}`);
+  if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+}
+
+async function replayCapture(subdomain, index) {
+  try {
+    const r = await api(`/debugger/${subdomain}/replay`, 'POST', { index });
+    toast(`Replayed → ${r.status} (${r.elapsed_ms}ms)`);
+    openDebugger(subdomain);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function clearDebugger(subdomain) {
+  try { await api(`/debugger/${subdomain}`, 'DELETE'); openDebugger(subdomain); }
+  catch (e) { toast(e.message, 'error'); }
+}
+
 async function loadTunnels() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
@@ -1379,16 +1477,17 @@ async function loadTunnels() {
       <td>${kbps} KB/s</td>
       <td><span class="badge badge-green">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+      <td><button class="btn btn-sm btn-ghost" onclick="openDebugger('${t.subdomain}')" title="Inspect captured requests">🔍 Debug</button></td>
     </tr>`;
     }).join('');
-    if (!rows) rows = '<tr><td colspan="8" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
+    if (!rows) rows = '<tr><td colspan="9" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
     c.innerHTML = `
     <h2 style="margin-bottom:1rem">Active Tunnels</h2>
     <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">${tunnels.length} active session${tunnels.length !== 1 ? 's' : ''}</p>
     <div class="card">
       <div class="card-body" style="padding:0;overflow-x:auto">
         <table>
-          <thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Transfer Rate</th><th>Status</th><th>Created</th></tr></thead>
+          <thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Transfer Rate</th><th>Status</th><th>Created</th><th>Inspector</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>

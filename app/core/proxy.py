@@ -26,6 +26,40 @@ from app.core.tunnel_registry import (
 logger = logging.getLogger("proxy")
 
 
+# ---- Web debugger capture (v0.11.0) — Redis ring buffer per subdomain ----
+DEBUG_CAPTURE = True   # capture toggle (low overhead: single rpush+ltrim per request)
+DEBUG_MAX = 100        # entries kept per tunnel
+
+
+async def _debug_capture(subdomain: str, method: str, path: str, status_code: int,
+                          req_headers: dict, resp_headers: dict, body_preview: bytes) -> None:
+    """Best-effort capture of a request/response pair for the debugger viewer."""
+    if not DEBUG_CAPTURE:
+        return
+    try:
+        from app.core.redis import get_redis
+        import json as _json
+        import time as _time
+        r = get_redis()
+        if r is None:
+            return
+        entry = {
+            "ts": _time.time(),
+            "method": method,
+            "path": path,
+            "status": status_code,
+            "req_headers": {k: v for k, v in list(req_headers.items())[:20]},
+            "resp_headers": {k: v for k, v in list(resp_headers.items())[:20]},
+            "body": body_preview[:2048].decode("utf-8", "replace"),
+        }
+        key = f"dbg:{subdomain}"
+        await r.rpush(key, _json.dumps(entry))
+        await r.ltrim(key, -DEBUG_MAX, -1)
+        await r.expire(key, 3600)
+    except Exception as e:
+        logger.debug("debug capture failed: %s", e)
+
+
 async def _get_token_security(tunnel) -> dict | None:
     """Load the tunnel's token security settings from the DB (best-effort).
     Returns None when nothing is configured (zero overhead default path)."""
@@ -261,6 +295,10 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             for key, value in resp.headers.items():
                 if key.lower() not in ("transfer-encoding", "connection", "content-encoding", "content-length"):
                     resp_headers[key] = value
+
+            # Web debugger capture (v0.11.0) — fire-and-forget
+            await _debug_capture(subdomain, request.method, req_path, resp.status_code,
+                                 forward_headers, resp_headers, resp.content)
 
             return Response(
                 content=resp.content,
