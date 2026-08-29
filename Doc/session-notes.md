@@ -163,3 +163,9 @@
 
 
 
+
+## 2026-08-30 (v1.4.0 + v1.5.0 session)
+- Done: v1.4.0 (multi-domains Pro /teams /tickets + UIs, E2E extra-domain routing verified) · v1.5.0 (2FA email OTP, challenge/verify/toggle, login UI OTP step)
+- In progress: none — 10-item batch complete (v1.3.0 branding/UX, v1.4.0 domains/teams/tickets, v1.5.0 2FA)
+- Next: user review; possible prod deploy (deploy_server.sh) — migrations 0023/0024 auto-apply on boot
+- Watch out: aioredis r.setex/r.get are coroutines — MUST await (500 'coroutine' object has no attribute 'split'); API base is /api/v1 (curl without prefix → 404 "Not Found")
