@@ -1,5 +1,11 @@
 # functions.md — endpoint & core-function inventory
 
+## Audit
+| Function | File | Endpoint | Notes |
+|---|---|---|---|
+| list_audit | app/api/routers/audit.py | GET /audit?limit=100&offset=0 | admin; newest first |
+| log_audit | app/core/audit.py | (internal) | fire-and-forget INSERT; called from users/auth/ip_monitor routers; passwords never logged (field name only) |
+
 ## Auth / users
 | Function | File:line | Signature → returns | Side effects | Called by (pages/clients) |
 |---|---|---|---|---|

@@ -259,29 +259,46 @@ class MySSHServer(asyncssh.SSHServer):
             # 1. Check tokens table (multi-token system — what the dashboard uses)
             try:
                 cur = conn.execute(
-                    "SELECT user_email, custom_domain FROM tokens WHERE token = %s",
+                    "SELECT t.user_email, t.custom_domain, u.is_active "
+                    "FROM tokens t JOIN users u ON u.email = t.user_email "
+                    "WHERE t.token = %s",
                     (token,),
                 )
                 row = cur.fetchone()
                 cur.close()
                 if row:
+                    if not row[2]:
+                        conn.close()
+                        logger.warning("SSH auth rejected: account disabled (%s)", row[0])
+                        return False
                     self._username = row[0]
                     self._custom_domain = row[1] or ""
                     self._token = token
                     conn.close()
                     return True
+            except psycopg.errors.UndefinedColumn:
+                pass  # is_active column doesn't exist yet — fall through
             except psycopg.errors.UndefinedTable:
                 pass  # tokens table doesn't exist — fall through
 
             # 2. Fallback: check users table (legacy single-token)
-            cur = conn.execute(
-                "SELECT email, custom_domain FROM users WHERE tunnel_token = %s",
-                (token,),
-            )
+            try:
+                cur = conn.execute(
+                    "SELECT email, custom_domain, is_active FROM users WHERE tunnel_token = %s",
+                    (token,),
+                )
+            except psycopg.errors.UndefinedColumn:
+                cur = conn.execute(
+                    "SELECT email, custom_domain, TRUE FROM users WHERE tunnel_token = %s",
+                    (token,),
+                )
             row = cur.fetchone()
             cur.close()
             conn.close()
             if row:
+                if not row[2]:
+                    logger.warning("SSH auth rejected: account disabled (%s)", row[0])
+                    return False
                 self._username = row[0]
                 self._custom_domain = row[1] or ""
                 self._token = token

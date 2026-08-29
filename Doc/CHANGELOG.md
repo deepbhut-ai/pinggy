@@ -1,5 +1,30 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.2.0 — 2026-08-29 — Phase A: user management + account control + audit log + IP auto-block toggle
+
+### Added
+- Migration 0010: `users.is_active` (BOOLEAN, default TRUE) + `audit_logs` table (+down).
+- `app/core/audit.py` fire-and-forget audit writer + `GET /api/v1/audit` + 📋 Audit Log
+  admin page (newest-first, actor/action/target/details).
+- Admin Users table: ✏️ Edit modal (email, full name, role, password reset) and
+  🚫 Disable / ✅ Enable buttons with confirm dialogs; Disabled status badge.
+- IP Monitor ⚙️ Config tab: Auto-Block ON/OFF switch + rate window / block threshold /
+  block duration inputs — runtime (Redis overrides, no restart).
+- `PUT /api/v1/ip-monitor/config`; GET now returns effective config + source.
+- `Doc/tests/v0.2.0/` evidence (assertions + 3 screenshots).
+
+### Changed
+- Login (`POST /auth/login`), `get_current_user` (all authed APIs), and SSH token
+  auth (both tokens-table and users-fallback paths) now reject accounts with
+  is_active=false: login 403, API 403, SSH forward refused.
+- `PUT /users/{id}` accepts `is_active`; UserOut exposes is_active.
+- Middleware order swapped (admin-approved): IPMonitor now OUTERMOST — proxied
+  tunnel traffic is IP-counted (previously invisible to the monitor).
+- `record_request` uses runtime config (window/threshold/duration/auto-block toggle).
+
+### Removed
+- none
+
 ## v0.1.3 — 2026-08-29 — Job 0: three parked suggestions
 
 ### Added

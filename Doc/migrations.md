@@ -3,7 +3,11 @@
 Env: alembic.ini + alembic/env.py (reads settings.DATABASE_URL from app config).
 Applied automatically on every startup by auto_setup._run_migrations().
 
-## Next migration number: **0010**
+## Next migration number: **0011**
+
+| # | Up file | Down in same file | Change | Status |
+|---|---|---|---|---|
+| 0010 | 0010_user_active_and_audit_logs.py | DROP audit_logs + is_active col | users.is_active BOOLEAN, audit_logs table + 2 indexes | applied (local, v0.2.0) |
 
 | # | Up file | Down in same file | Change | Status |
 |---|---|---|---|---|
@@ -16,6 +20,8 @@ Applied automatically on every startup by auto_setup._run_migrations().
 | 0007 | 0007_add_plan_columns.py | DROP plan cols | users.plan, tunnels.tunnel_expires_at | applied |
 | 0008 | 0008_add_payments.py | DROP payments + col | users.plan_expires_at, payments table | applied |
 | 0009 | 0009_add_seats.py | DROP COLUMN seats | users.seats | applied |
+
+(0001–0009 rows: see git history of this file at v0.1.3 — table above continues)
 
 All migrations use raw SQL via op.execute with IF NOT EXISTS / IF EXISTS guards — idempotent,
 safe to re-run on startup. Downgrades exist inline in each file.

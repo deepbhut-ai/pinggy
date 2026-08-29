@@ -50,6 +50,18 @@
 - **Watch out:** `kill %1` in the wrong terminal's job list silently no-ops — kill
   servers by lsof PID. Ports 8020/2222 currently used by dev server.
 
+## 2026-08-29 — v0.2.0 (Phase A of Jobs 1–9 plan, user-confirmed incl. suggestions)
+- **Done:** v0.2.0 — Job 2 (edit user/password reset/disable-enable + is_active
+  enforcement on login/API/SSH), Job 5 (IP auto-block ON/OFF + runtime thresholds),
+  audit log (page + instrumentation), middleware swap (tunnel traffic IP-counted).
+  Migration 0010 applied. All assertions + browser UI verified (Doc/tests/v0.2.0/).
+- **In progress:** nothing — Phase A complete. Dev server on 8020 (a4b19527-…).
+- **Next:** Phase B (v0.3.0): Job 4 per-token traffic columns + Job 7 daily/monthly
+  dashboard analytics. Awaiting user go-ahead.
+- **Watch out:** zsh UID is read-only (crashed assertion script); asyncssh bare
+  connect() succeeds even for rejected tokens — test forwards, not connects.
+  vtest@iraglobaltech.com / NewPass@77 kept as demo user.
+
 ## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
 - **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the
   real 7 routes (process-flow, functions, page-map). Drift exposed by a live-log 200

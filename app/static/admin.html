@@ -195,6 +195,7 @@
       <a href="#" data-page="tunnels" onclick="navigate('tunnels', this)" id="navTunnels" style="display:none">🔗 All Tunnels</a>
       <a href="#" data-page="payments" onclick="navigate('payments', this)" id="navPayments" style="display:none">💳 Payments</a>
       <a href="#" data-page="ipmonitor" onclick="navigate('ipmonitor', this)" id="navIpMonitor" style="display:none">🛡️ IP Monitor</a>
+      <a href="#" data-page="audit" onclick="navigate('audit', this)" id="navAudit" style="display:none">📋 Audit Log</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
     </div>
     <div class="content" id="pageContent"></div>
@@ -285,6 +286,7 @@ async function showApp() {
     document.getElementById('navTunnels').style.display = 'block';
     document.getElementById('navPayments').style.display = 'block';
     document.getElementById('navIpMonitor').style.display = 'block';
+    document.getElementById('navAudit').style.display = 'block';
     document.getElementById('navRegister').style.display = 'block';
   }
   navigate('dashboard', document.querySelector('.sidebar a'));
@@ -303,6 +305,7 @@ function navigate(page, el) {
   else if (page === 'tunnels') loadAllTunnels();
   else if (page === 'payments') loadAllPayments();
   else if (page === 'ipmonitor') loadIpMonitor();
+  else if (page === 'audit') loadAuditLog();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
 }
 
@@ -466,7 +469,10 @@ async function loadUsers() {
       const totalRequests = userTunnels.reduce((sum, t) => sum + t.request_count, 0);
       const totalData = userTunnels.reduce((sum, t) => sum + t.bytes_transferred, 0);
       const isOnline = activeCount > 0;
-      const statusBadge = isOnline
+      const disabled = u.is_active === false;
+      const statusBadge = disabled
+        ? `<span class="badge badge-red">Disabled</span>`
+        : isOnline
         ? `<span style="display:inline-flex;align-items:center;gap:.3rem"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 1.5s infinite"></span><span class="badge badge-green">Online</span></span>`
         : `<span style="display:inline-flex;align-items:center;gap:.3rem"><span style="width:8px;height:8px;border-radius:50%;background:#94a3b8"></span><span class="badge">Offline</span></span>`;
       return `<tr>
@@ -481,6 +487,10 @@ async function loadUsers() {
         <td>${(totalData / 1024).toFixed(1)} KB</td>
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" onclick="viewUser('${u.id}')">View</button>
+          <button class="btn btn-sm" onclick="editUser('${u.id}')">✏️ Edit</button>
+          ${disabled
+            ? `<button class="btn btn-sm" onclick="setUserActive('${u.id}','${u.email}',true)" title="Re-enable account access">✅ Enable</button>`
+            : `<button class="btn btn-sm btn-danger" onclick="setUserActive('${u.id}','${u.email}',false)" title="Disable account access">🚫 Disable</button>`}
           ${u.plan !== 'pro' ? `<button class="btn btn-sm" onclick="quickActivatePro('${u.id}','${u.email}')" title="Activate Pro for 30 days">⭐ Pro</button>` : ''}
         </td>
       </tr>`;
@@ -633,6 +643,56 @@ async function deleteUser(userId, email) {
   }, 'Delete', 'btn-danger');
 }
 
+// ---- Edit user (email / name / role / password reset) ----
+async function editUser(id) {
+  let u;
+  try {
+    const users = await api('/users?limit=500');
+    u = users.find(x => x.id === id);
+  } catch (e) { toast(e.message, 'error'); return; }
+  if (!u) { toast('User not found', 'error'); return; }
+  showModal(`Edit User — ${esc(u.email)}`, `
+    <div class="form-group"><label>Email</label><input type="text" id="editEmail" value="${esc(u.email || '')}"></div>
+    <div class="form-group"><label>Full Name</label><input type="text" id="editFullName" value="${esc(u.full_name || '')}"></div>
+    <div class="form-group"><label>Role</label>
+      <select id="editRole" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>user</option>
+        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
+      </select></div>
+    <div class="form-group"><label>New Password</label><input type="text" id="editPassword" autocomplete="off" placeholder="(leave blank to keep current)"></div>
+    <p style="font-size:.75rem;color:var(--text-dim)">Changing the email re-links their tokens automatically is NOT supported yet — tokens rows keep the old email (SSH auth for those tokens will fail until re-created).</p>
+  `, async () => {
+    try {
+      const email = document.getElementById('editEmail').value.trim();
+      const full_name = document.getElementById('editFullName').value.trim();
+      const role = document.getElementById('editRole').value;
+      const password = document.getElementById('editPassword').value;
+      const params = new URLSearchParams();
+      if (email && email !== u.email) params.set('email', email);
+      if (full_name !== (u.full_name || '')) params.set('full_name', full_name);
+      if (role !== u.role) params.set('role', role);
+      if (password) params.set('password', password);
+      if (![...params.keys()].length) { closeModal(); toast('No changes'); return; }
+      await api(`/users/${id}?${params.toString()}`, 'PUT');
+      closeModal();
+      toast('User updated');
+      loadUsers();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Save Changes');
+}
+
+// ---- Enable / disable account access ----
+function setUserActive(id, email, active) {
+  showModal(active ? 'Enable Account' : 'Disable Account', `<p style="font-size:.875rem;color:var(--text-dim);line-height:1.5">${active ? 'Re-enable' : 'Disable'} account access for <strong style="color:var(--text)">${esc(email)}</strong>?<br>${active ? 'They will be able to log in and open tunnels again.' : 'Their login, API tokens and SSH tunnels will be rejected immediately.'}</p>`, async () => {
+    try {
+      closeModal();
+      await api(`/users/${id}?is_active=${active}`, 'PUT');
+      toast(active ? 'Account enabled' : 'Account disabled');
+      loadUsers();
+    } catch (e) { toast(e.message, 'error'); }
+  }, active ? 'Enable' : 'Disable', active ? '' : 'btn-danger');
+}
+
 // ---- Modal helpers ----
 function showModal(title, bodyHtml, onConfirm, confirmText = 'Confirm', confirmClass = '') {
   document.getElementById('modalTitle').textContent = title;
@@ -646,6 +706,32 @@ function showModal(title, bodyHtml, onConfirm, confirmText = 'Confirm', confirmC
 
 function closeModal() {
   document.getElementById('modalOverlay').style.display = 'none';
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---- Audit Log ----
+async function loadAuditLog() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const logs = await api('/audit?limit=200');
+    const rows = logs.map(l => `<tr>
+      <td style="white-space:nowrap">${l.created_at ? l.created_at.replace('T',' ').substring(0,19) : '—'}</td>
+      <td>${esc(l.actor_email)}</td>
+      <td><span class="badge ${l.action.startsWith('user.') ? 'badge-green' : ''}">${esc(l.action)}</span></td>
+      <td>${esc(l.target || '—')}</td>
+      <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(l.details || '')}">${esc(l.details || '—')}</td>
+    </tr>`).join('');
+    c.innerHTML = `<div class="card">
+      <div class="card-header"><h2>📋 Audit Log (${logs.length})</h2><button class="btn btn-sm" onclick="loadAuditLog()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Time (UTC)</th><th>Actor</th><th>Action</th><th>Target</th><th>Details</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="empty">No audit entries yet</td></tr>'}</tbody></table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
 async function saveCustomDomain(userId) {
@@ -955,10 +1041,24 @@ function renderIpMonitorLayout(stats, config, blockedIps, ips) {
           <tr><td>Redis Connected</td><td><span class="badge ${config.redis_connected ? 'badge-green' : 'badge-red'}">${config.redis_connected ? 'Yes' : 'No'}</span></td></tr>
           <tr><td>Geo Lookup</td><td><span class="badge ${config.geo_enabled ? 'badge-green' : 'badge-red'}">${config.geo_enabled ? 'Enabled' : 'Disabled'}</span></td></tr>
           <tr><td>Geo API</td><td class="code">${config.geo_api_url || '—'}</td></tr>
-          <tr><td>Rate Window</td><td>${config.rate_window_seconds || 60} seconds</td></tr>
-          <tr><td>Block Threshold</td><td>${config.block_threshold || 500} requests per window</td></tr>
-          <tr><td>Block Duration</td><td>${config.block_duration_seconds || 3600} seconds</td></tr>
+          <tr><td>Config Source</td><td><span class="badge ${config.config_source === 'redis' ? 'badge-green' : ''}">${config.config_source === 'redis' ? 'Runtime (Redis overrides)' : 'Env defaults'}</span></td></tr>
         </table>
+        <div class="card" style="margin-top:1rem">
+          <div class="card-header"><h2>Auto-Block Settings (runtime — no restart needed)</h2></div>
+          <div class="card-body">
+            <div class="switch" style="margin-bottom:1rem">
+              <input type="checkbox" id="cfgAutoBlock" ${config.auto_block_enabled ? 'checked' : ''}>
+              <span class="track"><span class="thumb"></span></span>
+              <label for="cfgAutoBlock">Auto IP blocking ${config.auto_block_enabled ? 'ON' : 'OFF'}</label>
+            </div>
+            <div class="form-group"><label>Rate window (seconds)</label><input type="number" id="cfgRateWindow" value="${config.rate_window_seconds || 60}" min="10" max="86400"></div>
+            <div class="form-group"><label>Block threshold (requests per window)</label><input type="number" id="cfgBlockThreshold" value="${config.block_threshold || 500}" min="10" max="1000000"></div>
+            <div class="form-group"><label>Block duration (seconds)</label><input type="number" id="cfgBlockDuration" value="${config.block_duration_seconds || 3600}" min="60" max="2592000"></div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <button class="btn btn-sm" onclick="saveIpConfig()">💾 Save Settings</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>`;
@@ -995,6 +1095,20 @@ function renderIpList(ips) {
   if (!tbody) return;
   tbody.innerHTML = renderIpListRows(ips);
   filterIpList();
+}
+
+async function saveIpConfig() {
+  try {
+    const body = {
+      auto_block_enabled: document.getElementById('cfgAutoBlock').checked,
+      rate_window_seconds: parseInt(document.getElementById('cfgRateWindow').value) || 60,
+      block_threshold: parseInt(document.getElementById('cfgBlockThreshold').value) || 500,
+      block_duration_seconds: parseInt(document.getElementById('cfgBlockDuration').value) || 3600,
+    };
+    await api('/ip-monitor/config', 'PUT', body);
+    toast('IP monitor settings saved');
+    loadIpMonitor();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 function filterIpList() {

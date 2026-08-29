@@ -29,13 +29,16 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token payload")
     cur = await db.execute(
-        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at FROM users WHERE id = %s",
+        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at, is_active FROM users WHERE id = %s",
         (user_id,),
     )
     row = await cur.fetchone()
     await cur.close()
     if not row:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
+    if not row[8]:
+        # Account disabled by an admin — existing tokens stop working immediately
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
     return {
         "id": str(row[0]),
         "email": row[1],
@@ -45,6 +48,7 @@ async def get_current_user(
         "custom_domain": row[5],
         "plan": row[6] or "free",
         "plan_expires_at": row[7].isoformat() if row[7] else None,
+        "is_active": row[8],
     }
 
 

@@ -42,13 +42,15 @@ async def register(
 
     user = UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4])
     token = create_access_token(subject=user.id, extra={"email": user.email, "role": user.role})
+    from app.core.audit import log_audit
+    await log_audit(db, user.email, "user.register", user.email, "self-service signup")
     return Token(access_token=token, user=user, tunnel_token=row[4])
 
 
 @router.post("/login", response_model=Token)
 async def login(payload: UserLogin, db: AsyncConnection = Depends(get_db)):
     cur = await db.execute(
-        "SELECT id, email, password_hash, full_name, role, tunnel_token FROM users WHERE email = %s",
+        "SELECT id, email, password_hash, full_name, role, tunnel_token, is_active FROM users WHERE email = %s",
         (payload.email,),
     )
     row = await cur.fetchone()
@@ -56,8 +58,10 @@ async def login(payload: UserLogin, db: AsyncConnection = Depends(get_db)):
 
     if not row or not verify_password(payload.password, row[2]):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+    if not row[6]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled. Contact the administrator.")
 
-    user = UserOut(id=str(row[0]), email=row[1], full_name=row[3], role=row[4], tunnel_token=row[5])
+    user = UserOut(id=str(row[0]), email=row[1], full_name=row[3], role=row[4], tunnel_token=row[5], is_active=row[6])
     token = create_access_token(subject=user.id, extra={"email": user.email, "role": user.role})
     return Token(access_token=token, user=user, tunnel_token=row[5])
 
@@ -67,7 +71,7 @@ async def me(user: dict = Depends(get_current_user)):
     return UserOut(
         id=user["id"], email=user["email"], full_name=user["full_name"], role=user["role"],
         tunnel_token=user.get("tunnel_token"), custom_domain=user.get("custom_domain"),
-        plan=user.get("plan") or "free",
+        plan=user.get("plan") or "free", is_active=user.get("is_active", True),
     )
 
 

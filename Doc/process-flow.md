@@ -30,16 +30,16 @@ nginx fronts 80/443 → 127.0.0.1:8000.
 
 ## Middleware stack (request order)
 
-`app.add_middleware` order in main.py: CORS → IPMonitor → TunnelProxy.
+`app.add_middleware` order in main.py (v0.2.0): CORS → TunnelProxy → IPMonitor.
 Starlette wraps LAST-added as OUTERMOST, so an incoming request flows:
 
 ```
-request → TunnelProxyMiddleware → IPMonitorMiddleware → CORS → routes
+request → IPMonitorMiddleware → TunnelProxyMiddleware → CORS → routes
 ```
 
-Consequence (verified quirk): subdomain requests are intercepted & proxied inside
-TunnelProxy and never reach IPMonitor counting; the code comment in main.py states the
-opposite intent. Direct app requests are IP-counted normally.
+Since v0.2.0 (admin-approved swap) IPMonitor is outermost: proxied tunnel traffic
+IS counted by the IP monitor (previously TunnelProxy was outermost and tunnel
+requests were never counted).
 
 - `TunnelProxyMiddleware` (app/core/proxy.py): extracts subdomain from Host header →
   registry lookup → httpx forward to `127.0.0.1:{tunnel.remote_port}` → streams response,
@@ -87,7 +87,8 @@ browser → http://abc123.localhost:8020  (Host: abc123.localhost:8020)
 | tunnels.py | /tunnels | GET /info, GET /my (own, auth), GET "" (admin, active), GET /history (admin, ?limit=50 from DB), DELETE /{subdomain} (admin force-stop), POST /{subdomain}/stop (own), GET /stats (admin) |
 | tokens.py | /tokens | GET "", POST "", PUT /{token_id}, DELETE /{token_id}, POST /{token_id}/regenerate, GET /admin/all, DELETE /admin/{token_id}, POST /admin/{token_id}/regenerate |
 | payments.py | /payments | POST /checkout, POST /webhook/stripe, POST /webhook/paypal, GET /paypal/capture/{order_id}, POST /webhook/nowpayments, GET /my, GET /admin/all, GET /admin/stats |
-| ip_monitor.py | /ip-monitor | GET /stats, GET /ips, GET /ips/{ip}, POST /block, POST /unblock, GET /blocked, POST /geo/{ip}, GET /config |
+| ip_monitor.py | /ip-monitor | GET /stats, GET /ips, GET /ips/{ip}, POST /block, POST /unblock, GET /blocked, POST /geo/{ip}, GET /config (effective view), PUT /config (runtime overrides → Redis) |
+| audit.py | /audit | GET "" (admin, newest first, ?limit&offset) |
 | admin.py (pages, no prefix) | / | GET /, /login, /admin, /dashboard (static HTML) + /docs /redoc /health |
 
 Auth: JWT Bearer (JWT_SECRET, HS256, claims sub=user_id, email, role).

@@ -11,9 +11,10 @@
 
 ## Directed edges (action on A → B reflects)
 ```
-/login register           --> /admin user list +stats, /dashboard
-/dashboard token CRUD     --> SSH connect auth, /admin All Tokens
-/dashboard custom-domain  --> proxy custom-domain routing, /admin
+/login register           --> /admin user list +stats, /dashboard, audit_logs
+/admin user edit/disable  --> /login (creds/status), /dashboard, SSH auth (is_active), audit_logs
+/admin ip config change   --> middleware auto-block behavior (runtime), audit_logs
+/admin token CRUD         --> SSH connect auth, /admin All Tokens
 /admin user update/delete --> /login (creds), /dashboard, SSH legacy-token auth
 SSH connect/disconnect    --> /admin All Tunnels + activity, /dashboard
 payments webhook paid     --> /dashboard plan badge, /admin payments/stats

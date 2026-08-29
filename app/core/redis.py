@@ -60,6 +60,59 @@ def _ip_key(ip: str) -> str:
     return f"ip:{ip}"
 
 
+# Runtime overrides for the IP monitor (survive until changed; Redis hash).
+# GET /ip-monitor/config reads the merged (env defaults + overrides) view.
+IPMON_CONFIG_KEY = "ipmonitor:config"
+
+
+async def get_effective_monitor_config() -> dict[str, Any]:
+    """Env defaults merged with Redis overrides (source says which won)."""
+    defaults: dict[str, Any] = {
+        "auto_block_enabled": True,  # historical behavior: auto-block always on
+        "rate_window_seconds": settings.IP_RATE_WINDOW,
+        "block_threshold": settings.IP_RATE_BLOCK_THRESHOLD,
+        "block_duration_seconds": settings.IP_BLOCK_DURATION,
+    }
+    r = get_redis()
+    if r is None:
+        return {**defaults, "source": "env"}
+    try:
+        raw = await r.hgetall(IPMON_CONFIG_KEY)
+    except Exception as e:
+        logger.debug("Redis get_effective_monitor_config error: %s", e)
+        return {**defaults, "source": "env"}
+    if not raw:
+        return {**defaults, "source": "env"}
+    cfg = dict(defaults)
+    if "auto_block" in raw:
+        cfg["auto_block_enabled"] = raw["auto_block"] == "1"
+    try:
+        if "rate_window" in raw:
+            cfg["rate_window_seconds"] = int(raw["rate_window"])
+        if "block_threshold" in raw:
+            cfg["block_threshold"] = int(raw["block_threshold"])
+        if "block_duration" in raw:
+            cfg["block_duration_seconds"] = int(raw["block_duration"])
+    except (TypeError, ValueError):
+        pass  # corrupted override — keep defaults
+    return {**cfg, "source": "redis"}
+
+
+async def set_monitor_config_overrides(overrides: dict[str, Any]) -> None:
+    """Merge partial overrides into the Redis config hash."""
+    r = get_redis()
+    if r is None:
+        raise RuntimeError("Redis not connected")
+    mapping: dict[str, str] = {}
+    if "auto_block" in overrides:
+        mapping["auto_block"] = "1" if overrides["auto_block"] else "0"
+    for k in ("rate_window", "block_threshold", "block_duration"):
+        if overrides.get(k) is not None:
+            mapping[k] = str(int(overrides[k]))
+    if mapping:
+        await r.hset(IPMON_CONFIG_KEY, mapping=mapping)
+
+
 async def record_request(
     ip: str,
     subdomain: str = "",
@@ -79,6 +132,10 @@ async def record_request(
     key = _ip_key(ip)
 
     try:
+        # Effective runtime config (env defaults + admin overrides from Redis)
+        mon_cfg = await get_effective_monitor_config()
+        window = mon_cfg["rate_window_seconds"]
+
         # Increment total request count
         await r.hincrby(key, "total_requests", 1)
         await r.hset(key, mapping={"last_seen": now_iso, "last_path": path, "last_status": status_code})
@@ -87,10 +144,10 @@ async def record_request(
         window_key = f"{key}:rate"
         await r.zadd(window_key, {str(now_ts): now_ts})
         # Remove entries outside the window
-        cutoff = now_ts - settings.IP_RATE_WINDOW
+        cutoff = now_ts - window
         await r.zremrangebyscore(window_key, 0, cutoff)
         # Set TTL on the rate key
-        await r.expire(window_key, settings.IP_RATE_WINDOW + 10)
+        await r.expire(window_key, window + 10)
 
         # Count requests in the current window
         window_count = await r.zcard(window_key)
@@ -110,9 +167,9 @@ async def record_request(
         # Set TTL on the main key (24h of inactivity → expire)
         await r.expire(key, 86400)
 
-        # Check if IP should be auto-blocked
-        if window_count >= settings.IP_RATE_BLOCK_THRESHOLD:
-            await block_ip(ip, reason="auto_rate_limit", duration=settings.IP_BLOCK_DURATION)
+        # Check if IP should be auto-blocked (respects the runtime on/off toggle)
+        if mon_cfg["auto_block_enabled"] and window_count >= mon_cfg["block_threshold"]:
+            await block_ip(ip, reason="auto_rate_limit", duration=mon_cfg["block_duration_seconds"])
 
         # Return summary
         info = await get_ip_info(ip)

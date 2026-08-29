@@ -16,6 +16,7 @@ Connection (local dev): `postgresql://postgres:root@localhost:5432/pinggy`
 | plan | VARCHAR(20) NOT NULL DEFAULT 'free' | 'free' \| 'pro' (0007) |
 | plan_expires_at | TIMESTAMPTZ | pro expiry (0008) |
 | seats | INT NOT NULL DEFAULT 1 | (0009) |
+| is_active | BOOLEAN NOT NULL DEFAULT TRUE | (0010) — FALSE = login/API/SSH rejected |
 | created_at / updated_at | TIMESTAMPTZ | defaults now() |
 
 Index: idx_users_email. Current rows (local): 1 — support@callingagents.in (role admin,
@@ -73,6 +74,19 @@ migrations).
 | created_at / updated_at | TIMESTAMPTZ | |
 
 Indexes: idx_payments_user, idx_payments_ref.
+
+## audit_logs  (0010 — admin/user action history)
+| column | type | notes |
+|---|---|---|
+| id | UUID PK | |
+| actor_email | VARCHAR(255) NOT NULL | who performed the action |
+| action | VARCHAR(50) NOT NULL | user.update / user.delete / user.register / ip.block / ip.unblock / ip_monitor.config_update |
+| target | VARCHAR(255) | user email / IP / "" |
+| details | TEXT | changed field names (password MASKED) / JSON payload |
+| created_at | TIMESTAMPTZ | default now() |
+
+Indexes: idx_audit_created (DESC), idx_audit_actor. Written via app/core/audit.py
+(fire-and-forget) from users/auth/ip_monitor routers; read by GET /audit + admin page.
 
 ## Non-DB state
 - Redis (db 0): per-IP request counters + blocklist for IP monitoring (TTL = window /

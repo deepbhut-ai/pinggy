@@ -4,6 +4,7 @@ import secrets as _secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from psycopg import AsyncConnection
 
+from app.core.audit import log_audit
 from app.core.db import get_db
 from app.core.deps import get_admin_user, get_current_user
 from app.core.security import hash_password
@@ -20,12 +21,12 @@ async def list_users(
     offset: int = 0,
 ):
     cur = await db.execute(
-        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at FROM users ORDER BY created_at DESC LIMIT %s OFFSET %s",
+        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at, is_active FROM users ORDER BY created_at DESC LIMIT %s OFFSET %s",
         (limit, offset),
     )
     rows = await cur.fetchall()
     await cur.close()
-    return [UserOut(id=str(r[0]), email=r[1], full_name=r[2], role=r[3], tunnel_token=r[4], custom_domain=r[5], plan=r[6], plan_expires_at=r[7].isoformat() if r[7] else None) for r in rows]
+    return [UserOut(id=str(r[0]), email=r[1], full_name=r[2], role=r[3], tunnel_token=r[4], custom_domain=r[5], plan=r[6], plan_expires_at=r[7].isoformat() if r[7] else None, is_active=r[8]) for r in rows]
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -35,13 +36,13 @@ async def get_user(
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
-        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at FROM users WHERE id = %s", (user_id,)
+        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at, is_active FROM users WHERE id = %s", (user_id,)
     )
     row = await cur.fetchone()
     await cur.close()
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
-    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6], plan_expires_at=row[7].isoformat() if row[7] else None)
+    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6], plan_expires_at=row[7].isoformat() if row[7] else None, is_active=row[8])
 
 
 @router.put("/{user_id}", response_model=UserOut)
@@ -57,8 +58,9 @@ async def update_user(
     plan: str | None = None,
     duration_days: int | None = None,
     seats: int | None = None,
+    is_active: bool | None = None,
 ):
-    """Update a user (admin only). Can change email, name, role, password, custom domain, or plan."""
+    """Update a user (admin only). Can change email, name, role, password, custom domain, plan, or account status."""
     # Check user exists
     cur = await db.execute("SELECT id FROM users WHERE id = %s", (user_id,))
     if not await cur.fetchone():
@@ -97,6 +99,9 @@ async def update_user(
     if seats and seats > 0:
         updates.append("seats = %s")
         params.append(seats)
+    if is_active is not None:
+        updates.append("is_active = %s")
+        params.append(is_active)
     if custom_domain is not None:
         domain_value = custom_domain.strip() if custom_domain else None
         # Check if domain is already taken by another user
@@ -131,7 +136,7 @@ async def update_user(
     try:
         cur = await db.execute(
             f"UPDATE users SET {', '.join(updates)} WHERE id = %s "
-            f"RETURNING id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at",
+            f"RETURNING id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at, is_active",
             tuple(params),
         )
         row = await cur.fetchone()
@@ -143,7 +148,16 @@ async def update_user(
                 "This custom domain is already in use by another user. Please choose a different domain.",
             )
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Failed to update user: {str(e)}")
-    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6], plan_expires_at=row[7].isoformat() if row[7] else None)
+    # Audit: record which fields an admin changed (never the password value itself)
+    changed = [k for k, v in {
+        "email": email, "full_name": full_name, "role": role,
+        "password": "***" if password else None,
+        "custom_domain": custom_domain, "plan": plan,
+        "duration_days": duration_days if plan == "pro" else None,
+        "seats": seats, "is_active": is_active,
+    }.items() if v is not None and v != ""]
+    await log_audit(db, admin["email"], "user.update", row[1], ", ".join(changed) or "no fields")
+    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6], plan_expires_at=row[7].isoformat() if row[7] else None, is_active=row[8])
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_200_OK)
@@ -169,6 +183,7 @@ async def delete_user(
     # Delete user
     cur = await db.execute("DELETE FROM users WHERE id = %s", (user_id,))
     await cur.close()
+    await log_audit(db, admin["email"], "user.delete", row[0], "user and their tunnels removed")
 
     return {"message": f"User {row[0]} deleted"}
 
