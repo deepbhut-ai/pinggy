@@ -106,6 +106,15 @@
 - **Watch out:** invoice print uses ?token= JWT (new-tab auth); vtest is now pro
   (webhook test) — set back to free if needed: PUT /users/{id}?plan=free.
 
+## 2026-08-29 — v0.6.1 (competitive research)
+- **Done:** Audited dashboard.pinggy.io page-by-page (user's logged-in Pro account,
+  9 pages) and wrote Doc/reports/pinggy-competitive-analysis.md with feature matrix
+  + 8-track roadmap (v0.7.0 Command Builder 2.0 → v1.0.0 TCP/TLS). Docs-only commit.
+- **Next (proposed, NOT started):** v0.7.0 Track 1 — app presets, download script,
+  QR code, saved configs. Then Track 2 tunnel auth options.
+- **Watch out:** pinggy Pro is $2.5/mo — our ₹199 ≈ $2.38 is fine; free-tier
+  unlimited data is a marketing angle they can't match (they throttle).
+
 ## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
 - **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the
   real 7 routes (process-flow, functions, page-map). Drift exposed by a live-log 200

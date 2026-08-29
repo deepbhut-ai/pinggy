@@ -1,5 +1,19 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.6.1 — 2026-08-29 — competitive analysis report (docs only)
+
+### Added
+- `Doc/reports/pinggy-competitive-analysis.md` — full page-by-page audit of
+  dashboard.pinggy.io (9 pages + advanced options) vs our v0.6.0: feature matrix,
+  UX comparison, 8-track prioritized roadmap (command builder 2.0 → TCP/TLS → web
+  debugger) and version plan v0.7.0→v1.0.0.
+
+### Changed
+- none
+
+### Removed
+- none
+
 ## v0.6.0 — 2026-08-29 — Phase E: editable plans + invoice tracking
 
 ### Added
