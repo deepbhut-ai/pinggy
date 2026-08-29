@@ -53,9 +53,11 @@ Indexes: idx_tunnels_subdomain, idx_tunnels_status. Written by ssh_server on con
 | created_at / updated_at | TIMESTAMPTZ | |
 
 Indexes: idx_tokens_user_email, idx_tokens_token.
-⚠ Local quirk: 0 rows — migration 0006 backfills from users.tunnel_token, but auto_setup
-seeds the admin AFTER migrations run, so the seed token never got backfilled. SSH auth
-falls back to users.tunnel_token, so tunnels still work.
+Current rows (local): 1 — "Default" token for support@callingagents.in (backfilled
+from users.tunnel_token in v0.1.1; SSH auth resolves via this table first).
+⚠ Fresh-install quirk remains: migration 0006 backfills from users.tunnel_token, but
+auto_setup seeds the admin AFTER migrations run, so a brand-new install starts with an
+empty tokens table (SSH auth falls back to users.tunnel_token until backfilled).
 
 ## payments
 | column | type | notes |

@@ -1,0 +1,30 @@
+# v0.1.1 — token backfill verification — 2026-08-29
+
+Change: backfilled the admin's tunnel token into the tokens table (local DB only,
+data-only change, no schema change → no migration file needed).
+
+    INSERT INTO tokens (user_email, token, name, custom_domain)
+    SELECT email, tunnel_token, 'Default', custom_domain
+    FROM users WHERE email='support@callingagents.in' AND tunnel_token IS NOT NULL
+    ON CONFLICT (token) DO NOTHING;
+    → INSERT 0 1
+
+## Machine assertions (all PASS)
+  GET /api/v1/tokens/admin/all (admin JWT)  -> 200, 1 row:
+    { id 4afe47ff-…, token 0b5fc14808896ec4, name "Default",
+      user_email support@callingagents.in, subdomain 5666318 }
+  Tunnel E2E re-run (Doc/tests/v0.1.0/tunnel_e2e.py)              -> PASS, exit 0
+    (SSH auth now resolves via the TOKENS TABLE path — it is checked before the
+     users.tunnel_token fallback — remote port 49787, tunnel a73139j.localhost:8020,
+     HTTP 200, 1396 bytes through the tunnel)
+
+## Browser verification (VS Code integrated browser)
+  /admin → "🔑 All Tokens": Total Tokens = 1; row shows token 0b5fc14808896ec4,
+  name Default, user support@callingagents.in, subdomain 5666318, created timestamp;
+  Regen/Delete actions present. Screenshot: screenshot-all-tokens.png.
+
+## Notes
+  - Root cause remains for FRESH installs (auto_setup seeds the admin after
+    migrations, so 0006's backfill never sees it) — code fix in auto_setup.py is a
+    separate suggestion, intentionally NOT done here (scope).
+  - users.tunnel_token still holds the same token (legacy column kept in sync).

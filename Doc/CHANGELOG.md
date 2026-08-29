@@ -1,5 +1,22 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.1.1 — 2026-08-29 — backfill admin tunnel token into tokens table
+Data-only local-DB change (approved suggestion 1 of 3 from v0.1.0 report).
+
+### Added
+- `Doc/tests/v0.1.1/` — verification evidence (admin API token list, E2E re-run,
+  All Tokens dashboard screenshot).
+
+### Changed
+- Local DB `tokens` table: inserted the admin's existing tunnel token (name "Default",
+  user support@callingagents.in) via idempotent upsert — the admin dashboard "All
+  Tokens" view is no longer empty and SSH auth now resolves through the tokens table
+  (primary path) instead of the users.tunnel_token fallback. LOCAL DATABASE ONLY.
+- `Doc/database.md` — tokens-table row count + fresh-install quirk note updated.
+
+### Removed
+- none
+
 ## v0.1.0 — 2026-08-29 — baseline: local dev bootstrap + full Doc/ scaffold
 First versioned commit of this repository (git initialized this day; project previously
 existed un-versioned as a copy of the production server tree).

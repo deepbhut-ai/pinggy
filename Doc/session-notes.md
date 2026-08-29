@@ -29,3 +29,15 @@
   tokens table empty locally (backfill ran before admin seed); changing users.email requires
   re-linking tokens rows (FK tokens.user_email → users.email).
 
+## 2026-08-29 — v0.1.1 (approved: suggestion 1 only)
+- **Done:** v0.1.1 committed + tagged — admin's tunnel token backfilled into local
+  tokens table (name "Default"); verified via /tokens/admin/all (1 row), tunnel E2E
+  re-run PASS (auth now via tokens-table path), and dashboard "All Tokens" view.
+- **In progress:** nothing. App still running (dev env, port 8020).
+- **Next:** await user. Still-parked suggestions: (2) settings-driven domains in
+  admin.html System Info; (3) main.py middleware comment fix; (new) auto_setup.py
+  could insert the seeded token into tokens for fresh installs.
+- **Watch out:** fresh installs still start with an empty tokens table (seed runs
+  after migrations) — documented in Doc/database.md.
+
+
