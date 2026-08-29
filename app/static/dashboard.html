@@ -305,7 +305,8 @@
     <header class="app-header">
       <div class="logo">⚡ IRAGT</div>
       <div class="right">
-        <div class="user-badge" id="userBadge" onclick="logout()">
+        <button class="btn btn-sm btn-ghost" onclick="openSecurity()" title="Two-Factor Authentication">🛡️ Security</button>
+        <div class="user-badge" id="userBadge" onclick="logout()" title="Log out">
           <div class="avatar" id="userAvatar">U</div>
           <span id="userInfo">user</span>
         </div>
@@ -459,10 +460,27 @@ function getDomainDailyTotals(tunnels) {
 }
 
 // ---- Auth ----
+let OTP_CHALLENGE = null;
 async function doLogin() {
   const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
   try {
+    if (OTP_CHALLENGE) {
+      const code = prompt('Enter the 6-digit verification code from your email:');
+      if (!code) return;
+      const resp = await fetch('/api/v1/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge: OTP_CHALLENGE, code }),
+      });
+      if (!resp.ok) throw new Error('Invalid or expired code');
+      const data = await resp.json();
+      authToken = data.access_token;
+      localStorage.setItem('pinggy_token', authToken);
+      currentUser = data.user;
+      showApp();
+      return;
+    }
     const resp = await fetch('/api/v1/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -470,11 +488,17 @@ async function doLogin() {
     });
     if (!resp.ok) throw new Error('Invalid credentials');
     const data = await resp.json();
+    if (data.otp_required) {
+      OTP_CHALLENGE = data.challenge;
+      toast('Verification code sent to your email');
+      doLogin();
+      return;
+    }
     authToken = data.access_token;
     localStorage.setItem('pinggy_token', authToken);
     currentUser = data.user;
     showApp();
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) { OTP_CHALLENGE = null; toast(e.message, 'error'); }
 }
 
 function logout() {
@@ -504,6 +528,29 @@ async function showApp() {
   }
 
   navigate('quickstart', document.querySelector('[data-page=quickstart]'));
+}
+
+// ---- 2FA (v1.5.0) ----
+async function openSecurity() {
+  let on = false;
+  try { on = (await api('/auth/2fa')).twofa_enabled; } catch (e) { toast(e.message, 'error'); return; }
+  showModal('🛡️ Account Security', `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius)">
+      <div>
+        <div style="font-weight:600;font-size:.9rem">Two-Factor Authentication (email OTP)</div>
+        <div style="font-size:.78rem;color:var(--text-dim);margin-top:.2rem">At login we email you a 6-digit code. Codes expire after 5 minutes.</div>
+      </div>
+      <button class="btn btn-sm ${on ? 'btn-danger' : ''}" id="t2faBtn" onclick="toggle2FA(${!on})">${on ? 'Disable' : 'Enable'}</button>
+    </div>`, () => closeModal(), 'Close', 'btn-ghost');
+  document.getElementById('modalConfirm').style.display = 'none';
+}
+
+async function toggle2FA(enable) {
+  try {
+    await api('/auth/2fa', 'PUT', JSON.stringify({ enabled: enable }));
+    toast(enable ? '2FA enabled — you\u2019ll get an email code at next login' : '2FA disabled');
+    closeModal();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 // ---- Navigation ----

@@ -7,6 +7,9 @@
 | log_audit | app/core/audit.py | (internal) | fire-and-forget INSERT; called from users/auth/ip_monitor routers; passwords never logged (field name only) |
 
 ## Auth / users
+- POST /auth/login — password OK; if users.twofa_enabled → {otp_required, challenge} + emailed 6-digit code (Redis otp:{challenge} sha256:email, 5 min); else JWT (v1.5.0)
+- POST /auth/verify-otp {challenge, code} → JWT; one-time challenge, 401 on wrong/expired
+- GET/PUT /auth/2fa {enabled} — own 2FA toggle (audit auth.2fa)
 | Function | File:line | Signature → returns | Side effects | Called by (pages/clients) |
 |---|---|---|---|---|
 | register | app/api/routers/auth.py:16 | POST /auth/register {email,password,full_name} → 201 Token(access_token,user,tunnel_token) | INSERT users (role forced 'user', random tunnel_token) | login.html sign-up tab |

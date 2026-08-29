@@ -1,5 +1,23 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.5.0 — 2026-08-30 — Two-Factor Authentication (email OTP)
+
+### Added
+- Migration 0024: `users.twofa_enabled` (BOOLEAN, default false).
+- 2FA login flow: password OK + 2FA on → `POST /auth/login` returns `{otp_required, challenge}` (no token); 6-digit code emailed (subject `IRAGT verification code: NNNNNN`, kind=otp), sha256(code):email stored in Redis `otp:{challenge}` TTL 5 min (in-memory fallback when Redis off).
+- `POST /auth/verify-otp {challenge, code}` → JWT on match; challenge consumed on any attempt (one-time); wrong/expired → 401.
+- `GET/PUT /auth/2fa` — user toggles own 2FA (audit `auth.2fa`, `auth.otp_challenge`).
+- login.html: inline verification-code step (password field swaps to OTP input, button becomes Verify & Login).
+- dashboard.html: 🛡️ Security header button → 2FA enable/disable modal; inline login handles OTP step.
+- `Doc/tests/v1.5.0/` evidence (wrong-code 401, real code 200, replay 401, browser E2E).
+
+### Changed
+- `POST /auth/login` no longer declares `response_model=Token` (2FA branch returns a different shape; success shape unchanged).
+- Login-alert email now notes two-factor verified on OTP logins.
+
+### Removed
+- none
+
 ## v1.4.0 — 2026-08-30 — Multi-domains, Teams, Support Tickets
 
 ### Added

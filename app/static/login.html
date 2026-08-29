@@ -89,9 +89,14 @@
       <label>Password</label>
       <input type="password" id="loginPassword" placeholder="Password">
     </div>
+    <div class="form-group" id="otpGroup" style="display:none">
+      <label>Verification code</label>
+      <input type="text" id="loginOtp" placeholder="6-digit code from your email" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+      <p class="auth-note" style="margin-top:.35rem">We sent a 6-digit code to your email (expires in 5 min).</p>
+    </div>
     <div class="auth-error" id="loginError"></div>
     <div class="auth-success" id="loginSuccess" style="display:none"></div>
-    <button class="btn" onclick="doLogin()">Login</button>
+    <button class="btn" id="loginBtn" onclick="doLogin()">Login</button>
     <p class="auth-note"><a href="#" onclick="switchTab('forgot', document.querySelector('.auth-tab:nth-child(1)'));return false">Forgot password?</a> · Don't have an account? <a href="#" onclick="switchTab('register', document.querySelector('.auth-tab:nth-child(2)'));return false">Sign up</a></p>
   </div>
 
@@ -223,12 +228,33 @@ async function doReset() {
   if (rt) showResetForm(rt);
 })();
 
+let OTP_CHALLENGE = null;
+
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
   if (!email || !password) { errEl.textContent = 'Please enter email and password'; errEl.style.display = 'block'; return; }
+
+  // Step 2: verify OTP after challenge was issued
+  if (OTP_CHALLENGE) {
+    const code = document.getElementById('loginOtp').value.trim();
+    if (!code) { errEl.textContent = 'Enter the 6-digit code from your email'; errEl.style.display = 'block'; return; }
+    try {
+      const res = await fetch(`${API}/auth/verify-otp`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge: OTP_CHALLENGE, code })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Verification failed');
+      localStorage.setItem('pinggy_token', data.access_token);
+      localStorage.setItem('pinggy_user', JSON.stringify(data.user));
+      window.location.replace(data.user.role === 'admin' ? '/admin' : '/dashboard');
+    } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+    return;
+  }
+
   try {
     const res = await fetch(`${API}/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -236,6 +262,14 @@ async function doLogin() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Login failed');
+    if (data.otp_required) {
+      OTP_CHALLENGE = data.challenge;
+      document.getElementById('otpGroup').style.display = 'block';
+      document.getElementById('loginBtn').textContent = 'Verify & Login';
+      document.getElementById('loginPassword').parentElement.style.display = 'none';
+      document.getElementById('loginOtp').focus();
+      return;
+    }
     localStorage.setItem('pinggy_token', data.access_token);
     localStorage.setItem('pinggy_user', JSON.stringify(data.user));
     // Replace current history entry so back button doesn't go back to login

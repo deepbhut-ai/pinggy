@@ -1,6 +1,7 @@
-"""Auth router: register, login, me."""
+"""Auth router: register, login, me, 2FA (email OTP)."""
 from fastapi import APIRouter, Depends, HTTPException, status
 from psycopg import AsyncConnection
+from pydantic import BaseModel
 
 from app.core.db import get_db
 from app.core.deps import get_admin_user, get_current_user
@@ -59,10 +60,11 @@ async def register(
     return Token(access_token=token, user=user, tunnel_token=row[4])
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login")
 async def login(payload: UserLogin, db: AsyncConnection = Depends(get_db)):
     cur = await db.execute(
-        "SELECT id, email, password_hash, full_name, role, tunnel_token, is_active FROM users WHERE email = %s",
+        "SELECT id, email, password_hash, full_name, role, tunnel_token, is_active, "
+        "COALESCE(twofa_enabled, FALSE) FROM users WHERE email = %s",
         (payload.email,),
     )
     row = await cur.fetchone()
@@ -72,6 +74,35 @@ async def login(payload: UserLogin, db: AsyncConnection = Depends(get_db)):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
     if not row[6]:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled. Contact the administrator.")
+
+    # ---- 2FA (v1.5.0): password OK + 2FA on → issue OTP challenge ----
+    if row[7]:
+        import secrets as _secrets
+        from app.core.redis import get_redis
+        code = f"{_secrets.randbelow(1000000):06d}"
+        challenge = _secrets.token_hex(16)
+        r = get_redis()
+        if r is not None:
+            import hashlib as _h
+            await r.setex(f"otp:{challenge}", 300, _h.sha256(code.encode()).hexdigest() + ":" + row[1])
+        else:
+            # no Redis: store code itself (single-process dev fallback), still hashed with fixed salt
+            import hashlib as _h
+            _OTP_FALLBACK[challenge] = (_h.sha256(code.encode()).hexdigest() + ":" + row[1], 300)
+        try:
+            from app.core.email import send_email
+            await send_email(
+                db, row[1],
+                f"IRAGT verification code: {code}",
+                f"Your IRAGT login verification code is: {code}\n\n"
+                "It expires in 5 minutes. If you didn't try to log in, reset your password immediately.",
+                kind="otp",
+            )
+        except Exception:
+            pass
+        from app.core.audit import log_audit
+        await log_audit(db, row[1], "auth.otp_challenge", row[1], "2FA code sent")
+        return {"otp_required": True, "challenge": challenge}
 
     user = UserOut(id=str(row[0]), email=row[1], full_name=row[3], role=row[4], tunnel_token=row[5], is_active=row[6])
     token = create_access_token(subject=user.id, extra={"email": user.email, "role": user.role})
@@ -91,6 +122,92 @@ async def login(payload: UserLogin, db: AsyncConnection = Depends(get_db)):
     except Exception:
         pass
     return Token(access_token=token, user=user, tunnel_token=row[5])
+
+
+# no-Redis dev fallback store: challenge -> (hash:email, ttl_s)
+_OTP_FALLBACK: dict = {}
+
+
+class OTPVerify(BaseModel):
+    challenge: str
+    code: str
+
+
+async def _consume_otp(challenge: str, code: str) -> str | None:
+    """Return email if code matches; consume the challenge either way."""
+    import hashlib as _h
+    provided = _h.sha256(code.strip().encode()).hexdigest()
+    from app.core.redis import get_redis
+    r = get_redis()
+    if r is not None:
+        val = await r.get(f"otp:{challenge}")
+        if val is None:
+            return None
+        val = val.decode() if isinstance(val, bytes) else val
+        await r.delete(f"otp:{challenge}")
+        expected, email = val.split(":", 1)
+        return email if provided == expected else None
+    entry = _OTP_FALLBACK.pop(challenge, None)
+    if not entry:
+        return None
+    expected, email = entry[0].split(":", 1)
+    return email if provided == expected else None
+
+
+@router.post("/verify-otp", response_model=Token)
+async def verify_otp(payload: OTPVerify, db: AsyncConnection = Depends(get_db)):
+    email = await _consume_otp(payload.challenge, payload.code)
+    if not email:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired verification code")
+    cur = await db.execute(
+        "SELECT id, email, full_name, role, tunnel_token, is_active FROM users WHERE email = %s",
+        (email,),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    if not row or not row[5]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
+    user = UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], is_active=row[5])
+    token = create_access_token(subject=user.id, extra={"email": user.email, "role": user.role})
+    from app.core.audit import log_audit
+    await log_audit(db, user.email, "auth.login", user.email, "password + OTP login")
+    try:
+        from app.core.email import send_email
+        await send_email(
+            db, user.email,
+            "New login to your IRAGT account",
+            "Hi,\n\nA successful login to your IRAGT account just occurred (two-factor verified).\n"
+            "If this wasn't you, reset your password immediately.",
+            kind="login",
+        )
+    except Exception:
+        pass
+    return Token(access_token=token, user=user, tunnel_token=row[4])
+
+
+@router.get("/2fa")
+async def get_2fa(user: dict = Depends(get_current_user), db: AsyncConnection = Depends(get_db)):
+    cur = await db.execute("SELECT COALESCE(twofa_enabled, FALSE) FROM users WHERE id = %s", (user["id"],))
+    row = await cur.fetchone()
+    await cur.close()
+    return {"twofa_enabled": bool(row[0]) if row else False}
+
+
+class TwoFAIn(BaseModel):
+    enabled: bool
+
+
+@router.put("/2fa")
+async def set_2fa(payload: TwoFAIn, user: dict = Depends(get_current_user), db: AsyncConnection = Depends(get_db)):
+    cur = await db.execute(
+        "UPDATE users SET twofa_enabled = %s WHERE id = %s RETURNING twofa_enabled",
+        (payload.enabled, user["id"]),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    from app.core.audit import log_audit
+    await log_audit(db, user["email"], "auth.2fa", user["email"], f"2FA {'enabled' if payload.enabled else 'disabled'}")
+    return {"twofa_enabled": bool(row[0])}
 
 
 @router.get("/me", response_model=UserOut)

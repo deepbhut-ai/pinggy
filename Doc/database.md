@@ -195,6 +195,7 @@ Seeded free/pro/enterprise. Read by GET /plans (public), edited via admin UI.
 | last_used_at | TIMESTAMPTZ | updated on each X-Api-Key use |
 
 ## Non-DB state
+- users.twofa_enabled (0024): BOOLEAN default false — when true, login requires emailed 6-digit OTP (Redis `otp:{challenge}`, 5-min TTL).
 - Redis (db 0): per-IP request counters + blocklist for IP monitoring (TTL = window /
   block duration). Flush-safe — purely ephemeral.
 - In-memory tunnel registry (app/core/tunnel_registry.py): subdomain → TunnelSession
