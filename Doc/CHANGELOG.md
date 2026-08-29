@@ -1,5 +1,22 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.1.2 — 2026-08-29 — docs drift fix: complete tunnels route inventory
+Docs-only fix found via drift check (§11): server log showed /tunnels/history serving
+200 while docs listed only 3 of the tunnels router's 7 routes.
+
+### Added
+- `Doc/tests/v0.1.2/` — drift-fix evidence (authoritative route inventory + live
+  curl assertions for the previously-missed routes).
+
+### Changed
+- `Doc/process-flow.md` API table: tunnels row now lists all 7 routes with auth notes.
+- `Doc/functions.md`: tunnels section expanded to 7 rows with decorator line numbers.
+- `Doc/page-map.md`: /admin endpoints += GET /tunnels/history + DELETE /tunnels/{sub};
+  /dashboard endpoints += GET /tunnels/my + POST /tunnels/{sub}/stop.
+
+### Removed
+- none
+
 ## v0.1.1 — 2026-08-29 — backfill admin tunnel token into tokens table
 Data-only local-DB change (approved suggestion 1 of 3 from v0.1.0 report).
 

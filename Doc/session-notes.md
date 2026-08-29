@@ -40,4 +40,17 @@
 - **Watch out:** fresh installs still start with an empty tokens table (seed runs
   after migrations) — documented in Doc/database.md.
 
+## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
+- **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the
+  real 7 routes (process-flow, functions, page-map). Drift exposed by a live-log 200
+  on /tunnels/history; cause was a too-strict grep pattern. Live curl assertions PASS
+  (Doc/tests/v0.1.2/). Zero code changes.
+- **In progress:** nothing. App running (dev env, 8020); server log clean — earlier
+  "Proxy error for kw8ll8g" was the pre-fix deadlocked E2E run, explained.
+- **Next:** await user. Parked: (2) admin.html domains, (3) main.py comment fix,
+  (4) auto_setup seeding token into tokens for fresh installs.
+- **Watch out:** grep decorators with `@router\.(get|post|put|delete|patch)\(` only —
+  NEVER require close-paren right after the path string.
+
+
 

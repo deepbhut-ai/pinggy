@@ -86,7 +86,7 @@ browser → http://abc123.localhost:8020  (Host: abc123.localhost:8020)
 |---|---|---|
 | auth.py | /auth | POST /register, POST /login, GET /me, GET /tunnel-token, POST /regenerate-token |
 | users.py | /users | GET "", GET /{user_id}, PUT /{user_id}, DELETE /{user_id}, PUT /me/custom-domain, GET /{user_id}/tunnels |
-| tunnels.py | /tunnels | GET /info, POST /{subdomain}/stop, GET /stats |
+| tunnels.py | /tunnels | GET /info, GET /my (own, auth), GET "" (admin, active), GET /history (admin, ?limit=50 from DB), DELETE /{subdomain} (admin force-stop), POST /{subdomain}/stop (own), GET /stats (admin) |
 | tokens.py | /tokens | GET "", POST "", PUT /{token_id}, DELETE /{token_id}, POST /{token_id}/regenerate, GET /admin/all, DELETE /admin/{token_id}, POST /admin/{token_id}/regenerate |
 | payments.py | /payments | POST /checkout, POST /webhook/stripe, POST /webhook/paypal, GET /paypal/capture/{order_id}, POST /webhook/nowpayments, GET /my, GET /admin/all, GET /admin/stats |
 | ip_monitor.py | /ip-monitor | GET /stats, GET /ips, GET /ips/{ip}, POST /block, POST /unblock, GET /blocked, POST /geo/{ip}, GET /config |
