@@ -95,6 +95,8 @@ browser → http://abc123.localhost:8020  (Host: abc123.localhost:8020)
 | plans.py | /plans | GET "" (public, active) · PUT /{id} (admin, audited) |
 | invoices.py | /invoices | GET /my (own) · GET /admin/all (admin, ?status=) · GET /{id} (owner-or-admin) · POST /{id}/void (admin) · GET /{id}/print?token= (printable HTML) |
 | configs.py | /configs | CRUD — saved command-builder configurations (owner-scoped) |
+| apikeys.py | /apikeys | create (raw shown once) / list (prefix) / revoke — audited |
+| manage.py | /manage | X-Api-Key-or-JWT REST: GET /tunnels, POST /tunnels/{sub}/stop, GET/POST /tokens, DELETE /tokens/{id} |
 | admin.py (pages, no prefix) | / | GET /, /login, /admin, /dashboard (static HTML) + /docs /redoc /health |
 
 Auth: JWT Bearer (JWT_SECRET, HS256, claims sub=user_id, email, role).

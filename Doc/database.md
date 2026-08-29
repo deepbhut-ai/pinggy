@@ -168,6 +168,14 @@ Seeded free/pro/enterprise. Read by GET /plans (public), edited via admin UI.
 | name | VARCHAR(120) | user label |
 | config | TEXT | JSON blob (preset, local_addr, platform, flags) |
 
+## api_keys  (0020 — programmatic access; raw key shown once)
+| column | type | notes |
+|---|---|---|
+| user_email | VARCHAR(255) | owner |
+| key_hash | VARCHAR(64) UNIQUE | sha256(raw key) |
+| prefix | VARCHAR(8) | display identification |
+| last_used_at | TIMESTAMPTZ | updated on each X-Api-Key use |
+
 ## Non-DB state
 - Redis (db 0): per-IP request counters + blocklist for IP monitoring (TTL = window /
   block duration). Flush-safe — purely ephemeral.

@@ -1,5 +1,21 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.10.0 — 2026-08-29 — API keys + management REST + Python SDK (Track 4)
+
+### Added
+- Migration 0020: `api_keys` (hashed at rest, shown once, last-used tracking).
+- /apikeys lifecycle + /manage REST surface (tunnels list/stop, tokens CRUD)
+  authenticated via X-Api-Key or Bearer JWT.
+- `sdk/pinggy_sdk.py` — zero-dependency Python SDK (TunnelClient).
+- Dashboard API Keys page (one-time key reveal, revoke, SDK quick-start).
+- `Doc/tests/v0.10.0/` evidence (14 assertions incl. full SDK E2E).
+
+### Changed
+- `get_api_user` dependency handles dual auth (API key → JWT fallback).
+
+### Removed
+- none
+
 ## v0.9.0 — 2026-08-29 — persistent subdomains (Track 3)
 
 ### Added
