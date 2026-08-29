@@ -1,0 +1,33 @@
+# v0.9.0 — Persistent subdomains (Track 3) — 2026-08-29
+
+## Changes
+1. Migration 0019: `tokens.fixed_subdomain` (UNIQUE) + backfill via md5(token)[:7]
+   (matches the hash the dashboard already displayed — existing token URLs become
+   stable immediately).
+2. ssh_server `_setup_tunnel`: uses the token's fixed_subdomain when set;
+   random otherwise. Stale-session takeover: if the fixed subdomain is still
+   registered (same token reconnecting while old session lingers), the stale
+   tunnel is removed and its SSH connection closed instead of regenerating.
+3. tokens API: fixed_subdomain on TokenOut (subdomain field prefers it);
+   PUT accepts fixed_subdomain with validation (3-50 chars, [a-z0-9-], no
+   leading hyphen, unique across tokens — 400 invalid / 409 taken); PUT
+   RETURNING now includes fixed_subdomain (initially missed, fixed).
+4. Dashboard edit-token modal: "Fixed subdomain — your permanent URL" field
+   (empty = random each connect).
+
+## Machine assertions (all PASS)
+  P1  PUT fixed_subdomain=myapi → persisted (view shows myapi)
+  P1b PUT response returns fixed_subdomain (RETURNING fix)
+  P2  GET /tokens → subdomain = myapi
+  P3  invalid subdomain → 400
+  P4  same-token re-set (no conflict) → 200
+  P5  TWO separate SSH connects → BOTH got subdomain "myapi" (stability proven)
+  P6/P7 held tunnel → http://myapi.localhost:8020/ → 200 (routing works)
+
+## Notes
+- Drag-and-drop domain→token reassignment UI (pinggy-style) deliberately NOT
+  built this version: assignment is fully covered by the edit modal + custom
+  domain API; DnD is cosmetic parity, deferred.
+- URLs stop changing on reconnect — the biggest everyday UX gap vs pinggy is
+  now closed for users who set a fixed subdomain (default backfill made ALL
+  existing tokens stable).

@@ -342,16 +342,43 @@ class MySSHServer(asyncssh.SSHServer):
         logger.warning("Could not detect forwarded port for %s", self._peer)
 
     async def _setup_tunnel(self, remote_port: int) -> None:
-        """Create the tunnel: allocate random subdomain, register in memory + DB.
-        Simple flow — no plan limits, no timeouts, just connect and go."""
+        """Create the tunnel: use the token's fixed subdomain when set (v0.9.0),
+        else allocate a random one; register in memory + DB."""
         if self._tunnel:
             return
         try:
-            # Random subdomain each connect
-            subdomain = _generate_subdomain()
+            # Fixed subdomain when the token defines one (v0.9.0), else random
+            subdomain = None
+            if self._token:
+                try:
+                    from app.core.db import get_conn
+                    async with get_conn() as db:
+                        cur = await db.execute(
+                            "SELECT fixed_subdomain FROM tokens WHERE token = %s",
+                            (self._token,),
+                        )
+                        row = await cur.fetchone()
+                        await cur.close()
+                        if row and row[0]:
+                            subdomain = row[0]
+                            self._last_fixed_sub = subdomain
+                except Exception as e:
+                    logger.debug("fixed subdomain lookup failed: %s", e)
+            if not subdomain:
+                subdomain = _generate_subdomain()
 
-            # If subdomain collision, regenerate
+            # Collision: regenerate only random subdomains. A FIXED subdomain that
+            # is somehow already live means the same token reconnected while its
+            # old session lingers — drop the stale one and take it over.
             while is_subdomain_taken(subdomain):
+                if self._token and subdomain == getattr(self, "_last_fixed_sub", None):
+                    stale = await remove_tunnel(subdomain)
+                    if stale and stale.ssh_conn:
+                        try:
+                            stale.ssh_conn.close()
+                        except Exception:
+                            pass
+                    break
                 subdomain = _generate_subdomain()
 
             tunnel_id = _generate_tunnel_id()

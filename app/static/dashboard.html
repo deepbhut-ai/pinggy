@@ -1654,10 +1654,11 @@ function showUpgradeModal() {
 async function editToken(tokenId, currentName, currentDomain) {
   // fetch current security settings
   let sec = { basic_auth_user: '', ip_whitelist: '', bearer_key: '', https_only: false };
+  let curSub = '';
   try {
     const list = await api('/tokens');
     const t = list.find(x => x.id === tokenId);
-    if (t && t.security) sec = { ...t.security, basic_auth_user: t.security.basic_auth_user || '' };
+    if (t) { curSub = t.fixed_subdomain || ''; if (t.security) sec = { ...t.security, basic_auth_user: t.security.basic_auth_user || '' }; }
   } catch (e) {}
   showModal('Edit Token', `
     <div class="form-group">
@@ -1667,6 +1668,10 @@ async function editToken(tokenId, currentName, currentDomain) {
     <div class="form-group">
       <label>Custom domain (leave empty for none)</label>
       <input type="text" id="editTokenDomain" value="${currentDomain}" placeholder="e.g. serverira.com">
+    </div>
+    <div class="form-group">
+      <label>Fixed subdomain — your permanent URL (empty = random each connect)</label>
+      <input type="text" id="editFixedSub" value="${curSub}" placeholder="myapi">
     </div>
     <div style="border-top:1px solid var(--border);margin:.75rem 0;padding-top:.75rem">
       <strong style="font-size:.85rem">🔒 Security</strong>
@@ -1691,7 +1696,9 @@ async function editToken(tokenId, currentName, currentDomain) {
   `, async () => {
     const name = document.getElementById('editTokenName').value.trim();
     const domain = document.getElementById('editTokenDomain').value.trim();
+    const newSub = document.getElementById('editFixedSub').value.trim().toLowerCase();
     const payload = { name, custom_domain: domain };
+    if (newSub !== curSub) payload.fixed_subdomain = newSub;
     const bu = document.getElementById('editBasicUser').value.trim();
     const bp = document.getElementById('editBasicPass').value;
     if (bu || bp) { payload.basic_auth_user = bu; payload.basic_auth_pass = bp || undefined; }

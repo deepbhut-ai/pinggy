@@ -1,5 +1,23 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.9.0 — 2026-08-29 — persistent subdomains (Track 3)
+
+### Added
+- Migration 0019: `tokens.fixed_subdomain` (UNIQUE, backfilled from token hash —
+  all existing token URLs instantly stable across reconnects).
+- SSH tunnel setup honors the token's fixed subdomain (stale-session takeover
+  instead of random regeneration on reconnect collision).
+- PUT /tokens/{id} accepts fixed_subdomain (validated: 3-50 chars, lowercase
+  alnum+hyphen, unique); GET /tokens returns it.
+- Dashboard edit-token modal: fixed-subdomain field.
+- `Doc/tests/v0.9.0/` evidence (7 assertions incl. double-connect stability).
+
+### Changed
+- none
+
+### Removed
+- none
+
 ## v0.8.0 — 2026-08-29 — tunnel security options + bandwidth widget (Tracks 2 & 8)
 
 ### Added

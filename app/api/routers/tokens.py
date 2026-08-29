@@ -25,6 +25,7 @@ class TokenOut(BaseModel):
     total_requests: int = 0
     total_bytes: int = 0
     active_tunnels: int = 0
+    fixed_subdomain: str | None = None
     security: dict | None = None  # masked security view (never returns basic_auth_pass / full bearer when set)
 
 
@@ -49,6 +50,7 @@ class TokenCreate(BaseModel):
 class TokenUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=120)
     custom_domain: str | None = None
+    fixed_subdomain: str | None = Field(default=None, max_length=50)
     basic_auth_user: str | None = Field(default=None, max_length=120)
     basic_auth_pass: str | None = Field(default=None, max_length=120)
     ip_whitelist: str | None = None
@@ -89,7 +91,7 @@ async def list_tokens(
 ):
     """List all tokens for the current user."""
     cur = await db.execute(
-        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
+        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only, fixed_subdomain FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
         (user["email"],),
     )
     rows = await cur.fetchall()
@@ -102,11 +104,12 @@ async def list_tokens(
             token=r[1],
             name=r[2],
             custom_domain=r[3],
-            subdomain=_subdomain_from_token(r[1]),
+            subdomain=r[9] or _subdomain_from_token(r[1]),
             created_at=r[4].isoformat() if r[4] else None,
             total_requests=req,
             total_bytes=byt,
             active_tunnels=act,
+            fixed_subdomain=r[9],
             security={
                 "basic_auth_user": r[5],
                 "ip_whitelist": r[6],
@@ -216,6 +219,26 @@ async def update_token(
             await cur.close()
         updates.append("custom_domain = %s")
         params.append(domain_value)
+    # ---- fixed subdomain (v0.9.0): stable URL per token ----
+    if body.fixed_subdomain is not None:
+        import re as _re
+        sub = body.fixed_subdomain.strip().lower() or None
+        if sub:
+            if not _re.fullmatch(r"[a-z0-9][a-z0-9-]{2,49}", sub):
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    "Subdomain must be 3-50 chars: letters, digits, hyphens (no leading hyphen).",
+                )
+            cur = await db.execute(
+                "SELECT id FROM tokens WHERE fixed_subdomain = %s AND id != %s",
+                (sub, token_id),
+            )
+            if await cur.fetchone():
+                await cur.close()
+                raise HTTPException(status.HTTP_409_CONFLICT, f"Subdomain '{sub}' is already taken.")
+            await cur.close()
+        updates.append("fixed_subdomain = %s")
+        params.append(sub)
     # ---- security options (v0.8.0): empty string clears a setting ----
     import secrets as _secrets
     sec_changed = []
@@ -248,7 +271,7 @@ async def update_token(
     try:
         cur = await db.execute(
             f"UPDATE tokens SET {', '.join(updates)}, updated_at = now() WHERE id = %s "
-            f"RETURNING id, token, name, custom_domain, created_at",
+            f"RETURNING id, token, name, custom_domain, created_at, fixed_subdomain",
             tuple(params),
         )
         row = await cur.fetchone()
@@ -260,7 +283,7 @@ async def update_token(
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
-                "This custom domain is already in use.",
+                "This custom domain or subdomain is already in use.",
             )
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
 
@@ -269,8 +292,9 @@ async def update_token(
         token=row[1],
         name=row[2],
         custom_domain=row[3],
-        subdomain=_subdomain_from_token(row[1]),
+        subdomain=row[5] or _subdomain_from_token(row[1]),
         created_at=row[4].isoformat() if row[4] else None,
+        fixed_subdomain=row[5],
     )
 
 
