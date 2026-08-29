@@ -13,10 +13,8 @@ run.py
  │   ├─ _ensure_extensions()            CREATE EXTENSION pgcrypto (gen_random_uuid)
  │   ├─ _run_migrations()               alembic upgrade head (0001…0009)
  │   └─ _ensure_default_admin()         if users empty → seed admin (email 'admin', pw 'admin',
- │                                       role 'admin', random tunnel_token)
- │                                       ⚠ runs AFTER migrations ⇒ 0006's token backfill never sees
- │                                       the seeded admin ⇒ admin token lives only in
- │                                       users.tunnel_token (legacy path)
+ │                                       role 'admin', random tunnel_token) + insert same token
+ │                                       into tokens table (v0.1.3; idempotent)
  └─ uvicorn.run("app.main:app", APP_HOST:APP_PORT)
      └─ lifespan (app/main.py)
          ├─ init_pool()                 psycopg3 async pool (settings.async_dsn)

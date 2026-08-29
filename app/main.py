@@ -67,9 +67,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# IP monitor — must be FIRST (before tunnel proxy) so it sees all requests
+# NOTE on Starlette middleware order: LAST added = OUTERMOST (runs first on requests).
+# Added below in order CORS → IPMonitor → TunnelProxy, so the actual request flow is:
+#   TunnelProxy → IPMonitor → CORS → routes
+# Consequence: subdomain tunnel requests are intercepted and proxied by
+# TunnelProxy BEFORE IPMonitor sees them, so proxied tunnel traffic is NOT
+# counted by the IP monitor. Swap the two add_middleware calls below to change that.
 app.add_middleware(IPMonitorMiddleware)
-# Tunnel proxy — must be added AFTER CORS so it runs before route matching
 app.add_middleware(TunnelProxyMiddleware)
 
 app.include_router(api_router, prefix="/api/v1")

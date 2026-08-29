@@ -40,6 +40,16 @@
 - **Watch out:** fresh installs still start with an empty tokens table (seed runs
   after migrations) — documented in Doc/database.md.
 
+## 2026-08-29 — v0.1.3 (Job 0: 3 parked suggestions) + Jobs 1–9 backlog intake
+- **Done:** v0.1.3 committed + tagged — (a) admin.html System Info settings-driven,
+  (b) main.py middleware comment corrected, (c) auto_setup seeds tokens row (verified
+  on scratch DB, then dropped). App restarted on 8020 (terminal 114c09eb-…).
+- **In progress:** Jobs 1–9 diagnosed → Problem List + phased pipeline presented to
+  user; AWAITING CONFIRMATION before any implementation.
+- **Next:** on user confirmation start Phase A (likely Job 2 + Job 4 first).
+- **Watch out:** `kill %1` in the wrong terminal's job list silently no-ops — kill
+  servers by lsof PID. Ports 8020/2222 currently used by dev server.
+
 ## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
 - **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the
   real 7 routes (process-flow, functions, page-map). Drift exposed by a live-log 200

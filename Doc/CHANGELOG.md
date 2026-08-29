@@ -1,5 +1,23 @@
 # CHANGELOG — pinggy (IRAGT)
 
+## v0.1.3 — 2026-08-29 — Job 0: three parked suggestions
+
+### Added
+- `loadSystemInfo()` in admin.html — System Info table now settings-driven via
+  GET /tunnels/info (SSH server + tunnel domain cells, was hardcoded prod values).
+- `Doc/tests/v0.1.3/` — evidence incl. fresh-DB seed test + System Info screenshot.
+
+### Changed
+- `app/main.py` middleware comment now documents the REAL Starlette order
+  (last added = outermost; TunnelProxy intercepts before IPMonitor counts).
+- `app/core/auto_setup.py` `_ensure_default_admin` also inserts the seeded token
+  into `tokens` (idempotent) — fresh installs no longer start with an empty
+  tokens table.
+- `Doc/database.md`, `Doc/process-flow.md` — quirk notes updated accordingly.
+
+### Removed
+- none
+
 ## v0.1.2 — 2026-08-29 — docs drift fix: complete tunnels route inventory
 Docs-only fix found via drift check (§11): server log showed /tunnels/history serving
 200 while docs listed only 3 of the tunnels router's 7 routes.

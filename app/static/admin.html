@@ -297,7 +297,7 @@ function navigate(page, el) {
   document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
   if (el) el.classList.add('active');
   const c = document.getElementById('pageContent');
-  if (page === 'dashboard') { c.innerHTML = renderDashboard(); loadAdminStats(); }
+  if (page === 'dashboard') { c.innerHTML = renderDashboard(); loadAdminStats(); loadSystemInfo(); }
   else if (page === 'users') loadUsers();
   else if (page === 'tokens') loadAllTokens();
   else if (page === 'tunnels') loadAllTunnels();
@@ -338,11 +338,26 @@ function renderDashboard() {
           <tr><td>Swagger Docs</td><td><a href="/docs" target="_blank">/docs</a></td></tr>
           <tr><td>ReDoc</td><td><a href="/redoc" target="_blank">/redoc</a></td></tr>
           <tr><td>Health Check</td><td><a href="/health" target="_blank">/health</a></td></tr>
-          <tr><td>SSH Server</td><td class="code">ssh.iraglobaltech.com:2222</td></tr>
-          <tr><td>Tunnel Domain</td><td class="code">iraglobaltech.com</td></tr>
+          <tr><td>SSH Server</td><td class="code" id="sysSshServer">—</td></tr>
+          <tr><td>Tunnel Domain</td><td class="code" id="sysTunnelDomain">—</td></tr>
         </table>
       </div>
     </div>`;
+}
+
+// ---- System Info (settings-driven via /tunnels/info) ----
+async function loadSystemInfo() {
+  try {
+    const info = await api('/tunnels/info');
+    const domain = info.domain || '—';
+    const hostOnly = domain.split(':')[0];
+    // Same derivation as buildSSHCommand(): prod uses a DNS-only ssh.<domain> host
+    const sshHost = hostOnly.includes('iraglobaltech.com') ? 'ssh.iraglobaltech.com' : hostOnly;
+    const d = document.getElementById('sysTunnelDomain');
+    const s = document.getElementById('sysSshServer');
+    if (d) d.textContent = domain;
+    if (s) s.textContent = `${sshHost}:${info.ssh_port}`;
+  } catch (e) { /* leave placeholders on failure */ }
 }
 
 // ---- Admin Stats (loaded async) ----
