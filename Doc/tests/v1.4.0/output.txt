@@ -1,0 +1,26 @@
+=== v1.4.0 verification Sun Aug 30 04:22:53 IST 2026 ===
+--- migration:
+INFO  [alembic.runtime.migration] Running upgrade 0022 -> 0023, multi-domains per token + teams + tickets
+--- routes (12 new):
+/api/v1/teams
+/api/v1/teams/{team_id}
+/api/v1/teams/{team_id}/members
+/api/v1/teams/{team_id}/members/{email}
+/api/v1/tickets
+/api/v1/tickets/admin/all
+/api/v1/tickets/my
+/api/v1/tickets/{ticket_id}
+/api/v1/tickets/{ticket_id}/close
+/api/v1/tickets/{ticket_id}/reply
+/api/v1/tokens/{token_id}/domains
+/api/v1/tokens/{token_id}/domains/{domain}
+--- API assertions:
+extra domain attached:
+['shop.mytest.dev']
+teams list:
+[('Platform Team', 2, True)]
+404 unregistered member:
+404
+E2E extra-domain routing (was verified live): Host shop.mytest.dev:8020 -> 200 EXTRA-DOMAIN-OK through tunnel
+JS: dashboard.html + admin.html node --check OK
+--- Browser verification (integrated browser snapshots): dashboard Teams page (team + members table + add/remove UI), Support page (form + ticket list + thread modal), Domains page (Extra Domains card with shop.mytest.dev), admin Tickets page (filters + table + staff thread modal) — all rendered, 0 JS errors

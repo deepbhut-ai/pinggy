@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from psycopg import AsyncConnection
 from pydantic import BaseModel, Field
 
+from app.core.audit import log_audit
 from app.core.db import get_db
 from app.core.deps import get_admin_user, get_current_user
 
@@ -28,6 +29,7 @@ class TokenOut(BaseModel):
     fixed_subdomain: str | None = None
     tunnel_mode: str | None = None
     tcp_port: int | None = None
+    domains: list[str] = []  # extra custom domains (v1.4.0; custom_domain is primary)
     security: dict | None = None  # masked security view (never returns basic_auth_pass / full bearer when set)
 
 
@@ -103,6 +105,10 @@ async def list_tokens(
     out = []
     for r in rows:
         req, byt, act = await _token_traffic(db, r[1])
+        # extra domains (v1.4.0)
+        cur = await db.execute("SELECT domain FROM token_domains WHERE token_id = %s ORDER BY created_at", (r[0],))
+        doms = [d[0] for d in await cur.fetchall()]
+        await cur.close()
         out.append(TokenOut(
             id=str(r[0]),
             token=r[1],
@@ -116,6 +122,7 @@ async def list_tokens(
             fixed_subdomain=r[9],
             tunnel_mode=r[10],
             tcp_port=r[11],
+            domains=doms,
             security={
                 "basic_auth_user": r[5],
                 "ip_whitelist": r[6],
@@ -324,6 +331,74 @@ async def update_token(
         created_at=row[4].isoformat() if row[4] else None,
         fixed_subdomain=row[5],
     )
+
+
+# ---- Extra domains (v1.4.0): multiple domains per token ----
+
+
+class DomainIn(BaseModel):
+    domain: str = Field(max_length=255)
+
+
+@router.post("/{token_id}/domains", status_code=status.HTTP_201_CREATED)
+async def add_token_domain(
+    token_id: str,
+    body: DomainIn,
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Attach an extra custom domain to a token (Pro: up to 3 extras + primary)."""
+    cur = await db.execute(
+        "SELECT id, user_email FROM tokens WHERE id = %s", (token_id,)
+    )
+    t = await cur.fetchone()
+    await cur.close()
+    if not t or (t[1] != user["email"] and user["role"] != "admin"):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
+    if (user.get("plan") or "free") != "pro":
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, "Multiple domains are a Pro feature.")
+    domain = body.domain.strip().lower()
+    domain = _validate_custom_domain(domain, user)
+    cur = await db.execute("SELECT COUNT(*) FROM token_domains WHERE token_id = %s", (token_id,))
+    count = (await cur.fetchone())[0]
+    await cur.close()
+    if count >= 3:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Limit reached: 3 extra domains per token (plus the primary).")
+    try:
+        cur = await db.execute(
+            "INSERT INTO token_domains (token_id, domain) VALUES (%s, %s) RETURNING domain",
+            (token_id, domain),
+        )
+        d = (await cur.fetchone())[0]
+        await cur.close()
+    except Exception:
+        raise HTTPException(status.HTTP_409_CONFLICT, "That domain is already in use.")
+    await log_audit(db, user["email"], "token.domain_add", domain, f"token {token_id[:8]}")
+    return {"domain": d}
+
+
+@router.delete("/{token_id}/domains/{domain}", status_code=status.HTTP_200_OK)
+async def remove_token_domain(
+    token_id: str,
+    domain: str,
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    cur = await db.execute("SELECT user_email FROM tokens WHERE id = %s", (token_id,))
+    t = await cur.fetchone()
+    await cur.close()
+    if not t or (t[0] != user["email"] and user["role"] != "admin"):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
+    cur = await db.execute(
+        "DELETE FROM token_domains WHERE token_id = %s AND domain = %s RETURNING id",
+        (token_id, domain.lower()),
+    )
+    if not await cur.fetchone():
+        await cur.close()
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Domain not attached to this token")
+    await cur.close()
+    await log_audit(db, user["email"], "token.domain_remove", domain, f"token {token_id[:8]}")
+    return {"removed": domain}
 
 
 @router.delete("/{token_id}", status_code=status.HTTP_200_OK)

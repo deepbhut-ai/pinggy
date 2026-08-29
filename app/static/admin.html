@@ -202,6 +202,7 @@
       <a href="#" data-page="plans" onclick="navigate('plans', this)" id="navPlans" style="display:none">💎 Plans</a>
       <a href="#" data-page="invoices" onclick="navigate('invoices', this)" id="navInvoices" style="display:none">🧾 Invoices</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
+      <a href="#" data-page="tickets" onclick="navigate('tickets', this)" id="navTickets" style="display:none">🎫 Tickets</a>
     </div>
     <div class="content" id="pageContent"></div>
   </div>
@@ -298,6 +299,7 @@ async function showApp() {
     document.getElementById('navPlans').style.display = 'block';
     document.getElementById('navInvoices').style.display = 'block';
     document.getElementById('navRegister').style.display = 'block';
+    document.getElementById('navTickets').style.display = 'block';
   }
   navigate('dashboard', document.querySelector('.sidebar a'));
 }
@@ -322,6 +324,7 @@ function navigate(page, el) {
   else if (page === 'plans') loadPlans();
   else if (page === 'invoices') loadInvoices();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
+  else if (page === 'tickets') loadAdminTickets();
 }
 
 // ---- Dashboard ----
@@ -1413,6 +1416,84 @@ function startIpMonitorPolling() {
 
 function stopIpMonitorPolling() {
   if (ipMonitorPollTimer) { clearInterval(ipMonitorPollTimer); ipMonitorPollTimer = null; }
+}
+
+// ---- Admin Tickets (v1.4.0) ----
+let adminTicketFilter = 'all';
+async function loadAdminTickets() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const q = adminTicketFilter === 'all' ? '' : `?status=${adminTicketFilter}`;
+    const tickets = await api(`/tickets/admin/all${q}`);
+    const badge = s => s === 'open' ? '<span class="badge badge-red">open</span>' : s === 'answered' ? '<span class="badge badge-green">answered</span>' : '<span class="badge">closed</span>';
+    c.innerHTML = `
+    <div class="card">
+      <div class="card-header"><h2>🎫 Support Tickets (${tickets.length})</h2>
+        <div style="display:flex;gap:.4rem">
+          ${['all','open','answered','closed'].map(f => `<button class="btn btn-sm ${adminTicketFilter===f?'':'btn-ghost'}" onclick="adminTicketFilter='${f}';loadAdminTickets()">${f}</button>`).join('')}
+        </div>
+      </div>
+      <div class="card-body">
+        ${tickets.length ? `
+        <table class="table" style="font-size:.85rem">
+          <thead><tr><th>User</th><th>Subject</th><th>Status</th><th>Updated</th></tr></thead>
+          <tbody>${tickets.map(t => `
+            <tr style="cursor:pointer" onclick="openAdminTicket('${t.id}')">
+              <td>${t.user_email}</td>
+              <td>${t.subject}</td>
+              <td>${badge(t.status)}</td>
+              <td style="color:var(--text-dim)">${new Date(t.updated_at).toLocaleString()}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : '<p class="empty">No tickets.</p>'}
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function openAdminTicket(id) {
+  try {
+    const t = await api(`/tickets/${id}`);
+    showModal(`🎫 ${t.subject}`, `
+      <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.6rem">From: ${t.user_email} · status: ${t.status}</div>
+      <div style="max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:.6rem">
+        ${t.messages.map(m => `
+        <div style="padding:.6rem .8rem;border-radius:var(--radius);background:${m.is_staff ? 'rgba(106,166,240,.1)' : 'var(--bg)'};border:1px solid var(--border)">
+          <div style="font-size:.72rem;color:var(--text-dim);margin-bottom:.25rem">${m.is_staff ? '🛟 Staff' : m.sender} · ${new Date(m.created_at).toLocaleString()}</div>
+          <div style="font-size:.85rem;white-space:pre-wrap">${m.body.replace(/</g, '&lt;')}</div>
+        </div>`).join('')}
+      </div>
+      ${t.status !== 'closed' ? `
+      <div style="margin-top:.8rem">
+        <textarea id="admTkReply" rows="2" placeholder="Staff reply…" style="width:100%"></textarea>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem">
+          <button class="btn btn-sm btn-ghost" onclick="adminCloseTicket('${t.id}')">Close ticket</button>
+          <button class="btn btn-sm" onclick="adminReplyTicket('${t.id}')">Send reply</button>
+        </div>
+      </div>` : '<p class="empty" style="margin-top:.8rem">Closed.</p>'}`,
+      () => closeModal(), 'Close', 'btn-ghost');
+    document.getElementById('modalConfirm').style.display = 'none';
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function adminReplyTicket(id) {
+  const msg = document.getElementById('admTkReply').value.trim();
+  if (!msg) return toast('Write a reply first', 'error');
+  try {
+    await api(`/tickets/${id}/reply`, 'POST', JSON.stringify({ message: msg }));
+    toast('Reply sent — user notified');
+    openAdminTicket(id);
+    loadAdminTickets();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function adminCloseTicket(id) {
+  try {
+    await api(`/tickets/${id}/close`, 'POST');
+    toast('Ticket closed');
+    closeModal();
+    loadAdminTickets();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 async function loadIpMonitor() {

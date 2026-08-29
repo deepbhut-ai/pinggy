@@ -356,6 +356,14 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
           Announcements
         </div>
+        <div class="nav-item" data-page="teams" onclick="navigate('teams', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Teams
+        </div>
+        <div class="nav-item" data-page="support" onclick="navigate('support', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Support
+        </div>
         <div class="nav-sep"></div>
         <div class="nav-item" data-page="subscription" onclick="navigate('subscription', this)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
@@ -513,6 +521,8 @@ function navigate(page, el) {
   else if (page === 'apidocs') loadApiDocs();
   else if (page === 'usage') loadMyUsage();
   else if (page === 'announcements') loadAnnouncementsPage();
+  else if (page === 'teams') loadTeams();
+  else if (page === 'support') loadSupport();
   else if (page === 'subscription') loadSubscription();
 }
 
@@ -1410,6 +1420,7 @@ async function loadDomains() {
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const info = await api('/tunnels/info');
+    const tokens = await api('/tokens');
     c.innerHTML = `
     <h2 style="margin-bottom:1rem">Domains</h2>
     <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Manage your custom domain and subdomain</p>
@@ -1441,8 +1452,250 @@ async function loadDomains() {
         <p style="font-size:1.1rem;color:var(--primary);font-weight:600;margin-top:.5rem">https://098f6bc.iraglobaltech.com</p>
         <p style="font-size:.8rem;color:var(--text-dim);margin-top:.5rem">This subdomain is automatically generated from your account and cannot be changed.</p>
       </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>🌐 Extra Domains <span class="badge" style="margin-left:.4rem">Pro</span></h2></div>
+      <div class="card-body">
+        <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:.8rem">Attach up to 3 extra custom domains to a token — every domain routes to the same tunnel (same DNS setup as above, one A record per domain).</p>
+        <div class="form-group">
+          <label>Token</label>
+          <select id="xdomToken" class="form-control" onchange="renderXDomains()">
+            ${tokens.map(t => `<option value="${t.id}">${t.name || t.token.slice(0, 12)} (${t.subdomain})</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:center;margin-top:.8rem">
+          <input type="text" id="xdomInput" placeholder="e.g. api.mycompany.com" style="flex:1">
+          <button class="btn btn-sm" onclick="addXDomain()">Add domain</button>
+        </div>
+        <div id="xdomList" style="margin-top:1rem"></div>
+      </div>
+    </div>`;
+    window._xdomTokens = tokens;
+    renderXDomains();
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function renderXDomains() {
+  const sel = document.getElementById('xdomToken');
+  const list = document.getElementById('xdomList');
+  if (!sel || !list || !window._xdomTokens) return;
+  const t = window._xdomTokens.find(x => x.id === sel.value);
+  if (!t) { list.innerHTML = ''; return; }
+  const doms = t.domains || [];
+  list.innerHTML = doms.length ? `
+    <table class="table" style="font-size:.85rem">
+      <thead><tr><th>Domain</th><th style="width:80px"></th></tr></thead>
+      <tbody>${doms.map(d => `
+        <tr>
+          <td class="code">${d}</td>
+          <td><button class="btn btn-sm btn-danger" onclick="removeXDomain('${d}')">Remove</button></td>
+        </tr>`).join('')}</tbody>
+    </table>` : '<p class="empty" style="padding:.5rem 0">No extra domains yet — add one above.</p>';
+}
+
+async function addXDomain() {
+  const tid = document.getElementById('xdomToken').value;
+  const domain = document.getElementById('xdomInput').value.trim();
+  if (!domain) return toast('Enter a domain first', 'error');
+  try {
+    await api(`/tokens/${tid}/domains`, 'POST', JSON.stringify({ domain }));
+    toast(`Domain ${domain} attached — point its A record at 13.140.131.204`);
+    loadDomains();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function removeXDomain(domain) {
+  const tid = document.getElementById('xdomToken').value;
+  try {
+    await api(`/tokens/${tid}/domains/${domain}`, 'DELETE');
+    toast(`Domain ${domain} removed`);
+    loadDomains();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Teams (v1.4.0) ----
+async function loadTeams() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const teams = await api('/teams');
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Teams</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Invite teammates so they can view and manage tunnels together</p>
+    <div class="card">
+      <div class="card-header"><h2>Create a Team</h2></div>
+      <div class="card-body">
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <input type="text" id="newTeamName" placeholder="e.g. Platform Team" style="flex:1">
+          <button class="btn btn-sm" onclick="createTeam()">Create Team</button>
+        </div>
+      </div>
+    </div>
+    ${teams.length ? teams.map(t => `
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>👥 ${t.name} ${t.i_own ? '<span class="badge badge-green">owner</span>' : '<span class="badge">member</span>'}</h2></div>
+      <div class="card-body">
+        <table class="table" style="font-size:.85rem">
+          <thead><tr><th>Member</th><th>Role</th><th style="width:120px"></th></tr></thead>
+          <tbody>
+            ${t.members.map(m => `
+            <tr>
+              <td>${m.email}</td>
+              <td><span class="badge ${m.role === 'admin' ? 'badge-green' : ''}">${m.role}</span></td>
+              <td>${(t.i_own || m.email === currentUser.email) && m.email !== t.owner_email ? `<button class="btn btn-sm btn-danger" onclick="removeMember('${t.id}','${m.email}')">Remove</button>` : ''}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+        ${t.i_own ? `
+        <div style="display:flex;gap:.5rem;align-items:center;margin-top:1rem;flex-wrap:wrap">
+          <input type="email" id="addmem-${t.id}" placeholder="teammate@email.com" style="flex:1;min-width:200px">
+          <select id="addrole-${t.id}" class="form-control" style="width:auto">
+            <option value="member">member</option>
+            <option value="admin">admin</option>
+          </select>
+          <button class="btn btn-sm" onclick="addMember('${t.id}')">Add member</button>
+          <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="deleteTeam('${t.id}','${t.name.replace(/'/g, "\\\\'")}')">Delete team</button>
+        </div>` : ''}
+      </div>
+    </div>`).join('') : '<div class="card"><div class="card-body"><p class="empty">No teams yet — create your first team above.</p></div></div>'}`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function createTeam() {
+  const name = document.getElementById('newTeamName').value.trim();
+  if (!name) return toast('Enter a team name', 'error');
+  try {
+    await api('/teams', 'POST', JSON.stringify({ name }));
+    toast(`Team "${name}" created`);
+    loadTeams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function addMember(teamId) {
+  const email = document.getElementById(`addmem-${teamId}`).value.trim();
+  const role = document.getElementById(`addrole-${teamId}`).value;
+  if (!email) return toast('Enter an email', 'error');
+  try {
+    await api(`/teams/${teamId}/members`, 'POST', JSON.stringify({ email, role }));
+    toast(`${email} added as ${role}`);
+    loadTeams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function removeMember(teamId, email) {
+  try {
+    await api(`/teams/${teamId}/members/${encodeURIComponent(email)}`, 'DELETE');
+    toast(`${email} removed`);
+    loadTeams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function deleteTeam(teamId, name) {
+  showModal(`Delete team "${name}"?`, '<p style="font-size:.85rem;color:var(--text-dim)">Members lose access. Tunnels stay online (unassigned from the team).</p>', async () => {
+    try {
+      await api(`/teams/${teamId}`, 'DELETE');
+      toast('Team deleted');
+      closeModal();
+      loadTeams();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Delete', 'btn-danger');
+}
+
+// ---- Support / Tickets (v1.4.0) ----
+let currentTicketId = null;
+async function loadSupport() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const tickets = await api('/tickets/my');
+    const badge = s => s === 'open' ? '<span class="badge badge-red">open</span>' : s === 'answered' ? '<span class="badge badge-green">answered</span>' : '<span class="badge">closed</span>';
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Support</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Stuck? Open a ticket — our team replies right here in your dashboard</p>
+    <div class="card">
+      <div class="card-header"><h2>Open a Ticket</h2></div>
+      <div class="card-body">
+        <div class="form-group"><label>Subject</label>
+          <input type="text" id="tkSubject" placeholder="e.g. TCP tunnel keeps dropping">
+        </div>
+        <div class="form-group" style="margin-top:.8rem"><label>Message</label>
+          <textarea id="tkMessage" rows="4" placeholder="Describe the issue — include your subdomain if relevant" style="width:100%"></textarea>
+        </div>
+        <button class="btn btn-sm" style="margin-top:.8rem" onclick="createTicket()">Submit ticket</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>🎫 My Tickets (${tickets.length})</h2></div>
+      <div class="card-body">
+        ${tickets.length ? `
+        <table class="table" style="font-size:.85rem">
+          <thead><tr><th>Subject</th><th>Status</th><th>Updated</th><th style="width:80px"></th></tr></thead>
+          <tbody>${tickets.map(t => `
+            <tr style="cursor:pointer" onclick="openTicket('${t.id}')">
+              <td>${t.subject}</td>
+              <td>${badge(t.status)}</td>
+              <td style="color:var(--text-dim)">${new Date(t.updated_at).toLocaleString()}</td>
+              <td>${t.status !== 'closed' ? `<button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();closeTicket('${t.id}')">Close</button>` : ''}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : '<p class="empty">No tickets yet.</p>'}
+      </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function createTicket() {
+  const subject = document.getElementById('tkSubject').value.trim();
+  const message = document.getElementById('tkMessage').value.trim();
+  if (!subject || !message) return toast('Fill in subject and message', 'error');
+  try {
+    const t = await api('/tickets', 'POST', JSON.stringify({ subject, message }));
+    toast('Ticket submitted — we\u2019ll reply soon');
+    openTicket(t.id);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function openTicket(id) {
+  currentTicketId = id;
+  try {
+    const t = await api(`/tickets/${id}`);
+    showModal(`🎫 ${t.subject}`, `
+      <div style="max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:.6rem">
+        ${t.messages.map(m => `
+        <div style="padding:.6rem .8rem;border-radius:var(--radius);background:${m.is_staff ? 'rgba(106,166,240,.1)' : 'var(--bg)'};border:1px solid var(--border)">
+          <div style="font-size:.72rem;color:var(--text-dim);margin-bottom:.25rem">${m.is_staff ? '🛟 IRAGT Support' : m.sender} · ${new Date(m.created_at).toLocaleString()}</div>
+          <div style="font-size:.85rem;white-space:pre-wrap">${m.body.replace(/</g, '&lt;')}</div>
+        </div>`).join('')}
+      </div>
+      ${t.status !== 'closed' ? `
+      <div style="margin-top:.8rem">
+        <textarea id="tkReply" rows="2" placeholder="Write a reply…" style="width:100%"></textarea>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem">
+          <button class="btn btn-sm btn-ghost" onclick="closeTicket('${t.id}', true)">Close ticket</button>
+          <button class="btn btn-sm" onclick="replyTicket()">Send reply</button>
+        </div>
+      </div>` : '<p class="empty" style="margin-top:.8rem">This ticket is closed.</p>'}`,
+      () => closeModal(), 'Close', 'btn-ghost');
+    document.getElementById('modalConfirm').style.display = 'none';
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function replyTicket() {
+  const msg = document.getElementById('tkReply').value.trim();
+  if (!msg) return toast('Write a message first', 'error');
+  try {
+    await api(`/tickets/${currentTicketId}/reply`, 'POST', JSON.stringify({ message: msg }));
+    toast('Reply sent');
+    openTicket(currentTicketId);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function closeTicket(id, fromModal) {
+  try {
+    await api(`/tickets/${id}/close`, 'POST');
+    toast('Ticket closed');
+    if (fromModal) { closeModal(); loadSupport(); }
+    else loadSupport();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 // ---- Active Tunnels (Page 4) ----

@@ -3,11 +3,12 @@
 Env: alembic.ini + alembic/env.py (reads settings.DATABASE_URL from app config).
 Applied automatically on every startup by auto_setup._run_migrations().
 
-## Next migration number: **0023**
+## Next migration number: **0024**
 
 | # | Up file | Down in same file | Change | Status |
 |---|---|---|---|---|
 | 0022 | 0022_sent_received_bytes.py | DROP 2 cols | tunnels.bytes_sent / bytes_received (per-direction traffic) | applied (local, v1.2.0) |
+| 0023 | 0023_domains_teams_tickets.py | DROP 4 tables + col | token_domains, teams, team_members, tickets, ticket_messages, tokens.team_id (multi-domains + teams + tickets) | applied (local, v1.4.0) |
 | 0021 | 0021_tcp_tunnels.py | DROP 2 cols | tokens: tunnel_mode (http|tcp), tcp_port UNIQUE (Pro) | applied (local, v1.0.0) |
 | 0014 | 0014_announcements.py | DROP announcements | announcements table + active idx | applied (local, v0.5.0) |
 | 0011 | 0011_add_token_to_tunnels.py | DROP idx + col | tunnels.token VARCHAR(64) + idx + backfill from users.tunnel_token | applied (local, v0.3.0) |

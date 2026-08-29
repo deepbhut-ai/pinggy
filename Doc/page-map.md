@@ -7,8 +7,8 @@ Local base: http://127.0.0.1:8020 · Prod: https://iraglobaltech.com (nginx → 
 |---|---|---|---|---|---|---|---|---|
 | / | Landing | — | GET / | landing.html | none | /login | /login ("← Back to home"), /dashboard nav after login | none |
 | /login | Login / Sign-up | users W (via /auth/register) | POST /auth/register, POST /auth/login | login.html | none | /admin (role=admin), /dashboard (role=user) | / ("Get Started"), landing pricing buttons | users (auth) |
-| /admin | Admin panel | users R/W (incl. is_active), tunnels R, tokens R, payments R, audit_logs R | GET/PUT/DELETE /users, /tokens/admin/*, /payments/admin/*, /ip-monitor/* (incl. PUT /config), GET /audit, GET /tunnels/stats, GET /tunnels/history (All Tunnels view), DELETE /tunnels/{sub} | admin.html | JWT, role=admin | /dashboard (via user link), /docs, /redoc, /health | /login (on admin login) | users/tunnels/tokens/payments + Redis IP stats — ALL admin views |
-| /dashboard | User dashboard | users R/W (custom-domain, plan), tokens R/W, tunnels R | GET /auth/me, /auth/tunnel-token, POST /auth/regenerate-token, /tokens CRUD, PUT /users/me/custom-domain, POST /payments/checkout, GET /tunnels/my, POST /tunnels/{sub}/stop | dashboard.html | JWT | / (logout), /login (expired) | / (nav when logged in), /admin | users, tokens, tunnels, payments |
+| /admin | Admin panel | users R/W (incl. is_active), tunnels R, tokens R, payments R, audit_logs R, tickets+ticket_messages R/W | GET/PUT/DELETE /users, /tokens/admin/*, /payments/admin/*, /ip-monitor/* (incl. PUT /config), GET /audit, GET /tunnels/stats, GET /tunnels/history (All Tunnels view), DELETE /tunnels/{sub}, GET /tickets/admin/all, POST /tickets/{id}/reply|close, GET /tickets/{id} | admin.html | JWT, role=admin | /dashboard (via user link), /docs, /redoc, /health | /login (on admin login) | users/tunnels/tokens/payments/tickets + Redis IP stats — ALL admin views |
+| /dashboard | User dashboard | users R/W (custom-domain, plan), tokens R/W, tunnels R, token_domains R/W, teams+team_members R/W, tickets+ticket_messages R/W | GET /auth/me, /auth/tunnel-token, POST /auth/regenerate-token, /tokens CRUD, POST/DELETE /tokens/{id}/domains, /teams CRUD, /tickets CRUD, PUT /users/me/custom-domain, POST /payments/checkout, GET /tunnels/my, POST /tunnels/{sub}/stop | dashboard.html | JWT | / (logout), /login (expired) | / (nav when logged in), /admin | users, tokens, tunnels, payments, teams, tickets |
 | /docs, /redoc | API docs (auto) | — | openapi | FastAPI built-in | none | — | /admin System Info table | none |
 | /health | Health check | — | GET /health | JSON | none | — | /admin System Info | none |
 | http://{sub}.localhost:8020 | Tunnels (dynamic) | tunnels W (request_count, bytes), users R (token auth at SSH time) | TunnelProxyMiddleware → 127.0.0.1:{remote_port} | — (proxied user content) | none (public URL) | — | — | tunnels table + in-memory registry (with /admin, /dashboard views) |
@@ -37,6 +37,7 @@ admin user CRUD        ––[users]–> /login (credentials), /dashboard
   read by /admin IP Monitor tab.
 - In-memory tunnel registry — written by SSH server, read by proxy; gone on restart
   (tunnels table rows remain but are stale until marked closed on graceful shutdown).
+- v1.4.0: tickets data-flow edge /dashboard ––[tickets]––> /admin (user creates → admin Tickets list reflects; staff reply → user Support badge reflects). token_domains edge /dashboard Domains ––[token_domains]––> tunnel proxy Host routing.
 
 ## Orphan check
 - All pages reachable (/ ← start, /login ← /, /admin & /dashboard ← /login).

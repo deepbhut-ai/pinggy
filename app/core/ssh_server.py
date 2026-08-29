@@ -286,6 +286,18 @@ class MySSHServer(asyncssh.SSHServer):
                     self._username = row[0]
                     self._custom_domain = row[1] or ""
                     self._token = token
+                    # v1.4.0: load extra domains attached to this token
+                    self._custom_domains = []
+                    try:
+                        cur = conn.execute(
+                            "SELECT domain FROM token_domains WHERE token_id = "
+                            "(SELECT id FROM tokens WHERE token = %s)",
+                            (token,),
+                        )
+                        self._custom_domains = [r[0] for r in cur.fetchall()]
+                        cur.close()
+                    except Exception:
+                        pass  # table missing pre-migration — fine
                     conn.close()
                     return True
             except psycopg.errors.UndefinedColumn:
@@ -401,6 +413,7 @@ class MySSHServer(asyncssh.SSHServer):
                 ssh_peer=self._peer,
                 ssh_conn=self._conn,
                 custom_domain=self._custom_domain,
+                custom_domains=list(getattr(self, "_custom_domains", []) or []),
                 token=self._token or "",
                 log_callback=self._info_session.write_log if self._info_session else None,
             )

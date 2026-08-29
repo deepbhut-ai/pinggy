@@ -172,6 +172,21 @@ Seeded free/pro/enterprise. Read by GET /plans (public), edited via admin UI.
 | config | TEXT | JSON blob (preset, local_addr, platform, flags) |
 
 ## api_keys  (0020 — programmatic access; raw key shown once)
+
+## token_domains  (0023 — extra custom domains per token, Pro)
+- id UUID PK, token_id FK→tokens ON DELETE CASCADE, domain TEXT UNIQUE (validated + lowercased), created_at
+- Max 3 rows per token (enforced in API, not DB). Primary custom domain stays on tokens.custom_domain.
+- Written by: POST /tokens/{id}/domains; read at SSH auth → TunnelSession.custom_domains; matched in get_tunnel_by_custom_domain (Host header, `:port` stripped).
+
+## teams  (0023)
+- id UUID PK, name, owner_email FK→users, created_at, updated_at
+- team_members: team_id FK CASCADE, user_email FK, role member|admin, UNIQUE(team_id,user_email); owner auto-inserted as admin at create.
+- Deleting a team sets tokens.team_id = NULL (tunnels unaffected).
+
+## tickets  (0023 — support desk)
+- id UUID PK, user_email FK→users, subject, status open|answered|closed, created_at, updated_at
+- ticket_messages: ticket_id FK CASCADE, sender_email, is_staff BOOL, body TEXT, created_at
+- Staff reply sets status=answered + best-effort email to owner; user reply reopens (status=open); either side can close.
 | column | type | notes |
 |---|---|---|
 | user_email | VARCHAR(255) | owner |

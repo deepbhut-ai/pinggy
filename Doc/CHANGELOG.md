@@ -1,5 +1,24 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.4.0 — 2026-08-30 — Multi-domains, Teams, Support Tickets
+
+### Added
+- Migration 0023: `token_domains` (up to 3 extra domains per token), `teams` + `team_members`, `tickets` + `ticket_messages`, `tokens.team_id`.
+- Multi-domain per token: `POST/DELETE /tokens/{id}/domains[/...]` (Pro-gated, unique across platform); extra domains load at SSH auth and route through the same tunnel (Host matching strips `:port`).
+- Teams API (`/teams`): create/delete team, add member (must be registered user, 404 hint otherwise; 409 on duplicate), remove member (owner or self; owner protected), owner auto-admin.
+- Support tickets API (`/tickets`): user create/reply/close + thread view; admin list-all with status filter + staff reply (sets status answered, notifies owner by email best-effort).
+- Dashboard pages: **Teams** (create team, members table, add/remove member, delete team), **Support** (open ticket, my tickets with status badges, thread modal with reply/close), **Domains → Extra Domains** card (Pro) per-token management.
+- Admin page: **🎫 Tickets** (status filters, thread modal, staff reply, close).
+- `TokenOut.domains` list; audit events `team.*` and `ticket.*`.
+- `Doc/tests/v1.4.0/` evidence (E2E: extra domain routed through live tunnel → 200; teams/tickets API assertions 200/404/409).
+
+### Changed
+- Custom-domain matching in tunnel registry now strips `:port` from Host header (both primary and extra domains).
+- `tunnels/info` Domains page now also loads tokens list for per-token extra-domain management.
+
+### Removed
+- none
+
 ## v1.3.0 — 2026-08-30 — Branding & UX batch
 
 ### Added

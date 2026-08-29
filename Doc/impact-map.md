@@ -4,7 +4,7 @@
 | Page | Depends on | Affects (ripple) | Triggered by |
 |---|---|---|---|
 | /admin | users, tunnels, tokens, payments tables; /users,/tokens,/payments,/ip-monitor,/tunnels APIs; Redis | — (read-mostly hub) | any data change below |
-| /dashboard | users (self), tokens, tunnels, payments; /auth,/tokens,/users/me/*,/payments APIs | — | own token/domain/plan edits |
+| /dashboard | users (self), tokens, token_domains, teams/team_members, tickets, tunnels, payments; /auth,/tokens,/teams,/tickets,/users/me/*,/payments APIs | /admin (tickets shared: user create → admin Tickets; staff reply → user Support) | own token/domain/plan/team/ticket edits |
 | /login | users.email/password_hash (auth API) | /admin, /dashboard (identity everywhere) | registration, admin user edits |
 | / (landing) | none (static) | none | — |
 | {sub}.localhost tunnels | in-memory registry + tunnels.remote_port; users/tokens at SSH-connect time | /admin stats, /dashboard tunnel list | SSH connect/disconnect, proxy traffic |

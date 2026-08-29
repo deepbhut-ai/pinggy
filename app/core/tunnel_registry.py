@@ -21,7 +21,8 @@ class TunnelSession:
     protocol: str             # "http" or "tcp"
     user_email: str           # SSH username used to connect
     ssh_peer: str             # remote address of SSH client
-    custom_domain: str = ""  # custom domain (if token has one)
+    custom_domain: str = ""  # primary custom domain (if token has one)
+    custom_domains: list = field(default_factory=list)  # extra domains (v1.4.0)
     token: str = ""           # authenticating tunnel token (security lookups, v0.8.0)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     request_count: int = 0
@@ -87,10 +88,14 @@ async def get_tunnel(subdomain: str) -> TunnelSession | None:
 
 async def get_tunnel_by_custom_domain(custom_domain: str) -> TunnelSession | None:
     """Find the active tunnel assigned to a custom domain."""
-    normalized_domain = custom_domain.strip().lower()
+    normalized_domain = custom_domain.strip().lower().split(":")[0]  # strip :port
     for tunnel in _tunnels.values():
-        if tunnel.custom_domain.strip().lower() == normalized_domain:
+        if tunnel.custom_domain.strip().lower().split(":")[0] == normalized_domain:
             return tunnel
+        # v1.4.0: match extra domains attached to the token
+        for d in getattr(tunnel, "custom_domains", []) or []:
+            if str(d).strip().lower() == normalized_domain:
+                return tunnel
     return None
 
 

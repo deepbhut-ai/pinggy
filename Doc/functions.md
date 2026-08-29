@@ -39,6 +39,22 @@
 | analytics_overview | app/api/routers/analytics.py | GET /analytics/overview?days=30 | admin; generate_series daily + 12-month monthly LEFT JOIN aggregations + today/month summary |
 
 ## Tunnels / tokens
+
+### Teams (v1.4.0 — app/api/routers/teams.py)
+- GET /teams → owned + member teams w/ members + i_own | POST /teams {name} (owner auto-admin)
+- POST /teams/{id}/members {email,role} — team-admin only; 404 if email not registered; 409 dup
+- DELETE /teams/{id}/members/{email} — owner or self; owner protected | DELETE /teams/{id} — owner only; tokens.team_id → NULL
+- Audit: team.create / team.add_member / team.remove_member / team.delete
+
+### Tickets (v1.4.0 — app/api/routers/tickets.py)
+- POST /tickets {subject,message} (first message) | GET /tickets/my | GET /tickets/{id} (owner or admin)
+- POST /tickets/{id}/reply — user reply → open; admin (is_staff) reply → answered + best-effort email to owner
+- POST /tickets/{id}/close — owner or admin | GET /tickets/admin/all?status= (admin)
+- Audit: ticket.create
+
+### Extra token domains (v1.4.0 — app/api/routers/tokens.py)
+- POST /tokens/{id}/domains {domain} — Pro only, max 3 extras, unique platform-wide; DELETE /tokens/{id}/domains/{domain}
+- TokenOut.domains lists extras; SSH auth loads them into TunnelSession.custom_domains; get_tunnel_by_custom_domain matches primary + extras (Host, `:port` stripped)
 | Function | File | Endpoint | Notes |
 |---|---|---|---|
 | tunnel_info | tunnels.py:14 | GET /tunnels/info | SSH instructions; any logged-in user |
