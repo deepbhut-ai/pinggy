@@ -181,3 +181,9 @@
 - In progress: none
 - Next: user review; member@test.dev / Member@77 is a throwaway non-admin user for role tests (kept)
 - Watch out: platform-admin account bypasses ownership guards by design — never use it to test "plain member" behavior; vtest token was recreated (new id, fixed_subdomain 0f4f398 restored via PUT)
+
+## 2026-08-30 (v1.8.0 unified Domains)
+- Done: v1.8.0 (Domains page rebuilt: per-token all-addresses view, single add box, whole-system removal, primary/extra cross-store consistency)
+- In progress: none
+- Next: user review
+- Watch out: via_team is set on OWN tokens too (team badge) — filter ownership via via_team.owner, never via_team presence
