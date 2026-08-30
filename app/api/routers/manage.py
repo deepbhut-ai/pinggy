@@ -142,3 +142,50 @@ async def manage_delete_token(
     if not r:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
     return {"deleted": r[0][:8] + "…"}
+
+
+@router.get("/devices")
+async def manage_devices(
+    user: dict = Depends(get_api_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """v1.12.0 — Remote Devices: distinct machines seen connecting tunnels.
+
+    Groups tunnel history by ssh_peer (the connecting machine's address),
+    with tunnels served, last seen, and a ready-to-copy reconnect command
+    for its most-used token."""
+    cur = await db.execute(
+        """
+        SELECT t.ssh_peer,
+               COUNT(DISTINCT t.tunnel_id) AS tunnels,
+               MAX(t.created_at)            AS last_seen,
+               SUM(t.request_count)         AS requests,
+               (array_agg(tk.token ORDER BY t.created_at DESC))[1] AS last_token
+        FROM tunnels t
+        LEFT JOIN tokens tk ON tk.token = t.token
+        WHERE t.user_email = %s AND t.ssh_peer IS NOT NULL AND t.ssh_peer <> ''
+        GROUP BY t.ssh_peer
+        ORDER BY last_seen DESC
+        LIMIT 100
+        """,
+        (user["email"],),
+    )
+    rows = await cur.fetchall()
+    await cur.close()
+    live_peers = set()
+    from app.core.tunnel_registry import list_tunnels
+    for tn in await list_tunnels():
+        if tn.user_email == user["email"] and tn.ssh_peer:
+            live_peers.add(tn.ssh_peer.split(":")[0])
+    out = []
+    for r in rows:
+        peer_ip = (r[0] or "").split(":")[0]
+        out.append({
+            "peer": peer_ip,
+            "tunnels": r[1],
+            "last_seen": r[2].isoformat() if r[2] else None,
+            "requests": int(r[3] or 0),
+            "last_token": r[4],
+            "online": peer_ip in live_peers,
+        })
+    return out

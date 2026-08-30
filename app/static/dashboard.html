@@ -333,6 +333,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           Active Tunnels
         </div>
+        <div class="nav-item" data-page="devices" onclick="navigate('devices', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Remote Devices
+        </div>
         <div class="nav-item" data-page="inspector" onclick="navigate('inspector', this)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           Inspector
@@ -562,6 +566,7 @@ function navigate(page, el) {
   else if (page === 'configure') loadConfigure();
   else if (page === 'domains') loadDomains();
   else if (page === 'tunnels') loadTunnels();
+  else if (page === 'devices') loadDevices();
   else if (page === 'inspector') loadInspector();
   else if (page === 'tokens') loadTokens();
   else if (page === 'apikeys') loadApiKeys();
@@ -1731,6 +1736,40 @@ async function removeExtraDomain(domain, tokenId) {
     toast(`${domain} removed from the system`);
     loadDomains();
   } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Remote Devices (v1.12.0) ----
+async function loadDevices() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const devices = await api('/manage/devices');
+    const rows = devices.map(d => `
+      <tr>
+        <td><span class="code">${d.peer}</span></td>
+        <td>${d.online
+          ? '<span class="badge badge-green">● online</span>'
+          : '<span class="badge">○ offline</span>'}</td>
+        <td>${d.tunnels}</td>
+        <td>${d.requests}</td>
+        <td style="color:var(--text-dim)">${d.last_seen ? new Date(d.last_seen).toLocaleString() : '—'}</td>
+        <td>${d.last_token ? `<button class="btn btn-sm" onclick="copyToClipboard('${d.last_token}')" title="Copy reconnect command">📋 Token</button>` : ''}</td>
+      </tr>`).join('') || '<tr><td colspan="6" class="empty">No devices yet — connect a tunnel from any machine and it appears here.</td></tr>';
+    c.innerHTML = `
+    <h2 style="margin-bottom:.4rem">Remote Devices</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.2rem;font-size:.9rem">Machines that have connected tunnels — always-on status at a glance. Keep a device online with the SDK supervisor:</p>
+    <div class="card" style="margin-bottom:1rem"><div class="card-body">
+      <div class="cmd-box"><pre>from sdk.pinggy_sdk import TunnelClient
+client = TunnelClient("${location.origin}", api_key="pk_YOUR_KEY")
+client.watch("YOUR_TOKEN", ports=[3000, 8000])   # auto-reconnects forever</pre></div>
+    </div></div>
+    <div class="card"><div class="card-body" style="padding:0;overflow-x:auto">
+      <table class="table" style="font-size:.85rem">
+        <thead><tr><th>Device IP</th><th>Status</th><th>Tunnels</th><th>Requests</th><th>Last seen</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div></div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
 // ---- Teams (v1.4.0, role control v1.7.0) ----

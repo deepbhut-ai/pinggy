@@ -1,6 +1,20 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
-## v1.11.0 — 2026-08-30 — Hardening: refresh tokens, security headers, audit CSV, DB backups
+## v1.12.0 — 2026-08-30 — Tunnel supervisor + Remote Devices
+
+### Added
+- SDK `watch()` supervisor (`sdk/pinggy_sdk.py`): keeps a tunnel alive forever — subprocess ssh with ServerAlive + ExitOnForwardFailure, exponential backoff reconnect (1s→30s), SIGINT/SIGTERM clean stop, `on_event(up/down/retry)` callback, multi-port aware (`ports=[3000, 8000]` → `TOKEN--p1,p2`).
+- `GET /manage/devices` — Remote Devices registry: tunnels grouped by connecting machine (ssh_peer) with tunnels served, requests, last seen, last token, and live online status (cross-checked against the in-memory registry).
+- Dashboard **Remote Devices** page: device table (online/offline badge, stats, token copy) + supervisor quickstart snippet.
+- `Doc/tests/v1.12.0/` evidence.
+
+### Changed
+- none
+
+### Removed
+- none
+
+## v1.11.0 — 2026-08-30 — Hardening: refresh tokens, security headers, audit CSV, DB backups — 2026-08-30 — Hardening: refresh tokens, security headers, audit CSV, DB backups
 
 ### Added
 - `POST /auth/refresh` — JWT refresh flow: 7-day `type=refresh` tokens (`create_refresh_token`, `JWT_REFRESH_TOKEN_EXPIRE_DAYS`); access tokens presented as refresh → 401. Access tokens remain 60 min.

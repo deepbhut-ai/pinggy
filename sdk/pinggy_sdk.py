@@ -84,3 +84,69 @@ class TunnelClient:
 
     def plans(self) -> list[dict]:
         return self._call("GET", "/plans")
+
+
+    # ---- supervisor (v1.12.0) ----
+    def watch(self, token: str, ports: list[int] | None = None,
+              retry_base: float = 1.0, retry_max: float = 30.0,
+              on_event=None, forever: bool = True) -> None:
+        """Keep a tunnel alive forever (SDK supervisor).
+
+        Runs `ssh` with keep-alive, reconnects with exponential backoff on any
+        drop, and re-randomizes nothing (fixed subdomains keep their address).
+        Multi-port: pass ports=[3000, 8000] to map each address to its own
+        local port (username TOKEN--p1,p2, v1.9.0).
+
+        on_event(kind, detail) callback receives "up", "down", "retry".
+        """
+        import shutil
+        import signal
+        import subprocess
+        import time as _time
+
+        ssh = shutil.which("ssh")
+        if not ssh:
+            raise TunnelError(500, "ssh binary not found on PATH")
+
+        host = self.base.split("//", 1)[-1]
+        user = token if not ports else f"{token}--{','.join(str(p) for p in ports)}"
+        cmd = [ssh, "-p", "2222",
+               "-o", "StrictHostKeyChecking=no",
+               "-o", "ServerAliveInterval=30",
+               "-o", "ServerAliveCountMax=3",
+               "-o", "ExitOnForwardFailure=yes"]
+        targets = ports if ports else [8080]
+        for p in targets:
+            cmd += ["-R0:127.0.0.1:%d" % p]
+        cmd += [f"{user}@ssh.{host}"]
+
+        backoff = retry_base
+        stop = {"flag": False}
+
+        def _sig(_s, _f):
+            stop["flag"] = True
+
+        signal.signal(signal.SIGINT, _sig)
+        signal.signal(signal.SIGTERM, _sig)
+
+        def emit(kind, detail=""):
+            if on_event:
+                try:
+                    on_event(kind, detail)
+                except Exception:
+                    pass
+
+        while not stop["flag"]:
+            emit("up" if backoff == retry_base else "retry", "connecting")
+            try:
+                proc = subprocess.Popen(cmd)
+                emit("up", f"pid={proc.pid}")
+                proc.wait()
+            except FileNotFoundError:
+                raise
+            emit("down", f"exit={proc.returncode}")
+            if not forever or stop["flag"]:
+                break
+            _time.sleep(backoff)
+            backoff = min(backoff * 2, retry_max)
+        emit("down", "supervisor stopped")
