@@ -193,3 +193,9 @@
 - In progress: none
 - Next: user review; note MarketingIRA dev server occupies *:3002 on this Mac — pick test ports ≥4100
 - Watch out: multi-port listener order MUST match address order (subdomain -> primary -> extras); generate commands from Configure page, don't hand-write
+
+## 2026-08-30 (security epic v1.10–v1.14)
+- Done: v1.10 (rate-limit shield + WS tunnels) · v1.11 (JWT refresh, sec headers, audit CSV, backups) · v1.12 (SDK watch + Remote Devices) · v1.13 (weekly digest + team activity) · v1.14 (deploy runbook + regression 9/9)
+- In progress: none
+- Next: actual server push to 13.140.131.204 (runbook: Doc/guides/deploy.md) — needs server SSH access
+- Watch out: pkill races leave port 2222/8020 held — kill -9 by PID + sleep 3 before restart; WebSocketRoute endpoint must be (websocket)-signature wrapper calling the ASGI fn; BaseHTTPMiddleware cannot carry WS upgrades
