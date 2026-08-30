@@ -1522,108 +1522,158 @@ function applyConfig() {
   navigate('quickstart', document.querySelector('[data-page=quickstart]'));
 }
 
-// ---- Domains (Page 3) ----
+// ---- Domains (Page 3 — unified view, v1.8.0) ----
 async function loadDomains() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
-    const info = await api('/tunnels/info');
     const tokens = await api('/tokens');
+    const suffix = '.iraglobaltech.com';
+    const myOwn = tokens.filter(t => !t.via_team || t.via_team.owner);  // own tokens (even team-shared ones)
+    const nSub = myOwn.filter(t => t.fixed_subdomain).length;
+    const nPrim = myOwn.filter(t => t.custom_domain).length;
+    const nExtra = myOwn.reduce((n, t) => n + (t.domains?.length || 0), 0);
+
+    const tokenCard = t => {
+      const rows = [];
+      // subdomain row (always present)
+      rows.push(`
+        <tr>
+          <td><span class="badge">Subdomain</span></td>
+          <td class="code" style="display:flex;align-items:center;gap:.4rem">https://${t.subdomain}${suffix}
+            <button class="icon-btn" title="Copy" onclick="copyToClipboard('https://${t.subdomain}${suffix}')">📋</button></td>
+          <td style="color:var(--text-dim);font-size:.78rem">${t.fixed_subdomain ? '📌 fixed — same address every connect' : 'random — new address each connect'}</td>
+          <td>${t.fixed_subdomain
+            ? `<button class="btn btn-sm btn-ghost" onclick="changeSubdomain('${t.id}','${t.fixed_subdomain}')">Change</button>`
+            : `<button class="btn btn-sm" onclick="changeSubdomain('${t.id}','')">Set fixed</button>`}</td>
+        </tr>`);
+      if (t.custom_domain) rows.push(`
+        <tr>
+          <td><span class="badge badge-blue">Primary domain</span></td>
+          <td class="code" style="display:flex;align-items:center;gap:.4rem">https://${t.custom_domain}
+            <button class="icon-btn" title="Copy" onclick="copyToClipboard('https://${t.custom_domain}')">📋</button></td>
+          <td style="color:var(--text-dim);font-size:.78rem">your own domain, routes to this token</td>
+          <td><button class="btn btn-sm btn-danger" onclick="removePrimaryDomain('${t.custom_domain}')">Remove</button></td>
+        </tr>`);
+      (t.domains || []).forEach(d => rows.push(`
+        <tr>
+          <td><span class="badge badge-green">Extra domain</span></td>
+          <td class="code" style="display:flex;align-items:center;gap:.4rem">https://${d}
+            <button class="icon-btn" title="Copy" onclick="copyToClipboard('https://${d}')">📋</button></td>
+          <td style="color:var(--text-dim);font-size:.78rem">same tunnel, own DNS record</td>
+          <td><button class="btn btn-sm btn-danger" onclick="removeExtraDomain('${d}','${t.id}')">Remove</button></td>
+        </tr>`));
+      return `
+      <div class="card" style="margin-top:1rem">
+        <div class="card-header"><h2>🔑 ${t.name || 'Token'} <span class="code" style="font-size:.75rem;color:var(--text-dim)">— https://${t.subdomain}${suffix}</span>${t.team_id ? ' <span class="badge" title="shared with a team">👥</span>' : ''}</h2></div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table class="table" style="font-size:.85rem">
+            <thead><tr><th>Type</th><th>Address</th><th>Note</th><th style="width:130px"></th></tr></thead>
+            <tbody>${rows.join('')}</tbody>
+          </table>
+        </div>
+      </div>`;
+    };
+
     c.innerHTML = `
-    <h2 style="margin-bottom:1rem">Domains</h2>
-    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Manage your custom domain and subdomain</p>
-    <div class="card">
-      <div class="card-header"><h2>Custom Domain</h2></div>
+    <h2 style="margin-bottom:.4rem">Domains</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.2rem;font-size:.9rem">Every address your tunnels answer on — all in one place. Remove a domain here and it's gone from the whole system.</p>
+
+    <div class="card" style="display:flex;gap:1.5rem;align-items:center;padding:.9rem 1.2rem;flex-wrap:wrap">
+      <div><div style="font-size:1.4rem;font-weight:800">${myOwn.length}</div><div style="font-size:.75rem;color:var(--text-dim)">tokens</div></div>
+      <div style="width:1px;height:2rem;background:var(--border)"></div>
+      <div><div style="font-size:1.4rem;font-weight:800">${nSub}</div><div style="font-size:.75rem;color:var(--text-dim)">fixed subdomains</div></div>
+      <div style="width:1px;height:2rem;background:var(--border)"></div>
+      <div><div style="font-size:1.4rem;font-weight:800">${nPrim}</div><div style="font-size:.75rem;color:var(--text-dim)">primary domains</div></div>
+      <div style="width:1px;height:2rem;background:var(--border)"></div>
+      <div><div style="font-size:1.4rem;font-weight:800">${nExtra}</div><div style="font-size:.75rem;color:var(--text-dim)">extra domains</div></div>
+    </div>
+
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>➕ Add a domain</h2></div>
       <div class="card-body">
-        <div class="form-group">
-          <label>Your custom domain</label>
-          <div style="display:flex;gap:.5rem;align-items:center">
-            <input type="text" id="domainInput" value="${info.custom_domain || ''}" placeholder="e.g. serverira.com">
-            <button class="btn btn-sm" onclick="saveMyCustomDomain()">Save</button>
-            ${info.custom_domain ? '<button class="btn btn-sm btn-ghost" onclick="saveMyCustomDomain(true)">Clear</button>' : ''}
+        ${myOwn.length ? `
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+          <input type="text" id="addDomInput" placeholder="e.g. api.mycompany.com" style="flex:1;min-width:200px">
+          <select id="addDomToken" class="form-control" style="width:auto;max-width:220px">
+            ${myOwn.map(t => `<option value="${t.id}">${t.name || t.token.slice(0, 12)} (${t.subdomain})</option>`).join('')}
+          </select>
+          <select id="addDomType" class="form-control" style="width:auto">
+            <option value="extra">Extra domain — same tunnel, own address</option>
+            <option value="primary">Primary domain — the token's main address</option>
+          </select>
+          <button class="btn btn-sm" onclick="addDomainAny()">Add</button>
+        </div>
+        <details style="margin-top:.8rem">
+          <summary style="font-size:.8rem;color:var(--brand);cursor:pointer;font-weight:600">📋 DNS setup (once per domain)</summary>
+          <div style="margin-top:.5rem;padding:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;color:var(--text-dim);line-height:1.7">
+            <p><strong>Step 1:</strong> Add the domain to Cloudflare → Add Site (change nameservers at your registrar)</p>
+            <p><strong>Step 2:</strong> DNS A Record: Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied</p>
+            <p><strong>Step 3:</strong> SSL/TLS mode → Flexible</p>
+            <p><strong>Step 4:</strong> Add it above — it appears under the token instantly (reconnect a live tunnel to see it in the SSH banner)</p>
           </div>
-        </div>
-        <div class="form-group" style="margin-top:.8rem">
-          <label>Routes to token <span style="color:var(--text-dim);font-weight:400">— which tunnel serves this domain</span></label>
-          <select id="domainToken" class="form-control">
-            ${tokens.map(t => `<option value="${t.id}" ${t.custom_domain ? 'selected' : ''}>${t.name || t.token.slice(0, 12)} (${t.subdomain})${t.custom_domain ? ' ✓ current' : ''}</option>`).join('')}
-          </select>
-          <p style="font-size:.75rem;color:var(--text-dim);margin-top:.35rem">After saving, the SSH banner and tunnel URLs show this domain (reconnect any live tunnel to pick it up). Point the domain's A record at the server IP.</p>
-        </div>
-        <div style="margin-top:1rem;padding:1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;color:var(--text-dim);line-height:1.6">
-          <p style="font-weight:600;color:var(--text);margin-bottom:.4rem">📋 Setup Instructions</p>
-          <p><strong>Step 1:</strong> Add your domain to Cloudflare → Add Site</p>
-          <p><strong>Step 2:</strong> Change nameservers at your registrar to Cloudflare's</p>
-          <p><strong>Step 3:</strong> Add DNS A Record: Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied</p>
-          <p><strong>Step 4:</strong> Set SSL/TLS mode to Flexible</p>
-          <p><strong>Step 5:</strong> Enter your domain above and click Save</p>
-        </div>
+        </details>` : `
+        <p class="empty">No tokens yet — <a href="#" onclick="navigate('tokens',document.querySelector('[data-page=tokens]'));return false" style="color:var(--brand);font-weight:600">create one in Manage Tokens</a> first.</p>`}
       </div>
     </div>
-    <div class="card">
-      <div class="card-header"><h2>Default Subdomain</h2></div>
-      <div class="card-body">
-        <p style="font-size:.9rem;color:var(--text-dim)">Your tunnel is always accessible via your default subdomain:</p>
-        <p style="font-size:1.1rem;color:var(--primary);font-weight:600;margin-top:.5rem">https://098f6bc.iraglobaltech.com</p>
-        <p style="font-size:.8rem;color:var(--text-dim);margin-top:.5rem">This subdomain is automatically generated from your account and cannot be changed.</p>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header"><h2>🌐 Extra Domains <span class="badge" style="margin-left:.4rem">Pro</span></h2></div>
-      <div class="card-body">
-        <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:.8rem">Attach up to 3 extra custom domains to a token — every domain routes to the same tunnel (same DNS setup as above, one A record per domain).</p>
-        <div class="form-group">
-          <label>Token</label>
-          <select id="xdomToken" class="form-control" onchange="renderXDomains()">
-            ${tokens.map(t => `<option value="${t.id}">${t.name || t.token.slice(0, 12)} (${t.subdomain})</option>`).join('')}
-          </select>
-        </div>
-        <div style="display:flex;gap:.5rem;align-items:center;margin-top:.8rem">
-          <input type="text" id="xdomInput" placeholder="e.g. api.mycompany.com" style="flex:1">
-          <button class="btn btn-sm" onclick="addXDomain()">Add domain</button>
-        </div>
-        <div id="xdomList" style="margin-top:1rem"></div>
-      </div>
-    </div>`;
-    window._xdomTokens = tokens;
-    renderXDomains();
+
+    ${myOwn.map(tokenCard).join('')}`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
-function renderXDomains() {
-  const sel = document.getElementById('xdomToken');
-  const list = document.getElementById('xdomList');
-  if (!sel || !list || !window._xdomTokens) return;
-  const t = window._xdomTokens.find(x => x.id === sel.value);
-  if (!t) { list.innerHTML = ''; return; }
-  const doms = t.domains || [];
-  list.innerHTML = doms.length ? `
-    <table class="table" style="font-size:.85rem">
-      <thead><tr><th>Domain</th><th style="width:80px"></th></tr></thead>
-      <tbody>${doms.map(d => `
-        <tr>
-          <td class="code">${d}</td>
-          <td><button class="btn btn-sm btn-danger" onclick="removeXDomain('${d}')">Remove</button></td>
-        </tr>`).join('')}</tbody>
-    </table>` : '<p class="empty" style="padding:.5rem 0">No extra domains yet — add one above.</p>';
-}
-
-async function addXDomain() {
-  const tid = document.getElementById('xdomToken').value;
-  const domain = document.getElementById('xdomInput').value.trim();
+async function addDomainAny() {
+  const domain = document.getElementById('addDomInput').value.trim().toLowerCase();
+  const tid = document.getElementById('addDomToken').value;
+  const type = document.getElementById('addDomType').value;
   if (!domain) return toast('Enter a domain first', 'error');
   try {
-    await api(`/tokens/${tid}/domains`, 'POST', JSON.stringify({ domain }));
-    toast(`Domain ${domain} attached — point its A record at 13.140.131.204`);
+    if (type === 'primary') {
+      await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}&token_id=${encodeURIComponent(tid)}`, 'PUT');
+      toast(`${domain} is now the primary domain — point its A record at 13.140.131.204`);
+    } else {
+      await api(`/tokens/${tid}/domains`, 'POST', JSON.stringify({ domain }));
+      toast(`${domain} attached — point its A record at 13.140.131.204`);
+    }
     loadDomains();
   } catch (e) { toast(e.message, 'error'); }
 }
 
-async function removeXDomain(domain) {
-  const tid = document.getElementById('xdomToken').value;
+function changeSubdomain(tokenId, current) {
+  showModal(current ? 'Change subdomain' : 'Set a fixed subdomain', `
+    <div class="form-group">
+      <label>Subdomain (3–50 chars: a–z, 0–9, -)</label>
+      <input type="text" id="newSubInput" value="${current}" placeholder="e.g. my-app">
+    </div>
+    <p style="font-size:.75rem;color:var(--text-dim)">Your tunnel will be at <span class="code">https://&lt;subdomain&gt;.iraglobaltech.com</span> on every connect.</p>`,
+    async () => {
+      const sub = document.getElementById('newSubInput').value.trim().toLowerCase();
+      if (!sub) return toast('Enter a subdomain', 'error');
+      try {
+        await api(`/tokens/${tokenId}`, 'PUT', JSON.stringify({ fixed_subdomain: sub }));
+        toast(`Subdomain set: https://${sub}.iraglobaltech.com`);
+        closeModal();
+        loadDomains();
+      } catch (e) { toast(e.message, 'error'); }
+    }, 'Save');
+}
+
+async function removePrimaryDomain(domain) {
+  showModal(`Remove ${domain}?`, `
+    <p style="font-size:.85rem;color:var(--text-dim)">The domain is removed from this token <strong>and your whole account</strong> — tunnels fall back to the subdomain address. Your DNS record at the registrar stays until you remove it there.</p>`,
+    async () => {
+      try {
+        await api(`/users/me/custom-domain?custom_domain=&token_id=`, 'PUT');
+        toast(`${domain} removed from the system`);
+        closeModal();
+        loadDomains();
+      } catch (e) { toast(e.message, 'error'); }
+    }, 'Remove', 'btn-danger');
+}
+
+async function removeExtraDomain(domain, tokenId) {
   try {
-    await api(`/tokens/${tid}/domains/${domain}`, 'DELETE');
-    toast(`Domain ${domain} removed`);
+    await api(`/tokens/${tokenId}/domains/${domain}`, 'DELETE');
+    toast(`${domain} removed from the system`);
     loadDomains();
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -1697,7 +1747,7 @@ async function loadTeams() {
           <div style="display:flex;gap:.5rem;align-items:center;margin-top:.6rem;flex-wrap:wrap">
             <select id="assigntok-${t.id}" class="form-control" style="flex:1;min-width:220px">
               <option value="">— share one of your tokens —</option>
-              ${myTokensCache.filter(mt => !mt.via_team && (!mt.team_id || mt.team_id === t.id)).map(mt => `<option value="${mt.id}">${mt.name || mt.subdomain}${mt.team_id === t.id ? ' (already shared)' : ''}</option>`).join('')}
+              ${myTokensCache.filter(mt => !(mt.via_team && !mt.via_team.owner) && (!mt.team_id || mt.team_id === t.id)).map(mt => `<option value="${mt.id}">${mt.name || mt.subdomain}${mt.team_id === t.id ? ' (already shared)' : ''}</option>`).join('')}
             </select>
             <button class="btn btn-sm" onclick="assignTeamToken('${t.id}')">Share token</button>
           </div>` : '<p style="font-size:.75rem;color:var(--text-dim);margin-top:.4rem">Members can view and use shared tokens in Manage Tokens (read-only).</p>'}

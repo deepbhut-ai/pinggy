@@ -256,6 +256,9 @@ async def update_my_custom_domain(
             (domain_value, user["email"]),
         )
         await cur.close()
+        # v1.8.0: promote to primary — drop it from token_domains anywhere (one domain, one meaning)
+        cur = await db.execute("DELETE FROM token_domains WHERE domain = %s", (domain_value,))
+        await cur.close()
         # pick target token: given token_id, else most recent without a domain
         target = None
         if token_id:

@@ -62,6 +62,7 @@
 - Audit: ticket.create
 
 ### Extra token domains (v1.4.0 — app/api/routers/tokens.py)
+- v1.8.0 cross-store: add rejects domains that are someone's tokens.custom_domain (409); setting a primary deletes matching token_domains rows (promotion); via_team.owner=True marks own tokens in GET /tokens.
 - POST /tokens/{id}/domains {domain} — Pro only, max 3 extras, unique platform-wide; DELETE /tokens/{id}/domains/{domain}
 - TokenOut.domains lists extras; SSH auth loads them into TunnelSession.custom_domains; get_tunnel_by_custom_domain matches primary + extras (Host, `:port` stripped)
 | Function | File | Endpoint | Notes |

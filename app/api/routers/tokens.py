@@ -130,7 +130,7 @@ async def list_tokens(
             cur = await db.execute("SELECT name FROM teams WHERE id = %s", (r[12],))
             tn = await cur.fetchone()
             await cur.close()
-            via = {"team_id": str(r[12]), "team_name": tn[0] if tn else "", "owner": False}
+            via = {"team_id": str(r[12]), "team_name": tn[0] if tn else "", "owner": True}
         out.append(TokenOut(
             id=str(r[0]),
             token=r[1],
@@ -473,6 +473,12 @@ async def add_token_domain(
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, "Multiple domains are a Pro feature.")
     domain = body.domain.strip().lower()
     domain = _validate_custom_domain(domain, user)
+    # v1.8.0: cross-store check — cannot be an extra if it's someone's primary
+    cur = await db.execute("SELECT user_email FROM tokens WHERE custom_domain = %s", (domain,))
+    prim = await cur.fetchone()
+    await cur.close()
+    if prim:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"That domain is already the primary custom domain of {prim[0]}'s token.")
     cur = await db.execute("SELECT COUNT(*) FROM token_domains WHERE token_id = %s", (token_id,))
     count = (await cur.fetchone())[0]
     await cur.close()

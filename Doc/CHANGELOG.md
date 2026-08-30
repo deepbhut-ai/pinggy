@@ -1,5 +1,20 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.8.0 — 2026-08-30 — Unified Domains page (all addresses, one place)
+
+### Added
+- Domains page rebuilt: summary strip (tokens / fixed subdomains / primary / extra counts), single "➕ Add a domain" box (domain + token picker + type: Extra or Primary + collapsible DNS steps), and one card per token listing **every address it answers on** — Subdomain, Primary domain, Extra domains — each with 📋 copy and its action.
+- Subdomain management on the Domains page: "Set fixed" / "Change" modal (3–50 chars, uniqueness enforced).
+- Whole-system removal: Remove primary clears `users.custom_domain` + `tokens.custom_domain`; Remove extra deletes the `token_domains` row — toast confirms "removed from the system".
+- Cross-store consistency: a domain used as someone's primary can't be added as an extra (409 with owner info); promoting a domain to primary auto-removes it from `token_domains` anywhere (one domain, one meaning).
+- `via_team.owner=true` on own tokens (fixes own team-shared tokens being misfiltered — Domains page showed 0 tokens; Teams share-dropdown filter fixed likewise).
+
+### Changed
+- Domains page now builds from `GET /tokens` only (no /tunnels/info dependency).
+
+### Removed
+- Legacy "Custom Domain" card (input + Routes-to dropdown — replaced by Add-a-domain type picker), stale "Default Subdomain" card (hardcoded 098f6bc…, claimed unchangeable — false since fixed_subdomain is editable), old "Extra Domains" card with its own token selector. `renderXDomains`/`addXDomain`/`removeXDomain` functions.
+
 ## v1.7.1 — 2026-08-30 — Custom domain now reflects system-wide (fix)
 
 ### Added
