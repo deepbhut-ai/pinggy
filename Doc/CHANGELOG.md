@@ -1,6 +1,20 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
-## v1.12.0 — 2026-08-30 — Tunnel supervisor + Remote Devices
+## v1.13.0 — 2026-08-30 — Weekly digest + team activity feed
+
+### Added
+- Weekly usage digest emails (app/core/digest.py): scheduler at boot (hourly tick, Monday 08:00 UTC send window, Redis 7d dedupe) — requests / GB / addresses / tokens summary via existing email infra (kind=digest).
+- `GET /teams/{id}/activity` — team event feed from audit_logs (team.* + token.team_assign), viewable by any member.
+- Teams page: 🕐 Recent activity section per team (Load button fetches the feed).
+- `Doc/tests/v1.13.0/` evidence.
+
+### Changed
+- none
+
+### Removed
+- none
+
+## v1.12.0 — 2026-08-30 — Tunnel supervisor + Remote Devices — 2026-08-30 — Tunnel supervisor + Remote Devices
 
 ### Added
 - SDK `watch()` supervisor (`sdk/pinggy_sdk.py`): keeps a tunnel alive forever — subprocess ssh with ServerAlive + ExitOnForwardFailure, exponential backoff reconnect (1s→30s), SIGINT/SIGTERM clean stop, `on_event(up/down/retry)` callback, multi-port aware (`ports=[3000, 8000]` → `TOKEN--p1,p2`).

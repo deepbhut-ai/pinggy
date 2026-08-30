@@ -1846,6 +1846,13 @@ async function loadTeams() {
             <button class="btn btn-sm" onclick="assignTeamToken('${t.id}')">Share token</button>
           </div>` : '<p style="font-size:.75rem;color:var(--text-dim);margin-top:.4rem">Members can view and use shared tokens in Manage Tokens (read-only).</p>'}
         </div>
+        <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+            <div style="font-size:.85rem;font-weight:600">🕐 Recent activity</div>
+            <button class="btn btn-sm btn-ghost" onclick="loadTeamActivity('${t.id}', this)">Load</button>
+          </div>
+          <div id="team-activity-${t.id}" style="font-size:.8rem;color:var(--text-dim)">Click Load to fetch the team's recent events.</div>
+        </div>
       </div>
     </div>`).join('') : '<div class="card"><div class="card-body"><p class="empty">No teams yet — create your first team above.</p></div></div>'}`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
@@ -1914,6 +1921,21 @@ function deleteTeam(teamId, name) {
       loadTeams();
     } catch (e) { toast(e.message, 'error'); }
   }, 'Delete', 'btn-danger');
+}
+
+async function loadTeamActivity(teamId, btn) {
+  const box = document.getElementById(`team-activity-${teamId}`);
+  box.textContent = 'Loading…';
+  try {
+    const ev = await api(`/teams/${teamId}/activity`);
+    box.innerHTML = ev.length ? ev.map(e => `
+      <div style="display:flex;gap:.6rem;padding:.25rem 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text-dim);min-width:110px">${e.at ? new Date(e.at).toLocaleString() : ''}</span>
+        <span style="min-width:140px">${e.actor}</span>
+        <span><span class="badge">${e.action}</span> ${e.target || ''}</span>
+      </div>`).join('') : 'No activity yet.';
+    if (btn) btn.style.display = 'none';
+  } catch (e) { box.textContent = e.message; }
 }
 
 // ---- Support / Tickets (v1.4.0) ----

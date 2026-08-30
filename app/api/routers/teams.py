@@ -220,6 +220,20 @@ async def remove_member(
     return {"removed": email}
 
 
+@router.get("/{team_id}/activity")
+async def get_team_activity(
+    team_id: str,
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """v1.13.0 — recent team-relevant events (members can view)."""
+    role = await get_team_role(db, team_id, user["email"])
+    if role is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Team not found")
+    from app.core.digest import team_activity
+    return await team_activity(db, team_id)
+
+
 @router.delete("/{team_id}")
 async def delete_team(
     team_id: str,

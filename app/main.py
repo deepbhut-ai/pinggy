@@ -40,9 +40,15 @@ async def lifespan(app: FastAPI):
     from app.core.ssh_server import start_ssh_server
     ssh_server = await start_ssh_server()
 
+    # Weekly digest scheduler (v1.13.0)
+    from app.core.digest import start_digest_task
+    digest_task = start_digest_task()
+    print(f"[{settings.APP_NAME}] Weekly digest scheduler started")
+
     yield
 
     # Shutdown
+    digest_task.cancel()
     ssh_server.close()
     await ssh_server.wait_closed()
     print(f"[{settings.APP_NAME}] SSH server stopped")
