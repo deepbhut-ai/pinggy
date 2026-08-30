@@ -1,5 +1,21 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.6.0 — 2026-08-30 — API key plan caps + optional expiry
+
+### Added
+- Migration 0025: `api_keys.expires_at` (TIMESTAMPTZ NULL = never) + index.
+- Plan-based key caps: **Free = 5, Pro = 10** — 6th create on Free → 402 with upgrade hint; expired keys still count, revoking frees a slot.
+- Optional key expiry at creation: `expiry_days` 30 | 90 | null (never); enforced at auth (`expires_at > now()` in key lookup — expired key → 401).
+- API Keys page: "N / limit used" counter next to title (plan-aware), **Expires** column (never / date / `expired` badge), at-cap warning banner with Upgrade button + disabled Create.
+- Create-key modal replaces prompt(): Name + Expires dropdown (Never / 30 / 90 days).
+- `ApiKeyOut.expires_at`; `Doc/tests/v1.6.0/` evidence (cap 201×5→402, expiry 200→401 after force-expire, UI +30d exact).
+
+### Changed
+- `resolve_api_key` now rejects expired keys (single auth path — covers all X-Api-Key endpoints).
+
+### Removed
+- none
+
 ## v1.5.1 — 2026-08-30 — API key how-to + dashboard api() body fix
 
 ### Added

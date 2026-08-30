@@ -173,6 +173,9 @@ Seeded free/pro/enterprise. Read by GET /plans (public), edited via admin UI.
 
 ## api_keys  (0020 — programmatic access; raw key shown once)
 
+## api_keys  (0020 — programmatic access; raw key shown once)
+- v1.6.0: `expires_at` TIMESTAMPTZ NULL (0025) — 30/90-day optional expiry enforced at auth; plan caps Free=5 / Pro=10 keys (API-enforced, not DB).
+
 ## token_domains  (0023 — extra custom domains per token, Pro)
 - id UUID PK, token_id FK→tokens ON DELETE CASCADE, domain TEXT UNIQUE (validated + lowercased), created_at
 - Max 3 rows per token (enforced in API, not DB). Primary custom domain stays on tokens.custom_domain.

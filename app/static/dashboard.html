@@ -655,21 +655,36 @@ async function loadApiKeys() {
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const keys = await api('/apikeys');
-    const rows = keys.map(k => `<tr>
+    const limit = (currentUser.plan === 'pro') ? 10 : 5;
+    const atCap = keys.length >= limit;
+    const rows = keys.map(k => {
+      const expired = k.expires_at && new Date(k.expires_at) < new Date();
+      const expCell = !k.expires_at ? '<span style="color:var(--text-dim)">never</span>'
+        : expired ? '<span class="badge badge-red">expired</span>'
+        : `<span style="color:var(--text-dim)">${k.expires_at.substring(0,10)}</span>`;
+      return `<tr>
       <td>${k.name}</td>
       <td class="code">${k.prefix}…</td>
       <td>${k.created_at ? k.created_at.substring(0,10) : '—'}</td>
+      <td>${expCell}</td>
       <td>${k.last_used_at ? k.last_used_at.replace('T',' ').substring(0,16) : 'never'}</td>
       <td><button class="btn btn-sm btn-danger" onclick="revokeApiKey('${k.id}','${k.name}')">Revoke</button></td>
-    </tr>`).join('') || '<tr><td colspan="5" class="empty">No API keys yet</td></tr>';
+    </tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty">No API keys yet</td></tr>';
     c.innerHTML = `
     <div class="page-toolbar">
       <div>
-        <div class="page-title">API Keys</div>
+        <div class="page-title">API Keys <span class="token-meta" style="font-size:.8rem;color:${atCap ? 'var(--red)' : 'var(--text-dim)'}">${keys.length} / ${limit} used${currentUser.plan !== 'pro' ? ' · Pro gets 10' : ''}</span></div>
         <div class="page-subtitle">Manage tunnels & tokens from scripts, CI, or the Python SDK.</div>
       </div>
-      <div class="page-toolbar-actions"><button class="btn" id="createKeyBtn">+ Create API Key</button></div>
+      <div class="page-toolbar-actions">
+        <button class="btn" id="createKeyBtn" ${atCap ? 'disabled title="Key limit reached — revoke one or upgrade to Pro"' : ''}>+ Create API Key</button>
+      </div>
     </div>
+    ${atCap ? `<div class="card" style="border-color:var(--red);margin-bottom:1rem"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 1rem">
+      <span style="font-size:.85rem">⚠️ You've reached the <strong>${limit}-key limit</strong> of the ${currentUser.plan} plan. Revoke a key you no longer use, or upgrade for 10.</span>
+      <button class="btn btn-sm" onclick="navigate('subscription',document.querySelector('[data-page=subscription]'))">Upgrade to Pro →</button>
+    </div></div>` : ''}
     <div class="card" style="margin-bottom:1rem">
       <div class="card-header"><h2>🔌 How to connect & use your API key</h2></div>
       <div class="card-body">
@@ -694,7 +709,7 @@ async function loadApiKeys() {
     </div>
     <div class="card">
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Expires</th><th>Last used</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
     </div>
     <div class="card" style="margin-top:1rem">
@@ -714,23 +729,40 @@ client.stop_tunnel("mysub")      # stop a live tunnel</pre></div>
 }
 
 async function createApiKey() {
-  const name = prompt('Name this API key:', 'CI pipeline');
-  if (!name) return;
-  try {
-    const k = await api('/apikeys', 'POST', JSON.stringify({ name }));
-    const curlCmd = `curl -H "X-Api-Key: ${k.key}" ${location.origin}/api/v1/manage/tunnels`;
-    showModal('API Key Created — copy it now', `
-      <p style="font-size:.8rem;color:var(--red);font-weight:600">This key is shown only once. Copy it now.</p>
-      <div class="cmd-box" style="margin-top:.5rem"><pre id="newKeyVal">${k.key}</pre></div>
-      <button class="btn btn-sm" style="margin-top:.6rem" onclick="copyToClipboard('${k.key}')">📋 Copy Key</button>
-      <p style="font-size:.78rem;color:var(--text-dim);margin-top:1rem;font-weight:600;color:var(--text)">✅ Test it right now — paste this in a terminal:</p>
-      <div class="cmd-box" style="position:relative;margin-top:.4rem">
-        <pre id="newKeyCurl">${curlCmd}</pre>
-        <button class="btn btn-sm" style="position:absolute;top:.4rem;right:.4rem" onclick="copyToClipboard(document.getElementById('newKeyCurl').textContent)">📋 Copy</button>
-      </div>
-      <p style="font-size:.75rem;color:var(--text-dim);margin-top:.8rem">Returns your live tunnels as JSON → the key works. Full reference: <strong>API Docs</strong> page.</p>
-    `, () => { closeModal(); loadApiKeys(); }, 'Done');
-  } catch (e) { toast(e.message, 'error'); }
+  showModal('Create API Key', `
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="newKeyName" placeholder="e.g. CI pipeline" value="CI pipeline">
+    </div>
+    <div class="form-group" style="margin-top:.8rem">
+      <label>Expires</label>
+      <select id="newKeyExpiry">
+        <option value="">Never</option>
+        <option value="30">In 30 days</option>
+        <option value="90">In 90 days</option>
+      </select>
+      <p style="font-size:.75rem;color:var(--text-dim);margin-top:.3rem">Tip: use a short expiry for CI keys you rotate often.</p>
+    </div>`, async () => {
+      const name = document.getElementById('newKeyName').value.trim();
+      if (!name) return toast('Give the key a name', 'error');
+      const expiry = document.getElementById('newKeyExpiry').value;
+      try {
+        const k = await api('/apikeys', 'POST', JSON.stringify({ name, expiry_days: expiry ? parseInt(expiry) : null }));
+        const curlCmd = `curl -H "X-Api-Key: ${k.key}" ${location.origin}/api/v1/manage/tunnels`;
+        showModal('API Key Created — copy it now', `
+          <p style="font-size:.8rem;color:var(--red);font-weight:600">This key is shown only once. Copy it now.</p>
+          <div class="cmd-box" style="margin-top:.5rem"><pre id="newKeyVal">${k.key}</pre></div>
+          <button class="btn btn-sm" style="margin-top:.6rem" onclick="copyToClipboard('${k.key}')">📋 Copy Key</button>
+          <p style="font-size:.78rem;color:var(--text-dim);margin-top:1rem;font-weight:600;color:var(--text)">✅ Test it right now — paste this in a terminal:</p>
+          <div class="cmd-box" style="position:relative;margin-top:.4rem">
+            <pre id="newKeyCurl">${curlCmd}</pre>
+            <button class="btn btn-sm" style="position:absolute;top:.4rem;right:.4rem" onclick="copyToClipboard(document.getElementById('newKeyCurl').textContent)">📋 Copy</button>
+          </div>
+          <p style="font-size:.75rem;color:var(--text-dim);margin-top:.8rem">Returns your live tunnels as JSON → the key works. Full reference: <strong>API Docs</strong> page.</p>
+        `, () => { closeModal(); loadApiKeys(); }, 'Done');
+      } catch (e) { toast(e.message, 'error'); }
+      return;
+    }, 'Create', '');
 }
 
 async function revokeApiKey(id, name) {
