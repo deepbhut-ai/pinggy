@@ -75,6 +75,27 @@ app.add_middleware(TunnelProxyMiddleware)
 app.add_middleware(IPMonitorMiddleware)
 app.add_middleware(RateLimitMiddleware)
 
+
+# Security headers (v1.11.0) — added FIRST here so it ends up innermost,
+# wrapping every HTTP response the app produces (docs pages, API JSON, HTML)
+from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
+from starlette.requests import Request  # noqa: E402
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        resp = await call_next(request)
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("X-Frame-Options", "DENY")
+        resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
+            resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        return resp
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
 # WebSocket tunnel pass-through (v1.10.0) — pure ASGI route, bypasses HTTP middlewares
 from starlette.routing import WebSocketRoute  # noqa: E402
 from starlette.websockets import WebSocket  # noqa: E402

@@ -185,6 +185,34 @@ async def verify_otp(payload: OTPVerify, db: AsyncConnection = Depends(get_db)):
     return Token(access_token=token, user=user, tunnel_token=row[4])
 
 
+class RefreshIn(BaseModel):
+    refresh_token: str
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh_access_token(payload: RefreshIn, db: AsyncConnection = Depends(get_db)):
+    """v1.11.0 — exchange a valid refresh token for a new access token."""
+    from app.core.security import decode_token
+    try:
+        data = decode_token(payload.refresh_token)
+    except HTTPException:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired refresh token")
+    if data.get("type") != "refresh":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not a refresh token")
+    user_id = data.get("sub")
+    cur = await db.execute(
+        "SELECT id, email, full_name, role, tunnel_token, is_active FROM users WHERE id = %s",
+        (user_id,),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    if not row or not row[5]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
+    user = UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], is_active=row[5])
+    token = create_access_token(subject=user.id, extra={"email": user.email, "role": user.role})
+    return Token(access_token=token, user=user, tunnel_token=row[4])
+
+
 @router.get("/2fa")
 async def get_2fa(user: dict = Depends(get_current_user), db: AsyncConnection = Depends(get_db)):
     cur = await db.execute("SELECT COALESCE(twofa_enabled, FALSE) FROM users WHERE id = %s", (user["id"],))

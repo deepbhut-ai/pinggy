@@ -1,5 +1,20 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.11.0 — 2026-08-30 — Hardening: refresh tokens, security headers, audit CSV, DB backups
+
+### Added
+- `POST /auth/refresh` — JWT refresh flow: 7-day `type=refresh` tokens (`create_refresh_token`, `JWT_REFRESH_TOKEN_EXPIRE_DAYS`); access tokens presented as refresh → 401. Access tokens remain 60 min.
+- `SecurityHeadersMiddleware` — X-Content-Type-Options, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy on every response; HSTS behind https.
+- `GET /audit/export.csv` — admin CSV dump of the audit trail (5k default, 50k max).
+- `scripts/backup_db.sh` — gzipped pg_dump + 14-day retention (crontab line documented in the script).
+- `Doc/tests/v1.11.0/` evidence.
+
+### Changed
+- none
+
+### Removed
+- none
+
 ## v1.10.0 — 2026-08-30 — DDoS / API-hit shield + WebSocket tunnels
 
 ### Added

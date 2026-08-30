@@ -22,4 +22,4 @@ Thumbs.db
 .DS_Store
 
 # Database backups (contain sensitive data — never commit)
-backups/
+backups/backups/

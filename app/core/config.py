@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "change-me-to-a-long-random-string"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # SSH Tunnel Server
     SSH_HOST: str = "0.0.0.0"
