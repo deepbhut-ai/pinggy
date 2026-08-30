@@ -175,3 +175,9 @@
 - In progress: none
 - Next: user review; vtest still has 2FA on
 - Watch out: dashboard api() now stringifies object bodies; showModal confirm accepts async handlers
+
+## 2026-08-30 (v1.7.0 role control)
+- Done: v1.7.0 (teams owner/admin/member enforcement, PATCH role endpoint, token↔team sharing + guards, Teams UI role dropdowns + Team tokens card)
+- In progress: none
+- Next: user review; member@test.dev / Member@77 is a throwaway non-admin user for role tests (kept)
+- Watch out: platform-admin account bypasses ownership guards by design — never use it to test "plain member" behavior; vtest token was recreated (new id, fixed_subdomain 0f4f398 restored via PUT)
