@@ -410,7 +410,7 @@ async function api(path, method = 'GET', body = null) {
     method,
     headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
   };
-  if (body) opts.body = body;
+  if (body) opts.body = typeof body === 'string' ? body : JSON.stringify(body);
   const resp = await fetch('/api/v1' + path, opts);
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: 'Request failed' }));
@@ -670,6 +670,28 @@ async function loadApiKeys() {
       </div>
       <div class="page-toolbar-actions"><button class="btn" id="createKeyBtn">+ Create API Key</button></div>
     </div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header"><h2>🔌 How to connect & use your API key</h2></div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:.9rem">
+          <div>
+            <div style="font-size:.82rem;font-weight:600;margin-bottom:.3rem"><span style="color:var(--brand)">Step 1.</span> Create a key — click "+ Create API Key" above. The full key (starts with <span class="code">pk_</span>) is shown <strong>only once</strong>.</div>
+          </div>
+          <div>
+            <div style="font-size:.82rem;font-weight:600;margin-bottom:.3rem"><span style="color:var(--brand)">Step 2.</span> Send the key as a header on every request:</div>
+            <div class="cmd-box"><pre>X-Api-Key: pk_your_key_here</pre></div>
+          </div>
+          <div>
+            <div style="font-size:.82rem;font-weight:600;margin-bottom:.3rem"><span style="color:var(--brand)">Step 3.</span> Call any endpoint under <span class="code">${location.origin}/api/v1</span> — test with curl:</div>
+            <div class="cmd-box" style="position:relative">
+              <pre>curl -H "X-Api-Key: pk_your_key" ${location.origin}/api/v1/manage/tunnels</pre>
+              <button class="btn btn-sm" style="position:absolute;top:.4rem;right:.4rem" onclick="copyToClipboard(this.parentElement.querySelector('pre').textContent)">📋 Copy</button>
+            </div>
+          </div>
+          <div style="font-size:.78rem;color:var(--text-dim)">Full endpoint reference + Python SDK guide: <a href="#" onclick="navigate('apidocs',document.querySelector('[data-page=apidocs]'));return false" style="color:var(--brand);font-weight:600">API Docs →</a></div>
+        </div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-body" style="padding:0;overflow-x:auto">
         <table><thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
@@ -695,11 +717,18 @@ async function createApiKey() {
   const name = prompt('Name this API key:', 'CI pipeline');
   if (!name) return;
   try {
-    const k = await api('/apikeys', 'POST', { name });
+    const k = await api('/apikeys', 'POST', JSON.stringify({ name }));
+    const curlCmd = `curl -H "X-Api-Key: ${k.key}" ${location.origin}/api/v1/manage/tunnels`;
     showModal('API Key Created — copy it now', `
       <p style="font-size:.8rem;color:var(--red);font-weight:600">This key is shown only once. Copy it now.</p>
       <div class="cmd-box" style="margin-top:.5rem"><pre id="newKeyVal">${k.key}</pre></div>
       <button class="btn btn-sm" style="margin-top:.6rem" onclick="copyToClipboard('${k.key}')">📋 Copy Key</button>
+      <p style="font-size:.78rem;color:var(--text-dim);margin-top:1rem;font-weight:600;color:var(--text)">✅ Test it right now — paste this in a terminal:</p>
+      <div class="cmd-box" style="position:relative;margin-top:.4rem">
+        <pre id="newKeyCurl">${curlCmd}</pre>
+        <button class="btn btn-sm" style="position:absolute;top:.4rem;right:.4rem" onclick="copyToClipboard(document.getElementById('newKeyCurl').textContent)">📋 Copy</button>
+      </div>
+      <p style="font-size:.75rem;color:var(--text-dim);margin-top:.8rem">Returns your live tunnels as JSON → the key works. Full reference: <strong>API Docs</strong> page.</p>
     `, () => { closeModal(); loadApiKeys(); }, 'Done');
   } catch (e) { toast(e.message, 'error'); }
 }

@@ -1,5 +1,17 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.5.1 — 2026-08-30 — API key how-to + dashboard api() body fix
+
+### Added
+- API Keys page: "🔌 How to connect & use your API key" card (3 steps: create key → X-Api-Key header → curl with origin-filled URL + 📋 Copy button) shown above the keys table; links to API Docs.
+- Created-key modal now embeds a ready-to-run curl command containing the REAL key + copy buttons (key + curl).
+
+### Changed
+- dashboard `api()` helper now JSON-stringifies object bodies (string bodies pass through) — fixes 422 "[object Object]" errors.
+
+### Removed
+- none
+
 ## v1.5.0 — 2026-08-30 — Two-Factor Authentication (email OTP)
 
 ### Added
