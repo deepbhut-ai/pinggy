@@ -225,10 +225,12 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
         # Look up generated tunnel subdomains first, then custom domains.
         # SSH assigns a random subdomain, so it cannot be derived from the token.
         tunnel = await get_tunnel(subdomain)
+        matched_addr = subdomain  # v1.9.0: which address the request came in on
         if not tunnel:
             tunnel = await get_tunnel_by_custom_domain(host)
             if tunnel:
                 subdomain = tunnel.subdomain
+                matched_addr = host.strip().lower().split(":")[0]
         if not tunnel:
             return Response(
                 content=f"<h1>No tunnel found for subdomain: {subdomain}</h1>"
@@ -250,7 +252,9 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
         # Forward the request through the SSH reverse tunnel
         # The SSH -R0:localhost:PORT creates a listener on the server at
         # tunnel.remote_port. We forward to localhost:remote_port.
-        target_url = f"http://127.0.0.1:{tunnel.remote_port}{request.url.path}"
+        # v1.9.0 multi-port: each address can have its own remote port.
+        target_port = tunnel.endpoint_port(matched_addr)
+        target_url = f"http://127.0.0.1:{target_port}{request.url.path}"
         if request.url.query:
             target_url += f"?{request.url.query}"
 

@@ -1,5 +1,21 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.9.0 — 2026-08-30 — Multi-port token (Pro): every address → its own local port
+
+### Added
+- One SSH connection, multiple projects: username `TOKEN--P1,P2,...` + one `-R0:127.0.0.1:Px` per address. Listeners bind to addresses in canonical order (subdomain → primary → extras); the proxy routes each Host to its own remote port within the SAME tunnel session.
+- Pro-gated at SSH auth (non-Pro with a port-map suffix → rejected); legacy `users.tunnel_token` path rejects multi-port.
+- `TunnelSession.endpoints` (address → remote_port) + `local_ports` (display) + `endpoint_port()` fallback; proxy resolves the matched address to its port.
+- Configure page: "Multi-port [Pro]" checkbox → per-address port inputs → auto-generates the multi-`-R` command (SSH + Docker tabs); SSH banner prints an endpoint line per address.
+- Per-connection `_setup_lock` in the SSH server — fixes a listener-setup race where concurrent `_detect_port_and_setup` tasks caused duplicate-subdomain INSERT errors (also affects single-port reconnects).
+- `Doc/tests/v1.9.0/` evidence (two local projects served under one token/connection).
+
+### Changed
+- `_detect_port_and_setup` rewritten: detects ALL unbound listeners, re-scans inside the lock.
+
+### Removed
+- none
+
 ## v1.8.0 — 2026-08-30 — Unified Domains page (all addresses, one place)
 
 ### Added

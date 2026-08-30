@@ -23,6 +23,8 @@ class TunnelSession:
     ssh_peer: str             # remote address of SSH client
     custom_domain: str = ""  # primary custom domain (if token has one)
     custom_domains: list = field(default_factory=list)  # extra domains (v1.4.0)
+    endpoints: dict = field(default_factory=dict)   # v1.9.0 multi-port: address -> remote_port
+    local_ports: dict = field(default_factory=dict)  # v1.9.0 multi-port: address -> client local port (display)
     token: str = ""           # authenticating tunnel token (security lookups, v0.8.0)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     request_count: int = 0
@@ -50,6 +52,21 @@ class TunnelSession:
     @property
     def is_alive(self) -> bool:
         return self.ssh_conn is not None
+
+    def endpoint_port(self, address: str) -> int:
+        """v1.9.0: remote port serving this address (falls back to the default)."""
+        try:
+            return self.endpoints.get(address.strip().lower().split(":")[0], self.remote_port)
+        except Exception:
+            return self.remote_port
+
+    def all_addresses(self) -> list[str]:
+        """Canonical order: subdomain host, primary domain, extras."""
+        out = [self.subdomain]
+        if self.custom_domain:
+            out.append(self.custom_domain)
+        out.extend(d for d in (self.custom_domains or []))
+        return out
 
 
 _domain: str = "localhost"

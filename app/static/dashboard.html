@@ -1206,6 +1206,7 @@ async function loadConfigure() {
     const tokenOptions = tokens.map(t => 
       `<option value="${t.token}">${t.name || 'Unnamed'} — ${t.token.substring(0,8)}... (→ ${t.subdomain}.iraglobaltech.com)</option>`
     ).join('');
+    window._cfgTokens = tokens;
 
     // App presets catalog (v0.7.0) — name, default port
     const APP_PRESETS = [
@@ -1263,11 +1264,18 @@ async function loadConfigure() {
           </div>
           <div class="form-group">
             <label>Access token</label>
-            <select id="cfgToken" onchange="updateCfgCommand()">
+            <select id="cfgToken" onchange="onCfgTokenChange()">
               ${tokenOptions}
             </select>
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group" style="display:flex;align-items:center;gap:.5rem">
+            <input type="checkbox" id="cfgMultiPort" onchange="renderMultiPortRows()" style="width:auto;margin:0;cursor:pointer;accent-color:var(--brand)">
+            <label for="cfgMultiPort" style="margin:0;cursor:pointer">Multi-port <span class="badge" style="margin-left:.2rem">Pro</span> — each address → its own local port, one command</label>
+          </div>
+        </div>
+        <div id="multiPortRows" style="display:none;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-top:.3rem"></div>
       </div>
     </div>
 
@@ -1359,9 +1367,17 @@ function builderState() {
   const info = tunnelState.info;
   const addr = document.getElementById('cfgLocalAddr')?.value || `127.0.0.1:${tunnelState.localPort}`;
   const port = addr.split(':').pop() || '8080';
+  const multi = document.getElementById('cfgMultiPort')?.checked;
+  let portList = null;
+  if (multi) {
+    const inputs = Array.from(document.querySelectorAll('[data-addr-port]'));
+    portList = inputs.map(i => i.value.trim()).filter(Boolean);
+  }
   return {
     info,
     port,
+    multi,
+    portList,
     token: document.getElementById('cfgToken')?.value || tunnelState.token,
     platform: document.getElementById('cfgPlatform')?.value || 'windows',
     keepAlive: document.getElementById('cfgKeepAlive')?.checked !== false,
@@ -1371,21 +1387,60 @@ function builderState() {
   };
 }
 
+function renderMultiPortRows() {
+  const box = document.getElementById('multiPortRows');
+  const on = document.getElementById('cfgMultiPort')?.checked;
+  if (box) box.style.display = on ? 'block' : 'none';
+  if (!on || !box || box.dataset.rendered) { updateCfgCommand(); return; }
+  const selVal = document.getElementById('cfgToken')?.value;
+  const t = (window._cfgTokens || []).find(x => x.id === selVal || x.token === selVal);
+  if (!t) { updateCfgCommand(); return; }
+  const suffix = '.iraglobaltech.com';
+  const addrs = [`${t.subdomain}${suffix}`];
+  if (t.custom_domain) addrs.push(t.custom_domain);
+  (t.domains || []).forEach(d => addrs.push(d));
+  box.innerHTML = `<p style="font-size:.78rem;color:var(--text-dim);margin-bottom:.5rem">One local port per address — order matters (subdomain → primary → extras):</p>` +
+    addrs.map((a, i) => `
+    <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem">
+      <span class="code" style="flex:1;font-size:.8rem">${a}</span>
+      <input type="number" data-addr-port min="1" max="65535" placeholder="e.g. ${3000 + i * 1000}" style="width:130px" value="" onchange="updateCfgCommand()">
+    </div>`).join('') +
+    `<p style="font-size:.72rem;color:var(--text-dim)">Pro feature — one SSH connection, each address routes to its own local project.</p>`;
+  box.dataset.rendered = '1';
+  updateCfgCommand();
+}
+
+function onCfgTokenChange() {
+  const box = document.getElementById('multiPortRows');
+  if (box) delete box.dataset.rendered;
+  renderMultiPortRows();
+  updateCfgCommand();
+}
+
 function buildDockerCommand(s) {
-  return `docker run --rm -i alpine/openssh-client ssh \\\n  -p ${s.info.ssh_port} -R0:127.0.0.1:${s.port} \\\n  -o StrictHostKeyChecking=no ${s.keepAlive ? '-o ServerAliveInterval=30 ' : ''}\\\n  ${s.token}@ssh.iraglobaltech.com`;
+  const multi = s.multi && s.portList?.length;
+  const R = multi ? s.portList.map(p => `-R0:127.0.0.1:${p}`).join(' ') : `-R0:127.0.0.1:${s.port}`;
+  const user = multi ? `${s.token}--${s.portList.join(',')}` : s.token;
+  return `docker run --rm -i alpine/openssh-client ssh \\\n  -p ${s.info.ssh_port} ${R} \\\n  -o StrictHostKeyChecking=no ${s.keepAlive ? '-o ServerAliveInterval=30 ' : ''}\\\n  ${user}@ssh.iraglobaltech.com`;
 }
 
 function buildConfigCommand() {
   const s = builderState();
   if (!s.info) return '';
   if (cmdTab === 'docker') return buildDockerCommand(s);
+  const multi = s.multi && s.portList?.length;
   let cmd = 'ssh';
   if (s.verbose) cmd += ' -v';
   cmd += ` -p ${s.info.ssh_port}`;
-  cmd += ` -R0:127.0.0.1:${s.port}`;
+  if (multi) {
+    s.portList.forEach(p => { cmd += ` -R0:127.0.0.1:${p}`; });
+  } else {
+    cmd += ` -R0:127.0.0.1:${s.port}`;
+  }
   if (s.keepAlive) cmd += ' -o ServerAliveInterval=30';
   if (!s.strictHost) cmd += ' -o StrictHostKeyChecking=no';
-  cmd += ` ${s.token}@ssh.iraglobaltech.com`;
+  const user = multi ? `${s.token}--${s.portList.join(',')}` : s.token;
+  cmd += ` ${user}@ssh.iraglobaltech.com`;
   return cmd;
 }
 
