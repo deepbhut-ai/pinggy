@@ -1,5 +1,19 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.10.0 — 2026-08-30 — DDoS / API-hit shield + WebSocket tunnels
+
+### Added
+- `RateLimitMiddleware` (outermost, Redis ZSET sliding window): **API 60/min/IP**, **AUTH 10/min/IP** (login/register/forgot/verify-otp/reset), **TUNNEL 240/min/IP + 600/min/subdomain**. 429 + Retry-After on breach.
+- Fail2ban-style auto-ban: 3 strikes in 10 min → IP blocked 1h via existing blocklist (auth brute-force / tunnel flood / api abuse reasons logged).
+- WebSocket tunnel pass-through (`tunnel_websocket` ASGI route on `/*`): HMR, socket.io, live-reload now work through tunnels; reuses token security (basic-auth / IP whitelist / bearer) and multi-port endpoints.
+- `Doc/tests/v1.10.0/` evidence (exact-limit tests + auto-ban + WS echo E2E).
+
+### Changed
+- Middleware stack: RateLimit → IPMonitor → TunnelProxy → CORS (shield outermost).
+
+### Removed
+- none
+
 ## v1.9.0 — 2026-08-30 — Multi-port token (Pro): every address → its own local port
 
 ### Added

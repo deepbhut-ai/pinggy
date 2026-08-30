@@ -94,6 +94,8 @@
 | geo_lookup / config | ip_monitor.py:110/122 | POST /ip-monitor/geo/{ip} | ip-api.com |
 
 ## Core
+- v1.10.0 RateLimitMiddleware (app/core/rate_limit.py): Redis sliding-window zones api 60/min, auth 10/min, tunnel 240/min/IP + 600/min/sub; 3 strikes/10min -> auto-ban 1h; /health,/docs exempt.
+- v1.10.0 tunnel_websocket (app/core/proxy.py): ASGI WS route bridging client WS <-> tunnel remote port; token security enforced; multi-port endpoint aware.
 | Function | File | Purpose |
 |---|---|---|
 | run_auto_setup | app/core/auto_setup.py:149 | DB create + pgcrypto + migrations + seed admin |

@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.db import close_pool, init_pool
 from app.api.routers.admin import router as admin_router
 from app.core.ip_monitor import IPMonitorMiddleware
+from app.core.rate_limit import RateLimitMiddleware
 from app.core.proxy import TunnelProxyMiddleware
 from app.core.redis import close_redis, init_redis
 from app.core.tunnel_registry import init_registry
@@ -68,11 +69,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # NOTE on Starlette middleware order: LAST added = OUTERMOST (runs first on requests).
-# IPMonitor is added last → it is outermost → it sees ALL requests INCLUDING proxied
-# tunnel traffic (v0.2.0 change per admin request — previously TunnelProxy was
-# outermost and tunnel traffic was not IP-counted). Swap these two lines to reverse.
+# RateLimit (v1.10.0) is outermost — DDoS / API-hit shield in front of everything.
+# IPMonitor counts requests; TunnelProxy forwards tunnel traffic to SSH ports.
 app.add_middleware(TunnelProxyMiddleware)
 app.add_middleware(IPMonitorMiddleware)
+app.add_middleware(RateLimitMiddleware)
+
+# WebSocket tunnel pass-through (v1.10.0) — pure ASGI route, bypasses HTTP middlewares
+from starlette.routing import WebSocketRoute  # noqa: E402
+from starlette.websockets import WebSocket  # noqa: E402
+from app.core.proxy import tunnel_websocket  # noqa: E402
+
+
+async def _ws_entry(websocket: WebSocket):
+    await tunnel_websocket(websocket.scope, websocket.receive, websocket.send)
+
+
+app.router.routes.append(WebSocketRoute("/{rest:path}", _ws_entry))
 
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(admin_router)  # /admin, /dashboard, / (landing page)

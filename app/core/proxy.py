@@ -212,7 +212,11 @@ def _extract_subdomain(host: str) -> str | None:
 
 class TunnelProxyMiddleware(BaseHTTPMiddleware):
     """Middleware that intercepts subdomain requests and proxies them
-    through the SSH reverse tunnel."""
+    through the SSH reverse tunnel.
+
+    v1.10.0: WebSocket upgrades are handled BEFORE this middleware by
+    tunnel_websocket() (ASGI-level route) — BaseHTTPMiddleware cannot
+    pass through connection upgrades."""
 
     async def dispatch(self, request: Request, call_next):
         host = request.headers.get("host", "")
@@ -341,3 +345,113 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                 status_code=502,
                 media_type="text/html",
             )
+
+# ---- WebSocket pass-through (v1.10.0) ----
+async def tunnel_websocket(scope, receive, send, rest: str = ""):
+    """ASGI WebSocket endpoint: bridges the client WS to the tunnel's local
+    service via the SSH-forwarded remote port (raw TCP relay). Mounted in
+    main.py BEFORE middleware so upgrades aren't swallowed."""
+    import websockets
+
+    if scope["type"] != "websocket":
+        return  # not for us
+
+    host = ""
+    for k, v in scope.get("headers", []):
+        if k.decode().lower() == "host":
+            host = v.decode().split(":")[0]
+            break
+    subdomain = _extract_subdomain(host)
+    if not subdomain:
+        await send({"type": "websocket.close", "code": 1008})
+        return
+
+    tunnel = await get_tunnel(subdomain)
+    if not tunnel:
+        tunnel = await get_tunnel_by_custom_domain(host)
+    if not tunnel:
+        await send({"type": "websocket.close", "code": 1014})
+        return
+
+    target_port = tunnel.endpoint_port(host)
+    path = scope.get("path", "/")
+    qs = scope.get("query_string", b"").decode()
+    uri = f"ws://127.0.0.1:{target_port}{path}"
+    if qs:
+        uri += f"?{qs}"
+
+    # security check mirrors HTTP path (v0.8.0)
+    sec = await _get_token_security(tunnel)
+    headers = {k.decode(): v.decode() for k, v in scope.get("headers", [])}
+
+    class _FakeReq:
+        def __init__(self, h):
+            self.headers = h
+    if sec:
+        denied = _check_security(_FakeReq(headers), sec, "ws")
+        if denied is not None:
+            await send({"type": "websocket.close", "code": 1008})
+            return
+
+    try:
+        async with websockets.connect(
+            uri,
+            additional_headers={k: v for k, v in headers.items()
+                                 if k.lower() not in ("host", "connection", "upgrade", "sec-websocket-key",
+                                                      "sec-websocket-version", "sec-websocket-extensions")},
+            max_size=10 * 1024 * 1024,
+            ping_interval=20,
+            ping_timeout=20,
+            close_timeout=5,
+        ) as upstream:
+            # accept the client handshake
+            await send({"type": "websocket.accept"})
+
+            client_done = False
+            upstream_done = False
+
+            async def pump_up():
+                nonlocal client_done
+                while True:
+                    msg = await upstream.recv()
+                    if isinstance(msg, str):
+                        await send({"type": "websocket.send", "text": msg})
+                    else:
+                        await send({"type": "websocket.send", "bytes": msg})
+
+            async def pump_down():
+                nonlocal client_done
+                while True:
+                    ev = await receive()
+                    if ev["type"] == "websocket.disconnect":
+                        break
+                    if ev["type"] == "websocket.receive":
+                        if ev.get("text") is not None:
+                            await upstream.send(ev["text"])
+                        elif ev.get("bytes") is not None:
+                            await upstream.send(ev["bytes"])
+
+            import asyncio as _aio
+            up = _aio.create_task(pump_up())
+            down = _aio.create_task(pump_down())
+            try:
+                done, pending = await _aio.wait(
+                    {up, down}, return_when=_aio.FIRST_COMPLETED,
+                )
+            except Exception:
+                pass
+            finally:
+                for t in (up, down):
+                    t.cancel()
+            try:
+                await send({"type": "websocket.close", "code": 1000})
+            except Exception:
+                pass
+            await increment_request_count(subdomain, 64)
+            log_to_tunnel(subdomain, f"  [{datetime.now().strftime('%H:%M:%S')}] WS     {path}  closed")
+    except Exception as e:
+        logger.info("WS tunnel error %s: %s", subdomain, e)
+        try:
+            await send({"type": "websocket.close", "code": 1011})
+        except Exception:
+            pass
