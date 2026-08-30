@@ -187,3 +187,9 @@
 - In progress: none
 - Next: user review
 - Watch out: via_team is set on OWN tokens too (team badge) — filter ownership via via_team.owner, never via_team presence
+
+## 2026-08-30 (v1.9.0 multi-port)
+- Done: v1.9.0 (one token/one SSH connection, each address -> own local port via TOKEN--P1,P2 username + multi -R; Configure generator; setup-lock race fix)
+- In progress: none
+- Next: user review; note MarketingIRA dev server occupies *:3002 on this Mac — pick test ports ≥4100
+- Watch out: multi-port listener order MUST match address order (subdomain -> primary -> extras); generate commands from Configure page, don't hand-write
