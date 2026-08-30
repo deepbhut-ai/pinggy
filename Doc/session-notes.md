@@ -169,3 +169,9 @@
 - In progress: none — 10-item batch complete (v1.3.0 branding/UX, v1.4.0 domains/teams/tickets, v1.5.0 2FA)
 - Next: user review; possible prod deploy (deploy_server.sh) — migrations 0023/0024 auto-apply on boot
 - Watch out: aioredis r.setex/r.get are coroutines — MUST await (500 'coroutine' object has no attribute 'split'); API base is /api/v1 (curl without prefix → 404 "Not Found")
+
+## 2026-08-30 (v1.5.1 + v1.6.0 follow-ups)
+- Done: v1.5.1 (API-key how-to card + api() stringify fix) · v1.6.0 (key caps Free 5/Pro 10 + 30/90/never expiry, migration 0025)
+- In progress: none
+- Next: user review; vtest still has 2FA on
+- Watch out: dashboard api() now stringifies object bodies; showModal confirm accepts async handlers
