@@ -1,6 +1,18 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
-## v1.13.0 — 2026-08-30 — Weekly digest + team activity feed
+## v1.14.0 — 2026-08-30 — Deploy readiness + full regression
+
+### Added
+- `Doc/guides/deploy.md` — production runbook: rsync, .env checklist (JWT_SECRET, SMTP), systemd, auto-migrations, backup crontab, post-deploy verify commands (health/tunnel/2FA/shield), rollback.
+- `Doc/tests/v1.14.0/` — 9-point full-system regression (all PASS).
+
+### Changed
+- none
+
+### Removed
+- none
+
+## v1.13.0 — 2026-08-30 — Weekly digest + team activity feed — 2026-08-30 — Weekly digest + team activity feed
 
 ### Added
 - Weekly usage digest emails (app/core/digest.py): scheduler at boot (hourly tick, Monday 08:00 UTC send window, Redis 7d dedupe) — requests / GB / addresses / tokens summary via existing email infra (kind=digest).
