@@ -1543,6 +1543,13 @@ async function loadDomains() {
             ${info.custom_domain ? '<button class="btn btn-sm btn-ghost" onclick="saveMyCustomDomain(true)">Clear</button>' : ''}
           </div>
         </div>
+        <div class="form-group" style="margin-top:.8rem">
+          <label>Routes to token <span style="color:var(--text-dim);font-weight:400">— which tunnel serves this domain</span></label>
+          <select id="domainToken" class="form-control">
+            ${tokens.map(t => `<option value="${t.id}" ${t.custom_domain ? 'selected' : ''}>${t.name || t.token.slice(0, 12)} (${t.subdomain})${t.custom_domain ? ' ✓ current' : ''}</option>`).join('')}
+          </select>
+          <p style="font-size:.75rem;color:var(--text-dim);margin-top:.35rem">After saving, the SSH banner and tunnel URLs show this domain (reconnect any live tunnel to pick it up). Point the domain's A record at the server IP.</p>
+        </div>
         <div style="margin-top:1rem;padding:1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;color:var(--text-dim);line-height:1.6">
           <p style="font-weight:600;color:var(--text);margin-bottom:.4rem">📋 Setup Instructions</p>
           <p><strong>Step 1:</strong> Add your domain to Cloudflare → Add Site</p>
@@ -3101,10 +3108,12 @@ async function saveMyCustomDomain(clear) {
     }
   }
   try {
-    await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}`, 'PUT');
-    toast(clear ? 'Custom domain cleared' : 'Custom domain saved');
+    const sel = document.getElementById('domainToken');
+    const token_id = sel && sel.value ? sel.value : '';
+    await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}&token_id=${encodeURIComponent(token_id)}`, 'PUT');
+    toast(clear ? 'Custom domain cleared' : `Custom domain saved — routes to the selected token`);
     if (clear) input.value = '';
-    loadQuickstart();
+    loadDomains();
   } catch (e) { toast(e.message, 'error'); }
 }
 

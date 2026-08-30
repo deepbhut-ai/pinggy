@@ -7,6 +7,7 @@
 | log_audit | app/core/audit.py | (internal) | fire-and-forget INSERT; called from users/auth/ip_monitor routers; passwords never logged (field name only) |
 
 ## Auth / users
+- v1.7.1: PUT /users/me/custom-domain?custom_domain&token_id — saves users.custom_domain AND assigns tokens.custom_domain (SSH banner / Host routing / custom_url source); clear removes from all user's tokens.
 - v1.6.0 API keys: POST /apikeys {name, expiry_days?30|90|null} — plan cap Free 5 / Pro 10 (402/400 at cap), expires_at set at create; resolve_api_key rejects expired (401); list shows expires_at.
 - POST /auth/login — password OK; if users.twofa_enabled → {otp_required, challenge} + emailed 6-digit code (Redis otp:{challenge} sha256:email, 5 min); else JWT (v1.5.0)
 - POST /auth/verify-otp {challenge, code} → JWT; one-time challenge, 401 on wrong/expired

@@ -1,5 +1,18 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.7.1 — 2026-08-30 — Custom domain now reflects system-wide (fix)
+
+### Added
+- `PUT /users/me/custom-domain` accepts `token_id` — the domain is now ALSO written to `tokens.custom_domain` (what SSH banner, Host routing and tunnel URLs actually read). Defaults to the user's most recent token without a domain; clears from the user's other tokens (UNIQUE = one domain → one tunnel). Clearing removes it everywhere.
+- Domains page: "Routes to token" dropdown (✓ marks current attachment) + reconnect hint.
+- Audit `user.custom_domain`.
+
+### Changed
+- Saving a domain on the Domains page now reloads the Domains page (shows attachment) instead of jumping to Quickstart.
+
+### Removed
+- Debris test token `0fd4ea39…` (v1.7.0 test leftover); its extra domain `shop.mytest.dev` cascade-removed.
+
 ## v1.7.0 — 2026-08-30 — Teams role control system
 
 ### Added

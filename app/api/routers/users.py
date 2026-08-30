@@ -191,12 +191,19 @@ async def delete_user(
 @router.put("/me/custom-domain")
 async def update_my_custom_domain(
     custom_domain: str | None = None,
+    token_id: str | None = None,
     user: dict = Depends(get_current_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """Update the current user's custom domain. Available to any logged-in user."""
+    """Update the current user's custom domain. Available to any logged-in user.
+
+    v1.7.1: the domain is ALSO assigned to a tunnel token (tokens.custom_domain)
+    — that is what SSH banner, Host-header routing and tunnel URLs actually read.
+    token_id optional: defaults to the user's most recent token without a domain.
+    Clearing (empty string) removes the domain from the user AND all their tokens.
+    """
     # Allow empty string to clear the domain
-    domain_value = custom_domain.strip() if custom_domain else None
+    domain_value = custom_domain.strip().lower() if custom_domain else None
 
     # Check if domain is already taken by another user
     if domain_value:
@@ -219,7 +226,6 @@ async def update_my_custom_domain(
         )
         row = await cur.fetchone()
         await cur.close()
-        return {"custom_domain": row[0]}
     except Exception as e:
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise HTTPException(
@@ -227,6 +233,67 @@ async def update_my_custom_domain(
                 f"Domain '{domain_value}' is already in use by another user. Please choose a different domain.",
             )
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Failed to update custom domain: {str(e)}")
+
+    # ---- v1.7.1: propagate to tokens (what the tunnel system actually reads) ----
+    attached_token = None
+    if not domain_value:
+        # clear from ALL of the user's tokens
+        cur = await db.execute(
+            "UPDATE tokens SET custom_domain = NULL, updated_at = now() WHERE user_email = %s AND custom_domain IS NOT NULL",
+            (user["email"],),
+        )
+        await cur.close()
+    else:
+        # remove the domain from any other owner's token (defensive; users-unique check should catch first)
+        cur = await db.execute(
+            "UPDATE tokens SET custom_domain = NULL, updated_at = now() WHERE custom_domain = %s AND user_email != %s",
+            (domain_value, user["email"]),
+        )
+        await cur.close()
+        # remove it from the user's OTHER tokens (a domain routes to exactly one token)
+        cur = await db.execute(
+            "UPDATE tokens SET custom_domain = NULL, updated_at = now() WHERE custom_domain = %s AND user_email = %s",
+            (domain_value, user["email"]),
+        )
+        await cur.close()
+        # pick target token: given token_id, else most recent without a domain
+        target = None
+        if token_id:
+            cur = await db.execute(
+                "SELECT id FROM tokens WHERE id = %s AND user_email = %s",
+                (token_id, user["email"]),
+            )
+            target = await cur.fetchone()
+            await cur.close()
+            if not target:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found (or not yours)")
+        else:
+            cur = await db.execute(
+                "SELECT id FROM tokens WHERE user_email = %s ORDER BY (custom_domain IS NULL) DESC, created_at DESC LIMIT 1",
+                (user["email"],),
+            )
+            target = await cur.fetchone()
+            await cur.close()
+        if target:
+            try:
+                cur = await db.execute(
+                    "UPDATE tokens SET custom_domain = %s, updated_at = now() WHERE id = %s RETURNING id",
+                    (domain_value, target[0]),
+                )
+                r = await cur.fetchone()
+                await cur.close()
+                attached_token = str(r[0]) if r else None
+            except Exception as e:
+                if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT,
+                        f"Domain '{domain_value}' is already attached to another token.",
+                    )
+                raise
+        from app.core.audit import log_audit
+        await log_audit(db, user["email"], "user.custom_domain", domain_value or "", f"token={attached_token}")
+
+    return {"custom_domain": row[0], "token_id": attached_token}
 
 
 @router.get("/{user_id}/tunnels")
