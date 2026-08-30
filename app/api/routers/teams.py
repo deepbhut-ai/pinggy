@@ -10,6 +10,25 @@ from app.core.deps import get_current_user
 router = APIRouter(prefix="/teams", tags=["teams"])
 
 
+async def get_team_role(db: AsyncConnection, team_id: str, email: str) -> str | None:
+    """Return 'owner' | 'admin' | 'member' | None for a user on a team.
+    v1.7.0 role control: owner (from teams.owner_email) > admin > member."""
+    cur = await db.execute("SELECT owner_email FROM teams WHERE id = %s", (team_id,))
+    t = await cur.fetchone()
+    await cur.close()
+    if not t:
+        return None
+    if t[0] == email:
+        return "owner"
+    cur = await db.execute(
+        "SELECT role FROM team_members WHERE team_id = %s AND user_email = %s",
+        (team_id, email),
+    )
+    m = await cur.fetchone()
+    await cur.close()
+    return m[0] if m else None
+
+
 def _team_out(r) -> dict:
     return {"id": str(r[0]), "name": r[1], "owner_email": r[2],
             "created_at": r[3].isoformat() if r[3] else None}
@@ -43,6 +62,17 @@ async def my_teams(
         await cur.close()
         team["members"] = members
         team["i_own"] = r[2] == user["email"]
+        team["my_role"] = await get_team_role(db, r[0], user["email"])
+        # v1.7.0: tokens assigned to this team (visible to ALL members)
+        cur = await db.execute(
+            "SELECT id, name, fixed_subdomain, user_email FROM tokens WHERE team_id = %s ORDER BY created_at",
+            (r[0],),
+        )
+        team["tokens"] = [
+            {"id": str(t[0]), "name": t[1], "subdomain": t[2], "owner_email": t[3]}
+            for t in await cur.fetchall()
+        ]
+        await cur.close()
         out.append(team)
     return out
 
@@ -121,6 +151,44 @@ async def add_member(
         raise HTTPException(status.HTTP_409_CONFLICT, "Already a member of this team")
     await log_audit(db, user["email"], "team.add_member", email, f"role={body.role}")
     return {"added": email, "role": body.role}
+
+
+class RoleIn(BaseModel):
+    role: str  # 'admin' | 'member'
+
+
+@router.patch("/{team_id}/members/{email}")
+async def change_member_role(
+    team_id: str,
+    email: str,
+    body: RoleIn,
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """v1.7.0 — promote/demote a member (owner only). Owner role itself is fixed."""
+    if body.role not in ("admin", "member"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "role must be admin or member")
+    email = email.strip().lower()
+    my_role = await get_team_role(db, team_id, user["email"])
+    if my_role is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Team not found")
+    if my_role != "owner":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the team owner can change roles")
+    cur = await db.execute("SELECT owner_email FROM teams WHERE id = %s", (team_id,))
+    owner = (await cur.fetchone())[0]
+    await cur.close()
+    if email == owner:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "The owner's role cannot be changed — transfer ownership instead")
+    cur = await db.execute(
+        "UPDATE team_members SET role = %s WHERE team_id = %s AND user_email = %s RETURNING role",
+        (body.role, team_id, email),
+    )
+    r = await cur.fetchone()
+    await cur.close()
+    if not r:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Member not found")
+    await log_audit(db, user["email"], "team.role_change", email, f"-> {body.role}")
+    return {"email": email, "role": r[0]}
 
 
 @router.delete("/{team_id}/members/{email}")

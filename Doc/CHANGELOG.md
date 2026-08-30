@@ -1,5 +1,24 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.7.0 — 2026-08-30 — Teams role control system
+
+### Added
+- Role hierarchy with real enforcement: **owner** (from teams.owner_email) → **admin** → **member**; platform admins keep their bypass.
+- `PATCH /teams/{id}/members/{email} {role}` — promote/demote (owner-only; owner row immutable; audit team.role_change).
+- Token sharing: `PUT /tokens/{id}/team {team_id|null}` assigns/unassigns a token to a team (uses the 0023 `tokens.team_id` column for the first time). Owner + team admins can share/unshare; plain members 403.
+- `GET /teams` now returns `my_role` + the team's shared `tokens` (id, name, subdomain, owner_email).
+- `GET /tokens` now includes `team_id`, `via_team` and — for members — tokens shared by other owners as "name (shared)" (read-only view).
+- Guards: PUT/DELETE `/tokens/{id}` allow token owner / team owner / team admin; plain members get 403 "Read-only…".
+- Teams page: role badges + per-member role dropdowns (owner view), **🔗 Team tokens** card (shared list, Share-token select, Unassign), "(you)" marker, add-member role select.
+- Manage Tokens: 👥 badge on team-shared tokens (tooltip shows team + your role).
+- `Doc/tests/v1.7.0/` — full permission matrix (member 403 ×4, team_admin 200 ×2, role change owner-only).
+
+### Changed
+- `update_token`/`delete_token` ownership checks replaced by team-aware `_token_manage_role` (platform admin still bypasses).
+
+### Removed
+- none
+
 ## v1.6.0 — 2026-08-30 — API key plan caps + optional expiry
 
 ### Added

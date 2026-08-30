@@ -182,6 +182,7 @@ Seeded free/pro/enterprise. Read by GET /plans (public), edited via admin UI.
 - Written by: POST /tokens/{id}/domains; read at SSH auth → TunnelSession.custom_domains; matched in get_tunnel_by_custom_domain (Host header, `:port` stripped).
 
 ## teams  (0023)
+- v1.7.0: roles enforced — owner (owner_email) > admin > member (team_members.role); tokens.team_id = shared token (members read-only via API guards).
 - id UUID PK, name, owner_email FK→users, created_at, updated_at
 - team_members: team_id FK CASCADE, user_email FK, role member|admin, UNIQUE(team_id,user_email); owner auto-inserted as admin at create.
 - Deleting a team sets tokens.team_id = NULL (tunnels unaffected).

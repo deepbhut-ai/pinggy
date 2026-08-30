@@ -30,6 +30,8 @@ class TokenOut(BaseModel):
     tunnel_mode: str | None = None
     tcp_port: int | None = None
     domains: list[str] = []  # extra custom domains (v1.4.0; custom_domain is primary)
+    team_id: str | None = None        # v1.7.0 — token assigned to this team
+    via_team: dict | None = None      # v1.7.0 — set when listing a team-shared token I don't own
     security: dict | None = None  # masked security view (never returns basic_auth_pass / full bearer when set)
 
 
@@ -95,13 +97,27 @@ async def list_tokens(
     user: dict = Depends(get_current_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """List all tokens for the current user."""
+    """List all tokens for the current user (own + tokens shared via teams, v1.7.0)."""
     cur = await db.execute(
-        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only, fixed_subdomain, tunnel_mode, tcp_port FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
+        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only, fixed_subdomain, tunnel_mode, tcp_port, team_id, user_email FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
         (user["email"],),
     )
     rows = await cur.fetchall()
     await cur.close()
+    seen = {str(r[0]) for r in rows}
+    # v1.7.0 — tokens shared with me through team membership (I'm not the owner)
+    cur = await db.execute(
+        """SELECT t.id, t.token, t.name, t.custom_domain, t.created_at, t.basic_auth_user, t.ip_whitelist,
+                  t.bearer_key, t.https_only, t.fixed_subdomain, t.tunnel_mode, t.tcp_port, t.team_id, t.user_email, tm.role, te.name
+           FROM tokens t
+           JOIN team_members tm ON tm.team_id = t.team_id AND tm.user_email = %s
+           JOIN teams te ON te.id = t.team_id
+           WHERE t.user_email != %s""",
+        (user["email"], user["email"]),
+    )
+    shared = await cur.fetchall()
+    await cur.close()
+
     out = []
     for r in rows:
         req, byt, act = await _token_traffic(db, r[1])
@@ -109,6 +125,12 @@ async def list_tokens(
         cur = await db.execute("SELECT domain FROM token_domains WHERE token_id = %s ORDER BY created_at", (r[0],))
         doms = [d[0] for d in await cur.fetchall()]
         await cur.close()
+        via = None
+        if r[12]:
+            cur = await db.execute("SELECT name FROM teams WHERE id = %s", (r[12],))
+            tn = await cur.fetchone()
+            await cur.close()
+            via = {"team_id": str(r[12]), "team_name": tn[0] if tn else "", "owner": False}
         out.append(TokenOut(
             id=str(r[0]),
             token=r[1],
@@ -123,6 +145,39 @@ async def list_tokens(
             tunnel_mode=r[10],
             tcp_port=r[11],
             domains=doms,
+            team_id=str(r[12]) if r[12] else None,
+            via_team=via,
+            security={
+                "basic_auth_user": r[5],
+                "ip_whitelist": r[6],
+                "bearer_key": "***set***" if r[7] else None,
+                "https_only": r[8],
+            },
+        ))
+    # shared team tokens — read-only view for plain members; admins/owner get manage rights via guards
+    for r in shared:
+        if str(r[0]) in seen:
+            continue
+        cur = await db.execute("SELECT domain FROM token_domains WHERE token_id = %s ORDER BY created_at", (r[0],))
+        doms = [d[0] for d in await cur.fetchall()]
+        await cur.close()
+        req, byt, act = await _token_traffic(db, r[1])
+        out.append(TokenOut(
+            id=str(r[0]),
+            token=r[1],
+            name=f"{r[2]} (shared)",
+            custom_domain=r[3],
+            subdomain=r[9] or _subdomain_from_token(r[1]),
+            created_at=r[4].isoformat() if r[4] else None,
+            total_requests=req,
+            total_bytes=byt,
+            active_tunnels=act,
+            fixed_subdomain=r[9],
+            tunnel_mode=r[10],
+            tcp_port=r[11],
+            domains=doms,
+            team_id=str(r[12]) if r[12] else None,
+            via_team={"team_id": str(r[12]), "team_name": r[15], "owner": False, "my_role": r[14], "owner_email": r[13]},
             security={
                 "basic_auth_user": r[5],
                 "ip_whitelist": r[6],
@@ -191,6 +246,67 @@ async def create_token(
     )
 
 
+# ---- Team assignment (v1.7.0 role control) ----
+
+
+async def _token_manage_role(db: AsyncConnection, token_id: str, user: dict) -> str | None:
+    """What right does `user` have over this token? 'owner' (token owner),
+    'team_owner'/'team_admin' (via assigned team), 'member' (read-only), None."""
+    cur = await db.execute("SELECT user_email, team_id FROM tokens WHERE id = %s", (token_id,))
+    t = await cur.fetchone()
+    await cur.close()
+    if not t:
+        return None
+    if t[0] == user["email"] or user["role"] == "admin":
+        return "owner"
+    if t[1]:
+        from app.api.routers.teams import get_team_role
+        role = await get_team_role(db, str(t[1]), user["email"])
+        if role == "owner":
+            return "team_owner"
+        if role == "admin":
+            return "team_admin"
+        if role == "member":
+            return "member"
+    return None
+
+
+class TeamAssignIn(BaseModel):
+    team_id: str | None = None  # null = unassign
+
+
+@router.put("/{token_id}/team")
+async def assign_token_to_team(
+    token_id: str,
+    body: TeamAssignIn,
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Assign/unassign a token to a team. Requires: token owner, or team owner/admin (to pull in / release a member-shared token)."""
+    cur = await db.execute("SELECT user_email FROM tokens WHERE id = %s", (token_id,))
+    t = await cur.fetchone()
+    await cur.close()
+    if not t:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
+    from app.api.routers.teams import get_team_role
+    if body.team_id:
+        role = await get_team_role(db, body.team_id, user["email"])
+        if role not in ("owner", "admin"):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the team owner or an admin can assign tokens to the team")
+        if t[0] != user["email"] and role != "owner":
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the team owner can share another user's token")
+        cur = await db.execute("UPDATE tokens SET team_id = %s WHERE id = %s RETURNING team_id", (body.team_id, token_id))
+    else:
+        right = await _token_manage_role(db, token_id, user)
+        if right not in ("owner", "team_owner", "team_admin"):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the token owner or a team admin can unassign")
+        cur = await db.execute("UPDATE tokens SET team_id = NULL WHERE id = %s RETURNING id", (token_id,))
+    r = await cur.fetchone()
+    await cur.close()
+    await log_audit(db, user["email"], "token.team_assign", token_id[:8], f"team={body.team_id}")
+    return {"token_id": token_id, "team_id": body.team_id}
+
+
 @router.put("/{token_id}", response_model=TokenOut)
 async def update_token(
     token_id: str,
@@ -198,16 +314,14 @@ async def update_token(
     user: dict = Depends(get_current_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """Update a token's name, custom domain, or security options (v0.8.0)."""
-    # Verify ownership
-    cur = await db.execute(
-        "SELECT id FROM tokens WHERE id = %s AND user_email = %s",
-        (token_id, user["email"]),
-    )
-    if not await cur.fetchone():
-        await cur.close()
+    """Update a token's name, custom domain, or security options (v0.8.0).
+    v1.7.0: token owner, team owner, and team admins may edit; plain team members are read-only."""
+    # Verify manage right (v1.7.0 team-aware)
+    right = await _token_manage_role(db, token_id, user)
+    if right is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
-    await cur.close()
+    if right == "member":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Read-only: this token is shared with your team — ask a team admin or the owner to change it")
 
     updates = []
     params = []
@@ -408,8 +522,14 @@ async def delete_token(
     db: AsyncConnection = Depends(get_db),
 ):
     """Delete a token."""
+    # v1.7.0: team-aware delete right
+    right = await _token_manage_role(db, token_id, user)
+    if right is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
+    if right == "member":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Read-only: this token is shared with your team — ask a team admin or the owner to delete it")
     cur = await db.execute(
-        "DELETE FROM tokens WHERE id = %s AND user_email = %s RETURNING token",
+        "DELETE FROM tokens WHERE id = %s AND (user_email = %s OR team_id IS NOT NULL) RETURNING token",
         (token_id, user["email"]),
     )
     row = await cur.fetchone()

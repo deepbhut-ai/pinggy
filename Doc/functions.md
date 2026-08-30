@@ -45,6 +45,10 @@
 ## Tunnels / tokens
 
 ### Teams (v1.4.0 — app/api/routers/teams.py)
+- v1.7.0 role control: get_team_role() → owner (teams.owner_email) > admin > member.
+- PATCH /teams/{id}/members/{email} {role} — owner-only promote/demote (owner row immutable).
+- PUT /tokens/{id}/team {team_id|null} — share/unshare token with a team (owner or team-admin); GET /teams returns my_role + team tokens; GET /tokens returns shared tokens (via_team, read-only for members).
+- Guards on PUT/DELETE /tokens/{id}: owner/team_owner/team_admin pass, plain member → 403 read-only (platform admin bypasses).
 - GET /teams → owned + member teams w/ members + i_own | POST /teams {name} (owner auto-admin)
 - POST /teams/{id}/members {email,role} — team-admin only; 404 if email not registered; 409 dup
 - DELETE /teams/{id}/members/{email} — owner or self; owner protected | DELETE /teams/{id} — owner only; tokens.team_id → NULL

@@ -1621,15 +1621,19 @@ async function removeXDomain(domain) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-// ---- Teams (v1.4.0) ----
+// ---- Teams (v1.4.0, role control v1.7.0) ----
+let myTokensCache = [];
 async function loadTeams() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const teams = await api('/teams');
+    myTokensCache = await api('/tokens');
+    const roleBadge = r => r === 'owner' ? '<span class="badge badge-green">owner</span>' : r === 'admin' ? '<span class="badge badge-green">admin</span>' : '<span class="badge">member</span>';
+    const canManage = t => t.my_role === 'owner' || t.my_role === 'admin';
     c.innerHTML = `
     <h2 style="margin-bottom:1rem">Teams</h2>
-    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Invite teammates so they can view and manage tunnels together</p>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Invite teammates with role-based access — <strong>owner</strong> controls roles &amp; everything, <strong>admin</strong> manages members &amp; shared tokens, <strong>member</strong> can view &amp; use shared tokens read-only</p>
     <div class="card">
       <div class="card-header"><h2>Create a Team</h2></div>
       <div class="card-body">
@@ -1641,20 +1645,29 @@ async function loadTeams() {
     </div>
     ${teams.length ? teams.map(t => `
     <div class="card" style="margin-top:1rem">
-      <div class="card-header"><h2>👥 ${t.name} ${t.i_own ? '<span class="badge badge-green">owner</span>' : '<span class="badge">member</span>'}</h2></div>
+      <div class="card-header"><h2>👥 ${t.name} ${roleBadge(t.my_role)}</h2>${t.i_own ? `<button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="deleteTeam('${t.id}','${t.name.replace(/'/g, "\\\\'")}')">Delete team</button>` : ''}</div>
       <div class="card-body">
         <table class="table" style="font-size:.85rem">
-          <thead><tr><th>Member</th><th>Role</th><th style="width:120px"></th></tr></thead>
+          <thead><tr><th>Member</th><th>Role</th><th style="width:220px"></th></tr></thead>
           <tbody>
-            ${t.members.map(m => `
-            <tr>
-              <td>${m.email}</td>
-              <td><span class="badge ${m.role === 'admin' ? 'badge-green' : ''}">${m.role}</span></td>
-              <td>${(t.i_own || m.email === currentUser.email) && m.email !== t.owner_email ? `<button class="btn btn-sm btn-danger" onclick="removeMember('${t.id}','${m.email}')">Remove</button>` : ''}</td>
-            </tr>`).join('')}
+            ${t.members.map(m => {
+              const isOwnerRow = m.email === t.owner_email;
+              const roleCell = (t.my_role === 'owner' && !isOwnerRow)
+                ? `<select class="form-control" style="width:auto;padding:.25rem .5rem" onchange="changeRole('${t.id}','${m.email}',this.value)">
+                     <option value="member" ${m.role === 'member' ? 'selected' : ''}>member</option>
+                     <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>admin</option>
+                   </select>`
+                : roleBadge(isOwnerRow ? 'owner' : m.role);
+              const canRemove = !isOwnerRow && (t.my_role === 'owner' || (canManage(t) && m.role === 'member') || m.email === currentUser.email);
+              return `<tr>
+              <td>${m.email}${m.email === currentUser.email ? ' <span style="color:var(--text-dim);font-size:.75rem">(you)</span>' : ''}</td>
+              <td>${roleCell}</td>
+              <td>${canRemove ? `<button class="btn btn-sm btn-danger" onclick="removeMember('${t.id}','${m.email}')">Remove</button>` : ''}</td>
+            </tr>`;
+            }).join('')}
           </tbody>
         </table>
-        ${t.i_own ? `
+        ${canManage(t) ? `
         <div style="display:flex;gap:.5rem;align-items:center;margin-top:1rem;flex-wrap:wrap">
           <input type="email" id="addmem-${t.id}" placeholder="teammate@email.com" style="flex:1;min-width:200px">
           <select id="addrole-${t.id}" class="form-control" style="width:auto">
@@ -1662,8 +1675,26 @@ async function loadTeams() {
             <option value="admin">admin</option>
           </select>
           <button class="btn btn-sm" onclick="addMember('${t.id}')">Add member</button>
-          <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="deleteTeam('${t.id}','${t.name.replace(/'/g, "\\\\'")}')">Delete team</button>
         </div>` : ''}
+        <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+          <div style="font-size:.85rem;font-weight:600;margin-bottom:.5rem">🔗 Team tokens <span style="color:var(--text-dim);font-weight:400;font-size:.78rem">— shared with every member (${t.tokens.length})</span></div>
+          ${t.tokens.length ? `<table class="table" style="font-size:.82rem"><thead><tr><th>Token</th><th>Subdomain</th><th>Owner</th><th style="width:100px"></th></tr></thead><tbody>
+            ${t.tokens.map(tk => `<tr>
+              <td>${tk.name || 'Token'}</td>
+              <td class="code">${tk.subdomain || '—'}</td>
+              <td style="color:var(--text-dim)">${tk.owner_email}</td>
+              <td>${canManage(t) ? `<button class="btn btn-sm btn-ghost" onclick="unassignTeamToken('${tk.id}','${t.name.replace(/'/g, "\\\\'")}')">Unassign</button>` : ''}</td>
+            </tr>`).join('')}
+          </tbody></table>` : '<p class="empty" style="padding:.4rem 0">No tokens shared with this team yet.</p>'}
+          ${canManage(t) ? `
+          <div style="display:flex;gap:.5rem;align-items:center;margin-top:.6rem;flex-wrap:wrap">
+            <select id="assigntok-${t.id}" class="form-control" style="flex:1;min-width:220px">
+              <option value="">— share one of your tokens —</option>
+              ${myTokensCache.filter(mt => !mt.via_team && (!mt.team_id || mt.team_id === t.id)).map(mt => `<option value="${mt.id}">${mt.name || mt.subdomain}${mt.team_id === t.id ? ' (already shared)' : ''}</option>`).join('')}
+            </select>
+            <button class="btn btn-sm" onclick="assignTeamToken('${t.id}')">Share token</button>
+          </div>` : '<p style="font-size:.75rem;color:var(--text-dim);margin-top:.4rem">Members can view and use shared tokens in Manage Tokens (read-only).</p>'}
+        </div>
       </div>
     </div>`).join('') : '<div class="card"><div class="card-body"><p class="empty">No teams yet — create your first team above.</p></div></div>'}`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
@@ -1694,6 +1725,31 @@ async function removeMember(teamId, email) {
   try {
     await api(`/teams/${teamId}/members/${encodeURIComponent(email)}`, 'DELETE');
     toast(`${email} removed`);
+    loadTeams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function changeRole(teamId, email, role) {
+  try {
+    await api(`/teams/${teamId}/members/${encodeURIComponent(email)}`, 'PATCH', JSON.stringify({ role }));
+    toast(`${email} is now ${role}`);
+  } catch (e) { toast(e.message, 'error'); loadTeams(); }
+}
+
+async function assignTeamToken(teamId) {
+  const tid = document.getElementById(`assigntok-${teamId}`).value;
+  if (!tid) return toast('Pick a token to share', 'error');
+  try {
+    await api(`/tokens/${tid}/team`, 'PUT', JSON.stringify({ team_id: teamId }));
+    toast('Token shared with the team');
+    loadTeams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function unassignTeamToken(tokenId, teamName) {
+  try {
+    await api(`/tokens/${tokenId}/team`, 'PUT', JSON.stringify({ team_id: null }));
+    toast(`Token no longer shared with ${teamName}`);
     loadTeams();
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -2094,10 +2150,13 @@ async function loadTokens() {
       const typeBadge = t.tunnel_mode === 'tcp'
         ? `<span class="badge badge-blue" title="TCP tunnel on port ${t.tcp_port || '?'}">TCP${t.tcp_port ? ':' + t.tcp_port : ''}</span>`
         : '<span class="badge" title="HTTP tunnel">HTTP</span>';
+      const teamBadge = t.via_team
+        ? `<span class="badge badge-blue" title="Shared via team '${t.via_team.team_name}' (my role: ${t.via_team.my_role || 'member'}${t.via_team.my_role === 'member' ? ' — read-only' : ''})">👥 ${t.via_team.team_name}</span>`
+        : (t.team_id ? `<span class="badge" title="Shared with a team">👥</span>` : '');
       return `<tr id="tokenRow-${t.id}" data-token-id="${t.id}" data-token="${t.token}" data-name="${(t.name || 'My Tunnel').replace(/"/g, '&quot;')}" data-subdomain="${t.subdomain}" data-custom-domain="${t.custom_domain || ''}" data-ssh-port="${info.ssh_port}" style="cursor:pointer;transition:.15s">
       <td>${i + 1}</td>
       <td><span class="token-value"><strong class="code">${t.token.substring(0,8)}••••••••</strong> <button class="icon-btn copy-token-btn" data-token="${t.token}" title="Copy token">📋</button></span></td>
-      <td>${t.name || '—'}</td>
+      <td>${t.name || '—'} ${teamBadge}</td>
       <td class="code">${t.subdomain}${t.fixed_subdomain ? ' 📌' : ''}</td>
       <td>${typeBadge}</td>
       <td>${badges.length ? badges.join(' ') : '<span style="color:var(--text-dim)">—</span>'}</td>
