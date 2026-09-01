@@ -1,5 +1,17 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.1.1 — 2026-09-01 — Clarify custom-domain monthly top-up
+
+### Added
+- Explicit pricing language for custom domains: $3 / ₹300 per month, with unlimited domains while the monthly top-up remains active.
+
+### Changed
+- Updated the Pro feature wording and dashboard copy to describe custom domains as a monthly top-up instead of a confusing one-time purchase.
+- Clarified the plan seed text used by the public pricing view.
+
+### Removed
+- none
+
 ## v2.1.0 — 2026-09-01 — Ollama server installation
 
 ### Added
