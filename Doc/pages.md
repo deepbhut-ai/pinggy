@@ -2,7 +2,7 @@
 
 | URL | Name | Purpose | Auth |
 |---|---|---|---|
-| / | Landing | Marketing page: features, how-it-works, pricing (Free / Pro ₹199 / Enterprise) | none |
+| / | Landing | Marketing page: features, how-it-works, pricing (Free / Pro ₹199) | none |
 | /login | Login / Sign-up | Email+password login & registration, issues JWT | none |
 | /admin | Admin panel | Users / tokens / tunnels / payments / IP-monitor management + stats | admin JWT |
 | /dashboard | User dashboard | Tunnel tokens, unified Domains page (subdomain/primary/extra per token), teams, support tickets, plan/billing, live tunnels | user JWT |

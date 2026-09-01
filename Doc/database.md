@@ -147,13 +147,13 @@ Written by app/core/email.py (every send attempt); read by admin Email Logs.
 ## plans  (0015 — admin-editable pricing; powers landing + checkout)
 | column | type | notes |
 |---|---|---|
-| id | VARCHAR(20) PK | free \| pro \| enterprise |
+| id | VARCHAR(20) PK | free \| pro |
 | name / tagline / cta_label | VARCHAR | display |
 | price_inr / price_usd | NUMERIC(10,2) | monthly |
 | features | TEXT | newline-separated list |
 | popular / active / sort_order | BOOL/BOOL/INT | MOST POPULAR badge, visibility, order |
 
-Seeded free/pro/enterprise. Read by GET /plans (public), edited via admin UI.
+Seeded free/pro. Read by GET /plans (public), edited via admin UI. Migration 0026 removed the Enterprise row.
 
 ## invoices  (0016 — auto-created when a payment turns paid)
 | column | type | notes |

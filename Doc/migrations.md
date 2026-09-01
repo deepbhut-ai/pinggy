@@ -3,10 +3,11 @@
 Env: alembic.ini + alembic/env.py (reads settings.DATABASE_URL from app config).
 Applied automatically on every startup by auto_setup._run_migrations().
 
-## Next migration number: **0026**
+## Next migration number: **0027**
 
 | # | Up file | Down in same file | Change | Status |
 |---|---|---|---|---|
+| 0026 | 0026_remove_enterprise_plan.py | Reinsert enterprise plan | Remove Enterprise plan; retain Free and Pro | applied (v2.0.0) |
 | 0022 | 0022_sent_received_bytes.py | DROP 2 cols | tunnels.bytes_sent / bytes_received (per-direction traffic) | applied (local, v1.2.0) |
 | 0023 | 0023_domains_teams_tickets.py | DROP 4 tables + col | token_domains, teams, team_members, tickets, ticket_messages, tokens.team_id (multi-domains + teams + tickets) | applied (local, v1.4.0) |
 | 0024 | 0024_add_twofa_enabled.py | DROP COLUMN | users.twofa_enabled (2FA email OTP) | applied (local, v1.5.0) |

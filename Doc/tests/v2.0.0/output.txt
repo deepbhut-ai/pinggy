@@ -1,0 +1,9 @@
+v2.0.0 Enterprise plan removal verification — 2026-09-01
+
+- Alembic migration: 0025 -> 0026 PASS
+- Database plans query: free, pro
+- Applied schema version: 0026
+- Live GET /api/v1/plans: free, pro only
+- Admin Plans view: Free and Pro only
+- Public landing pricing: Free and Pro only
+- Python compileall app alembic: PASS
