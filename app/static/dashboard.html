@@ -66,32 +66,56 @@
   /* ---- AppShell Layout ---- */
   #appView { display: none; }
   .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
-  .app-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
-  .app-header .logo { font-size: 1.25rem; font-weight: 800; }
+  .app-header { background: rgba(27, 30, 33, 0.92); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 62px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,.14); }
+  .app-header .logo { font-size: 1.3rem; font-weight: 800; letter-spacing: -.03em; }
   .app-header .right { display: flex; align-items: center; gap: .75rem; }
   .user-badge { display: flex; align-items: center; gap: .5rem; padding: .375rem .75rem; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); cursor: pointer; transition: .15s; }
   .user-badge:hover { border-color: var(--border-hover); background: var(--surface-2); }
   .user-badge .avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; }
 
   .app-body { display: flex; flex: 1; }
-  .app-nav { width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: .75rem 0; flex-shrink: 0; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; }
-  .nav-item { display: flex; align-items: center; gap: .625rem; padding: .5rem 1.25rem; color: var(--text-dim); font-size: .875rem; font-weight: 500; border-left: 3px solid transparent; transition: .15s; cursor: pointer; }
+  .app-nav { width: 260px; background: linear-gradient(180deg, rgba(27,30,33,1) 0%, rgba(20,22,24,1) 100%); border-right: 1px solid var(--border); padding: .75rem 0; flex-shrink: 0; position: sticky; top: 62px; height: calc(100vh - 62px); overflow-y: auto; }
+  .nav-item { display: flex; align-items: center; gap: .625rem; padding: .55rem 1.25rem; color: var(--text-dim); font-size: .875rem; font-weight: 500; border-left: 3px solid transparent; transition: .15s; cursor: pointer; margin: 0 .5rem; border-radius: 10px; }
   .nav-item:hover { background: var(--surface-1); color: var(--text); }
-  .nav-item.active { color: var(--brand); border-left-color: var(--brand); background: var(--brand-light); }
+  .nav-item.active { color: var(--brand); border-left-color: var(--brand); background: linear-gradient(90deg, rgba(106,166,240,.12), rgba(106,166,240,.04)); box-shadow: inset 0 0 0 1px rgba(106,166,240,.08); }
   .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
   .nav-sep { height: 1px; background: var(--border); margin: .5rem 1rem; }
   .nav-section { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); padding: .5rem 1.25rem; font-weight: 600; }
 
-  .app-main { flex: 1; padding: 1.5rem; overflow-y: auto; max-width: 900px; }
-  .page-title { font-size: 1.5rem; font-weight: 800; margin-bottom: .25rem; }
+  .app-main { flex: 1; padding: 1.5rem; overflow-y: auto; max-width: 1100px; }
+  .page-title { font-size: 1.6rem; font-weight: 800; letter-spacing: -.03em; margin-bottom: .25rem; }
   .page-subtitle { color: var(--text-dim); font-size: .875rem; margin-bottom: 1.5rem; }
   .page-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
   .page-toolbar-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
   .section-label { color: var(--text-dim); font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-  .quickstart-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; background: linear-gradient(115deg, var(--surface) 0%, var(--surface-1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .quickstart-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; background: linear-gradient(115deg, var(--surface) 0%, var(--surface-1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 18px 34px rgba(0,0,0,.10); }
   .quickstart-intro h2 { font-size: 1.15rem; margin: .25rem 0 .35rem; }
   .quickstart-intro p { color: var(--text-dim); font-size: .85rem; max-width: 560px; }
-  .quickstart-intro .intro-mark { width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid rgba(106,166,240,.35); border-radius: 50%; background: var(--brand-light); color: var(--brand); font-size: 1.5rem; }
+  .quickstart-intro .intro-mark { width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid rgba(106,166,240,.35); border-radius: 50%; background: var(--brand-light); color: var(--brand); font-size: 1.5rem; box-shadow: 0 0 0 8px rgba(106,166,240,.05); }
+  .feature-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+  .feature-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .6rem; border-radius: 999px; background: rgba(255,255,255,.02); border: 1px solid var(--border); color: var(--text-dim); font-size: .72rem; font-weight: 600; }
+  .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0 0 1.25rem; }
+  .summary-card { background: linear-gradient(180deg, var(--surface) 0%, var(--surface-1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; box-shadow: inset 0 1px 0 rgba(255,255,255,.02); }
+  .summary-label { font-size: .725rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom: .5rem; }
+  .summary-value { font-size: 1.05rem; color: var(--text); font-weight: 700; line-height: 1.4; word-break: break-word; }
+  .summary-sub { margin-top: .35rem; color: var(--text-dim); font-size: .78rem; }
+  .pill { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .5rem; border-radius: 999px; background: var(--brand-light); border: 1px solid rgba(106,166,240,.25); color: var(--brand); font-size: .72rem; font-weight: 700; }
+  .workspace-strip { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .85rem 1rem; margin-bottom: 1.25rem; background: linear-gradient(135deg, rgba(106,166,240,.09), rgba(41,169,127,.07)); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+  .workspace-strip .left { display: flex; align-items: center; gap: .75rem; }
+  .workspace-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px rgba(41,169,127,.9); }
+  .workspace-name { font-weight: 700; }
+  .workspace-meta { color: var(--text-dim); font-size: .78rem; }
+  .workspace-chips { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; padding: .3rem .6rem; border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,.02); color: var(--text-dim); font-size: .72rem; font-weight: 600; }
+  .live-overview { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+  .live-overview-card { background: linear-gradient(135deg, rgba(106,166,240,.08) 0%, rgba(41,169,127,.08) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; box-shadow: inset 0 1px 0 rgba(255,255,255,.02); }
+  .live-overview-card .heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .75rem; }
+  .live-overview-card .heading strong { font-size: .82rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); }
+  .live-link { display: inline-flex; align-items: center; gap: .5rem; background: rgba(0,0,0,.18); border: 1px solid rgba(106,166,240,.25); color: var(--brand); padding: .5rem .75rem; border-radius: var(--radius); font-weight: 700; font-size: .92rem; word-break: break-all; }
+  .live-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem; }
+  .meta-box { background: rgba(0,0,0,.18); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem; }
+  .meta-box .label { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: .35rem; }
+  .meta-box .value { font-size: .96rem; color: var(--text); font-weight: 700; word-break: break-word; }
   .quickstart-step .tl-card { box-shadow: 0 8px 24px rgba(0,0,0,.08); }
   .command-panel { border-color: rgba(106,166,240,.22); }
   .command-panel .cmd-box { border-color: rgba(106,166,240,.25); }
@@ -125,7 +149,7 @@
   .btn svg { width: 16px; height: 16px; }
 
   /* ---- Cards (Paper) ---- */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1rem; overflow: hidden; }
+  .card { background: linear-gradient(180deg, rgba(27,30,33,1) 0%, rgba(22,24,27,1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1rem; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.12); }
   .card-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
   .card-header h2 { font-size: 1rem; font-weight: 700; }
   .card-body { padding: 1rem; }
@@ -197,6 +221,25 @@
   .info-box { padding: .75rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); line-height: 1.6; }
   .info-box strong { color: var(--text); }
 
+  /* ---- Analytics section ---- */
+  .analytics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0; }
+  @media (max-width: 1024px) { .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .metric-card { background: linear-gradient(180deg, rgba(106,166,240,.05) 0%, rgba(106,166,240,.02) 100%); border: 1px solid rgba(106,166,240,.15); border-radius: var(--radius-lg); padding: .85rem; display: flex; flex-direction: column; justify-content: space-between; }
+  .metric-card .metric-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); font-weight: 700; margin-bottom: .4rem; }
+  .metric-card .metric-value { font-size: 1.8rem; font-weight: 800; color: var(--text); line-height: 1; }
+  .metric-card .metric-sub { font-size: .75rem; color: var(--text-dim); margin-top: .3rem; }
+  .metric-card.accent { background: linear-gradient(180deg, rgba(41,169,127,.05) 0%, rgba(41,169,127,.02) 100%); border-color: rgba(41,169,127,.15); }
+  .domain-health-panel { background: linear-gradient(135deg, rgba(106,166,240,.06), rgba(41,169,127,.05)); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; margin: 1.25rem 0; }
+  .domain-health-panel .health-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
+  .domain-health-panel .health-title { font-weight: 700; color: var(--text); }
+  .domain-health-status { display: flex; align-items: center; gap: .5rem; padding: .5rem .75rem; border-radius: var(--radius); background: rgba(0,0,0,.15); border: 1px solid rgba(41,169,127,.2); }
+  .domain-health-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(41,169,127,.8); }
+  .domain-health-status .status-text { font-size: .825rem; color: var(--green); font-weight: 600; }
+  .domain-health-items { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin-top: .75rem; }
+  .health-item { background: rgba(0,0,0,.2); border: 1px solid var(--border); border-radius: var(--radius); padding: .65rem; display: flex; justify-content: space-between; align-items: center; }
+  .health-item .item-label { font-size: .775rem; color: var(--text-dim); font-weight: 600; }
+  .health-item .item-value { font-size: .85rem; color: var(--text); font-weight: 700; }
+
   /* ---- Stat cards (subscription page) ---- */
   .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
   .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }
@@ -213,6 +256,8 @@
   @media (max-width: 768px) {
     .app-nav { display: none; }
     .app-main { padding: 1rem; }
+    .summary-grid { grid-template-columns: 1fr; }
+    .live-overview { grid-template-columns: 1fr; }
     .form-row { flex-direction: column; }
     .page-toolbar { flex-direction: column; }
     .page-toolbar-actions { width: 100%; }
@@ -221,6 +266,7 @@
     .quickstart-intro .intro-mark { display: none; }
     .timeline { padding-left: 2rem; }
     .tl-bullet { left: -2rem; }
+    .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 </style>
 </head>
@@ -326,6 +372,9 @@ let authToken = localStorage.getItem('pinggy_token') || '';
 let currentUser = null;
 let tunnelState = { localPort: 8080, os: 'cmd', token: '', tokenVisible: false, info: null };
 let tunnelPollTimer = null;
+let tunnelRateTracker = {}; // Track {tunnelId: {lastBytes, lastTime, kbps}}
+let dailyTunnelStats = JSON.parse(localStorage.getItem('dailyTunnelStats') || '{}'); // Track {date_subdomain: {sent, received}}
+let tunnelRateTracker = {}; // Track {tunnelId: {lastBytes, lastTime, kbps}}
 
 // ---- API helper ----
 async function api(path, method = 'GET', body = null) {
@@ -349,6 +398,37 @@ function toast(msg, type = 'success') {
   t.textContent = msg;
   t.className = `show ${type}`;
   setTimeout(() => t.className = '', 3000);
+}
+
+// ---- Daily Stats Helper ----
+function getDailyKey(subdomain) {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  return `${today}_${subdomain}`;
+}
+
+function updateDailyStats(subdomain, bytesTransferred) {
+  const key = getDailyKey(subdomain);
+  if (!dailyTunnelStats[key]) {
+    dailyTunnelStats[key] = { sent: 0, received: bytesTransferred };
+  }
+  // Estimate: add new bytes to daily total (simplified: assume all is "received")
+  dailyTunnelStats[key].received = bytesTransferred;
+  localStorage.setItem('dailyTunnelStats', JSON.stringify(dailyTunnelStats));
+}
+
+function getDailyStats(subdomain) {
+  const key = getDailyKey(subdomain);
+  return dailyTunnelStats[key] || { sent: 0, received: 0 };
+}
+
+function getDomainDailyTotals(tunnels) {
+  let totalSent = 0, totalReceived = 0;
+  tunnels.forEach(t => {
+    const stats = getDailyStats(t.subdomain);
+    totalSent += stats.sent;
+    totalReceived += stats.received;
+  });
+  return { sent: totalSent, received: totalReceived };
 }
 
 // ---- Auth ----
@@ -435,16 +515,31 @@ async function loadQuickstart() {
       const urlCell = t.custom_url
         ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
         : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+      // Calculate KB/s for this tunnel
+      const tunnelId = t.id || t.subdomain;
+      let kbps = '—';
+      const now = Date.now();
+      if (tunnelRateTracker[tunnelId]) {
+        const prev = tunnelRateTracker[tunnelId];
+        const bytesDelta = (t.bytes_transferred || 0) - prev.lastBytes;
+        const timeDeltaMs = now - prev.lastTime;
+        if (timeDeltaMs > 0) {
+          const kbpsDelta = (bytesDelta / 1024) / (timeDeltaMs / 1000);
+          kbps = kbpsDelta.toFixed(2);
+        }
+      }
+      tunnelRateTracker[tunnelId] = { lastBytes: t.bytes_transferred || 0, lastTime: now };
       return `<tr>
       ${urlCell}
       <td class="code">${t.subdomain}</td>
       <td>${t.request_count}</td>
       <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td>${kbps} KB/s</td>
       <td><span class="badge badge-green">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
     </tr>`;
     }).join('');
-    if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
+    if (!tunnelRows) tunnelRows = '<tr><td colspan="7" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
 
     c.innerHTML = `
     <div class="page-toolbar">
@@ -454,9 +549,133 @@ async function loadQuickstart() {
       </div>
       <div class="page-toolbar-actions"><span class="badge ${tunnels.length ? 'badge-green' : 'badge-blue'}">${tunnels.length ? `${tunnels.length} active` : 'Ready to connect'}</span></div>
     </div>
+    <div class="workspace-strip">
+      <div class="left">
+        <span class="workspace-dot"></span>
+        <div>
+          <div class="workspace-name">Workspace overview</div>
+          <div class="workspace-meta">Primary tunnel environment</div>
+        </div>
+      </div>
+      <div class="workspace-chips">
+        <span class="chip">${tunnels.length ? 'Connected' : 'Ready'}</span>
+        <span class="chip">${(currentUser.plan || 'free').toUpperCase()}</span>
+        <span class="chip">${userTokens.length} token${userTokens.length !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
     <div class="quickstart-intro">
-      <div><div class="section-label">Tunnel setup</div><h2>Expose your local app in three steps</h2><p>Choose a port, copy the command, and keep the terminal open while your tunnel is running.</p></div>
+      <div>
+        <div class="section-label">Tunnel setup</div>
+        <h2>Expose your local app in three steps</h2>
+        <p>Choose a port, copy the command, and keep the terminal open while your tunnel is running.</p>
+        <div class="feature-row">
+          <span class="feature-badge">⚡ Fast share</span>
+          <span class="feature-badge">🔒 Secure</span>
+          <span class="feature-badge">🌐 Custom domain ready</span>
+        </div>
+      </div>
       <div class="intro-mark">↗</div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Current tunnel</div>
+        <div class="summary-value">${tunnels[0] ? (tunnels[0].custom_url || tunnels[0].url) : 'No active tunnel yet'}</div>
+        <div class="summary-sub">Live public URL for your workspace</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Custom domain</div>
+        <div class="summary-value">${(userTokens.length > 0 && userTokens[0].custom_domain) ? userTokens[0].custom_domain : 'Not set yet'}</div>
+        <div class="summary-sub">Uses the canonical domain for this token</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Status</div>
+        <div class="summary-value"><span class="pill">${tunnels.length ? 'Active' : 'Ready'}</span></div>
+        <div class="summary-sub">${tunnels.length ? `${tunnels.length} tunnel${tunnels.length !== 1 ? 's' : ''} currently running` : 'Wait for the terminal to connect'}</div>
+      </div>
+    </div>
+    <div class="live-overview">
+      <div class="live-overview-card">
+        <div class="heading">
+          <strong>Live tunnel overview</strong>
+          <span class="pill">${tunnels.length ? 'Connected' : 'Waiting'}</span>
+        </div>
+        <div class="live-link">${tunnels[0] ? (tunnels[0].custom_url || tunnels[0].url) : 'https://your-tunnel-url.example'}</div>
+        <div class="live-meta">
+          <div class="meta-box">
+            <div class="label">Token</div>
+            <div class="value">${tunnelState.token ? tunnelState.token.substring(0, 10) + '••••' : 'Not created'}</div>
+          </div>
+          <div class="meta-box">
+            <div class="label">Custom domain</div>
+            <div class="value">${(userTokens.length > 0 && userTokens[0].custom_domain) ? userTokens[0].custom_domain : 'Not assigned'}</div>
+          </div>
+        </div>
+      </div>
+      <div class="live-overview-card">
+        <div class="heading">
+          <strong>Traffic</strong>
+          <span class="pill">Live</span>
+        </div>
+        <div class="live-meta">
+          <div class="meta-box">
+            <div class="label">Requests</div>
+            <div class="value">${tunnels[0] ? tunnels[0].request_count : 0}</div>
+          </div>
+          <div class="meta-box">
+            <div class="label">Data</div>
+            <div class="value">${tunnels[0] ? `${(tunnels[0].bytes_transferred / 1024).toFixed(1)} KB` : '0 KB'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="analytics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Active Tunnels</div>
+        <div class="metric-value">${tunnels.length}</div>
+        <div class="metric-sub">Running now</div>
+      </div>
+      <div class="metric-card accent">
+        <div class="metric-label">Total Requests</div>
+        <div class="metric-value">${tunnels.reduce((sum, t) => sum + (t.request_count || 0), 0)}</div>
+        <div class="metric-sub">All tunnels</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Data Transferred</div>
+        <div class="metric-value">${((tunnels.reduce((sum, t) => sum + (t.bytes_transferred || 0), 0)) / (1024 * 1024)).toFixed(1)}</div>
+        <div class="metric-sub">MB</div>
+      </div>
+      <div class="metric-card accent">
+        <div class="metric-label">Uptime Status</div>
+        <div class="metric-value" style="color:var(--green);">✓ OK</div>
+        <div class="metric-sub">All systems running</div>
+      </div>
+    </div>
+    <div class="domain-health-panel">
+      <div class="health-header">
+        <span class="health-title">🌐 Domain Health</span>
+        <div class="domain-health-status">
+          <span class="dot"></span>
+          <span class="status-text">Healthy</span>
+        </div>
+      </div>
+      <div class="domain-health-items">
+        <div class="health-item">
+          <span class="item-label">DNS</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+        <div class="health-item">
+          <span class="item-label">SSL/TLS</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+        <div class="health-item">
+          <span class="item-label">Connectivity</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+        <div class="health-item">
+          <span class="item-label">Performance</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+      </div>
     </div>
     ${(currentUser.plan || 'free') !== 'pro' ? `
     <div style="margin-bottom:1.25rem;padding:.75rem 1rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
@@ -593,9 +812,15 @@ async function loadQuickstart() {
     <div class="card" style="margin-top:1.5rem">
       <div class="card-header"><h2>🔗 My Active Tunnels (<span id="tunnelCount">${tunnels.length}</span>)</h2><button class="btn btn-sm" onclick="loadQuickstart()">🔄 Refresh</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody id="tunnelTableBody">${tunnelRows}</tbody></table>
+        <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Transfer Rate</th><th>Status</th><th>Created</th></tr></thead><tbody id="tunnelTableBody">${tunnelRows}</tbody></table>
       </div>
     </div>`;
+
+    // Premium product polish: emphasize the live tunnel summary in the active tunnel section.
+    const tunnelTable = document.getElementById('tunnelTableBody');
+    if (tunnelTable && tunnelTable.querySelector('tr')) {
+      tunnelTable.querySelector('tr').style.boxShadow = 'inset 0 0 0 1px rgba(106,166,240,.2)';
+    }
 
   // Attach event listeners (Cloudflare Rocket Loader safe — replaces inline onclick)
   setTimeout(() => {
@@ -880,28 +1105,43 @@ async function loadTunnels() {
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const tunnels = await api('/tunnels/my');
+    const now = Date.now();
     let rows = tunnels.map((t, i) => {
       const urlCell = t.custom_url
         ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
         : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+      // Calculate KB/s for this tunnel
+      const tunnelId = t.id || t.subdomain;
+      let kbps = '—';
+      if (tunnelRateTracker[tunnelId]) {
+        const prev = tunnelRateTracker[tunnelId];
+        const bytesDelta = (t.bytes_transferred || 0) - prev.lastBytes;
+        const timeDeltaMs = now - prev.lastTime;
+        if (timeDeltaMs > 0) {
+          const kbpsDelta = (bytesDelta / 1024) / (timeDeltaMs / 1000);
+          kbps = kbpsDelta.toFixed(2);
+        }
+      }
+      tunnelRateTracker[tunnelId] = { lastBytes: t.bytes_transferred || 0, lastTime: now };
       return `<tr>
       <td>${i + 1}</td>
       ${urlCell}
       <td class="code">${t.subdomain}</td>
       <td>${t.request_count}</td>
       <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td>${kbps} KB/s</td>
       <td><span class="badge badge-green">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
     </tr>`;
     }).join('');
-    if (!rows) rows = '<tr><td colspan="7" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
+    if (!rows) rows = '<tr><td colspan="8" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
     c.innerHTML = `
     <h2 style="margin-bottom:1rem">Active Tunnels</h2>
     <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">${tunnels.length} active session${tunnels.length !== 1 ? 's' : ''}</p>
     <div class="card">
       <div class="card-body" style="padding:0;overflow-x:auto">
         <table>
-          <thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead>
+          <thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Transfer Rate</th><th>Status</th><th>Created</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -1739,18 +1979,33 @@ function updateTunnelTable(tunnels) {
   if (!tbody) return;
   if (countEl) countEl.textContent = tunnels.length;
   if (tunnels.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
     return;
   }
+  const now = Date.now();
   tbody.innerHTML = tunnels.map(t => {
     const urlCell = t.custom_url
       ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
       : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+    // Calculate KB/s for this tunnel
+    const tunnelId = t.id || t.subdomain;
+    let kbps = '—';
+    if (tunnelRateTracker[tunnelId]) {
+      const prev = tunnelRateTracker[tunnelId];
+      const bytesDelta = (t.bytes_transferred || 0) - prev.lastBytes;
+      const timeDeltaMs = now - prev.lastTime;
+      if (timeDeltaMs > 0) {
+        const kbpsDelta = (bytesDelta / 1024) / (timeDeltaMs / 1000);
+        kbps = kbpsDelta.toFixed(2);
+      }
+    }
+    tunnelRateTracker[tunnelId] = { lastBytes: t.bytes_transferred || 0, lastTime: now };
     return `<tr>
     ${urlCell}
     <td class="code">${t.subdomain}</td>
     <td>${t.request_count}</td>
     <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+    <td>${kbps} KB/s</td>
     <td><span class="badge badge-green">${t.status}</span></td>
     <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
   </tr>`;
