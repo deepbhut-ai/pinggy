@@ -11,6 +11,25 @@ from app.schemas.tunnel import TunnelOut
 router = APIRouter(prefix="/tunnels", tags=["tunnels"])
 
 
+@router.get("/qr")
+async def tunnel_qr(
+    text: str,
+    user: dict = Depends(get_current_user),
+):
+    """QR code (SVG) for a tunnel URL — mobile-friendly testing (v0.7.0)."""
+    from fastapi import HTTPException, status
+    if not text or len(text) > 512:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "text required (max 512 chars)")
+    import io
+    import qrcode
+    import qrcode.image.svg
+    buf = io.BytesIO()
+    img = qrcode.make(text[:512], image_factory=qrcode.image.svg.SvgPathImage)
+    img.save(buf)
+    from fastapi.responses import Response
+    return Response(content=buf.getvalue(), media_type="image/svg+xml")
+
+
 @router.get("/info")
 async def tunnel_info(user: dict = Depends(get_current_user)):
     """Return SSH connection instructions for the current user.
@@ -56,6 +75,8 @@ async def my_tunnels(
             status="active" if t.is_alive else "disconnected",
             request_count=t.request_count,
             bytes_transferred=t.bytes_transferred,
+            bytes_sent=t.bytes_sent,
+            bytes_received=t.bytes_received,
             created_at=t.created_at.isoformat(),
         )
         for t in my
@@ -84,6 +105,8 @@ async def list_active_tunnels(
             status="active" if t.is_alive else "disconnected",
             request_count=t.request_count,
             bytes_transferred=t.bytes_transferred,
+            bytes_sent=t.bytes_sent,
+            bytes_received=t.bytes_received,
             created_at=t.created_at.isoformat(),
         )
         for t in tunnels
@@ -99,7 +122,8 @@ async def tunnel_history(
     """List tunnel history from DB (including closed tunnels)."""
     cur = await db.execute(
         "SELECT tunnel_id, subdomain, remote_port, local_port, protocol, "
-        "user_email, ssh_peer, status, request_count, bytes_transferred, created_at "
+        "user_email, ssh_peer, status, request_count, bytes_transferred, "
+        "bytes_sent, bytes_received, created_at "
         "FROM tunnels ORDER BY created_at DESC LIMIT %s",
         (limit,),
     )
@@ -118,7 +142,9 @@ async def tunnel_history(
             status=r[7],
             request_count=r[8],
             bytes_transferred=r[9],
-            created_at=r[10].isoformat() if r[10] else "",
+            bytes_sent=r[10] or 0,
+            bytes_received=r[11] or 0,
+            created_at=r[12].isoformat() if r[12] else "",
         )
         for r in rows
     ]

@@ -1,0 +1,11 @@
+=== v1.7.1 Sun Aug 30 08:19:48 IST 2026 — custom domain reflects system-wide ===
+ROOT CAUSE: Domains page saved to users.custom_domain (legacy) but SSH banner / Host routing / tunnel URLs read tokens.custom_domain — domain stored but connected to nothing.
+FIX: PUT /users/me/custom-domain now takes token_id and assigns the domain to that token (default: latest token without a domain); clearing removes it from user + all their tokens; domain stripped from user's other tokens (tokens.custom_domain UNIQUE = one domain one tunnel). UI: "Routes to token" dropdown with ✓ current marker.
+E2E (callingagents.in -> vtest token c508437e):
+  PUT ?custom_domain=callingagents.in&token_id=... -> {"custom_domain":"callingagents.in","token_id":"c508437e..."} [200]
+  DB: tokens row "New Token|callingagents.in"
+  SSH connect -> banner: "Custom domain: http://callingagents.in"
+  GET /tunnels/my -> live 0f4f398 custom_url http://callingagents.in
+  curl Host: callingagents.in -> DOMAIN-ROUTE-OK [200] through tunnel
+UI: Domains page dropdown "New Token (0f4f398) ✓ current"; JS node --check OK.
+Cleanup: debris token 0fd4ea39 (test leftover) deleted; its token_domains row (shop.mytest.dev) cascade-removed.

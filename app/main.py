@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.db import close_pool, init_pool
 from app.api.routers.admin import router as admin_router
 from app.core.ip_monitor import IPMonitorMiddleware
+from app.core.rate_limit import RateLimitMiddleware
 from app.core.proxy import TunnelProxyMiddleware
 from app.core.redis import close_redis, init_redis
 from app.core.tunnel_registry import init_registry
@@ -39,9 +40,15 @@ async def lifespan(app: FastAPI):
     from app.core.ssh_server import start_ssh_server
     ssh_server = await start_ssh_server()
 
+    # Weekly digest scheduler (v1.13.0)
+    from app.core.digest import start_digest_task
+    digest_task = start_digest_task()
+    print(f"[{settings.APP_NAME}] Weekly digest scheduler started")
+
     yield
 
     # Shutdown
+    digest_task.cancel()
     ssh_server.close()
     await ssh_server.wait_closed()
     print(f"[{settings.APP_NAME}] SSH server stopped")
@@ -67,10 +74,45 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# IP monitor — must be FIRST (before tunnel proxy) so it sees all requests
-app.add_middleware(IPMonitorMiddleware)
-# Tunnel proxy — must be added AFTER CORS so it runs before route matching
+# NOTE on Starlette middleware order: LAST added = OUTERMOST (runs first on requests).
+# RateLimit (v1.10.0) is outermost — DDoS / API-hit shield in front of everything.
+# IPMonitor counts requests; TunnelProxy forwards tunnel traffic to SSH ports.
 app.add_middleware(TunnelProxyMiddleware)
+app.add_middleware(IPMonitorMiddleware)
+app.add_middleware(RateLimitMiddleware)
+
+
+# Security headers (v1.11.0) — added FIRST here so it ends up innermost,
+# wrapping every HTTP response the app produces (docs pages, API JSON, HTML)
+from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
+from starlette.requests import Request  # noqa: E402
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        resp = await call_next(request)
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("X-Frame-Options", "DENY")
+        resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
+            resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        return resp
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+# WebSocket tunnel pass-through (v1.10.0) — pure ASGI route, bypasses HTTP middlewares
+from starlette.routing import WebSocketRoute  # noqa: E402
+from starlette.websockets import WebSocket  # noqa: E402
+from app.core.proxy import tunnel_websocket  # noqa: E402
+
+
+async def _ws_entry(websocket: WebSocket):
+    await tunnel_websocket(websocket.scope, websocket.receive, websocket.send)
+
+
+app.router.routes.append(WebSocketRoute("/{rest:path}", _ws_entry))
 
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(admin_router)  # /admin, /dashboard, / (landing page)

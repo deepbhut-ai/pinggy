@@ -1,0 +1,37 @@
+# v0.3.0 — Phase B: per-token traffic + daily/monthly insights — 2026-08-29
+
+## Changes
+1. **Job 4 — per-token traffic**: migration 0011 (`tunnels.token` + index + backfill
+   from users.tunnel_token); ssh_server `_setup_tunnel` records the SSH-auth token;
+   `TokenOut`/`AdminTokenOut` += total_requests/total_bytes/active_tunnels via
+   `_token_traffic()` aggregation; admin All Tokens table += Requests/Data/Active
+   columns + summary cards; user dashboard token table += same columns.
+2. **Bug fix (required for Job 4)**: `increment_request_count` previously updated ONLY
+   the in-memory registry — tunnels table counters stayed 0 forever. Now writes through
+   to the DB (best-effort; never breaks the proxied request).
+3. **Job 7 — insights**: `GET /api/v1/analytics/overview?days=7..180` (daily series via
+   generate_series LEFT JOINs, 12-month monthly series, today/this-month summary);
+   admin dashboard "📈 Insights (Daily / Monthly)" card — summary stat cards, Day/Month
+   tabs, range cycler (30/60/90d), dependency-free CSS bar charts.
+
+## Machine assertions (all PASS)
+  B1  E2E tunnel → tunnels.token recorded = 0b5fc14808896ec4        PASS
+  B2b write-through after 3 proxied GETs: request_count=3, bytes=4188 PASS
+  B3b GET /tokens/admin/all: 0b5fc148 reqs=3 bytes=4188               PASS
+  B4  GET /tokens: 0b5fc148 reqs=3 bytes=4188                         PASS
+  B5  GET /analytics/overview?days=7: daily requests 08-29=3; monthly 2026-08 tunnels=5 PASS
+      days=3 → 422 (validation ge=7)                                  PASS
+  analytics series match DB values (spot-checked via psql)
+
+## Browser verification
+  Admin dashboard Insights: summary cards (signups today 2, tunnels today 6,
+  revenue ₹0, pro 0/2), Daily tab with 4 bar charts, month labels render
+  (screenshot-insights.png full-page).
+  All Tokens: stat cards (3 reqs, 4.1 KB across tokens) + row columns
+  Requests=3, Data=4.1 KB, Active Tunnels=0 (screenshot-tokens-traffic.png).
+
+## Notes
+- Backfill matches historical tunnels to users.tunnel_token (best effort — multi-token
+  users' older tunnels can't be attributed retroactively; only tunnels.token IS NULL
+  were touched).
+- days<7 returns 422 by design (Query ge=7).

@@ -1,0 +1,18 @@
+=== v1.7.0 Sun Aug 30 07:28:42 IST 2026 — Teams role control system ===
+--- Permission model: owner (teams.owner_email) > admin > member; platform admin bypass retained.
+--- Role management:
+  PATCH /teams/{id}/members/{email} {role}: owner-only (member 403, team-admin 403, owner 200); owner row not changeable (400)
+  per-member role <select> in owner's Teams UI (verified in browser: member/admin dropdowns on both non-owner rows)
+--- Token sharing (tokens.team_id from 0023, first used now):
+  PUT /tokens/{id}/team {team_id|null}: assign (owner/team-admin 200), member 403, unassign owner/team-admin 200
+  GET /tokens now includes own team badge + shared tokens of other owners as "name (shared)" with via_team {team_name, my_role}
+--- Enforcement matrix (member@test.dev, true non-admin user):
+  M1 sees shared token [('New Token (shared)','Platform Team','member')]      PASS
+  M2 PUT shared token -> 403 read-only                                        PASS
+  M3 DELETE shared token -> 403                                               PASS
+  M4 unassign -> 403                                                          PASS
+  M5 role change -> 403 owner-only                                            PASS
+  M6 token intact after member attempts                                       PASS
+  team_admin: PUT name 200, unassign 200, role change 403 (owner-only)        PASS
+--- UI (browser): role badges, role dropdowns, Team tokens table + Share token select, "(you)" marker — all rendered; JS node --check OK.
+--- Note: first test round used platform-admin account as "member" — admin bypass allowed delete; vtest token restored (new id, fixed_subdomain 0f4f398 re-set via PUT).

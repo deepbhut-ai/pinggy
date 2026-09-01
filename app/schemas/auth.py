@@ -23,6 +23,7 @@ class UserOut(BaseModel):
     custom_domain: str | None = None
     plan: str = "free"
     plan_expires_at: str | None = None
+    is_active: bool = True
 
 
 class Token(BaseModel):

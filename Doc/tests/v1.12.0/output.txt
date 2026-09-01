@@ -1,0 +1,10 @@
+=== v1.12.0 Sun Aug 30 14:22:33 IST 2026 — tunnel supervisor + Remote Devices ===
+--- SDK watch() (sdk/pinggy_sdk.py):
+  subprocess ssh with ServerAlive 30s + ExitOnForwardFailure; exponential backoff (1s->30s default);
+  SIGINT/SIGTERM clean stop; on_event(up/down/retry) callback; multi-port ports=[...] builds TOKEN--p1,p2 username.
+  E2E: watch() held the SSH tunnel until external SIGTERM (timeout 8s -> exit 127 kill); server log shows tunnel ACTIVE during window.
+--- GET /manage/devices (X-Api-Key or JWT):
+  groups tunnels by ssh_peer -> {peer, tunnels, last_seen, requests, last_token, online}; online cross-checked
+  against the live in-memory registry. Verified with a live tunnel (online: true).
+--- Dashboard "Remote Devices" page (browser): device table (IP/status/tunnels/requests/last seen/token copy)
+  + supervisor quickstart snippet. JS node --check OK.

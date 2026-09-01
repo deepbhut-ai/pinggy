@@ -1,0 +1,13 @@
+=== v1.8.0 Sun Aug 30 08:40:31 IST 2026 — unified Domains page + whole-system removal ===
+--- Page (browser): summary strip (tokens/fixed subdomains/primary/extra counts), one Add-a-domain box (input + token picker + type Extra|Primary + collapsible DNS steps), per-token cards listing EVERY address (Subdomain / Primary / Extra rows, each with 📋 copy + action).
+--- Lifecycle E2E (API, vtest token c508437e):
+  add extra blog.mytest.dev -> 201, listed under token
+  collision: extra=callingagents.in (a primary) -> 409 "already the primary custom domain of vtest@iraglobaltech.com's token"
+  change subdomain 0f4f398 -> iragt-demo -> 200, reflected
+  promote: demohub.mytest.dev added as extra (201) then set primary (200) -> REMOVED from token_domains automatically (cross-store sync; extras left: blog only)
+  remove primary -> users.custom_domain + tokens.custom_domain both NULL (endpoint returns null)
+  remove extra -> 200 gone
+  state restored: 0f4f398 + callingagents.in
+--- UI actions (browser): add extra ui-test.mytest.dev -> row appeared; Remove -> gone + counter 0 + toast "removed from the system"; Change-subdomain modal prefilled, save -> toast.
+--- BUGFIX: via_team.owner=true for OWN tokens (own team-shared tokens were misfiltered as not-mine — Domains page showed 0 tokens); Teams share-dropdown filter fixed likewise.
+--- JS node --check OK.

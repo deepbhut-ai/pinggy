@@ -1,0 +1,15 @@
+=== v1.9.0 Sun Aug 30 09:28:01 IST 2026 — multi-port token (Pro): one connection, each address → own local port ===
+USAGE: ssh -p 2222 -R0:127.0.0.1:P1 -R0:127.0.0.1:P2 ... TOKEN--P1,P2@host
+  listener order must match address order: subdomain → primary domain → extras (Configure page generates this automatically).
+--- E2E (vtest token af1d6b19, addresses: 0f4f398.iraglobaltech.com + callingagents.in):
+  one asyncssh connection, username 'TOKEN--4101,4102', two forward listeners
+  Host: 0f4f398.localhost   -> <h1>PROJECT-A :4101</h1>   [200]  PASS
+  Host: callingagents.in    -> <h1>PROJECT-B :4102</h1>   [200]  PASS  (different local project, SAME token, SAME connection)
+  first attempt exposed a listener-setup race (duplicate subdomain INSERT from concurrent _detect_port_and_setup tasks) — fixed with per-connection _setup_lock + re-scan inside lock; second run clean.
+  free-plan gate: _port_map on non-Pro -> auth rejected (code path verified; vtest is Pro).
+  legacy users.tunnel_token path rejects multi-port.
+--- UI (browser): Configure page "Multi-port [Pro]" checkbox -> per-address port inputs (0f4f398.iraglobaltech.com → 4101, callingagents.in → 4102) -> generated:
+  ssh -p 2222 -R0:127.0.0.1:4101 -R0:127.0.0.1:4102 -o ... TOKEN--4101,4102@ssh.iraglobaltech.com
+  Docker tab builds the multi-R form too. Banner prints endpoint lines (addr → local :port).
+--- Registry: TunnelSession.endpoints {address→remote_port}, local_ports (display); endpoint_port() fallback to default remote_port; proxy resolves matched address → its own remote port.
+--- JS node --check OK.

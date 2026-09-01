@@ -1,0 +1,6 @@
+=== v1.5.1 Sun Aug 30 06:25:09 IST 2026 — API key how-to + create-key 422 fix ===
+1. API Keys page now shows "How to connect & use your API key" card (3 steps: create → X-Api-Key header → curl with Copy button) above the keys table — verified in browser snapshot.
+2. BUG FIX: createApiKey passed a raw object to api() which does NOT stringify (unlike admin.html helper) → body sent as "[object Object]" → 422 — key creation from dashboard was broken. Fixed api() helper to stringify object bodies (string bodies unchanged). Same fix covers /configs save + /debugger replay calls.
+3. Created-key modal now embeds a ready-to-run curl with the REAL key + copy buttons.
+4. E2E: created key pk_dbMkc... via UI (stubbed prompt) → ran the modal's exact curl → {"live":[],...} 200 JSON. Test key then revoked [200].
+5. node --check dashboard JS OK.

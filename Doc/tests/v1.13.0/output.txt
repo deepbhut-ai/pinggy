@@ -1,0 +1,9 @@
+=== v1.13.0 Sun Aug 30 14:25:05 IST 2026 — weekly digest + team activity feed ===
+--- Weekly digest (app/core/digest.py):
+  digest_scheduler started at app boot (server log: "Weekly digest scheduler started"), hourly tick,
+  sends Monday 08:00 UTC per active user (Redis digest:sent:<email> 7d TTL dedupe); email kind=digest
+  with requests/GB/addresses/tokens summary via existing send_email (logged to email_logs).
+--- Team activity (GET /teams/{id}/activity, any member):
+  Platform Team -> 11 events (team.create/add_member/role_change/token.team_assign) with actor+target  PASS
+- Teams page: 🕐 Recent activity section + Load button -> rendered events list in browser  PASS
+--- Compile + node --check OK; server healthy after restart.

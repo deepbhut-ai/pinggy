@@ -39,6 +39,20 @@ def create_access_token(subject: str | int, extra: dict[str, Any] | None = None)
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
+def create_refresh_token(subject: str | int, extra: dict[str, Any] | None = None) -> str:
+    """v1.11.0 — long-lived refresh token (7d), type='refresh'."""
+    expire = datetime.now(timezone.utc) + timedelta(days=getattr(settings, "JWT_REFRESH_TOKEN_EXPIRE_DAYS", 7))
+    payload: dict[str, Any] = {
+        "sub": str(subject),
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+        "type": "refresh",
+    }
+    if extra:
+        payload.update(extra)
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+
 def decode_token(token: str) -> dict[str, Any]:
     try:
         return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])

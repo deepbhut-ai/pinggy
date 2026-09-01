@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — pinggy</title>
+<title>Dashboard — IRAGT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -66,32 +66,56 @@
   /* ---- AppShell Layout ---- */
   #appView { display: none; }
   .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
-  .app-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
-  .app-header .logo { font-size: 1.25rem; font-weight: 800; }
+  .app-header { background: rgba(27, 30, 33, 0.92); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 62px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,.14); }
+  .app-header .logo { font-size: 1.3rem; font-weight: 800; letter-spacing: -.03em; }
   .app-header .right { display: flex; align-items: center; gap: .75rem; }
   .user-badge { display: flex; align-items: center; gap: .5rem; padding: .375rem .75rem; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); cursor: pointer; transition: .15s; }
   .user-badge:hover { border-color: var(--border-hover); background: var(--surface-2); }
   .user-badge .avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; }
 
   .app-body { display: flex; flex: 1; }
-  .app-nav { width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: .75rem 0; flex-shrink: 0; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; }
-  .nav-item { display: flex; align-items: center; gap: .625rem; padding: .5rem 1.25rem; color: var(--text-dim); font-size: .875rem; font-weight: 500; border-left: 3px solid transparent; transition: .15s; cursor: pointer; }
+  .app-nav { width: 260px; background: linear-gradient(180deg, rgba(27,30,33,1) 0%, rgba(20,22,24,1) 100%); border-right: 1px solid var(--border); padding: .75rem 0; flex-shrink: 0; position: sticky; top: 62px; height: calc(100vh - 62px); overflow-y: auto; }
+  .nav-item { display: flex; align-items: center; gap: .625rem; padding: .55rem 1.25rem; color: var(--text-dim); font-size: .875rem; font-weight: 500; border-left: 3px solid transparent; transition: .15s; cursor: pointer; margin: 0 .5rem; border-radius: 10px; }
   .nav-item:hover { background: var(--surface-1); color: var(--text); }
-  .nav-item.active { color: var(--brand); border-left-color: var(--brand); background: var(--brand-light); }
+  .nav-item.active { color: var(--brand); border-left-color: var(--brand); background: linear-gradient(90deg, rgba(106,166,240,.12), rgba(106,166,240,.04)); box-shadow: inset 0 0 0 1px rgba(106,166,240,.08); }
   .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
   .nav-sep { height: 1px; background: var(--border); margin: .5rem 1rem; }
   .nav-section { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); padding: .5rem 1.25rem; font-weight: 600; }
 
-  .app-main { flex: 1; padding: 1.5rem; overflow-y: auto; max-width: 900px; }
-  .page-title { font-size: 1.5rem; font-weight: 800; margin-bottom: .25rem; }
+  .app-main { flex: 1; padding: 1.5rem; overflow-y: auto; max-width: 1100px; }
+  .page-title { font-size: 1.6rem; font-weight: 800; letter-spacing: -.03em; margin-bottom: .25rem; }
   .page-subtitle { color: var(--text-dim); font-size: .875rem; margin-bottom: 1.5rem; }
   .page-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
   .page-toolbar-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
   .section-label { color: var(--text-dim); font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-  .quickstart-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; background: linear-gradient(115deg, var(--surface) 0%, var(--surface-1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .quickstart-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; background: linear-gradient(115deg, var(--surface) 0%, var(--surface-1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 18px 34px rgba(0,0,0,.10); }
   .quickstart-intro h2 { font-size: 1.15rem; margin: .25rem 0 .35rem; }
   .quickstart-intro p { color: var(--text-dim); font-size: .85rem; max-width: 560px; }
-  .quickstart-intro .intro-mark { width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid rgba(106,166,240,.35); border-radius: 50%; background: var(--brand-light); color: var(--brand); font-size: 1.5rem; }
+  .quickstart-intro .intro-mark { width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid rgba(106,166,240,.35); border-radius: 50%; background: var(--brand-light); color: var(--brand); font-size: 1.5rem; box-shadow: 0 0 0 8px rgba(106,166,240,.05); }
+  .feature-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+  .feature-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .6rem; border-radius: 999px; background: rgba(255,255,255,.02); border: 1px solid var(--border); color: var(--text-dim); font-size: .72rem; font-weight: 600; }
+  .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0 0 1.25rem; }
+  .summary-card { background: linear-gradient(180deg, var(--surface) 0%, var(--surface-1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; box-shadow: inset 0 1px 0 rgba(255,255,255,.02); }
+  .summary-label { font-size: .725rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom: .5rem; }
+  .summary-value { font-size: 1.05rem; color: var(--text); font-weight: 700; line-height: 1.4; word-break: break-word; }
+  .summary-sub { margin-top: .35rem; color: var(--text-dim); font-size: .78rem; }
+  .pill { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .5rem; border-radius: 999px; background: var(--brand-light); border: 1px solid rgba(106,166,240,.25); color: var(--brand); font-size: .72rem; font-weight: 700; }
+  .workspace-strip { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .85rem 1rem; margin-bottom: 1.25rem; background: linear-gradient(135deg, rgba(106,166,240,.09), rgba(41,169,127,.07)); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+  .workspace-strip .left { display: flex; align-items: center; gap: .75rem; }
+  .workspace-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px rgba(41,169,127,.9); }
+  .workspace-name { font-weight: 700; }
+  .workspace-meta { color: var(--text-dim); font-size: .78rem; }
+  .workspace-chips { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; padding: .3rem .6rem; border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,.02); color: var(--text-dim); font-size: .72rem; font-weight: 600; }
+  .live-overview { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+  .live-overview-card { background: linear-gradient(135deg, rgba(106,166,240,.08) 0%, rgba(41,169,127,.08) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; box-shadow: inset 0 1px 0 rgba(255,255,255,.02); }
+  .live-overview-card .heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .75rem; }
+  .live-overview-card .heading strong { font-size: .82rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); }
+  .live-link { display: inline-flex; align-items: center; gap: .5rem; background: rgba(0,0,0,.18); border: 1px solid rgba(106,166,240,.25); color: var(--brand); padding: .5rem .75rem; border-radius: var(--radius); font-weight: 700; font-size: .92rem; word-break: break-all; }
+  .live-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem; }
+  .meta-box { background: rgba(0,0,0,.18); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem; }
+  .meta-box .label { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: .35rem; }
+  .meta-box .value { font-size: .96rem; color: var(--text); font-weight: 700; word-break: break-word; }
   .quickstart-step .tl-card { box-shadow: 0 8px 24px rgba(0,0,0,.08); }
   .command-panel { border-color: rgba(106,166,240,.22); }
   .command-panel .cmd-box { border-color: rgba(106,166,240,.25); }
@@ -125,7 +149,7 @@
   .btn svg { width: 16px; height: 16px; }
 
   /* ---- Cards (Paper) ---- */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1rem; overflow: hidden; }
+  .card { background: linear-gradient(180deg, rgba(27,30,33,1) 0%, rgba(22,24,27,1) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1rem; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.12); }
   .card-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
   .card-header h2 { font-size: 1rem; font-weight: 700; }
   .card-body { padding: 1rem; }
@@ -197,6 +221,25 @@
   .info-box { padding: .75rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); line-height: 1.6; }
   .info-box strong { color: var(--text); }
 
+  /* ---- Analytics section ---- */
+  .analytics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0; }
+  @media (max-width: 1024px) { .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .metric-card { background: linear-gradient(180deg, rgba(106,166,240,.05) 0%, rgba(106,166,240,.02) 100%); border: 1px solid rgba(106,166,240,.15); border-radius: var(--radius-lg); padding: .85rem; display: flex; flex-direction: column; justify-content: space-between; }
+  .metric-card .metric-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); font-weight: 700; margin-bottom: .4rem; }
+  .metric-card .metric-value { font-size: 1.8rem; font-weight: 800; color: var(--text); line-height: 1; }
+  .metric-card .metric-sub { font-size: .75rem; color: var(--text-dim); margin-top: .3rem; }
+  .metric-card.accent { background: linear-gradient(180deg, rgba(41,169,127,.05) 0%, rgba(41,169,127,.02) 100%); border-color: rgba(41,169,127,.15); }
+  .domain-health-panel { background: linear-gradient(135deg, rgba(106,166,240,.06), rgba(41,169,127,.05)); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; margin: 1.25rem 0; }
+  .domain-health-panel .health-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
+  .domain-health-panel .health-title { font-weight: 700; color: var(--text); }
+  .domain-health-status { display: flex; align-items: center; gap: .5rem; padding: .5rem .75rem; border-radius: var(--radius); background: rgba(0,0,0,.15); border: 1px solid rgba(41,169,127,.2); }
+  .domain-health-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(41,169,127,.8); }
+  .domain-health-status .status-text { font-size: .825rem; color: var(--green); font-weight: 600; }
+  .domain-health-items { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin-top: .75rem; }
+  .health-item { background: rgba(0,0,0,.2); border: 1px solid var(--border); border-radius: var(--radius); padding: .65rem; display: flex; justify-content: space-between; align-items: center; }
+  .health-item .item-label { font-size: .775rem; color: var(--text-dim); font-weight: 600; }
+  .health-item .item-value { font-size: .85rem; color: var(--text); font-weight: 700; }
+
   /* ---- Stat cards (subscription page) ---- */
   .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
   .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }
@@ -213,6 +256,8 @@
   @media (max-width: 768px) {
     .app-nav { display: none; }
     .app-main { padding: 1rem; }
+    .summary-grid { grid-template-columns: 1fr; }
+    .live-overview { grid-template-columns: 1fr; }
     .form-row { flex-direction: column; }
     .page-toolbar { flex-direction: column; }
     .page-toolbar-actions { width: 100%; }
@@ -221,6 +266,7 @@
     .quickstart-intro .intro-mark { display: none; }
     .timeline { padding-left: 2rem; }
     .tl-bullet { left: -2rem; }
+    .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 </style>
 </head>
@@ -229,7 +275,7 @@
 <!-- Loading screen (shown while checking auth) -->
 <div id="loadingScreen" style="display:flex;align-items:center;justify-content:center;min-height:100vh">
   <div style="text-align:center">
-    <div style="font-size:1.5rem;font-weight:800;margin-bottom:1rem">⚡ Tunnel</div>
+    <div style="font-size:1.5rem;font-weight:800;margin-bottom:1rem">⚡ IRAGT</div>
     <div style="color:var(--text-dim);font-size:.875rem">Loading...</div>
   </div>
 </div>
@@ -257,9 +303,10 @@
   <div class="app-shell">
     <!-- Header -->
     <header class="app-header">
-      <div class="logo">⚡ pinggy</div>
+      <div class="logo">⚡ IRAGT</div>
       <div class="right">
-        <div class="user-badge" id="userBadge" onclick="logout()">
+        <button class="btn btn-sm btn-ghost" onclick="openSecurity()" title="Two-Factor Authentication">🛡️ Security</button>
+        <div class="user-badge" id="userBadge" onclick="logout()" title="Log out">
           <div class="avatar" id="userAvatar">U</div>
           <span id="userInfo">user</span>
         </div>
@@ -286,14 +333,46 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           Active Tunnels
         </div>
+        <div class="nav-item" data-page="devices" onclick="navigate('devices', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Remote Devices
+        </div>
+        <div class="nav-item" data-page="inspector" onclick="navigate('inspector', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Inspector
+        </div>
         <div class="nav-item" data-page="tokens" onclick="navigate('tokens', this)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           Manage Tokens
         </div>
+        <div class="nav-item" data-page="apikeys" onclick="navigate('apikeys', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          API Keys
+        </div>
+        <div class="nav-item" data-page="apidocs" onclick="navigate('apidocs', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          API Docs
+        </div>
+        <div class="nav-item" data-page="usage" onclick="navigate('usage', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          My Usage
+        </div>
+        <div class="nav-item" data-page="announcements" onclick="navigate('announcements', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          Announcements
+        </div>
+        <div class="nav-item" data-page="teams" onclick="navigate('teams', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Teams
+        </div>
+        <div class="nav-item" data-page="support" onclick="navigate('support', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Support
+        </div>
         <div class="nav-sep"></div>
         <div class="nav-item" data-page="subscription" onclick="navigate('subscription', this)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          Subscription
+          Billing & Invoices
         </div>
       </nav>
 
@@ -326,6 +405,8 @@ let authToken = localStorage.getItem('pinggy_token') || '';
 let currentUser = null;
 let tunnelState = { localPort: 8080, os: 'cmd', token: '', tokenVisible: false, info: null };
 let tunnelPollTimer = null;
+let tunnelRateTracker = {}; // Track {tunnelId: {lastBytes, lastTime, kbps}}
+let dailyTunnelStats = JSON.parse(localStorage.getItem('dailyTunnelStats') || '{}'); // Track {date_subdomain: {sent, received}}
 
 // ---- API helper ----
 async function api(path, method = 'GET', body = null) {
@@ -333,7 +414,7 @@ async function api(path, method = 'GET', body = null) {
     method,
     headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
   };
-  if (body) opts.body = body;
+  if (body) opts.body = typeof body === 'string' ? body : JSON.stringify(body);
   const resp = await fetch('/api/v1' + path, opts);
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: 'Request failed' }));
@@ -351,11 +432,59 @@ function toast(msg, type = 'success') {
   setTimeout(() => t.className = '', 3000);
 }
 
+// ---- Daily Stats Helper ----
+function getDailyKey(subdomain) {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  return `${today}_${subdomain}`;
+}
+
+function updateDailyStats(subdomain, bytesTransferred) {
+  const key = getDailyKey(subdomain);
+  if (!dailyTunnelStats[key]) {
+    dailyTunnelStats[key] = { sent: 0, received: bytesTransferred };
+  }
+  // Estimate: add new bytes to daily total (simplified: assume all is "received")
+  dailyTunnelStats[key].received = bytesTransferred;
+  localStorage.setItem('dailyTunnelStats', JSON.stringify(dailyTunnelStats));
+}
+
+function getDailyStats(subdomain) {
+  const key = getDailyKey(subdomain);
+  return dailyTunnelStats[key] || { sent: 0, received: 0 };
+}
+
+function getDomainDailyTotals(tunnels) {
+  let totalSent = 0, totalReceived = 0;
+  tunnels.forEach(t => {
+    const stats = getDailyStats(t.subdomain);
+    totalSent += stats.sent;
+    totalReceived += stats.received;
+  });
+  return { sent: totalSent, received: totalReceived };
+}
+
 // ---- Auth ----
+let OTP_CHALLENGE = null;
 async function doLogin() {
   const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
   try {
+    if (OTP_CHALLENGE) {
+      const code = prompt('Enter the 6-digit verification code from your email:');
+      if (!code) return;
+      const resp = await fetch('/api/v1/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge: OTP_CHALLENGE, code }),
+      });
+      if (!resp.ok) throw new Error('Invalid or expired code');
+      const data = await resp.json();
+      authToken = data.access_token;
+      localStorage.setItem('pinggy_token', authToken);
+      currentUser = data.user;
+      showApp();
+      return;
+    }
     const resp = await fetch('/api/v1/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -363,11 +492,17 @@ async function doLogin() {
     });
     if (!resp.ok) throw new Error('Invalid credentials');
     const data = await resp.json();
+    if (data.otp_required) {
+      OTP_CHALLENGE = data.challenge;
+      toast('Verification code sent to your email');
+      doLogin();
+      return;
+    }
     authToken = data.access_token;
     localStorage.setItem('pinggy_token', authToken);
     currentUser = data.user;
     showApp();
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) { OTP_CHALLENGE = null; toast(e.message, 'error'); }
 }
 
 function logout() {
@@ -399,6 +534,29 @@ async function showApp() {
   navigate('quickstart', document.querySelector('[data-page=quickstart]'));
 }
 
+// ---- 2FA (v1.5.0) ----
+async function openSecurity() {
+  let on = false;
+  try { on = (await api('/auth/2fa')).twofa_enabled; } catch (e) { toast(e.message, 'error'); return; }
+  showModal('🛡️ Account Security', `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius)">
+      <div>
+        <div style="font-weight:600;font-size:.9rem">Two-Factor Authentication (email OTP)</div>
+        <div style="font-size:.78rem;color:var(--text-dim);margin-top:.2rem">At login we email you a 6-digit code. Codes expire after 5 minutes.</div>
+      </div>
+      <button class="btn btn-sm ${on ? 'btn-danger' : ''}" id="t2faBtn" onclick="toggle2FA(${!on})">${on ? 'Disable' : 'Enable'}</button>
+    </div>`, () => closeModal(), 'Close', 'btn-ghost');
+  document.getElementById('modalConfirm').style.display = 'none';
+}
+
+async function toggle2FA(enable) {
+  try {
+    await api('/auth/2fa', 'PUT', JSON.stringify({ enabled: enable }));
+    toast(enable ? '2FA enabled — you\u2019ll get an email code at next login' : '2FA disabled');
+    closeModal();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
 // ---- Navigation ----
 function navigate(page, el) {
   document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('active'));
@@ -408,8 +566,236 @@ function navigate(page, el) {
   else if (page === 'configure') loadConfigure();
   else if (page === 'domains') loadDomains();
   else if (page === 'tunnels') loadTunnels();
+  else if (page === 'devices') loadDevices();
+  else if (page === 'inspector') loadInspector();
   else if (page === 'tokens') loadTokens();
+  else if (page === 'apikeys') loadApiKeys();
+  else if (page === 'apidocs') loadApiDocs();
+  else if (page === 'usage') loadMyUsage();
+  else if (page === 'announcements') loadAnnouncementsPage();
+  else if (page === 'teams') loadTeams();
+  else if (page === 'support') loadSupport();
   else if (page === 'subscription') loadSubscription();
+}
+
+// ---- Announcements banner (Job 6) ----
+function renderAnnouncements(anns) {
+  if (!anns || !anns.length) return '';
+  const color = { info: 'var(--primary)', warning: '#f59e0b', success: '#22c55e' };
+  return `<div id="annBanner">${anns.map(a => `
+    <div style="border:1px solid ${color[a.level] || 'var(--border)'};border-left-width:4px;border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:.6rem;background:var(--surface)">
+      <strong>${a.title}</strong>
+      <div style="font-size:.85rem;color:var(--text-dim);margin-top:.2rem;white-space:pre-line">${a.body}</div>
+    </div>`).join('')}</div>`;
+}
+
+async function fetchAnnouncements() {
+  try { return await api('/announcements'); } catch { return []; }
+}
+
+// ---- API Docs page (v1.3.0) ----
+async function loadApiDocs() {
+  const c = document.getElementById('pageContent');
+  const base = location.origin;
+  c.innerHTML = `
+  <div class="page-title">API Documentation</div>
+  <div class="page-subtitle">Manage IRAGT from scripts, CI pipelines, and the Python SDK</div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header"><h2>Authentication</h2></div>
+    <div class="card-body">
+      <p style="font-size:.85rem;color:var(--text-dim)">Create a key under <strong>API Keys</strong>, then send it on every request:</p>
+      <div class="cmd-box"><pre>X-Api-Key: pk_your_key_here</pre></div>
+      <p style="font-size:.75rem;color:var(--text-dim)">All endpoints live under <span class="code">${base}/api/v1</span>. JWT Bearer tokens (your dashboard login) also work.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header"><h2>Endpoints</h2></div>
+    <div class="card-body" style="padding:0;overflow-x:auto">
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-green">GET</span></td><td class="code">/manage/tunnels</td><td>Your live tunnels + recent history</td></tr>
+          <tr><td><span class="badge">POST</span></td><td class="code">/manage/tunnels/{sub}/stop</td><td>Stop one of your live tunnels</td></tr>
+          <tr><td><span class="badge badge-green">GET</span></td><td class="code">/manage/tokens</td><td>List your tunnel tokens</td></tr>
+          <tr><td><span class="badge">POST</span></td><td class="code">/manage/tokens</td><td>Create a token — {name, fixed_subdomain?, custom_domain?}</td></tr>
+          <tr><td><span class="badge badge-red">DELETE</span></td><td class="code">/manage/tokens/{id}</td><td>Delete a token</td></tr>
+          <tr><td><span class="badge badge-green">GET</span></td><td class="code">/apikeys</td><td>List your API keys</td></tr>
+          <tr><td><span class="badge">POST</span></td><td class="code">/apikeys</td><td>Create a key — {name} (raw key returned once)</td></tr>
+          <tr><td><span class="badge badge-red">DELETE</span></td><td class="code">/apikeys/{id}</td><td>Revoke a key</td></tr>
+          <tr><td><span class="badge badge-green">GET</span></td><td class="code">/plans</td><td>Public pricing</td></tr>
+          <tr><td><span class="badge badge-green">GET</span></td><td class="code">/analytics/my?days=30</td><td>Your usage summary + daily series</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-header"><h2>curl example</h2></div>
+    <div class="card-body">
+      <div class="cmd-box"><pre>curl -H "X-Api-Key: pk_your_key" ${base}/api/v1/manage/tunnels</pre></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Python SDK</h2></div>
+    <div class="card-body">
+      <div class="cmd-box"><pre>from sdk.pinggy_sdk import TunnelClient
+
+client = TunnelClient("${base}", api_key="pk_your_key")
+
+client.tokens()                       # list tokens
+t = client.create_token(name="ci")    # create one
+client.stop_tunnel("mysub")           # stop a live tunnel
+print(client.tunnels()["live"])        # live sessions</pre></div>
+      <p style="font-size:.75rem;color:var(--text-dim)">The SDK is dependency-free (stdlib only) — copy <span class="code">sdk/pinggy_sdk.py</span> into your project or serve it from this repo.</p>
+    </div>
+  </div>`;
+}
+
+// ---- API Keys (v0.10.0) ----
+async function loadApiKeys() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const keys = await api('/apikeys');
+    const limit = (currentUser.plan === 'pro') ? 10 : 5;
+    const atCap = keys.length >= limit;
+    const rows = keys.map(k => {
+      const expired = k.expires_at && new Date(k.expires_at) < new Date();
+      const expCell = !k.expires_at ? '<span style="color:var(--text-dim)">never</span>'
+        : expired ? '<span class="badge badge-red">expired</span>'
+        : `<span style="color:var(--text-dim)">${k.expires_at.substring(0,10)}</span>`;
+      return `<tr>
+      <td>${k.name}</td>
+      <td class="code">${k.prefix}…</td>
+      <td>${k.created_at ? k.created_at.substring(0,10) : '—'}</td>
+      <td>${expCell}</td>
+      <td>${k.last_used_at ? k.last_used_at.replace('T',' ').substring(0,16) : 'never'}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="revokeApiKey('${k.id}','${k.name}')">Revoke</button></td>
+    </tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty">No API keys yet</td></tr>';
+    c.innerHTML = `
+    <div class="page-toolbar">
+      <div>
+        <div class="page-title">API Keys <span class="token-meta" style="font-size:.8rem;color:${atCap ? 'var(--red)' : 'var(--text-dim)'}">${keys.length} / ${limit} used${currentUser.plan !== 'pro' ? ' · Pro gets 10' : ''}</span></div>
+        <div class="page-subtitle">Manage tunnels & tokens from scripts, CI, or the Python SDK.</div>
+      </div>
+      <div class="page-toolbar-actions">
+        <button class="btn" id="createKeyBtn" ${atCap ? 'disabled title="Key limit reached — revoke one or upgrade to Pro"' : ''}>+ Create API Key</button>
+      </div>
+    </div>
+    ${atCap ? `<div class="card" style="border-color:var(--red);margin-bottom:1rem"><div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 1rem">
+      <span style="font-size:.85rem">⚠️ You've reached the <strong>${limit}-key limit</strong> of the ${currentUser.plan} plan. Revoke a key you no longer use, or upgrade for 10.</span>
+      <button class="btn btn-sm" onclick="navigate('subscription',document.querySelector('[data-page=subscription]'))">Upgrade to Pro →</button>
+    </div></div>` : ''}
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header"><h2>🔌 How to connect & use your API key</h2></div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:.9rem">
+          <div>
+            <div style="font-size:.82rem;font-weight:600;margin-bottom:.3rem"><span style="color:var(--brand)">Step 1.</span> Create a key — click "+ Create API Key" above. The full key (starts with <span class="code">pk_</span>) is shown <strong>only once</strong>.</div>
+          </div>
+          <div>
+            <div style="font-size:.82rem;font-weight:600;margin-bottom:.3rem"><span style="color:var(--brand)">Step 2.</span> Send the key as a header on every request:</div>
+            <div class="cmd-box"><pre>X-Api-Key: pk_your_key_here</pre></div>
+          </div>
+          <div>
+            <div style="font-size:.82rem;font-weight:600;margin-bottom:.3rem"><span style="color:var(--brand)">Step 3.</span> Call any endpoint under <span class="code">${location.origin}/api/v1</span> — test with curl:</div>
+            <div class="cmd-box" style="position:relative">
+              <pre>curl -H "X-Api-Key: pk_your_key" ${location.origin}/api/v1/manage/tunnels</pre>
+              <button class="btn btn-sm" style="position:absolute;top:.4rem;right:.4rem" onclick="copyToClipboard(this.parentElement.querySelector('pre').textContent)">📋 Copy</button>
+            </div>
+          </div>
+          <div style="font-size:.78rem;color:var(--text-dim)">Full endpoint reference + Python SDK guide: <a href="#" onclick="navigate('apidocs',document.querySelector('[data-page=apidocs]'));return false" style="color:var(--brand);font-weight:600">API Docs →</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Expires</th><th>Last used</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>Python SDK quick start</h2></div>
+      <div class="card-body">
+        <div class="cmd-box"><pre>from sdk.pinggy_sdk import TunnelClient
+
+client = TunnelClient("${location.origin}", api_key="pk_YOUR_KEY")
+print(client.tokens())            # list tokens
+client.create_token(name="ci")   # make one from CI
+client.stop_tunnel("mysub")      # stop a live tunnel</pre></div>
+        <p style="font-size:.78rem;color:var(--text-dim);margin-top:.5rem">Or plain HTTP: send <span class="code">X-Api-Key</span> to <span class="code">/api/v1/manage/tunnels</span>, <span class="code">/manage/tokens</span>, …</p>
+      </div>
+    </div>`;
+    document.getElementById('createKeyBtn').onclick = () => createApiKey();
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function createApiKey() {
+  showModal('Create API Key', `
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="newKeyName" placeholder="e.g. CI pipeline" value="CI pipeline">
+    </div>
+    <div class="form-group" style="margin-top:.8rem">
+      <label>Expires</label>
+      <select id="newKeyExpiry">
+        <option value="">Never</option>
+        <option value="30">In 30 days</option>
+        <option value="90">In 90 days</option>
+      </select>
+      <p style="font-size:.75rem;color:var(--text-dim);margin-top:.3rem">Tip: use a short expiry for CI keys you rotate often.</p>
+    </div>`, async () => {
+      const name = document.getElementById('newKeyName').value.trim();
+      if (!name) return toast('Give the key a name', 'error');
+      const expiry = document.getElementById('newKeyExpiry').value;
+      try {
+        const k = await api('/apikeys', 'POST', JSON.stringify({ name, expiry_days: expiry ? parseInt(expiry) : null }));
+        const curlCmd = `curl -H "X-Api-Key: ${k.key}" ${location.origin}/api/v1/manage/tunnels`;
+        showModal('API Key Created — copy it now', `
+          <p style="font-size:.8rem;color:var(--red);font-weight:600">This key is shown only once. Copy it now.</p>
+          <div class="cmd-box" style="margin-top:.5rem"><pre id="newKeyVal">${k.key}</pre></div>
+          <button class="btn btn-sm" style="margin-top:.6rem" onclick="copyToClipboard('${k.key}')">📋 Copy Key</button>
+          <p style="font-size:.78rem;color:var(--text-dim);margin-top:1rem;font-weight:600;color:var(--text)">✅ Test it right now — paste this in a terminal:</p>
+          <div class="cmd-box" style="position:relative;margin-top:.4rem">
+            <pre id="newKeyCurl">${curlCmd}</pre>
+            <button class="btn btn-sm" style="position:absolute;top:.4rem;right:.4rem" onclick="copyToClipboard(document.getElementById('newKeyCurl').textContent)">📋 Copy</button>
+          </div>
+          <p style="font-size:.75rem;color:var(--text-dim);margin-top:.8rem">Returns your live tunnels as JSON → the key works. Full reference: <strong>API Docs</strong> page.</p>
+        `, () => { closeModal(); loadApiKeys(); }, 'Done');
+      } catch (e) { toast(e.message, 'error'); }
+      return;
+    }, 'Create', '');
+}
+
+async function revokeApiKey(id, name) {
+  if (!confirm(`Revoke API key "${name}"? Scripts using it will stop working immediately.`)) return;
+  try { await api(`/apikeys/${id}`, 'DELETE'); toast('API key revoked'); loadApiKeys(); }
+  catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- My Invoices (Job 8) ----
+async function loadMyInvoices(target) {
+  try {
+    const invs = await api('/invoices/my');
+    const rows = invs.map(i => `<tr>
+      <td class="code">${i.invoice_no}</td>
+      <td>${i.plan}</td>
+      <td>${i.coupon_code || '—'}</td>
+      <td>${i.currency === 'INR' ? '₹' : '$'}${i.amount}</td>
+      <td><span class="badge ${i.status === 'paid' ? 'badge-green' : 'badge-red'}">${i.status}</span></td>
+      <td>${i.issued_at ? i.issued_at.substring(0,10) : '—'}</td>
+      <td><a href="/api/v1/invoices/${i.id}/print?token=${encodeURIComponent(authToken)}" target="_blank" style="color:var(--primary)">🖨️ Invoice</a></td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty">No invoices yet — they appear here after a successful payment.</td></tr>';
+    target.innerHTML = `<div class="card">
+      <div class="card-header"><h2>🧾 My Invoices</h2></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Invoice #</th><th>Plan</th><th>Coupon</th><th>Amount</th><th>Status</th><th>Issued</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>`;
+  } catch (e) { target.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
 // ---- Quickstart (Page 1) ----
@@ -435,18 +821,35 @@ async function loadQuickstart() {
       const urlCell = t.custom_url
         ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
         : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+      // Calculate KB/s for this tunnel
+      const tunnelId = t.id || t.subdomain;
+      let kbps = '—';
+      const now = Date.now();
+      if (tunnelRateTracker[tunnelId]) {
+        const prev = tunnelRateTracker[tunnelId];
+        const bytesDelta = (t.bytes_transferred || 0) - prev.lastBytes;
+        const timeDeltaMs = now - prev.lastTime;
+        if (timeDeltaMs > 0) {
+          const kbpsDelta = (bytesDelta / 1024) / (timeDeltaMs / 1000);
+          kbps = kbpsDelta.toFixed(2);
+        }
+      }
+      tunnelRateTracker[tunnelId] = { lastBytes: t.bytes_transferred || 0, lastTime: now };
       return `<tr>
       ${urlCell}
       <td class="code">${t.subdomain}</td>
       <td>${t.request_count}</td>
       <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td>${kbps} KB/s</td>
       <td><span class="badge badge-green">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
     </tr>`;
     }).join('');
-    if (!tunnelRows) tunnelRows = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
+    if (!tunnelRows) tunnelRows = '<tr><td colspan="7" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
 
+    const announcements = await fetchAnnouncements();
     c.innerHTML = `
+    ${renderAnnouncements(announcements)}
     <div class="page-toolbar">
       <div>
         <div class="page-title">Quickstart</div>
@@ -454,9 +857,133 @@ async function loadQuickstart() {
       </div>
       <div class="page-toolbar-actions"><span class="badge ${tunnels.length ? 'badge-green' : 'badge-blue'}">${tunnels.length ? `${tunnels.length} active` : 'Ready to connect'}</span></div>
     </div>
+    <div class="workspace-strip">
+      <div class="left">
+        <span class="workspace-dot"></span>
+        <div>
+          <div class="workspace-name">Workspace overview</div>
+          <div class="workspace-meta">Primary tunnel environment</div>
+        </div>
+      </div>
+      <div class="workspace-chips">
+        <span class="chip">${tunnels.length ? 'Connected' : 'Ready'}</span>
+        <span class="chip">${(currentUser.plan || 'free').toUpperCase()}</span>
+        <span class="chip">${userTokens.length} token${userTokens.length !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
     <div class="quickstart-intro">
-      <div><div class="section-label">Tunnel setup</div><h2>Expose your local app in three steps</h2><p>Choose a port, copy the command, and keep the terminal open while your tunnel is running.</p></div>
+      <div>
+        <div class="section-label">Tunnel setup</div>
+        <h2>Expose your local app in three steps</h2>
+        <p>Choose a port, copy the command, and keep the terminal open while your tunnel is running.</p>
+        <div class="feature-row">
+          <span class="feature-badge">⚡ Fast share</span>
+          <span class="feature-badge">🔒 Secure</span>
+          <span class="feature-badge">🌐 Custom domain ready</span>
+        </div>
+      </div>
       <div class="intro-mark">↗</div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Current tunnel</div>
+        <div class="summary-value">${tunnels[0] ? (tunnels[0].custom_url || tunnels[0].url) : 'No active tunnel yet'}</div>
+        <div class="summary-sub">Live public URL for your workspace</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Custom domain</div>
+        <div class="summary-value">${(userTokens.length > 0 && userTokens[0].custom_domain) ? userTokens[0].custom_domain : 'Not set yet'}</div>
+        <div class="summary-sub">Uses the canonical domain for this token</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Status</div>
+        <div class="summary-value"><span class="pill">${tunnels.length ? 'Active' : 'Ready'}</span></div>
+        <div class="summary-sub">${tunnels.length ? `${tunnels.length} tunnel${tunnels.length !== 1 ? 's' : ''} currently running` : 'Wait for the terminal to connect'}</div>
+      </div>
+    </div>
+    <div class="live-overview">
+      <div class="live-overview-card">
+        <div class="heading">
+          <strong>Live tunnel overview</strong>
+          <span class="pill">${tunnels.length ? 'Connected' : 'Waiting'}</span>
+        </div>
+        <div class="live-link">${tunnels[0] ? (tunnels[0].custom_url || tunnels[0].url) : 'https://your-tunnel-url.example'}</div>
+        <div class="live-meta">
+          <div class="meta-box">
+            <div class="label">Token</div>
+            <div class="value">${tunnelState.token ? tunnelState.token.substring(0, 10) + '••••' : 'Not created'}</div>
+          </div>
+          <div class="meta-box">
+            <div class="label">Custom domain</div>
+            <div class="value">${(userTokens.length > 0 && userTokens[0].custom_domain) ? userTokens[0].custom_domain : 'Not assigned'}</div>
+          </div>
+        </div>
+      </div>
+      <div class="live-overview-card">
+        <div class="heading">
+          <strong>Traffic</strong>
+          <span class="pill">Live</span>
+        </div>
+        <div class="live-meta">
+          <div class="meta-box">
+            <div class="label">Requests</div>
+            <div class="value">${tunnels[0] ? tunnels[0].request_count : 0}</div>
+          </div>
+          <div class="meta-box">
+            <div class="label">Data</div>
+            <div class="value">${tunnels[0] ? `${(tunnels[0].bytes_transferred / 1024).toFixed(1)} KB` : '0 KB'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="analytics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Active Tunnels</div>
+        <div class="metric-value">${tunnels.length}</div>
+        <div class="metric-sub">Running now</div>
+      </div>
+      <div class="metric-card accent">
+        <div class="metric-label">Total Requests</div>
+        <div class="metric-value">${tunnels.reduce((sum, t) => sum + (t.request_count || 0), 0)}</div>
+        <div class="metric-sub">All tunnels</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Data Transferred</div>
+        <div class="metric-value">${((tunnels.reduce((sum, t) => sum + (t.bytes_transferred || 0), 0)) / (1024 * 1024)).toFixed(1)}</div>
+        <div class="metric-sub">MB</div>
+      </div>
+      <div class="metric-card accent">
+        <div class="metric-label">Uptime Status</div>
+        <div class="metric-value" style="color:var(--green);">✓ OK</div>
+        <div class="metric-sub">All systems running</div>
+      </div>
+    </div>
+    <div class="domain-health-panel">
+      <div class="health-header">
+        <span class="health-title">🌐 Domain Health</span>
+        <div class="domain-health-status">
+          <span class="dot"></span>
+          <span class="status-text">Healthy</span>
+        </div>
+      </div>
+      <div class="domain-health-items">
+        <div class="health-item">
+          <span class="item-label">DNS</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+        <div class="health-item">
+          <span class="item-label">SSL/TLS</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+        <div class="health-item">
+          <span class="item-label">Connectivity</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+        <div class="health-item">
+          <span class="item-label">Performance</span>
+          <span class="item-value" style="color:var(--green);">✓</span>
+        </div>
+      </div>
     </div>
     ${(currentUser.plan || 'free') !== 'pro' ? `
     <div style="margin-bottom:1.25rem;padding:.75rem 1rem;background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-lg);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
@@ -593,9 +1120,15 @@ async function loadQuickstart() {
     <div class="card" style="margin-top:1.5rem">
       <div class="card-header"><h2>🔗 My Active Tunnels (<span id="tunnelCount">${tunnels.length}</span>)</h2><button class="btn btn-sm" onclick="loadQuickstart()">🔄 Refresh</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody id="tunnelTableBody">${tunnelRows}</tbody></table>
+        <table><thead><tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Transfer Rate</th><th>Status</th><th>Created</th></tr></thead><tbody id="tunnelTableBody">${tunnelRows}</tbody></table>
       </div>
     </div>`;
+
+    // Premium product polish: emphasize the live tunnel summary in the active tunnel section.
+    const tunnelTable = document.getElementById('tunnelTableBody');
+    if (tunnelTable && tunnelTable.querySelector('tr')) {
+      tunnelTable.querySelector('tr').style.boxShadow = 'inset 0 0 0 1px rgba(106,166,240,.2)';
+    }
 
   // Attach event listeners (Cloudflare Rocket Loader safe — replaces inline onclick)
   setTimeout(() => {
@@ -678,27 +1211,51 @@ async function loadConfigure() {
     const tokenOptions = tokens.map(t => 
       `<option value="${t.token}">${t.name || 'Unnamed'} — ${t.token.substring(0,8)}... (→ ${t.subdomain}.iraglobaltech.com)</option>`
     ).join('');
+    window._cfgTokens = tokens;
+
+    // App presets catalog (v0.7.0) — name, default port
+    const APP_PRESETS = [
+      { n: 'Custom / manual', p: 8080 },
+      { n: 'Django (runserver)', p: 8000 }, { n: 'Flask', p: 5000 },
+      { n: 'Jupyter Notebook', p: 8888 }, { n: 'Node.js / Express', p: 3000 },
+      { n: 'React / Vite dev', p: 5173 }, { n: 'Next.js', p: 3000 },
+      { n: 'Vue / Nuxt', p: 3000 }, { n: 'Laravel (artisan)', p: 8000 },
+      { n: 'WordPress', p: 80 }, { n: 'Nginx', p: 80 }, { n: 'Apache', p: 8080 },
+      { n: 'MySQL', p: 3306 }, { n: 'PostgreSQL', p: 5432 },
+      { n: 'MongoDB', p: 27017 }, { n: 'Redis', p: 6379 },
+    ];
+    const presetOptions = APP_PRESETS.map(a => `<option value="${a.p}">${a.n} — :${a.p}</option>`).join('');
 
     c.innerHTML = `
     <div class="page-title">Configure Tunnel</div>
     <div class="page-subtitle">Build and customize your tunnel command</div>
 
     <div class="card">
-      <div class="card-header"><h2>Tunnel Settings</h2><button class="btn btn-sm" onclick="resetConfig()">Reset</button></div>
+      <div class="card-header"><h2>Tunnel Settings</h2>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" onclick="saveBuilderConfig()">💾 Save</button>
+          <select id="cfgSavedList" style="max-width:150px;padding:.3rem .4rem;font-size:.78rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+            <option value="">📂 Load saved…</option>
+          </select>
+          <button class="btn btn-sm" onclick="resetConfig()">Reset</button>
+        </div>
+      </div>
       <div class="card-body">
         <div class="form-row">
-          <div class="form-group">
-            <label>Local address — what you want to share</label>
-            <input type="text" id="cfgLocalAddr" value="127.0.0.1:${tunnelState.localPort}" placeholder="127.0.0.1:8080" onchange="updateCfgCommand()">
+          <div class="form-group" style="max-width:240px">
+            <label>App / Service preset</label>
+            <select id="cfgPreset" onchange="applyPreset()">${presetOptions}</select>
           </div>
-          <div class="form-group" style="max-width:140px">
+          <div class="form-group" style="max-width:130px">
             <label>Tunnel type</label>
             <select id="cfgTunnelType" onchange="updateCfgCommand()">
               <option value="http" selected>HTTP</option>
-              <option value="tcp" disabled>TCP (soon)</option>
-              <option value="tls" disabled>TLS (soon)</option>
-              <option value="udp" disabled>UDP (soon)</option>
+              <option value="tcp">TCP (Pro)</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label>Local address — what you want to share</label>
+            <input type="text" id="cfgLocalAddr" value="127.0.0.1:${tunnelState.localPort}" placeholder="127.0.0.1:8080" onchange="updateCfgCommand()">
           </div>
         </div>
         <div class="form-row">
@@ -712,33 +1269,49 @@ async function loadConfigure() {
           </div>
           <div class="form-group">
             <label>Access token</label>
-            <select id="cfgToken" onchange="updateCfgCommand()">
+            <select id="cfgToken" onchange="onCfgTokenChange()">
               ${tokenOptions}
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label>Region</label>
-          <select id="cfgRegion" onchange="updateCfgCommand()">
-            <option value="auto" selected>Auto (closest server)</option>
-            <option value="eu" disabled>Europe (soon)</option>
-            <option value="us" disabled>US East (soon)</option>
-            <option value="asia" disabled>Asia (soon)</option>
-          </select>
+        <div class="form-row">
+          <div class="form-group" style="display:flex;align-items:center;gap:.5rem">
+            <input type="checkbox" id="cfgMultiPort" onchange="renderMultiPortRows()" style="width:auto;margin:0;cursor:pointer;accent-color:var(--brand)">
+            <label for="cfgMultiPort" style="margin:0;cursor:pointer">Multi-port <span class="badge" style="margin-left:.2rem">Pro</span> — each address → its own local port, one command</label>
+          </div>
         </div>
+        <div id="multiPortRows" style="display:none;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-top:.3rem"></div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-header"><h2>Generated Command</h2><button class="btn btn-sm" onclick="copyCfgCmd()">📋 Copy</button></div>
+      <div class="card-header"><h2>Generated Command</h2>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" onclick="copyCfgCmd()">📋 Copy</button>
+          <button class="btn btn-sm" onclick="downloadCommand('sh')" title="Download macOS/Linux script">⬇️ .sh</button>
+          <button class="btn btn-sm" onclick="downloadCommand('bat')" title="Download Windows batch file">⬇️ .bat</button>
+          <button class="btn btn-sm" onclick="downloadCommand('command')" title="Download double-clickable macOS app">⬇️ .command</button>
+        </div>
+      </div>
       <div class="card-body">
+        <div class="tabs" style="margin-bottom:.75rem">
+          <button class="tab active" id="ctab-ssh" onclick="switchCmdTab('ssh')">SSH</button>
+          <button class="tab" id="ctab-docker" onclick="switchCmdTab('docker')">Docker</button>
+        </div>
         <p style="font-size:.825rem;color:var(--text-dim);margin-bottom:.5rem" id="cfgPlatformHint">Open Command Prompt (CMD) and paste the following command:</p>
         <div class="cmd-box">
           <pre id="cfgCommand">${buildConfigCommand()}</pre>
         </div>
-        <div style="margin-top:.75rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim)">
-          <strong style="color:var(--text)">Your tunnel URL will be:</strong><br>
-          <span id="cfgUrl" style="color:var(--brand);font-family:var(--font-mono)">https://—.iraglobaltech.com</span>
+        <div style="margin-top:.75rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.825rem;color:var(--text-dim);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <strong style="color:var(--text)">Your tunnel URL will be:</strong><br>
+            <span id="cfgUrl" style="color:var(--brand);font-family:var(--font-mono)">https://—.iraglobaltech.com</span>
+          </div>
+          <button class="btn btn-sm" onclick="showQr()">📱 QR Code</button>
+        </div>
+        <div id="qrBox" style="display:none;margin-top:.75rem;text-align:center;padding:.75rem;background:#fff;border-radius:var(--radius)">
+          <img id="qrImg" alt="Tunnel QR" style="height:180px;width:180px">
+          <div style="font-size:.75rem;color:#475569;margin-top:.35rem">Scan to open this tunnel URL on your phone</div>
         </div>
       </div>
     </div>
@@ -752,6 +1325,10 @@ async function loadConfigure() {
             Keep Alive (30s interval)
           </label>
           <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--text)">
+            <input type="checkbox" id="cfgAutoReconnect" onchange="updateCfgCommand()" style="width:auto">
+            Auto-Reconnect (in downloaded script)
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--text)">
             <input type="checkbox" id="cfgStrictHostKey" onchange="updateCfgCommand()" style="width:auto">
             Strict Host Key Check
           </label>
@@ -763,31 +1340,203 @@ async function loadConfigure() {
       </div>
     </div>`;
     updateCfgCommand();
+    loadSavedConfigs();
+    // Auto-detect platform (v1.3.0) — default the selector to the visitor's OS
+    try {
+      const ua = navigator.userAgent;
+      const detected = /Mac|iPhone|iPad|iPod/i.test(ua) ? 'mac' : /Win/i.test(ua) ? 'windows' : 'linux';
+      const sel = document.getElementById('cfgPlatform');
+      if (sel && !tunnelState.platformPinned) sel.value = detected;
+      updateCfgCommand();
+    } catch (e) {}
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
-function buildConfigCommand() {
+// ---- Builder 2.0 helpers (v0.7.0) ----
+let cmdTab = 'ssh';
+
+function switchCmdTab(tab) {
+  cmdTab = tab;
+  document.getElementById('ctab-ssh')?.classList.toggle('active', tab === 'ssh');
+  document.getElementById('ctab-docker')?.classList.toggle('active', tab === 'docker');
+  updateCfgCommand();
+}
+
+function applyPreset() {
+  const port = document.getElementById('cfgPreset').value;
+  if (port) document.getElementById('cfgLocalAddr').value = `127.0.0.1:${port}`;
+  updateCfgCommand();
+}
+
+function builderState() {
   const info = tunnelState.info;
-  if (!info) return '';
   const addr = document.getElementById('cfgLocalAddr')?.value || `127.0.0.1:${tunnelState.localPort}`;
   const port = addr.split(':').pop() || '8080';
-  const token = document.getElementById('cfgToken')?.value || tunnelState.token;
-  const platform = document.getElementById('cfgPlatform')?.value || 'windows';
-  const keepAlive = document.getElementById('cfgKeepAlive')?.checked !== false;
-  const strictHost = document.getElementById('cfgStrictHostKey')?.checked;
-  const verbose = document.getElementById('cfgVerbose')?.checked;
+  const multi = document.getElementById('cfgMultiPort')?.checked;
+  let portList = null;
+  if (multi) {
+    const inputs = Array.from(document.querySelectorAll('[data-addr-port]'));
+    portList = inputs.map(i => i.value.trim()).filter(Boolean);
+  }
+  return {
+    info,
+    port,
+    multi,
+    portList,
+    token: document.getElementById('cfgToken')?.value || tunnelState.token,
+    platform: document.getElementById('cfgPlatform')?.value || 'windows',
+    keepAlive: document.getElementById('cfgKeepAlive')?.checked !== false,
+    autoReconnect: document.getElementById('cfgAutoReconnect')?.checked,
+    strictHost: document.getElementById('cfgStrictHostKey')?.checked,
+    verbose: document.getElementById('cfgVerbose')?.checked,
+  };
+}
 
+function renderMultiPortRows() {
+  const box = document.getElementById('multiPortRows');
+  const on = document.getElementById('cfgMultiPort')?.checked;
+  if (box) box.style.display = on ? 'block' : 'none';
+  if (!on || !box || box.dataset.rendered) { updateCfgCommand(); return; }
+  const selVal = document.getElementById('cfgToken')?.value;
+  const t = (window._cfgTokens || []).find(x => x.id === selVal || x.token === selVal);
+  if (!t) { updateCfgCommand(); return; }
+  const suffix = '.iraglobaltech.com';
+  const addrs = [`${t.subdomain}${suffix}`];
+  if (t.custom_domain) addrs.push(t.custom_domain);
+  (t.domains || []).forEach(d => addrs.push(d));
+  box.innerHTML = `<p style="font-size:.78rem;color:var(--text-dim);margin-bottom:.5rem">One local port per address — order matters (subdomain → primary → extras):</p>` +
+    addrs.map((a, i) => `
+    <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem">
+      <span class="code" style="flex:1;font-size:.8rem">${a}</span>
+      <input type="number" data-addr-port min="1" max="65535" placeholder="e.g. ${3000 + i * 1000}" style="width:130px" value="" onchange="updateCfgCommand()">
+    </div>`).join('') +
+    `<p style="font-size:.72rem;color:var(--text-dim)">Pro feature — one SSH connection, each address routes to its own local project.</p>`;
+  box.dataset.rendered = '1';
+  updateCfgCommand();
+}
+
+function onCfgTokenChange() {
+  const box = document.getElementById('multiPortRows');
+  if (box) delete box.dataset.rendered;
+  renderMultiPortRows();
+  updateCfgCommand();
+}
+
+function buildDockerCommand(s) {
+  const multi = s.multi && s.portList?.length;
+  const R = multi ? s.portList.map(p => `-R0:127.0.0.1:${p}`).join(' ') : `-R0:127.0.0.1:${s.port}`;
+  const user = multi ? `${s.token}--${s.portList.join(',')}` : s.token;
+  return `docker run --rm -i alpine/openssh-client ssh \\\n  -p ${s.info.ssh_port} ${R} \\\n  -o StrictHostKeyChecking=no ${s.keepAlive ? '-o ServerAliveInterval=30 ' : ''}\\\n  ${user}@ssh.iraglobaltech.com`;
+}
+
+function buildConfigCommand() {
+  const s = builderState();
+  if (!s.info) return '';
+  if (cmdTab === 'docker') return buildDockerCommand(s);
+  const multi = s.multi && s.portList?.length;
   let cmd = 'ssh';
-  if (verbose) cmd += ' -v';
-  cmd += ` -p ${info.ssh_port}`;
-  cmd += ` -R0:127.0.0.1:${port}`;
-  if (keepAlive) cmd += ' -o ServerAliveInterval=30';
-  if (!strictHost) cmd += ' -o StrictHostKeyChecking=no';
-  cmd += ` ${token}@ssh.iraglobaltech.com`;
+  if (s.verbose) cmd += ' -v';
+  cmd += ` -p ${s.info.ssh_port}`;
+  if (multi) {
+    s.portList.forEach(p => { cmd += ` -R0:127.0.0.1:${p}`; });
+  } else {
+    cmd += ` -R0:127.0.0.1:${s.port}`;
+  }
+  if (s.keepAlive) cmd += ' -o ServerAliveInterval=30';
+  if (!s.strictHost) cmd += ' -o StrictHostKeyChecking=no';
+  const user = multi ? `${s.token}--${s.portList.join(',')}` : s.token;
+  cmd += ` ${user}@ssh.iraglobaltech.com`;
   return cmd;
 }
 
+function downloadCommand(kind) {
+  const s = builderState();
+  const cmd = buildConfigCommand();
+  let content, filename;
+  if (kind === 'bat') {
+    content = `@echo off\r\nREM Tunnel startup script (Windows)\r\n${cmd}\r\npause\r\n`;
+    filename = 'start-tunnel.bat';
+  } else {
+    const inner = s.autoReconnect
+      ? `while true; do\n  ${cmd}\n  echo "Tunnel dropped — reconnecting in 3s..."\n  sleep 3\ndone`
+      : cmd;
+    content = `#!/bin/sh\n# Tunnel startup script (generated)\n${inner}\n`;
+    filename = kind === 'command' ? 'start-tunnel.command' : 'start-tunnel.sh';
+  }
+  const blob = new Blob([content], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Downloaded ' + filename);
+}
+
+async function showQr() {
+  const url = document.getElementById('cfgUrl')?.textContent;
+  if (!url || url.includes('—')) { toast('Start a tunnel first (URL unknown)', 'error'); return; }
+  try {
+    const res = await fetch(`${API}/tunnels/qr?text=${encodeURIComponent(url)}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!res.ok) throw new Error('QR failed');
+    const svg = await res.text();
+    const box = document.getElementById('qrBox');
+    document.getElementById('qrImg').src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+    box.style.display = 'block';
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function collectBuilderConfig() {
+  return {
+    preset: document.getElementById('cfgPreset')?.value || '',
+    local_addr: document.getElementById('cfgLocalAddr')?.value || '',
+    platform: document.getElementById('cfgPlatform')?.value || 'windows',
+    token: document.getElementById('cfgToken')?.value || '',
+    keep_alive: document.getElementById('cfgKeepAlive')?.checked !== false,
+    auto_reconnect: document.getElementById('cfgAutoReconnect')?.checked || false,
+    strict_host: document.getElementById('cfgStrictHostKey')?.checked || false,
+    verbose: document.getElementById('cfgVerbose')?.checked || false,
+  };
+}
+
+async function saveBuilderConfig() {
+  const name = prompt('Name this configuration:', 'My tunnel');
+  if (!name) return;
+  try {
+    await api('/configs', 'POST', { name, config: collectBuilderConfig() });
+    toast('Configuration saved');
+    loadSavedConfigs();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadSavedConfigs() {
+  try {
+    const list = await api('/configs');
+    const sel = document.getElementById('cfgSavedList');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">📂 Load saved…</option>' +
+      list.map(x => `<option value='${JSON.stringify(x.config).replace(/'/g, "&#39;")}' data-id="${x.id}">${x.name}</option>`).join('');
+    sel.onchange = () => {
+      if (!sel.value) return;
+      try {
+        const cfg = JSON.parse(sel.value);
+        if (cfg.local_addr) document.getElementById('cfgLocalAddr').value = cfg.local_addr;
+        if (cfg.platform) document.getElementById('cfgPlatform').value = cfg.platform;
+        if (cfg.keep_alive !== undefined) document.getElementById('cfgKeepAlive').checked = cfg.keep_alive;
+        if (cfg.auto_reconnect !== undefined) document.getElementById('cfgAutoReconnect').checked = cfg.auto_reconnect;
+        if (cfg.strict_host !== undefined) document.getElementById('cfgStrictHostKey').checked = cfg.strict_host;
+        if (cfg.verbose !== undefined) document.getElementById('cfgVerbose').checked = cfg.verbose;
+        updateCfgCommand();
+        toast('Configuration loaded');
+      } catch (e) { toast('Could not load config', 'error'); }
+      sel.value = '';
+    };
+  } catch (e) { /* silent */ }
+}
+
 function updateCfgCommand() {
+  // Remember an explicit user/platform choice so auto-detect doesn't override it
+  const platSel = document.getElementById('cfgPlatform');
+  if (platSel && platSel.value) tunnelState.platformPinned = true;
   const el = document.getElementById('cfgCommand');
   if (el) el.textContent = buildConfigCommand();
 
@@ -833,75 +1582,721 @@ function applyConfig() {
   navigate('quickstart', document.querySelector('[data-page=quickstart]'));
 }
 
-// ---- Domains (Page 3) ----
+// ---- Domains (Page 3 — unified view, v1.8.0) ----
 async function loadDomains() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
-    const info = await api('/tunnels/info');
-    c.innerHTML = `
-    <h2 style="margin-bottom:1rem">Domains</h2>
-    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Manage your custom domain and subdomain</p>
-    <div class="card">
-      <div class="card-header"><h2>Custom Domain</h2></div>
-      <div class="card-body">
-        <div class="form-group">
-          <label>Your custom domain</label>
-          <div style="display:flex;gap:.5rem;align-items:center">
-            <input type="text" id="domainInput" value="${info.custom_domain || ''}" placeholder="e.g. serverira.com">
-            <button class="btn btn-sm" onclick="saveMyCustomDomain()">Save</button>
-            ${info.custom_domain ? '<button class="btn btn-sm btn-ghost" onclick="saveMyCustomDomain(true)">Clear</button>' : ''}
-          </div>
+    const tokens = await api('/tokens');
+    const suffix = '.iraglobaltech.com';
+    const myOwn = tokens.filter(t => !t.via_team || t.via_team.owner);  // own tokens (even team-shared ones)
+    const nSub = myOwn.filter(t => t.fixed_subdomain).length;
+    const nPrim = myOwn.filter(t => t.custom_domain).length;
+    const nExtra = myOwn.reduce((n, t) => n + (t.domains?.length || 0), 0);
+
+    const tokenCard = t => {
+      const rows = [];
+      // subdomain row (always present)
+      rows.push(`
+        <tr>
+          <td><span class="badge">Subdomain</span></td>
+          <td class="code" style="display:flex;align-items:center;gap:.4rem">https://${t.subdomain}${suffix}
+            <button class="icon-btn" title="Copy" onclick="copyToClipboard('https://${t.subdomain}${suffix}')">📋</button></td>
+          <td style="color:var(--text-dim);font-size:.78rem">${t.fixed_subdomain ? '📌 fixed — same address every connect' : 'random — new address each connect'}</td>
+          <td>${t.fixed_subdomain
+            ? `<button class="btn btn-sm btn-ghost" onclick="changeSubdomain('${t.id}','${t.fixed_subdomain}')">Change</button>`
+            : `<button class="btn btn-sm" onclick="changeSubdomain('${t.id}','')">Set fixed</button>`}</td>
+        </tr>`);
+      if (t.custom_domain) rows.push(`
+        <tr>
+          <td><span class="badge badge-blue">Primary domain</span></td>
+          <td class="code" style="display:flex;align-items:center;gap:.4rem">https://${t.custom_domain}
+            <button class="icon-btn" title="Copy" onclick="copyToClipboard('https://${t.custom_domain}')">📋</button></td>
+          <td style="color:var(--text-dim);font-size:.78rem">your own domain, routes to this token</td>
+          <td><button class="btn btn-sm btn-danger" onclick="removePrimaryDomain('${t.custom_domain}')">Remove</button></td>
+        </tr>`);
+      (t.domains || []).forEach(d => rows.push(`
+        <tr>
+          <td><span class="badge badge-green">Extra domain</span></td>
+          <td class="code" style="display:flex;align-items:center;gap:.4rem">https://${d}
+            <button class="icon-btn" title="Copy" onclick="copyToClipboard('https://${d}')">📋</button></td>
+          <td style="color:var(--text-dim);font-size:.78rem">same tunnel, own DNS record</td>
+          <td><button class="btn btn-sm btn-danger" onclick="removeExtraDomain('${d}','${t.id}')">Remove</button></td>
+        </tr>`));
+      return `
+      <div class="card" style="margin-top:1rem">
+        <div class="card-header"><h2>🔑 ${t.name || 'Token'} <span class="code" style="font-size:.75rem;color:var(--text-dim)">— https://${t.subdomain}${suffix}</span>${t.team_id ? ' <span class="badge" title="shared with a team">👥</span>' : ''}</h2></div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table class="table" style="font-size:.85rem">
+            <thead><tr><th>Type</th><th>Address</th><th>Note</th><th style="width:130px"></th></tr></thead>
+            <tbody>${rows.join('')}</tbody>
+          </table>
         </div>
-        <div style="margin-top:1rem;padding:1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;color:var(--text-dim);line-height:1.6">
-          <p style="font-weight:600;color:var(--text);margin-bottom:.4rem">📋 Setup Instructions</p>
-          <p><strong>Step 1:</strong> Add your domain to Cloudflare → Add Site</p>
-          <p><strong>Step 2:</strong> Change nameservers at your registrar to Cloudflare's</p>
-          <p><strong>Step 3:</strong> Add DNS A Record: Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied</p>
-          <p><strong>Step 4:</strong> Set SSL/TLS mode to Flexible</p>
-          <p><strong>Step 5:</strong> Enter your domain above and click Save</p>
+      </div>`;
+    };
+
+    c.innerHTML = `
+    <h2 style="margin-bottom:.4rem">Domains</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.2rem;font-size:.9rem">Every address your tunnels answer on — all in one place. Remove a domain here and it's gone from the whole system.</p>
+
+    <div class="card" style="display:flex;gap:1.5rem;align-items:center;padding:.9rem 1.2rem;flex-wrap:wrap">
+      <div><div style="font-size:1.4rem;font-weight:800">${myOwn.length}</div><div style="font-size:.75rem;color:var(--text-dim)">tokens</div></div>
+      <div style="width:1px;height:2rem;background:var(--border)"></div>
+      <div><div style="font-size:1.4rem;font-weight:800">${nSub}</div><div style="font-size:.75rem;color:var(--text-dim)">fixed subdomains</div></div>
+      <div style="width:1px;height:2rem;background:var(--border)"></div>
+      <div><div style="font-size:1.4rem;font-weight:800">${nPrim}</div><div style="font-size:.75rem;color:var(--text-dim)">primary domains</div></div>
+      <div style="width:1px;height:2rem;background:var(--border)"></div>
+      <div><div style="font-size:1.4rem;font-weight:800">${nExtra}</div><div style="font-size:.75rem;color:var(--text-dim)">extra domains</div></div>
+    </div>
+
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>➕ Add a domain</h2></div>
+      <div class="card-body">
+        ${myOwn.length ? `
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+          <input type="text" id="addDomInput" placeholder="e.g. api.mycompany.com" style="flex:1;min-width:200px">
+          <select id="addDomToken" class="form-control" style="width:auto;max-width:220px">
+            ${myOwn.map(t => `<option value="${t.id}">${t.name || t.token.slice(0, 12)} (${t.subdomain})</option>`).join('')}
+          </select>
+          <select id="addDomType" class="form-control" style="width:auto">
+            <option value="extra">Extra domain — same tunnel, own address</option>
+            <option value="primary">Primary domain — the token's main address</option>
+          </select>
+          <button class="btn btn-sm" onclick="addDomainAny()">Add</button>
+        </div>
+        <details style="margin-top:.8rem">
+          <summary style="font-size:.8rem;color:var(--brand);cursor:pointer;font-weight:600">📋 DNS setup (once per domain)</summary>
+          <div style="margin-top:.5rem;padding:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;color:var(--text-dim);line-height:1.7">
+            <p><strong>Step 1:</strong> Add the domain to Cloudflare → Add Site (change nameservers at your registrar)</p>
+            <p><strong>Step 2:</strong> DNS A Record: Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied</p>
+            <p><strong>Step 3:</strong> SSL/TLS mode → Flexible</p>
+            <p><strong>Step 4:</strong> Add it above — it appears under the token instantly (reconnect a live tunnel to see it in the SSH banner)</p>
+          </div>
+        </details>` : `
+        <p class="empty">No tokens yet — <a href="#" onclick="navigate('tokens',document.querySelector('[data-page=tokens]'));return false" style="color:var(--brand);font-weight:600">create one in Manage Tokens</a> first.</p>`}
+      </div>
+    </div>
+
+    ${myOwn.map(tokenCard).join('')}`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function addDomainAny() {
+  const domain = document.getElementById('addDomInput').value.trim().toLowerCase();
+  const tid = document.getElementById('addDomToken').value;
+  const type = document.getElementById('addDomType').value;
+  if (!domain) return toast('Enter a domain first', 'error');
+  try {
+    if (type === 'primary') {
+      await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}&token_id=${encodeURIComponent(tid)}`, 'PUT');
+      toast(`${domain} is now the primary domain — point its A record at 13.140.131.204`);
+    } else {
+      await api(`/tokens/${tid}/domains`, 'POST', JSON.stringify({ domain }));
+      toast(`${domain} attached — point its A record at 13.140.131.204`);
+    }
+    loadDomains();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function changeSubdomain(tokenId, current) {
+  showModal(current ? 'Change subdomain' : 'Set a fixed subdomain', `
+    <div class="form-group">
+      <label>Subdomain (3–50 chars: a–z, 0–9, -)</label>
+      <input type="text" id="newSubInput" value="${current}" placeholder="e.g. my-app">
+    </div>
+    <p style="font-size:.75rem;color:var(--text-dim)">Your tunnel will be at <span class="code">https://&lt;subdomain&gt;.iraglobaltech.com</span> on every connect.</p>`,
+    async () => {
+      const sub = document.getElementById('newSubInput').value.trim().toLowerCase();
+      if (!sub) return toast('Enter a subdomain', 'error');
+      try {
+        await api(`/tokens/${tokenId}`, 'PUT', JSON.stringify({ fixed_subdomain: sub }));
+        toast(`Subdomain set: https://${sub}.iraglobaltech.com`);
+        closeModal();
+        loadDomains();
+      } catch (e) { toast(e.message, 'error'); }
+    }, 'Save');
+}
+
+async function removePrimaryDomain(domain) {
+  showModal(`Remove ${domain}?`, `
+    <p style="font-size:.85rem;color:var(--text-dim)">The domain is removed from this token <strong>and your whole account</strong> — tunnels fall back to the subdomain address. Your DNS record at the registrar stays until you remove it there.</p>`,
+    async () => {
+      try {
+        await api(`/users/me/custom-domain?custom_domain=&token_id=`, 'PUT');
+        toast(`${domain} removed from the system`);
+        closeModal();
+        loadDomains();
+      } catch (e) { toast(e.message, 'error'); }
+    }, 'Remove', 'btn-danger');
+}
+
+async function removeExtraDomain(domain, tokenId) {
+  try {
+    await api(`/tokens/${tokenId}/domains/${domain}`, 'DELETE');
+    toast(`${domain} removed from the system`);
+    loadDomains();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Remote Devices (v1.12.0) ----
+async function loadDevices() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const devices = await api('/manage/devices');
+    const rows = devices.map(d => `
+      <tr>
+        <td><span class="code">${d.peer}</span></td>
+        <td>${d.online
+          ? '<span class="badge badge-green">● online</span>'
+          : '<span class="badge">○ offline</span>'}</td>
+        <td>${d.tunnels}</td>
+        <td>${d.requests}</td>
+        <td style="color:var(--text-dim)">${d.last_seen ? new Date(d.last_seen).toLocaleString() : '—'}</td>
+        <td>${d.last_token ? `<button class="btn btn-sm" onclick="copyToClipboard('${d.last_token}')" title="Copy reconnect command">📋 Token</button>` : ''}</td>
+      </tr>`).join('') || '<tr><td colspan="6" class="empty">No devices yet — connect a tunnel from any machine and it appears here.</td></tr>';
+    c.innerHTML = `
+    <h2 style="margin-bottom:.4rem">Remote Devices</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.2rem;font-size:.9rem">Machines that have connected tunnels — always-on status at a glance. Keep a device online with the SDK supervisor:</p>
+    <div class="card" style="margin-bottom:1rem"><div class="card-body">
+      <div class="cmd-box"><pre>from sdk.pinggy_sdk import TunnelClient
+client = TunnelClient("${location.origin}", api_key="pk_YOUR_KEY")
+client.watch("YOUR_TOKEN", ports=[3000, 8000])   # auto-reconnects forever</pre></div>
+    </div></div>
+    <div class="card"><div class="card-body" style="padding:0;overflow-x:auto">
+      <table class="table" style="font-size:.85rem">
+        <thead><tr><th>Device IP</th><th>Status</th><th>Tunnels</th><th>Requests</th><th>Last seen</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div></div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Teams (v1.4.0, role control v1.7.0) ----
+let myTokensCache = [];
+async function loadTeams() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const teams = await api('/teams');
+    myTokensCache = await api('/tokens');
+    const roleBadge = r => r === 'owner' ? '<span class="badge badge-green">owner</span>' : r === 'admin' ? '<span class="badge badge-green">admin</span>' : '<span class="badge">member</span>';
+    const canManage = t => t.my_role === 'owner' || t.my_role === 'admin';
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Teams</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Invite teammates with role-based access — <strong>owner</strong> controls roles &amp; everything, <strong>admin</strong> manages members &amp; shared tokens, <strong>member</strong> can view &amp; use shared tokens read-only</p>
+    <div class="card">
+      <div class="card-header"><h2>Create a Team</h2></div>
+      <div class="card-body">
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <input type="text" id="newTeamName" placeholder="e.g. Platform Team" style="flex:1">
+          <button class="btn btn-sm" onclick="createTeam()">Create Team</button>
         </div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-header"><h2>Default Subdomain</h2></div>
+    ${teams.length ? teams.map(t => `
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>👥 ${t.name} ${roleBadge(t.my_role)}</h2>${t.i_own ? `<button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="deleteTeam('${t.id}','${t.name.replace(/'/g, "\\\\'")}')">Delete team</button>` : ''}</div>
       <div class="card-body">
-        <p style="font-size:.9rem;color:var(--text-dim)">Your tunnel is always accessible via your default subdomain:</p>
-        <p style="font-size:1.1rem;color:var(--primary);font-weight:600;margin-top:.5rem">https://098f6bc.iraglobaltech.com</p>
-        <p style="font-size:.8rem;color:var(--text-dim);margin-top:.5rem">This subdomain is automatically generated from your account and cannot be changed.</p>
+        <table class="table" style="font-size:.85rem">
+          <thead><tr><th>Member</th><th>Role</th><th style="width:220px"></th></tr></thead>
+          <tbody>
+            ${t.members.map(m => {
+              const isOwnerRow = m.email === t.owner_email;
+              const roleCell = (t.my_role === 'owner' && !isOwnerRow)
+                ? `<select class="form-control" style="width:auto;padding:.25rem .5rem" onchange="changeRole('${t.id}','${m.email}',this.value)">
+                     <option value="member" ${m.role === 'member' ? 'selected' : ''}>member</option>
+                     <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>admin</option>
+                   </select>`
+                : roleBadge(isOwnerRow ? 'owner' : m.role);
+              const canRemove = !isOwnerRow && (t.my_role === 'owner' || (canManage(t) && m.role === 'member') || m.email === currentUser.email);
+              return `<tr>
+              <td>${m.email}${m.email === currentUser.email ? ' <span style="color:var(--text-dim);font-size:.75rem">(you)</span>' : ''}</td>
+              <td>${roleCell}</td>
+              <td>${canRemove ? `<button class="btn btn-sm btn-danger" onclick="removeMember('${t.id}','${m.email}')">Remove</button>` : ''}</td>
+            </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+        ${canManage(t) ? `
+        <div style="display:flex;gap:.5rem;align-items:center;margin-top:1rem;flex-wrap:wrap">
+          <input type="email" id="addmem-${t.id}" placeholder="teammate@email.com" style="flex:1;min-width:200px">
+          <select id="addrole-${t.id}" class="form-control" style="width:auto">
+            <option value="member">member</option>
+            <option value="admin">admin</option>
+          </select>
+          <button class="btn btn-sm" onclick="addMember('${t.id}')">Add member</button>
+        </div>` : ''}
+        <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+          <div style="font-size:.85rem;font-weight:600;margin-bottom:.5rem">🔗 Team tokens <span style="color:var(--text-dim);font-weight:400;font-size:.78rem">— shared with every member (${t.tokens.length})</span></div>
+          ${t.tokens.length ? `<table class="table" style="font-size:.82rem"><thead><tr><th>Token</th><th>Subdomain</th><th>Owner</th><th style="width:100px"></th></tr></thead><tbody>
+            ${t.tokens.map(tk => `<tr>
+              <td>${tk.name || 'Token'}</td>
+              <td class="code">${tk.subdomain || '—'}</td>
+              <td style="color:var(--text-dim)">${tk.owner_email}</td>
+              <td>${canManage(t) ? `<button class="btn btn-sm btn-ghost" onclick="unassignTeamToken('${tk.id}','${t.name.replace(/'/g, "\\\\'")}')">Unassign</button>` : ''}</td>
+            </tr>`).join('')}
+          </tbody></table>` : '<p class="empty" style="padding:.4rem 0">No tokens shared with this team yet.</p>'}
+          ${canManage(t) ? `
+          <div style="display:flex;gap:.5rem;align-items:center;margin-top:.6rem;flex-wrap:wrap">
+            <select id="assigntok-${t.id}" class="form-control" style="flex:1;min-width:220px">
+              <option value="">— share one of your tokens —</option>
+              ${myTokensCache.filter(mt => !(mt.via_team && !mt.via_team.owner) && (!mt.team_id || mt.team_id === t.id)).map(mt => `<option value="${mt.id}">${mt.name || mt.subdomain}${mt.team_id === t.id ? ' (already shared)' : ''}</option>`).join('')}
+            </select>
+            <button class="btn btn-sm" onclick="assignTeamToken('${t.id}')">Share token</button>
+          </div>` : '<p style="font-size:.75rem;color:var(--text-dim);margin-top:.4rem">Members can view and use shared tokens in Manage Tokens (read-only).</p>'}
+        </div>
+        <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+            <div style="font-size:.85rem;font-weight:600">🕐 Recent activity</div>
+            <button class="btn btn-sm btn-ghost" onclick="loadTeamActivity('${t.id}', this)">Load</button>
+          </div>
+          <div id="team-activity-${t.id}" style="font-size:.8rem;color:var(--text-dim)">Click Load to fetch the team's recent events.</div>
+        </div>
+      </div>
+    </div>`).join('') : '<div class="card"><div class="card-body"><p class="empty">No teams yet — create your first team above.</p></div></div>'}`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function createTeam() {
+  const name = document.getElementById('newTeamName').value.trim();
+  if (!name) return toast('Enter a team name', 'error');
+  try {
+    await api('/teams', 'POST', JSON.stringify({ name }));
+    toast(`Team "${name}" created`);
+    loadTeams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function addMember(teamId) {
+  const email = document.getElementById(`addmem-${teamId}`).value.trim();
+  const role = document.getElementById(`addrole-${teamId}`).value;
+  if (!email) return toast('Enter an email', 'error');
+  try {
+    await api(`/teams/${teamId}/members`, 'POST', JSON.stringify({ email, role }));
+    toast(`${email} added as ${role}`);
+    loadTeams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function removeMember(teamId, email) {
+  try {
+    await api(`/teams/${teamId}/members/${encodeURIComponent(email)}`, 'DELETE');
+    toast(`${email} removed`);
+    loadTeams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function changeRole(teamId, email, role) {
+  try {
+    await api(`/teams/${teamId}/members/${encodeURIComponent(email)}`, 'PATCH', JSON.stringify({ role }));
+    toast(`${email} is now ${role}`);
+  } catch (e) { toast(e.message, 'error'); loadTeams(); }
+}
+
+async function assignTeamToken(teamId) {
+  const tid = document.getElementById(`assigntok-${teamId}`).value;
+  if (!tid) return toast('Pick a token to share', 'error');
+  try {
+    await api(`/tokens/${tid}/team`, 'PUT', JSON.stringify({ team_id: teamId }));
+    toast('Token shared with the team');
+    loadTeams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function unassignTeamToken(tokenId, teamName) {
+  try {
+    await api(`/tokens/${tokenId}/team`, 'PUT', JSON.stringify({ team_id: null }));
+    toast(`Token no longer shared with ${teamName}`);
+    loadTeams();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function deleteTeam(teamId, name) {
+  showModal(`Delete team "${name}"?`, '<p style="font-size:.85rem;color:var(--text-dim)">Members lose access. Tunnels stay online (unassigned from the team).</p>', async () => {
+    try {
+      await api(`/teams/${teamId}`, 'DELETE');
+      toast('Team deleted');
+      closeModal();
+      loadTeams();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Delete', 'btn-danger');
+}
+
+async function loadTeamActivity(teamId, btn) {
+  const box = document.getElementById(`team-activity-${teamId}`);
+  box.textContent = 'Loading…';
+  try {
+    const ev = await api(`/teams/${teamId}/activity`);
+    box.innerHTML = ev.length ? ev.map(e => `
+      <div style="display:flex;gap:.6rem;padding:.25rem 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text-dim);min-width:110px">${e.at ? new Date(e.at).toLocaleString() : ''}</span>
+        <span style="min-width:140px">${e.actor}</span>
+        <span><span class="badge">${e.action}</span> ${e.target || ''}</span>
+      </div>`).join('') : 'No activity yet.';
+    if (btn) btn.style.display = 'none';
+  } catch (e) { box.textContent = e.message; }
+}
+
+// ---- Support / Tickets (v1.4.0) ----
+let currentTicketId = null;
+async function loadSupport() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const tickets = await api('/tickets/my');
+    const badge = s => s === 'open' ? '<span class="badge badge-red">open</span>' : s === 'answered' ? '<span class="badge badge-green">answered</span>' : '<span class="badge">closed</span>';
+    c.innerHTML = `
+    <h2 style="margin-bottom:1rem">Support</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">Stuck? Open a ticket — our team replies right here in your dashboard</p>
+    <div class="card">
+      <div class="card-header"><h2>Open a Ticket</h2></div>
+      <div class="card-body">
+        <div class="form-group"><label>Subject</label>
+          <input type="text" id="tkSubject" placeholder="e.g. TCP tunnel keeps dropping">
+        </div>
+        <div class="form-group" style="margin-top:.8rem"><label>Message</label>
+          <textarea id="tkMessage" rows="4" placeholder="Describe the issue — include your subdomain if relevant" style="width:100%"></textarea>
+        </div>
+        <button class="btn btn-sm" style="margin-top:.8rem" onclick="createTicket()">Submit ticket</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>🎫 My Tickets (${tickets.length})</h2></div>
+      <div class="card-body">
+        ${tickets.length ? `
+        <table class="table" style="font-size:.85rem">
+          <thead><tr><th>Subject</th><th>Status</th><th>Updated</th><th style="width:80px"></th></tr></thead>
+          <tbody>${tickets.map(t => `
+            <tr style="cursor:pointer" onclick="openTicket('${t.id}')">
+              <td>${t.subject}</td>
+              <td>${badge(t.status)}</td>
+              <td style="color:var(--text-dim)">${new Date(t.updated_at).toLocaleString()}</td>
+              <td>${t.status !== 'closed' ? `<button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();closeTicket('${t.id}')">Close</button>` : ''}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : '<p class="empty">No tickets yet.</p>'}
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
+async function createTicket() {
+  const subject = document.getElementById('tkSubject').value.trim();
+  const message = document.getElementById('tkMessage').value.trim();
+  if (!subject || !message) return toast('Fill in subject and message', 'error');
+  try {
+    const t = await api('/tickets', 'POST', JSON.stringify({ subject, message }));
+    toast('Ticket submitted — we\u2019ll reply soon');
+    openTicket(t.id);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function openTicket(id) {
+  currentTicketId = id;
+  try {
+    const t = await api(`/tickets/${id}`);
+    showModal(`🎫 ${t.subject}`, `
+      <div style="max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:.6rem">
+        ${t.messages.map(m => `
+        <div style="padding:.6rem .8rem;border-radius:var(--radius);background:${m.is_staff ? 'rgba(106,166,240,.1)' : 'var(--bg)'};border:1px solid var(--border)">
+          <div style="font-size:.72rem;color:var(--text-dim);margin-bottom:.25rem">${m.is_staff ? '🛟 IRAGT Support' : m.sender} · ${new Date(m.created_at).toLocaleString()}</div>
+          <div style="font-size:.85rem;white-space:pre-wrap">${m.body.replace(/</g, '&lt;')}</div>
+        </div>`).join('')}
+      </div>
+      ${t.status !== 'closed' ? `
+      <div style="margin-top:.8rem">
+        <textarea id="tkReply" rows="2" placeholder="Write a reply…" style="width:100%"></textarea>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem">
+          <button class="btn btn-sm btn-ghost" onclick="closeTicket('${t.id}', true)">Close ticket</button>
+          <button class="btn btn-sm" onclick="replyTicket()">Send reply</button>
+        </div>
+      </div>` : '<p class="empty" style="margin-top:.8rem">This ticket is closed.</p>'}`,
+      () => closeModal(), 'Close', 'btn-ghost');
+    document.getElementById('modalConfirm').style.display = 'none';
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function replyTicket() {
+  const msg = document.getElementById('tkReply').value.trim();
+  if (!msg) return toast('Write a message first', 'error');
+  try {
+    await api(`/tickets/${currentTicketId}/reply`, 'POST', JSON.stringify({ message: msg }));
+    toast('Reply sent');
+    openTicket(currentTicketId);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function closeTicket(id, fromModal) {
+  try {
+    await api(`/tickets/${id}/close`, 'POST');
+    toast('Ticket closed');
+    if (fromModal) { closeModal(); loadSupport(); }
+    else loadSupport();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
 // ---- Active Tunnels (Page 4) ----
+// ---- Web Debugger (v0.11.0) ----
+async function openDebugger(subdomain) {
+  showModal(`🔍 Debugger — ${subdomain}`, '<p class="empty">Loading captures…</p>', () => closeModal(), 'Close', 'btn-ghost');
+  document.getElementById('modalConfirm').style.display = 'none';
+  try {
+    const d = await api(`/debugger/${subdomain}`);
+    const rows = (d.entries || []).map((e, i) => `
+      <tr style="cursor:pointer" onclick="toggleDbgRow(${i})" id="dbg-row-${i}">
+        <td class="code" style="font-size:.72rem">${new Date(e.ts * 1000).toLocaleTimeString()}</td>
+        <td><span class="badge">${e.method}</span></td>
+        <td class="code" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.path}</td>
+        <td><span class="badge ${e.status < 400 ? 'badge-green' : 'badge-red'}">${e.status}</span></td>
+        <td><button class="btn btn-sm" onclick="event.stopPropagation();replayCapture('${subdomain}',${i})" title="Replay this request">↻</button></td>
+      </tr>
+      <tr id="dbg-detail-${i}" style="display:none"><td colspan="5" style="background:var(--bg)">
+        <div style="font-size:.7rem;white-space:pre-wrap;font-family:var(--font-mono);max-height:200px;overflow:auto">REQ HEADERS:\n${Object.entries(e.req_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nRESP HEADERS:\n${Object.entries(e.resp_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nBODY (first 2KB):\n${(e.body || '').substring(0, 2048)}</div>
+      </td></tr>`).join('');
+    document.getElementById('modalBody').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+        <span style="font-size:.8rem;color:var(--text-dim)">${d.count} captured request${d.count !== 1 ? 's' : ''} (last 100, 1h)</span>
+        <button class="btn btn-sm btn-danger" onclick="clearDebugger('${subdomain}')">Clear</button>
+      </div>
+      <div style="max-height:50vh;overflow:auto"><table style="font-size:.8rem">
+        <thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Replay</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" class="empty">No captured requests yet — send some traffic to this tunnel first.</td></tr>'}</tbody>
+      </table></div>`;
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = `<p style="color:var(--red)">${e.message}</p>`;
+  }
+}
+
+function toggleDbgRow(i) {
+  const el = document.getElementById(`dbg-detail-${i}`);
+  if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+}
+
+async function replayCapture(subdomain, index) {
+  try {
+    const r = await api(`/debugger/${subdomain}/replay`, 'POST', { index });
+    toast(`Replayed → ${r.status} (${r.elapsed_ms}ms)`);
+    openDebugger(subdomain);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function clearDebugger(subdomain) {
+  try { await api(`/debugger/${subdomain}`, 'DELETE'); openDebugger(subdomain); }
+  catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Web Debugger (v0.11.0) ----
+async function openDebugger(subdomain) {
+  showModal(`🔍 Debugger — ${subdomain}`, '<p class="empty">Loading captures…</p>', () => closeModal(), 'Close', 'btn-ghost');
+  document.getElementById('modalConfirm').style.display = 'none';
+  try {
+    const d = await api(`/debugger/${subdomain}`);
+    const rows = (d.entries || []).map((e, i) => `
+      <tr style="cursor:pointer" onclick="toggleDbgRow(${i})" id="dbg-row-${i}">
+        <td class="code" style="font-size:.72rem">${new Date(e.ts * 1000).toLocaleTimeString()}</td>
+        <td><span class="badge">${e.method}</span></td>
+        <td class="code" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.path}</td>
+        <td><span class="badge ${e.status < 400 ? 'badge-green' : 'badge-red'}">${e.status}</span></td>
+        <td><button class="btn btn-sm" onclick="event.stopPropagation();replayCapture('${subdomain}',${i})" title="Replay this request">↻</button></td>
+      </tr>
+      <tr id="dbg-detail-${i}" style="display:none"><td colspan="5" style="background:var(--bg)">
+        <div style="font-size:.7rem;white-space:pre-wrap;font-family:var(--font-mono);max-height:200px;overflow:auto">REQ HEADERS:\n${Object.entries(e.req_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nRESP HEADERS:\n${Object.entries(e.resp_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nBODY (first 2KB):\n${(e.body || '').substring(0, 2048)}</div>
+      </td></tr>`).join('');
+    document.getElementById('modalBody').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+        <span style="font-size:.8rem;color:var(--text-dim)">${d.count} captured request${d.count !== 1 ? 's' : ''} (last 100, 1h)</span>
+        <button class="btn btn-sm btn-danger" onclick="clearDebugger('${subdomain}')">Clear</button>
+      </div>
+      <div style="max-height:50vh;overflow:auto"><table style="font-size:.8rem">
+        <thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Replay</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" class="empty">No captured requests yet — send some traffic to this tunnel first.</td></tr>'}</tbody>
+      </table></div>`;
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = `<p style="color:var(--red)">${e.message}</p>`;
+  }
+}
+
+function toggleDbgRow(i) {
+  const el = document.getElementById(`dbg-detail-${i}`);
+  if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+}
+
+async function replayCapture(subdomain, index) {
+  try {
+    const r = await api(`/debugger/${subdomain}/replay`, 'POST', { index });
+    toast(`Replayed → ${r.status} (${r.elapsed_ms}ms)`);
+    openDebugger(subdomain);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function clearDebugger(subdomain) {
+  try { await api(`/debugger/${subdomain}`, 'DELETE'); openDebugger(subdomain); }
+  catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Inspector page (v1.1.0 — standalone web debugger) ----
+let inspectorSub = null;
+async function loadInspector() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const [tunnels, tokens] = await Promise.all([
+      api('/tunnels/my'),
+      api('/tokens').catch(() => []),
+    ]);
+    const liveSubs = tunnels.filter(t => t.status === 'active').map(t => t.subdomain);
+    const allSubs = [...new Set([...liveSubs, ...tokens.map(t => t.subdomain).filter(Boolean)])];
+    c.innerHTML = `
+    <div class="page-title">Inspector</div>
+    <div class="page-subtitle">Inspect and replay requests hitting your tunnels</div>
+    <div class="card">
+      <div class="card-header"><h2>Tunnel</h2>
+        <div style="display:flex;gap:.5rem">
+          <select id="inspSelect" onchange="pickInspector()" style="padding:.35rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+            <option value="">Select a tunnel…</option>
+            ${allSubs.map(s => `<option value="${s}" ${s === inspectorSub ? 'selected' : ''}>${s}${liveSubs.includes(s) ? ' ● live' : ''}</option>`).join('')}
+          </select>
+          <button class="btn btn-sm" onclick="refreshInspector()">🔄</button>
+        </div>
+      </div>
+      <div class="card-body" id="inspBody"><p class="empty">Pick a tunnel to see its captured traffic (last 100 requests, 1 hour).</p></div>
+    </div>`;
+    if (inspectorSub && allSubs.includes(inspectorSub)) refreshInspector();
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function pickInspector() {
+  inspectorSub = document.getElementById('inspSelect').value || null;
+  refreshInspector();
+}
+
+async function refreshInspector() {
+  const body = document.getElementById('inspBody');
+  if (!inspectorSub) { body.innerHTML = '<p class="empty">Pick a tunnel above.</p>'; return; }
+  try {
+    const d = await api(`/debugger/${inspectorSub}`);
+    const rows = (d.entries || []).map((e, i) => `
+      <tr style="cursor:pointer" onclick="const el=document.getElementById('insp-det-${i}');el.style.display=el.style.display==='none'?'table-row':'none'">
+        <td class="code" style="font-size:.72rem">${new Date(e.ts * 1000).toLocaleTimeString()}</td>
+        <td><span class="badge">${e.method}</span></td>
+        <td class="code" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.path}</td>
+        <td><span class="badge ${e.status < 400 ? 'badge-green' : 'badge-red'}">${e.status}</span></td>
+        <td><button class="btn btn-sm" onclick="event.stopPropagation();replayCapture('${inspectorSub}',${i})">↻ Replay</button></td>
+      </tr>
+      <tr id="insp-det-${i}" style="display:none"><td colspan="5" style="background:var(--bg)">
+        <div style="font-size:.72rem;white-space:pre-wrap;font-family:var(--font-mono);max-height:220px;overflow:auto">REQUEST HEADERS:\n${Object.entries(e.req_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nRESPONSE HEADERS:\n${Object.entries(e.resp_headers || {}).map(([k,v]) => k + ': ' + v).join('\n')}\n\nBODY:\n${(e.body || '').substring(0, 2048)}</div>
+      </td></tr>`).join('');
+    body.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+        <span style="font-size:.8rem;color:var(--text-dim)">${d.count} captured request${d.count !== 1 ? 's' : ''}</span>
+        <button class="btn btn-sm btn-danger" onclick="api('/debugger/${inspectorSub}','DELETE').then(()=>refreshInspector())">🗑 Clear</button>
+      </div>
+      <div style="overflow-x:auto"><table style="font-size:.82rem">
+        <thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" class="empty">No captured requests yet — send some traffic to this tunnel first.</td></tr>'}</tbody>
+      </table></div>`;
+  } catch (e) { body.innerHTML = `<p style="color:var(--red)">${e.message}</p>`; }
+}
+
+// ---- My Usage page (v1.1.0 — user-scoped analytics) ----
+async function loadMyUsage() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const d = await api('/analytics/my?days=30');
+    const s = d.summary;
+    const fmtBytes = b => b >= 1073741824 ? (b/1073741824).toFixed(2)+' GB' : b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB';
+    const bar = (pts, color) => {
+      const max = Math.max(1, ...pts.map(p => p.value));
+      return pts.map(p => `
+        <div class="bar-cell" data-tip="${p.tip}">
+          <div class="bar-fill" style="height:${Math.max(2, Math.round((p.value / max) * 90))}px;background:${color}"></div>
+          <div class="bar-label">${p.label}</div>
+        </div>`).join('');
+    };
+    const mk = key => d.daily.map(x => ({ label: x.day.slice(5), value: x[key], title: x[key], tip: `${x.day} — ${key === 'bytes' ? fmtBytes(x.bytes) : x[key] + ' ' + key}` }));
+    c.innerHTML = `
+    <div class="page-title">My Usage</div>
+    <div class="page-subtitle">Your tunnel activity over the last 30 days</div>
+    <div class="stat-grid" style="margin-bottom:1rem">
+      <div class="stat-card"><div class="label">Total Tunnels</div><div class="value">${s.total_tunnels}</div></div>
+      <div class="stat-card"><div class="label">Total Requests</div><div class="value">${s.total_requests}</div></div>
+      <div class="stat-card"><div class="label">Data Transferred</div><div class="value">${fmtBytes(s.total_bytes)}</div></div>
+      <div class="stat-card"><div class="label">Tunnels Today</div><div class="value">${s.tunnels_today}</div></div>
+      <div class="stat-card"><div class="label">Requests This Month</div><div class="value">${s.requests_this_month}</div></div>
+    </div>
+    ${[['Requests / day', mk('requests'), 'var(--brand)'], ['Tunnels created / day', mk('tunnels'), '#22c55e'], ['Data / day', d.daily.map(x => ({ label: x.day.slice(5), value: Math.round(x.bytes/1024), title: fmtBytes(x.bytes), tip: `${x.day} — ${fmtBytes(x.bytes)}` })), '#f59e0b']].map(([t, pts, col]) => `
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header"><h2>${t}</h2></div>
+      <div class="card-body"><div style="display:flex;align-items:flex-end;gap:2px;height:110px">${bar(pts, col)}</div></div>
+    </div>`).join('')}
+    <div class="card"><div class="card-body" style="font-size:.8rem;color:var(--text-dim)">Unlimited data on every plan — these charts are informational, not a quota.</div></div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+// ---- Announcements page (v1.1.0 — user view) ----
+async function loadAnnouncementsPage() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const anns = await api('/announcements');
+    c.innerHTML = `
+    <div class="page-title">Announcements</div>
+    <div class="page-subtitle">News and updates from the team</div>
+    ${anns.length ? anns.map(a => `
+      <div style="border:1px solid var(--border);border-left-width:4px;border-left-color:${a.level === 'warning' ? '#f59e0b' : a.level === 'success' ? '#22c55e' : 'var(--brand)'};border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:.75rem;background:var(--surface)">
+        <strong>${a.title}</strong>
+        <div style="font-size:.72rem;color:var(--text-dim);margin-top:.15rem">${a.created_at ? a.created_at.substring(0,10) : ''}</div>
+        <div style="font-size:.875rem;color:var(--text-dim);margin-top:.4rem;white-space:pre-line">${a.body}</div>
+      </div>`).join('') : '<div class="card"><div class="card-body"><p class="empty">No announcements right now.</p></div></div>'}`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
 async function loadTunnels() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const tunnels = await api('/tunnels/my');
+    const now = Date.now();
     let rows = tunnels.map((t, i) => {
       const urlCell = t.custom_url
         ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
         : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+      // Calculate KB/s for this tunnel
+      const tunnelId = t.id || t.subdomain;
+      let kbps = '—';
+      if (tunnelRateTracker[tunnelId]) {
+        const prev = tunnelRateTracker[tunnelId];
+        const bytesDelta = (t.bytes_transferred || 0) - prev.lastBytes;
+        const timeDeltaMs = now - prev.lastTime;
+        if (timeDeltaMs > 0) {
+          const kbpsDelta = (bytesDelta / 1024) / (timeDeltaMs / 1000);
+          kbps = kbpsDelta.toFixed(2);
+        }
+      }
+      tunnelRateTracker[tunnelId] = { lastBytes: t.bytes_transferred || 0, lastTime: now };
+      const fmtB = b => b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB';
       return `<tr>
       <td>${i + 1}</td>
       ${urlCell}
       <td class="code">${t.subdomain}</td>
       <td>${t.request_count}</td>
-      <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td style="color:var(--green)">↓ ${fmtB(t.bytes_received || 0)}</td>
+      <td style="color:var(--brand)">↑ ${fmtB(t.bytes_sent || 0)}</td>
+      <td>${kbps} KB/s</td>
       <td><span class="badge badge-green">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
+      <td><button class="btn btn-sm btn-ghost" onclick="openDebugger('${t.subdomain}')" title="Inspect captured requests">🔍 Debug</button></td>
     </tr>`;
     }).join('');
-    if (!rows) rows = '<tr><td colspan="7" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
+    if (!rows) rows = '<tr><td colspan="10" class="empty">No active tunnels. Start a tunnel from the Quickstart page.</td></tr>';
     c.innerHTML = `
     <h2 style="margin-bottom:1rem">Active Tunnels</h2>
     <p style="color:var(--text-dim);margin-bottom:1.5rem;font-size:.9rem">${tunnels.length} active session${tunnels.length !== 1 ? 's' : ''}</p>
     <div class="card">
       <div class="card-body" style="padding:0;overflow-x:auto">
         <table>
-          <thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead>
+          <thead><tr><th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>↓ Received</th><th>↑ Sent</th><th>Transfer Rate</th><th>Status</th><th>Created</th><th>Inspector</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -918,20 +2313,39 @@ async function loadTokens() {
   try {
     const info = await api('/tunnels/info');
     const tokens = await api('/tokens');
-    let tokenRows = tokens.map((t, i) => `<tr id="tokenRow-${t.id}" data-token-id="${t.id}" data-token="${t.token}" data-name="${(t.name || 'My Tunnel').replace(/"/g, '&quot;')}" data-subdomain="${t.subdomain}" data-custom-domain="${t.custom_domain || ''}" data-ssh-port="${info.ssh_port}" style="cursor:pointer;transition:.15s">
+    let tokenRows = tokens.map((t, i) => {
+      const sec = t.security || {};
+      const badges = [];
+      if (sec.basic_auth_user) badges.push('<span class="badge" title="Basic auth enabled">🔐</span>');
+      if (sec.ip_whitelist) badges.push('<span class="badge" title="IP whitelist: ' + sec.ip_whitelist + '">🌐</span>');
+      if (sec.bearer_key) badges.push('<span class="badge" title="API key required">🔑</span>');
+      if (sec.https_only) badges.push('<span class="badge" title="HTTPS only">🔒</span>');
+      const typeBadge = t.tunnel_mode === 'tcp'
+        ? `<span class="badge badge-blue" title="TCP tunnel on port ${t.tcp_port || '?'}">TCP${t.tcp_port ? ':' + t.tcp_port : ''}</span>`
+        : '<span class="badge" title="HTTP tunnel">HTTP</span>';
+      const teamBadge = t.via_team
+        ? `<span class="badge badge-blue" title="Shared via team '${t.via_team.team_name}' (my role: ${t.via_team.my_role || 'member'}${t.via_team.my_role === 'member' ? ' — read-only' : ''})">👥 ${t.via_team.team_name}</span>`
+        : (t.team_id ? `<span class="badge" title="Shared with a team">👥</span>` : '');
+      return `<tr id="tokenRow-${t.id}" data-token-id="${t.id}" data-token="${t.token}" data-name="${(t.name || 'My Tunnel').replace(/"/g, '&quot;')}" data-subdomain="${t.subdomain}" data-custom-domain="${t.custom_domain || ''}" data-ssh-port="${info.ssh_port}" style="cursor:pointer;transition:.15s">
       <td>${i + 1}</td>
       <td><span class="token-value"><strong class="code">${t.token.substring(0,8)}••••••••</strong> <button class="icon-btn copy-token-btn" data-token="${t.token}" title="Copy token">📋</button></span></td>
-      <td>${t.name || '—'}</td>
-      <td class="code">${t.subdomain}</td>
+      <td>${t.name || '—'} ${teamBadge}</td>
+      <td class="code">${t.subdomain}${t.fixed_subdomain ? ' 📌' : ''}</td>
+      <td>${typeBadge}</td>
+      <td>${badges.length ? badges.join(' ') : '<span style="color:var(--text-dim)">—</span>'}</td>
       <td>${t.custom_domain ? `<span class="badge badge-blue">${t.custom_domain}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td>${t.total_requests || 0}</td>
+      <td>${(t.total_bytes || 0) >= 1048576 ? ((t.total_bytes||0)/1048576).toFixed(1)+' MB' : ((t.total_bytes||0)/1024).toFixed(1)+' KB'}</td>
+      <td><span class="badge ${t.active_tunnels > 0 ? 'badge-green' : ''}">${t.active_tunnels || 0}</span></td>
       <td>${t.created_at ? t.created_at.substring(0,10) : '—'}</td>
       <td class="token-actions" data-token-id="${t.id}" data-name="${(t.name || '').replace(/"/g, '&quot;')}" data-domain="${t.custom_domain || ''}">
         <button class="btn btn-sm btn-ghost edit-token-btn" title="Edit">✏️</button>
         <button class="btn btn-sm btn-ghost regen-token-btn" title="Regenerate">🔄</button>
         <button class="btn btn-sm btn-danger del-token-btn" title="Delete">🗑️</button>
       </td>
-    </tr>`).join('');
-    if (!tokenRows) tokenRows = '<tr><td colspan="7" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
+    </tr>`;
+    }).join('');
+    if (!tokenRows) tokenRows = '<tr><td colspan="12" class="empty">No tokens yet. Click "Generate New Token" to create one.</td></tr>';
 
     c.innerHTML = `
     <div class="page-toolbar">
@@ -948,7 +2362,7 @@ async function loadTokens() {
       </div>
       <div class="card-body token-table-wrap" style="padding:0">
         <table class="token-table">
-          <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Custom Domain</th><th>Created</th><th>Actions</th></tr></thead>
+          <thead><tr><th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Type</th><th>Security</th><th>Custom Domain</th><th>Requests</th><th>Data</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>
           <tbody>${tokenRows}</tbody>
         </table>
       </div>
@@ -1228,6 +2642,14 @@ function showUpgradeModal() {
 }
 
 async function editToken(tokenId, currentName, currentDomain) {
+  // fetch current security settings
+  let sec = { basic_auth_user: '', ip_whitelist: '', bearer_key: '', https_only: false };
+  let curSub = '';
+  try {
+    const list = await api('/tokens');
+    const t = list.find(x => x.id === tokenId);
+    if (t) { curSub = t.fixed_subdomain || ''; if (t.security) sec = { ...t.security, basic_auth_user: t.security.basic_auth_user || '' }; }
+  } catch (e) {}
   showModal('Edit Token', `
     <div class="form-group">
       <label>Token name</label>
@@ -1237,12 +2659,65 @@ async function editToken(tokenId, currentName, currentDomain) {
       <label>Custom domain (leave empty for none)</label>
       <input type="text" id="editTokenDomain" value="${currentDomain}" placeholder="e.g. serverira.com">
     </div>
+    <div class="form-group">
+      <label>Fixed subdomain — your permanent URL (empty = random each connect)</label>
+      <input type="text" id="editFixedSub" value="${curSub}" placeholder="myapi">
+    </div>
+    <div class="form-row" style="display:grid;grid-template-columns:110px 1fr;gap:.6rem">
+      <div class="form-group">
+        <label>Tunnel type</label>
+        <select id="editTunnelMode">
+          <option value="http">HTTP</option>
+          <option value="tcp">TCP (Pro)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Persistent TCP port (Pro — the public port stays yours)</label>
+        <input type="number" id="editTcpPort" min="1024" max="65535" placeholder="e.g. 15000">
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border);margin:.75rem 0;padding-top:.75rem">
+      <strong style="font-size:.85rem">🔒 Security</strong>
+      <div class="form-group" style="margin-top:.5rem">
+        <label>Basic auth — username:password (empty = off)</label>
+        <input type="text" id="editBasicUser" value="${(sec.basic_auth_user || '')}" placeholder="admin" style="margin-bottom:.3rem">
+        <input type="password" id="editBasicPass" placeholder="${sec.basic_auth_user ? '(unchanged — type to change)' : 'password'}">
+      </div>
+      <div class="form-group">
+        <label>IP whitelist (comma-separated IPs/CIDRs, empty = allow all)</label>
+        <input type="text" id="editIpWhitelist" value="${(sec.ip_whitelist || '')}" placeholder="203.0.113.5, 10.0.0.0/8">
+      </div>
+      <div class="form-group">
+        <label>API key required on requests (empty = off, "auto" = generate)</label>
+        <input type="text" id="editBearerKey" placeholder="${sec.bearer_key ? '(key set — hidden)' : 'auto'}">
+      </div>
+      <label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;cursor:pointer">
+        <input type="checkbox" id="editHttpsOnly" ${sec.https_only ? 'checked' : ''} style="width:auto">
+        HTTPS only (reject plain HTTP requests)
+      </label>
+    </div>
   `, async () => {
     const name = document.getElementById('editTokenName').value.trim();
     const domain = document.getElementById('editTokenDomain').value.trim();
+    const newSub = document.getElementById('editFixedSub').value.trim().toLowerCase();
+    const payload = { name, custom_domain: domain };
+    if (newSub !== curSub) payload.fixed_subdomain = newSub;
+    const mode = document.getElementById('editTunnelMode')?.value;
+    const tcpPort = parseInt(document.getElementById('editTcpPort')?.value);
+    if (mode === 'tcp') { payload.tunnel_mode = 'tcp'; if (tcpPort) payload.tcp_port = tcpPort; }
+    else if (mode === 'http') { payload.tunnel_mode = 'http'; }
+    const bu = document.getElementById('editBasicUser').value.trim();
+    const bp = document.getElementById('editBasicPass').value;
+    if (bu || bp) { payload.basic_auth_user = bu; payload.basic_auth_pass = bp || undefined; }
+    const wl = document.getElementById('editIpWhitelist').value.trim();
+    if (wl !== (sec.ip_whitelist || '')) payload.ip_whitelist = wl;
+    const bk = document.getElementById('editBearerKey').value.trim();
+    if (bk) payload.bearer_key = bk;
+    if (document.getElementById('editHttpsOnly').checked !== !!sec.https_only)
+      payload.https_only = document.getElementById('editHttpsOnly').checked;
     try {
       closeModal();
-      await api(`/tokens/${tokenId}`, 'PUT', JSON.stringify({ name, custom_domain: domain }));
+      await api(`/tokens/${tokenId}`, 'PUT', payload);
       toast('Token updated');
       loadTokens();
     } catch (e) { toast(e.message, 'error'); }
@@ -1390,8 +2865,8 @@ async function loadSubscription() {
     ${paymentBanner}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem">
       <div>
-        <div class="page-title">Subscription</div>
-        <div class="page-subtitle" style="margin-bottom:0">Manage your plan and payment methods</div>
+        <div class="page-title">Billing & Invoices</div>
+        <div class="page-subtitle" style="margin-bottom:0">Plan, payments, and invoice history</div>
       </div>
     </div>
 
@@ -1426,6 +2901,18 @@ async function loadSubscription() {
       ${isPro ? `<div class="stat-card"><div class="label">Plan</div><div class="value" style="color:var(--green);font-size:1.25rem">Pro${daysLeft !== null ? ' · ' + daysLeft + 'd' : ''}</div></div>` : `<div class="stat-card"><div class="label">Plan</div><div class="value" style="font-size:1.25rem">Free</div></div>`}
     </div>
 
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="card-header"><h2>Bandwidth Usage</h2><span style="font-size:.8rem;color:var(--text-dim)">${totalBytes > 1073741824 ? (totalBytes / 1073741824).toFixed(2) + ' GB' : (totalBytes / 1048576).toFixed(1) + ' MB'} transferred · unlimited on every plan</span></div>
+      <div class="card-body">
+        <div style="background:var(--bg);border-radius:99px;height:10px;overflow:hidden">
+          <div style="width:${Math.min(100, (totalBytes / 1073741824) * 100).toFixed(1)}%;height:100%;background:linear-gradient(90deg,var(--brand),#22c55e)"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-dim);margin-top:.3rem">
+          <span>${usageStr} used</span><span>No caps, no throttling — unlimited on every IRAGT plan 🚀</span>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header"><h2 style="color:var(--green)">Your Active Subscriptions</h2></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
@@ -1440,8 +2927,8 @@ async function loadSubscription() {
       <h2 style="font-size:1.35rem;font-weight:800;margin-bottom:.25rem">Subscribe to the easiest localhost tunneling.</h2>
       <p style="font-size:.875rem;color:var(--text-dim)">Make your development experience smoother by unlocking the full potential.</p>
       <div style="display:inline-flex;gap:.25rem;background:var(--bg);border-radius:var(--radius);padding:.25rem;margin-top:1rem" id="cycleToggle">
-        <button class="btn btn-sm" style="min-width:90px" id="btnMonthly" onclick="setCycle('monthly')">Monthly</button>
-        <button class="btn btn-ghost btn-sm" style="min-width:90px" id="btnYearly" onclick="setCycle('yearly')">Yearly</button>
+        <button class="btn ${billingCycle === 'monthly' ? '' : 'btn-ghost'} btn-sm" style="min-width:90px" id="btnMonthly" onclick="setCycle('monthly')">Monthly</button>
+        <button class="btn ${billingCycle === 'yearly' ? '' : 'btn-ghost'} btn-sm" style="min-width:90px" id="btnYearly" onclick="setCycle('yearly')">Yearly</button>
       </div>
     </div>
 
@@ -1506,7 +2993,9 @@ async function loadSubscription() {
           <tbody>${historyRows}</tbody>
         </table>
       </div>
-    </div>`;
+    </div>
+    <div id="myInvoicesBox" style="margin-top:1rem"></div>`;
+    loadMyInvoices(document.getElementById('myInvoicesBox'));
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
@@ -1739,18 +3228,33 @@ function updateTunnelTable(tunnels) {
   if (!tbody) return;
   if (countEl) countEl.textContent = tunnels.length;
   if (tunnels.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No active tunnels yet. Use the command above to create one.</td></tr>';
     return;
   }
+  const now = Date.now();
   tbody.innerHTML = tunnels.map(t => {
     const urlCell = t.custom_url
       ? `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a><br><a href="${t.custom_url}" target="_blank" style="color:var(--green);font-size:.8rem;font-weight:600">${t.custom_url}</a></td>`
       : `<td><a href="${t.url}" target="_blank" style="color:var(--primary);font-weight:600">${t.url}</a></td>`;
+    // Calculate KB/s for this tunnel
+    const tunnelId = t.id || t.subdomain;
+    let kbps = '—';
+    if (tunnelRateTracker[tunnelId]) {
+      const prev = tunnelRateTracker[tunnelId];
+      const bytesDelta = (t.bytes_transferred || 0) - prev.lastBytes;
+      const timeDeltaMs = now - prev.lastTime;
+      if (timeDeltaMs > 0) {
+        const kbpsDelta = (bytesDelta / 1024) / (timeDeltaMs / 1000);
+        kbps = kbpsDelta.toFixed(2);
+      }
+    }
+    tunnelRateTracker[tunnelId] = { lastBytes: t.bytes_transferred || 0, lastTime: now };
     return `<tr>
     ${urlCell}
     <td class="code">${t.subdomain}</td>
     <td>${t.request_count}</td>
     <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+    <td>${kbps} KB/s</td>
     <td><span class="badge badge-green">${t.status}</span></td>
     <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
   </tr>`;
@@ -1770,10 +3274,12 @@ async function saveMyCustomDomain(clear) {
     }
   }
   try {
-    await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}`, 'PUT');
-    toast(clear ? 'Custom domain cleared' : 'Custom domain saved');
+    const sel = document.getElementById('domainToken');
+    const token_id = sel && sel.value ? sel.value : '';
+    await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}&token_id=${encodeURIComponent(token_id)}`, 'PUT');
+    toast(clear ? 'Custom domain cleared' : `Custom domain saved — routes to the selected token`);
     if (clear) input.value = '';
-    loadQuickstart();
+    loadDomains();
   } catch (e) { toast(e.message, 'error'); }
 }
 

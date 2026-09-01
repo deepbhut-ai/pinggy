@@ -1,0 +1,56 @@
+# v0.2.0 — Phase A: user management, account control, audit log, IP auto-block toggle — 2026-08-29
+
+Confirmed scope: Job 2 + Job 5 + approved suggestions (audit log, middleware swap).
+
+## Changes shipped
+1. **Job 2 — user management**: migration 0010 (`users.is_active` + `audit_logs` table);
+   `PUT /users/{id}` now accepts `is_active`; login + `get_current_user` + SSH token auth
+   all reject disabled accounts; admin UI: Edit modal (email/name/role/password-reset),
+   Disable/Enable buttons, Disabled status badge.
+2. **Job 5 — IP auto-block toggle**: runtime config in Redis (`ipmonitor:config` hash),
+   `GET/PUT /ip-monitor/config` (effective view + overrides), IP Monitor ⚙️ Config tab
+   with Auto-Block ON/OFF switch + threshold/window/duration inputs (no restart).
+3. **Suggestion: audit log**: `app/core/audit.py` (fire-and-forget writer) + `GET /audit`
+   + 📋 Audit Log admin page. Instrumented: user.update (field names only, password
+   masked), user.delete, user.register, ip.block/unblock, ip_monitor.config_update.
+4. **Suggestion: middleware swap**: main.py order now IPMonitor outermost → proxied
+   tunnel traffic IS IP-counted (verified: tunnel 2w8liwp attributed to 127.0.0.1).
+
+## Machine assertions (all PASS)
+  A1  POST /auth/register vtest                     -> 201
+  A3  PUT full_name                                 -> 200, persisted
+  A4  PUT password                                  -> 200
+  A5  login old password                            -> 401
+  A6  login new password                            -> 200
+  A7  PUT is_active=false                           -> 200
+  A8  disabled login                                -> 403 ("Account disabled...")
+  A9c pre-disable JWT after disable /auth/me        -> 403
+  A10 disabled user forward_remote_port             -> ChannelListenError (rejected);
+      server log: "SSH auth rejected: account disabled"
+  A11 PUT is_active=true                            -> 200
+  A12 re-enabled login                              -> 200
+  A13 GET /audit?limit=10                           -> 200, entries listed w/ masked password
+  A14 GET /ip-monitor/config                        -> 200 (source: env)
+  A15 PUT /ip-monitor/config {auto_block:false,threshold:777} -> 200 (source: redis)
+  E2E enabled user tunnel (subdomain 2w8liwp)       -> HTTP 200 via proxy
+  IP-monitor shows tunnel attributed to 127.0.0.1   -> tracked (middleware swap works)
+  migration 0010 applied on boot; downgrade path present in file (not executed —
+      destructive test on dev DB unnecessary; file reviewed)
+
+## Browser verification (VS Code integrated browser)
+  Users table: vtest row shows View/✏️ Edit/🚫 Disable/⭐ Pro; Disabled badge logic.
+  Edit modal: email/name/role select/new-password fields; rename persisted ("V Test
+  Renamed UI" row + toast "User updated").
+  Audit Log page: 8 entries incl. UI rename + config updates (JSON details).
+  IP Monitor ⚙️ Config: toggle switched OFF, Save → toast, reload shows OFF + source
+  "Runtime (Redis overrides)". Restored ON after test (redis HSET + GET verify).
+  Screenshots: screenshot-users.png, screenshot-audit.png, screenshot-ip-config.png.
+
+## Test artifacts kept
+  vtest@iraglobaltech.com user (pw NewPass@77, active) — kept as UI/audit demo data.
+
+## Gotchas logged
+  - zsh `UID` is read-only (math error) — never use UID as a shell var.
+  - asyncssh `begin_auth` returns False for BOTH accept+reject (rejection via flag in
+    session_requested) — bare connect() succeeds even for invalid tokens; test must
+    request forward_remote_port to see rejection.

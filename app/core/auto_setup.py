@@ -145,6 +145,17 @@ def _ensure_default_admin() -> None:
                     """,
                     ("admin", hashed, "Default Admin", "admin", tunnel_token),
                 )
+                # Also register the token in the multi-token table. Migration 0006's
+                # backfill runs BEFORE this seed (during _run_migrations), so it never
+                # sees the freshly seeded admin — insert here to keep both in sync.
+                cur.execute(
+                    """
+                    INSERT INTO tokens (user_email, token, name, custom_domain)
+                    VALUES (%s, %s, 'Default', NULL)
+                    ON CONFLICT (token) DO NOTHING
+                    """,
+                    ("admin", tunnel_token),
+                )
                 logger.info("Default admin user created (email='admin', password='admin').")
     except Exception as e:
         logger.error("Failed to create default admin: %s", e)
