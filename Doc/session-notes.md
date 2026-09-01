@@ -1,195 +1,23 @@
-# Session notes — IRAGT (pinggy)
+# Session Notes — Pinggy Dashboard
 
-## 2026-08-29 — local run in VS Code browser
-- **Done:** project runs locally at http://127.0.0.1:8020 (APP_PORT=8020 env override;
-  8000/8010/8030 occupied by other processes). Rebuilt `.venv` for macOS (shipped one was
-  Linux/ELF from prod server copy). Local Postgres `postgres:root` + Redis reused as-is;
-  auto-setup created DB `pinggy`, ran migrations 0001–0009, seeded admin/admin.
-  Verified in integrated browser: landing, /login, /admin dashboard (logged in as admin).
-  Evidence: `Doc/tests/v0.1.0/output.txt` + 2 screenshots. NO code changed.
-- **In progress / half-done:** server still running in background terminal
-  (id 6e5a010b-9854-4b48-a223-a0e32cded055, `APP_PORT=8020 .venv/bin/python run.py`).
-- **Next:** user decides — e.g. scaffold full Doc/ set + `git init` + baseline v0.1.0
-  commit (suggested, not done), or test tunnel flow locally.
-- **Watch out:** project has NO git repo (Doc/ has no history to recover — flagged to user);
-  `.env` is prod config; `GET /api/v1/users/me` doesn't exist (500s — use UUID);
-  port 8000 on this Mac is held by a node process.
+## 2026-09-01 — Admin Credentials Update & Project Documentation
 
-## 2026-08-29 — v0.1.0 (user approved all 3 suggestions)
-- **Done:** v0.1.0 committed + tagged — (1) git repo initialized (secrets ignored, Doc/ tracked);
-  (2) `.env` switched to LOCAL DEV config (port 8020, TUNNEL_DOMAIN=localhost:8020, payments off,
-  prod values verified-preserved in `.env.production`); (3) local-DB admin re-identified to
-  support@callingagents.in / Calling@2025_26 (FK-safe tx; old admin/admin → 401). Full Doc/
-  scaffold written (process-flow, database, functions, page-map, pages, impact-map, migrations,
-  guides/setup, CHANGELOG). Tunnel E2E PASSES locally (Doc/tests/v0.1.0/tunnel_e2e.py).
-- **In progress:** app running in terminal a27c0a0c-0fe2-4319-89f8-6134b6af708a (dev env, port 8020).
-- **Next:** nothing pending — await user's next task. Ideas parked as suggestions only:
-  backfill admin into tokens table; fix hardcoded iraglobaltech.com strings in admin.html.
-- **Watch out:** E2E fetch must use a worker thread (blocking urlopen deadlocks the SSH forward);
-  tokens table empty locally (backfill ran before admin seed); changing users.email requires
-  re-linking tokens rows (FK tokens.user_email → users.email).
+### Done
+- **v0.1.1**: Updated default admin credentials to `support@callingagents.in` / `Calling@2025_26`
+  - Modified `app/core/auto_setup.py` to create admin with new credentials on startup
+  - Created comprehensive Doc/ structure: CHANGELOG.md, process-flow.md, database.md, functions.md, page-map.md, pages.md
+  - Committed and tagged as v0.1.1
 
-## 2026-08-29 — v0.1.1 (approved: suggestion 1 only)
-- **Done:** v0.1.1 committed + tagged — admin's tunnel token backfilled into local
-  tokens table (name "Default"); verified via /tokens/admin/all (1 row), tunnel E2E
-  re-run PASS (auth now via tokens-table path), and dashboard "All Tokens" view.
-- **In progress:** nothing. App still running (dev env, port 8020).
-- **Next:** await user. Still-parked suggestions: (2) settings-driven domains in
-  admin.html System Info; (3) main.py middleware comment fix; (new) auto_setup.py
-  could insert the seeded token into tokens for fresh installs.
-- **Watch out:** fresh installs still start with an empty tokens table (seed runs
-  after migrations) — documented in Doc/database.md.
+### In Progress / Next
+- **Testing note**: The new default credentials will only be created on app startup if the `users` table is empty. Since the database already contains users, the auto_setup will skip creation. To test:
+  1. Reset the database (truncate/drop users table), OR
+  2. Manually insert the user via SQL: 
+     ```sql
+     INSERT INTO users (email, password_hash, full_name, role, tunnel_token)
+     VALUES ('support@callingagents.in', <bcrypt_hash_of_Calling@2025_26>, 'Calling Agents Admin', 'admin', <token>);
+     ```
+  3. Restart the app to trigger auto_setup with empty users table
 
-## 2026-08-29 — v0.1.3 (Job 0: 3 parked suggestions) + Jobs 1–9 backlog intake
-- **Done:** v0.1.3 committed + tagged — (a) admin.html System Info settings-driven,
-  (b) main.py middleware comment corrected, (c) auto_setup seeds tokens row (verified
-  on scratch DB, then dropped). App restarted on 8020 (terminal 114c09eb-…).
-- **In progress:** Jobs 1–9 diagnosed → Problem List + phased pipeline presented to
-  user; AWAITING CONFIRMATION before any implementation.
-- **Next:** on user confirmation start Phase A (likely Job 2 + Job 4 first).
-- **Watch out:** `kill %1` in the wrong terminal's job list silently no-ops — kill
-  servers by lsof PID. Ports 8020/2222 currently used by dev server.
-
-## 2026-08-29 — v0.2.0 (Phase A of Jobs 1–9 plan, user-confirmed incl. suggestions)
-- **Done:** v0.2.0 — Job 2 (edit user/password reset/disable-enable + is_active
-  enforcement on login/API/SSH), Job 5 (IP auto-block ON/OFF + runtime thresholds),
-  audit log (page + instrumentation), middleware swap (tunnel traffic IP-counted).
-  Migration 0010 applied. All assertions + browser UI verified (Doc/tests/v0.2.0/).
-- **In progress:** nothing — Phase A complete. Dev server on 8020 (a4b19527-…).
-- **Next:** Phase B (v0.3.0): Job 4 per-token traffic columns + Job 7 daily/monthly
-  dashboard analytics. Awaiting user go-ahead.
-- **Watch out:** zsh UID is read-only (crashed assertion script); asyncssh bare
-  connect() succeeds even for rejected tokens — test forwards, not connects.
-  vtest@iraglobaltech.com / NewPass@77 kept as demo user.
-
-## 2026-08-29 — v0.3.0 (Phase B)
-- **Done:** Job 4 (per-token traffic: migration 0011 + aggregation + All Tokens/dashboard
-  columns) + Job 7 (analytics endpoint + Insights charts). Fixed pre-existing bug:
-  tunnel counters were never persisted (in-memory only). All assertions PASS
-  (Doc/tests/v0.3.0/). Committed + tagged v0.3.0.
-- **In progress:** Phase C (v0.4.0): app_settings + payment keys UI + coupons.
-- **Next:** Phase D (emails, v0.5.0), then Phase E (plans + invoices, v0.6.0) — user
-  pre-approved completing ALL phases without further confirmation.
-- **Watch out:** analytics `days` param must be ≥7 (422 otherwise — intentional);
-  hidden browser tab can make locator.click time out — reopen the page instead.
-
-## 2026-08-29 — v0.4.0 (Phase C)
-- **Done:** Job 3 (Settings page: payment keys masked, DB>env, no restart) + coupons
-  (CRUD + checkout discounts + redemption). Migration 0012. All assertions PASS —
-  fake-key checkout reaches Stripe (proves key flow). Committed + tagged v0.4.0.
-- **In progress:** Phase D (v0.5.0): email system (SMTP settings, forgot/reset,
-  welcome/tunnel-stopped hooks, campaigns) + announcements.
-- **Next:** Phase E (plans + invoices, v0.6.0).
-- **Watch out:** payments.coupon_code column lands in Phase E migration — the
-  code is defensive about it. Test stripe key stored in local app_settings (fake).
-
-## 2026-08-29 — v0.5.0 (Phase D)
-- **Done:** Job 6 email system (SMTP runtime settings, welcome/reset/tunnel-stopped
-  templates, campaigns), announcements (admin CRUD + dashboard banner), forgot/reset
-  password flow (single-use hashed tokens). **CRITICAL pre-existing bug fixed: duplicate
-  `let tunnelRateTracker` made the user dashboard 100% broken (never loaded).**
-  Migrations 0013/0014. All assertions + browser checks PASS (Doc/tests/v0.5.0/).
-- **In progress:** Phase E (v0.6.0): plans table + admin Plans editor + dynamic
-  landing pricing + invoices.
-- **Next:** final wrap-up after Phase E.
-- **Watch out:** SMTP off locally (expected) — all email flows log to email_logs with
-  status=failed until smtp_* settings are filled. vtest pw back to NewPass@77.
-
-## 2026-08-29 — v0.6.0 (Phase E) — ALL PHASES COMPLETE
-- **Done:** Job 1 (plans table + admin 💎 Plans editor + DB-driven landing pricing)
-  + Job 8 (invoices auto-created on paid; admin 🧾 Invoices w/ void + printable page;
-  user 🧾 My Invoices). Migrations 0015/0016. All assertions PASS (Doc/tests/v0.6.0/).
-  ALL 9 JOBS + approved suggestions delivered across v0.2.0–v0.6.0.
-- **In progress:** nothing. Dev server on 8020 (f9dbe947-…).
-- **Next:** await user. Production deployment notes: copy .env.production → .env on
-  server, git pull, restart systemd (auto_setup runs migrations 0010–0016).
-- **Watch out:** invoice print uses ?token= JWT (new-tab auth); vtest is now pro
-  (webhook test) — set back to free if needed: PUT /users/{id}?plan=free.
-
-## 2026-08-29 — v0.6.1 (competitive research)
-- **Done:** Audited dashboard.pinggy.io page-by-page (user's logged-in Pro account,
-  9 pages) and wrote Doc/reports/pinggy-competitive-analysis.md with feature matrix
-  + 8-track roadmap (v0.7.0 Command Builder 2.0 → v1.0.0 TCP/TLS). Docs-only commit.
-- **Next (proposed, NOT started):** v0.7.0 Track 1 — app presets, download script,
-  QR code, saved configs. Then Track 2 tunnel auth options.
-- **Watch out:** pinggy Pro is $2.5/mo — our ₹199 ≈ $2.38 is fine; free-tier
-  unlimited data is a marketing angle they can't match (they throttle).
-
-## 2026-08-29 — v0.7.0 → v1.0.0 (full roadmap executed, user pre-approved)
-- **Done:** ALL competitive-roadmap tracks shipped & tagged:
-  v0.7.0 Command Builder 2.0 (presets/downloads/QR/saved configs/Docker tab) ·
-  v0.8.0 tunnel security (basic-auth/IP-whitelist/API-key/HTTPS-only) + bandwidth
-  widget · v0.9.0 persistent subdomains (+md5 backfill = stable URLs for all) ·
-  v0.10.0 API keys + /manage REST + Python SDK (sdk/pinggy_sdk.py) ·
-  v0.11.0 Web Debugger (capture+replay) · v1.0.0 TCP tunnels + persistent ports
-  (Pro-gated, full echo E2E verified).
-- **Bugs found & fixed during verification:** TunnelSession lacked token field
-  (v0.8.0 security silently no-oped); duplicated const totalBytes (dashboard
-  SyntaxError); get_api_user fallback 500; ssh_server multi-edit reported success
-  but left old SELECT (TCP relay never started) — all caught by assertions.
-- **In progress:** nothing. Server on 8020. 16 tags total (v0.1.0→v1.0.0).
-- **Next:** await user — deploy to prod when ready (git pull + .env.production +
-  systemd restart; migrations 0010-0021 auto-apply). Deferred: drag-drop domain
-  UI, Teams, UDP tunnels, region selection, header-rewrite rules.
-- **Watch out:** TCP ports 10000-19999 now used for relays; check port conflicts
-  before deploy. vtest is Pro with token tools (sdktest/sdk-made may linger).
-
-## 2026-08-29 — v1.1.0 (user dashboard parity, user-requested)
-- **Done:** user menu rebuilt — Inspector (standalone debugger), My Usage
-  (user-scoped /analytics/my + charts), Announcements page, Billing & Invoices
-  rename, Manage Tokens Type/Security badge columns. Verified 0 JS errors.
-  Committed + tagged v1.1.0.
-- **Watch out:** node --check on extracted <script> blocks is the fast way to
-  catch dashboard.html JS syntax slips (map-arrow template bug broke whole page).
-
-## 2026-08-30 — v1.2.0 (user-requested)
-- **Done:** Active Tunnels now shows per-direction data: ↓ Received / ↑ Sent
-  columns (user + admin). Migration 0022; proxy counts request-bytes-in vs
-  response-bytes-out; verified with asymmetric payload (5000↓/11↑) in API, DB,
-  and live UI. Committed + tagged v1.2.0.
-
-
-## 2026-08-29 — v0.1.2 (docs drift fix, self-initiated per §11)
-- **Done:** v0.1.2 committed + tagged — tunnels router docs corrected from 3 to the
-  real 7 routes (process-flow, functions, page-map). Drift exposed by a live-log 200
-  on /tunnels/history; cause was a too-strict grep pattern. Live curl assertions PASS
-  (Doc/tests/v0.1.2/). Zero code changes.
-- **In progress:** nothing. App running (dev env, 8020); server log clean — earlier
-  "Proxy error for kw8ll8g" was the pre-fix deadlocked E2E run, explained.
-- **Next:** await user. Parked: (2) admin.html domains, (3) main.py comment fix,
-  (4) auto_setup seeding token into tokens for fresh installs.
-- **Watch out:** grep decorators with `@router\.(get|post|put|delete|patch)\(` only —
-  NEVER require close-paren right after the path string.
-
-
-
-
-## 2026-08-30 (v1.4.0 + v1.5.0 session)
-- Done: v1.4.0 (multi-domains Pro /teams /tickets + UIs, E2E extra-domain routing verified) · v1.5.0 (2FA email OTP, challenge/verify/toggle, login UI OTP step)
-- In progress: none — 10-item batch complete (v1.3.0 branding/UX, v1.4.0 domains/teams/tickets, v1.5.0 2FA)
-- Next: user review; possible prod deploy (deploy_server.sh) — migrations 0023/0024 auto-apply on boot
-- Watch out: aioredis r.setex/r.get are coroutines — MUST await (500 'coroutine' object has no attribute 'split'); API base is /api/v1 (curl without prefix → 404 "Not Found")
-
-## 2026-08-30 (v1.5.1 + v1.6.0 follow-ups)
-- Done: v1.5.1 (API-key how-to card + api() stringify fix) · v1.6.0 (key caps Free 5/Pro 10 + 30/90/never expiry, migration 0025)
-- In progress: none
-- Next: user review; vtest still has 2FA on
-- Watch out: dashboard api() now stringifies object bodies; showModal confirm accepts async handlers
-
-## 2026-08-30 (v1.7.0 role control)
-- Done: v1.7.0 (teams owner/admin/member enforcement, PATCH role endpoint, token↔team sharing + guards, Teams UI role dropdowns + Team tokens card)
-- In progress: none
-- Next: user review; member@test.dev / Member@77 is a throwaway non-admin user for role tests (kept)
-- Watch out: platform-admin account bypasses ownership guards by design — never use it to test "plain member" behavior; vtest token was recreated (new id, fixed_subdomain 0f4f398 restored via PUT)
-
-## 2026-08-30 (v1.8.0 unified Domains)
-- Done: v1.8.0 (Domains page rebuilt: per-token all-addresses view, single add box, whole-system removal, primary/extra cross-store consistency)
-- In progress: none
-- Next: user review
-- Watch out: via_team is set on OWN tokens too (team badge) — filter ownership via via_team.owner, never via_team presence
-
-## 2026-08-30 (v1.9.0 multi-port)
-- Done: v1.9.0 (one token/one SSH connection, each address -> own local port via TOKEN--P1,P2 username + multi -R; Configure generator; setup-lock race fix)
-- In progress: none
-- Next: user review; note MarketingIRA dev server occupies *:3002 on this Mac — pick test ports ≥4100
-- Watch out: multi-port listener order MUST match address order (subdomain -> primary -> extras); generate commands from Configure page, don't hand-write
+### Watch Out
+- Auto_setup only creates default admin if users table is empty — this is a safety feature to prevent overwriting existing admins
+- Code change is complete; just needs either DB reset or manual user creation to verify
