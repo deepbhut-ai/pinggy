@@ -193,3 +193,10 @@
 - In progress: none
 - Next: user review; note MarketingIRA dev server occupies *:3002 on this Mac — pick test ports ≥4100
 - Watch out: multi-port listener order MUST match address order (subdomain -> primary -> extras); generate commands from Configure page, don't hand-write
+
+## 2026-09-01 (v1.14.1 pull)
+- Done: fetched origin/main (55905c8), merged latest teammate code, restarted service PID 334754.
+- Verified: app startup completed, Redis/SSH/scheduler active; browser shows IRAGT Admin with new Audit Log, Settings, Coupons, Announcements, Plans, Invoices, and Tickets sections.
+- In progress: none
+- Next: continue deployments from the configured Git remote; `/Volumes/Storage/Drive/IRAGT` is not mounted on this Linux server.
+- Watch out: local backup branch `backup-before-pull-2026-09-01` preserves the pre-merge checkout.

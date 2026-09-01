@@ -1,0 +1,19 @@
+v1.14.1 deployment verification — 2026-09-01
+
+Git:
+- origin/main fetched at 55905c8
+- merge commit: a05d763
+- tag: v1.14.1
+
+Application startup:
+- Application startup complete: PASS
+- Redis connected: PASS
+- SSH server listening on 0.0.0.0:2222: PASS
+- Weekly digest scheduler started: PASS
+
+Integrated browser:
+- URL: https://iraglobaltech.com/admin#
+- Page title: IRAGT Admin
+- Authenticated user: support@callingagents.in (admin)
+- New sections visible: Audit Log, Settings, Coupons, Announcements, Plans, Invoices, Tickets
+- Result: PASS

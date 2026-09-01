@@ -1,5 +1,18 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v1.14.1 — 2026-09-01 — Pull latest teammate code
+
+### Added
+- Latest `origin/main` application features and migrations through v1.14.0.
+- Deployment verification evidence in `Doc/tests/v1.14.1/output.txt`.
+
+### Changed
+- Merged fetched `origin/main` into the server checkout.
+- Preserved the custom default admin identity and token registration during merge resolution.
+
+### Removed
+- none
+
 ## v1.14.0 — 2026-08-30 — Deploy readiness + full regression
 
 ### Added
