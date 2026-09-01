@@ -1,5 +1,17 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.1.0 — 2026-09-01 — Ollama server installation
+
+### Added
+- Ollama `0.33.2` installed on the server with its systemd service enabled.
+- Local Ollama API available at `127.0.0.1:11434`.
+
+### Changed
+- Deployment verification records now include Ollama installation status.
+
+### Removed
+- none
+
 ## v2.0.0 — 2026-09-01 — Remove Enterprise plan
 
 ### Added
