@@ -194,6 +194,13 @@
 - Next: user review; note MarketingIRA dev server occupies *:3002 on this Mac — pick test ports ≥4100
 - Watch out: multi-port listener order MUST match address order (subdomain -> primary -> extras); generate commands from Configure page, don't hand-write
 
+## 2026-09-01 (v2.0.0 Enterprise removal)
+- Done: removed the Enterprise plan with reversible migration 0026; landing pricing now supports Free and Pro only.
+- Verified: database, live plans API, admin Plans view, and public landing page all show Free and Pro only.
+- In progress: none
+- Next: user review
+- Watch out: migration downgrade restores the Enterprise seed if rollback is required.
+
 ## 2026-09-01 (v1.14.1 pull)
 - Done: fetched origin/main (55905c8), merged latest teammate code, restarted service PID 334754.
 - Verified: app startup completed, Redis/SSH/scheduler active; browser shows IRAGT Admin with new Audit Log, Settings, Coupons, Announcements, Plans, Invoices, and Tickets sections.

@@ -303,9 +303,8 @@
     if (!plans.length) return;
     const grid = document.getElementById('pricingGrid');
     grid.innerHTML = plans.map(p => {
-      const price = (p.price_inr === 0 && p.id === 'enterprise') ? 'Custom'
-        : '₹' + p.price_inr + '<span>/month</span>';
-      const href = p.id === 'enterprise' ? 'mailto:contact@iraglobaltech.com' : '/login';
+      const price = '₹' + p.price_inr + '<span>/month</span>';
+      const href = '/login';
       const btn = p.popular ? 'btn btn-lg' : 'btn btn-ghost btn-lg';
       return `
       <div class="price-card${p.popular ? ' featured' : ''}">

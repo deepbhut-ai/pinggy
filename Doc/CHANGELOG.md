@@ -1,5 +1,18 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.0.0 — 2026-09-01 — Remove Enterprise plan
+
+### Added
+- Reversible Alembic migration `0026_remove_enterprise_plan.py`.
+
+### Changed
+- Pricing now contains only Free and Pro plans.
+- Landing-page pricing logic no longer contains Enterprise-specific behavior.
+
+### Removed
+- Enterprise plan row from the `plans` table because the product now offers only Free and Pro.
+- Enterprise-specific pricing and contact-sales link logic from the landing page.
+
 ## v1.14.1 — 2026-09-01 — Pull latest teammate code
 
 ### Added
