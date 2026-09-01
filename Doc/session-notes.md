@@ -201,6 +201,13 @@
 - Next: user review
 - Watch out: migration downgrade restores the Enterprise seed if rollback is required.
 
+## 2026-09-01 (v2.1.0 Ollama installation)
+- Done: Ollama 0.33.2 installed; systemd service enabled and active; local API returned HTTP 200.
+- Blocked: requested cloud models require `ollama signin`; all five run attempts reached Ollama but were rejected until authentication.
+- In progress: GitHub push blocked by 403 permission for configured account `kevalira`.
+- Next: run `ollama signin` interactively, then retry the five cloud models and push `main` with repository write access.
+- Watch out: server has no NVIDIA/AMD GPU, so Ollama is CPU-only.
+
 ## 2026-09-01 (v1.14.1 pull)
 - Done: fetched origin/main (55905c8), merged latest teammate code, restarted service PID 334754.
 - Verified: app startup completed, Redis/SSH/scheduler active; browser shows IRAGT Admin with new Audit Log, Settings, Coupons, Announcements, Plans, Invoices, and Tickets sections.
