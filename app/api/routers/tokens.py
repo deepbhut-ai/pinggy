@@ -93,6 +93,26 @@ def _validate_custom_domain(domain: str, user: dict) -> str:
     return cd
 
 
+async def _enforce_free_domain_limit(db: AsyncConnection, user_email: str, *, candidate_domain: str | None = None, ignore_token_id: str | None = None) -> None:
+    """Free plan: exactly one custom domain across all tokens for this user."""
+    cur = await db.execute(
+        "SELECT id, custom_domain FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL",
+        (user_email,),
+    )
+    rows = await cur.fetchall()
+    await cur.close()
+    if ignore_token_id:
+        rows = [r for r in rows if str(r[0]) != str(ignore_token_id)]
+    if not rows:
+        return
+    if candidate_domain is None or any((str(r[1]) or '').lower() == candidate_domain.lower() for r in rows):
+        return
+    raise HTTPException(
+        status.HTTP_402_PAYMENT_REQUIRED,
+        "Free plan allows only 1 custom domain. Upgrade to Pro to attach more domains.",
+    )
+
+
 @router.get("", response_model=list[TokenOut])
 async def list_tokens(
     user: dict = Depends(get_api_user),
@@ -220,6 +240,8 @@ async def create_token(
     custom_domain = None
     if body.custom_domain:
         cd = _validate_custom_domain(body.custom_domain, user)
+        if (user.get("plan") or "free") != "pro":
+            await _enforce_free_domain_limit(db, user["email"], candidate_domain=cd)
         if cd:
             cur = await db.execute(
                 "SELECT id FROM tokens WHERE custom_domain = %s", (cd,)
@@ -352,6 +374,8 @@ async def update_token(
         # Check if domain is already taken by another token
         if domain_value:
             domain_value = _validate_custom_domain(domain_value, user)
+            if (user.get("plan") or "free") != "pro":
+                await _enforce_free_domain_limit(db, user["email"], candidate_domain=domain_value, ignore_token_id=token_id)
             cur = await db.execute(
                 "SELECT id FROM tokens WHERE custom_domain = %s AND id != %s",
                 (domain_value, token_id),

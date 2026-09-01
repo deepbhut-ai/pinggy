@@ -76,12 +76,12 @@ async def list_users(
     offset: int = 0,
 ):
     cur = await db.execute(
-        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at, is_active FROM users ORDER BY created_at DESC LIMIT %s OFFSET %s",
+        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, seats, plan_expires_at, is_active FROM users ORDER BY created_at DESC LIMIT %s OFFSET %s",
         (limit, offset),
     )
     rows = await cur.fetchall()
     await cur.close()
-    return [UserOut(id=str(r[0]), email=r[1], full_name=r[2], role=r[3], tunnel_token=r[4], custom_domain=r[5], plan=r[6], plan_expires_at=r[7].isoformat() if r[7] else None, is_active=r[8]) for r in rows]
+    return [UserOut(id=str(r[0]), email=r[1], full_name=r[2], role=r[3], tunnel_token=r[4], custom_domain=r[5], plan=r[6], seats=int(r[7] or 1), plan_expires_at=r[8].isoformat() if r[8] else None, is_active=r[9]) for r in rows]
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -91,13 +91,13 @@ async def get_user(
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
-        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at, is_active FROM users WHERE id = %s", (user_id,)
+        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, seats, plan_expires_at, is_active FROM users WHERE id = %s", (user_id,)
     )
     row = await cur.fetchone()
     await cur.close()
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
-    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6], plan_expires_at=row[7].isoformat() if row[7] else None, is_active=row[8])
+    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6], seats=int(row[7] or 1), plan_expires_at=row[8].isoformat() if row[8] else None, is_active=row[9])
 
 
 @router.put("/{user_id}", response_model=UserOut)
@@ -191,7 +191,7 @@ async def update_user(
     try:
         cur = await db.execute(
             f"UPDATE users SET {', '.join(updates)} WHERE id = %s "
-            f"RETURNING id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at, is_active",
+            f"RETURNING id, email, full_name, role, tunnel_token, custom_domain, plan, seats, plan_expires_at, is_active",
             tuple(params),
         )
         row = await cur.fetchone()
@@ -212,7 +212,7 @@ async def update_user(
         "seats": seats, "is_active": is_active,
     }.items() if v is not None and v != ""]
     await log_audit(db, admin["email"], "user.update", row[1], ", ".join(changed) or "no fields")
-    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6], plan_expires_at=row[7].isoformat() if row[7] else None, is_active=row[8])
+    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6], seats=int(row[7] or 1), plan_expires_at=row[8].isoformat() if row[8] else None, is_active=row[9])
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_200_OK)
@@ -262,6 +262,18 @@ async def update_my_custom_domain(
 
     # Check if domain is already taken by another user
     if domain_value:
+        if (user.get("plan") or "free") != "pro":
+            cur = await db.execute(
+                "SELECT COUNT(*) FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL AND custom_domain != %s",
+                (user["email"], domain_value),
+            )
+            if (await cur.fetchone())[0] > 0:
+                await cur.close()
+                raise HTTPException(
+                    status.HTTP_402_PAYMENT_REQUIRED,
+                    "Free plan allows only 1 custom domain. Upgrade to Pro to attach more domains.",
+                )
+            await cur.close()
         cur = await db.execute(
             "SELECT email FROM users WHERE custom_domain = %s AND id != %s",
             (domain_value, user["id"]),

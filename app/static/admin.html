@@ -578,6 +578,7 @@ async function loadUsers() {
         <td>${u.full_name || '—'}</td>
         <td><span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-red'}">${u.role}</span></td>
         <td><span class="badge ${u.plan === 'pro' ? 'badge-green' : ''}">${u.plan || 'free'}</span></td>
+        <td>${u.seats || 1}</td>
         <td class="code" style="font-size:.8rem">${u.tunnel_token || '—'}</td>
         <td>${statusBadge}</td>
         <td><span class="badge ${activeCount > 0 ? 'badge-green' : ''}">${activeCount}</span></td>
@@ -597,7 +598,7 @@ async function loadUsers() {
     c.innerHTML = `<div class="card">
       <div class="card-header"><h2>Users (${users.length})</h2><button class="btn btn-sm" onclick="navigate('register', document.querySelector('[data-page=register]'))">➕ Add User</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>Email</th><th>Full Name</th><th>Role</th><th>Plan</th><th>Tunnel Token</th><th>Status</th><th>Active Tunnels</th><th>Total Requests</th><th>Total Data</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>Email</th><th>Full Name</th><th>Role</th><th>Plan</th><th>Seats</th><th>Tunnel Token</th><th>Status</th><th>Active Tunnels</th><th>Total Requests</th><th>Total Data</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
@@ -654,7 +655,7 @@ async function viewUser(id) {
           <tr><td>Plan</td><td>
             <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
               <select id="userPlanSelect" style="flex:1;min-width:150px;padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem">
-                <option value="free" ${u.plan === 'free' ? 'selected' : ''}>Free — 60min timeout, random subdomain</option>
+                <option value="free" ${u.plan === 'free' ? 'selected' : ''}>Free — 1 domain only, 10 GB total transfer cap, random subdomain</option>
                 <option value="pro" ${u.plan === 'pro' ? 'selected' : ''}>Pro — persistent tunnels, custom domain</option>
               </select>
               <select id="userPlanDuration" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.85rem">
@@ -665,8 +666,14 @@ async function viewUser(id) {
               </select>
               <button class="btn btn-sm" onclick="saveUserPlan('${u.id}','${u.email}')">Activate Plan</button>
             </div>
-            <div style="margin-top:.4rem;display:flex;align-items:center;gap:.5rem">
+            <div style="margin-top:.4rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
               <span class="badge ${u.plan === 'pro' ? 'badge-green' : ''}">${u.plan || 'free'}</span>
+              <div style="display:inline-flex;align-items:center;gap:.45rem;padding:.2rem .5rem;border:1px solid var(--border);border-radius:999px;background:var(--bg)">
+                <button class="icon-btn" type="button" onclick="adjustUserSeats('${u.id}', -1)" style="width:24px;height:24px;font-size:1rem;line-height:1">−</button>
+                <span id="userSeatCountValue" style="min-width:24px;text-align:center;font-weight:700;color:var(--text)">${u.seats || 1}</span>
+                <button class="icon-btn" type="button" onclick="adjustUserSeats('${u.id}', 1)" style="width:24px;height:24px;font-size:1rem;line-height:1">+</button>
+              </div>
+              <span style="font-size:.78rem;color:var(--text-dim)">seat${(u.seats || 1) > 1 ? 's' : ''}</span>
               ${u.plan_expires_at ? `<span style="font-size:.78rem;color:var(--text-dim)">expires ${u.plan_expires_at.substring(0,10)}</span>` : ''}
               ${u.plan === 'pro' ? `<button class="btn btn-sm btn-danger" onclick="deactivatePlan('${u.id}','${u.email}')">Deactivate</button>` : ''}
             </div>
@@ -838,6 +845,17 @@ async function saveCustomDomain(userId) {
   try {
     await api(`/users/${userId}?custom_domain=${encodeURIComponent(domain)}`, 'PUT');
     toast('Custom domain saved');
+    viewUser(userId);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function adjustUserSeats(userId, delta) {
+  const currentEl = document.getElementById('userSeatCountValue');
+  const current = Number(currentEl ? currentEl.textContent.trim() : 1) || 1;
+  const next = Math.max(1, current + delta);
+  try {
+    await api(`/users/${userId}?seats=${next}`, 'PUT');
+    toast(`Seats updated to ${next}`);
     viewUser(userId);
   } catch (e) { toast(e.message, 'error'); }
 }

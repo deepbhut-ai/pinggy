@@ -218,5 +218,11 @@
 ## 2026-09-01 (v2.1.1 domain top-up wording)
 - Done: clarified the custom-domain pricing rule to a monthly top-up of $3 / ₹300, unlimited domains while the top-up stays active.
 - In progress: none
+
+## 2026-09-01 (v2.1.3 one-domain cap)
+- Done: enforced the final business rule that free users can keep only one custom domain; backend checks in token creation/update and user custom-domain update now reject extra domains.
+- In progress: none
+- Next: verify live admin/dashboard copy and service restart after final patch.
+- Watch out: free users still keep the 10 GB combined transfer cap; Pro remains multi-domain and seat-based.
 - Next: user review; if they want a permanent DB-backed domain add-on model later, this can be implemented separately.
 - Watch out: the current pricing model is recurring monthly and must be topped up each month; no one-time lifetime domain purchase is implied.
