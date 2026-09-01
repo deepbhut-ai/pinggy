@@ -1,5 +1,31 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.1.3 — 2026-09-01 — Free plan one-domain cap
+
+### Added
+- Free-tier enforcement that limits each user to a single custom domain while the plan remains active.
+- Backend checks in the token and custom-domain update flows to reject additional domains for free users.
+
+### Changed
+- Updated the free-tier copy in the admin and dashboard views to say: 1 domain only + 10 GB total transfer cap.
+- Kept the monthly top-up custom-domain rule explicit in the billing copy.
+
+### Removed
+- Old free-tier wording that implied a user could attach multiple custom domains without upgrading.
+
+## v2.1.2 — 2026-09-01 — Free plan cap fix: 10 GB total transfer
+
+### Added
+- Free-plan enforcement for combined inbound + outbound tunnel data, capped at 10 GB total transfer before the tunnel is closed.
+- Config value for the free-tier data ceiling in the app settings.
+
+### Changed
+- Updated the Free-plan messaging and admin copy to describe the correct rule: 10 GB total transfer, no forced 60-minute disconnect.
+- Tunnel registry now checks the free plan cap on every request and tears down the active tunnel once the cap is reached.
+
+### Removed
+- Old wording and logic that implied a 60-minute free-tier timeout.
+
 ## v2.1.1 — 2026-09-01 — Clarify custom-domain monthly top-up
 
 ### Added
