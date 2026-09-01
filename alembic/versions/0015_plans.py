@@ -39,7 +39,7 @@ def upgrade() -> None:
            E'Single command tunneling\nHTTP(S) tunnels\n60 minutes tunnel timeout\nRandom subdomains\nUnlimited data transfer',
            'Get Started Free', FALSE, TRUE, 1),
           ('pro', 'Pro', 199, 2.99, 'For developers who need more',
-           E'Everything in Free plan\nPersistent tunnels (no timeout)\nFixed subdomain per token\n1 Custom domain\nMultiple tunnels\nPriority support',
+           E'Everything in Free plan\nPersistent tunnels (no timeout)\nFixed subdomain per token\nCustom domains: $3 / ₹300/month top-up (unlimited while active)\nMultiple tunnels\nPriority support',
            'Upgrade to Pro', TRUE, TRUE, 2),
           ('enterprise', 'Enterprise', 0, 0, 'For teams that need dedicated infrastructure',
            E'Everything in Pro plan\nUnlimited persistent tunnels\nUnlimited custom domains\nDedicated servers\nAPI to manage tunnels\nPriority call support',

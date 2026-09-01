@@ -214,3 +214,9 @@
 - In progress: none
 - Next: continue deployments from the configured Git remote; `/Volumes/Storage/Drive/IRAGT` is not mounted on this Linux server.
 - Watch out: local backup branch `backup-before-pull-2026-09-01` preserves the pre-merge checkout.
+
+## 2026-09-01 (v2.1.1 domain top-up wording)
+- Done: clarified the custom-domain pricing rule to a monthly top-up of $3 / ₹300, unlimited domains while the top-up stays active.
+- In progress: none
+- Next: user review; if they want a permanent DB-backed domain add-on model later, this can be implemented separately.
+- Watch out: the current pricing model is recurring monthly and must be topped up each month; no one-time lifetime domain purchase is implied.
