@@ -1,0 +1,48 @@
+# v0.6.0 — Phase E: editable plans + invoices — 2026-08-29
+
+Confirmed scope: Job 1 (editable plans/pricing/features page) + Job 8 (invoice tracking).
+
+## Changes
+1. Migration 0015: `plans` table (id/name/prices/tagline/features/cta/popular/active/
+   sort) seeded with free/pro/enterprise matching the previous static landing.
+2. Migration 0016: `invoices` table (invoice_no INV-YYYYMM-XXXXXXXX, payment_id
+   UNIQUE, plan/seats/coupon/amount/currency/status, issued_at) + indexes.
+3. `plans.py` router: public GET /plans (active only) + admin PUT /plans/{id}
+   (name/prices/tagline/features/cta/popular/active/sort — audited).
+4. `invoices.py` router: auto-create on payment paid (idempotent via UNIQUE
+   payment_id), GET /invoices/my (own), GET /invoices/admin/all (+?status=),
+   GET /invoices/{id} (owner-or-admin), POST /{id}/void (admin, audited),
+   GET /{id}/print?token= — printable HTML invoice (owner-or-admin).
+5. `_mark_paid_and_upgrade` now calls create_invoice_for_payment.
+6. UI: admin 💎 Plans editor (edit modal: name/INR/USD/tagline/features/CTA;
+   hide/show) + 🧾 Invoices page (stats: count/paid/revenue; table with coupon
+   + void + view/print). User dashboard subscription page gained 🧾 My Invoices
+   with print links. Landing pricing now renders from GET /api/v1/plans.
+
+## Machine assertions (all PASS)
+  E1  GET /plans → free(₹0,5f) pro(₹199,6f) enterprise(Custom,6f)
+  E2  PUT /plans/pro price 199→249 + 7th feature → 200, persisted
+  E3  landing contains renderPlans script (dynamic)
+  E4  checkout prices read from app_settings pro_price_inr (synced in test)
+  E5b stripe webhook (real path) → {received:true, upgraded:true}
+  E6b GET /invoices/my (vtest) → INV-202608-7BE0598B · pro · LAUNCH20 · INR 159.2 · paid
+  E7b admin invoice list → 1
+  E8b print page → HTTP 200, invoice_no ×2, amount present
+  E9b webhook replay → no duplicate (idempotent)
+  E10 invoice rows for payment = 1
+  E12 vtest upgraded to pro (DB plan_expires_at 2026-09-29, seats 1)
+  E13 coupon LAUNCH20 redeemed = 1
+  E11 pro price restored to ₹199 (plans + settings)
+
+## Browser verification
+  Landing: 3 plan cards rendered from API incl. live-edited feature list
+  (screenshot-landing-dynamic.png).
+  Admin 💎 Plans: all 3 plans with prices/features + Edit/Hide actions
+  (screenshot-plans.png).
+  Admin 🧾 Invoices: stats (1 invoice / 1 paid / ₹159.20) + row with coupon badge
+  and View/Void actions (screenshot-invoices.png).
+
+## Notes
+- Invoice numbers: INV-YYYYMM-<first 8 of payment uuid uppercase>.
+- Print endpoint authenticates via ?token= (JWT) since new tabs can't send
+  Authorization headers; owner-or-admin enforced.

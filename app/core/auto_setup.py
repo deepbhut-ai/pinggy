@@ -145,6 +145,15 @@ def _ensure_default_admin() -> None:
                     """,
                     ("support@callingagents.in", hashed, "Calling Agents Admin", "admin", tunnel_token),
                 )
+                # Keep the generated admin token available to token-based auth.
+                cur.execute(
+                    """
+                    INSERT INTO tokens (user_email, token, name, custom_domain)
+                    VALUES (%s, %s, 'Default', NULL)
+                    ON CONFLICT (token) DO NOTHING
+                    """,
+                    ("support@callingagents.in", tunnel_token),
+                )
                 logger.info("Default admin user created (email='support@callingagents.in', password='Calling@2025_26').")
     except Exception as e:
         logger.error("Failed to create default admin: %s", e)

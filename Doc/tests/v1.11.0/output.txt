@@ -1,0 +1,11 @@
+=== v1.11.0 Sun Aug 30 14:14:08 IST 2026 — hardening: refresh tokens, security headers, audit CSV, DB backups ===
+--- JWT refresh (POST /auth/refresh {refresh_token}):
+  access token presented as refresh -> 401 "Not a refresh token"  PASS
+  real refresh token (type=refresh, 7d) -> 200 {access_token, user}  PASS
+  create_refresh_token in app/core/security.py; JWT_REFRESH_TOKEN_EXPIRE_DAYS=7 (config)
+--- Security headers (SecurityHeadersMiddleware):
+  GET / -> X-Content-Type-Options, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy = 4/4 present
+  HSTS set when https / x-forwarded-proto=https
+--- Audit CSV: GET /audit/export.csv?limit=3 (admin JWT) -> header row + rows (created_at,actor_email,action,target,details)  PASS
+--- DB backup: scripts/backup_db.sh -> backups/pinggy-<stamp>.sql.gz (13.9KB), 14-day retention; crontab line in header
+--- Compile OK; server healthy.

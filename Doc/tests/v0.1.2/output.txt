@@ -1,0 +1,25 @@
+# v0.1.2 — docs drift fix: tunnels router route inventory — 2026-08-29
+
+Trigger: server log showed `GET /api/v1/tunnels/history?limit=500 → 200`, a route
+missing from Doc/functions.md + Doc/process-flow.md (only 3 of 7 tunnels routes were
+documented). Root cause of the drift: the original grep pattern
+`@router\.(get|post|put|delete|patch)\("[^"]*"\)` only matches decorators where the
+path string is the ONLY argument — routes with `response_model=`/`status_code=` args
+were silently missed (`/my`, `""`, `/history`, `DELETE /{subdomain}`).
+
+## Corrected inventory (authoritative grep `@router\.(get|post|put|delete|patch)\(`)
+auth 5 · users 6 · tokens 8 · payments 8 · ip_monitor 8 · admin pages 4 · tunnels 7:
+  GET /info (14) · GET /my (35) · GET "" (65) · GET /history (93)
+  DELETE /{subdomain} (127) · POST /{subdomain}/stop (152) · GET /stats (181)
+All other routers already matched their docs.
+
+## Machine assertions (all PASS, live server)
+  GET /tunnels/my (no auth)          -> 403 (HTTPBearer default without credentials)
+  GET /tunnels/my (authed)           -> 200
+  GET /tunnels (admin)               -> 200
+  GET /tunnels/history?limit=2       -> 200, 2 rows, first subdomain a73139j
+  GET /tunnels/stats (admin)         -> 200
+
+## Files changed (docs only — zero code changes)
+Doc/process-flow.md (tunnels row), Doc/functions.md (7-row tunnels section, decorator
+line numbers), Doc/page-map.md (/admin & /dashboard endpoint lists).

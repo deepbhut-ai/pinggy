@@ -1,0 +1,8 @@
+=== v1.14.0 Sun Aug 30 14:26:39 IST 2026 — deploy readiness + full regression ===
+--- Regression suite (all PASS):
+  R1 /health 200 · R2 / 200 (landing, security headers 4/4) · R3 /login 200 (headers present)
+  R4 /plans 200 · R5 openapi 95 routes · R6 security headers verified on /, /login, /health
+  R7 audit CSV header row · R8 /manage/devices 200 · R9 auth rejects bad creds (401), limits Redis-cleaned
+--- Deploy runbook: Doc/guides/deploy.md (rsync steps, .env checklist incl. JWT_SECRET + SMTP,
+  systemd, migrations 0023-0025 auto-apply on boot, backup crontab, verify commands incl. shield checks, rollback)
+--- Note: server push itself requires SSH access to 13.140.131.204 — runbook documents the exact steps.

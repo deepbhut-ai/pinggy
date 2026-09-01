@@ -1,0 +1,27 @@
+# v0.11.0 — Web Debugger v1: inspect + replay (Track 6) — 2026-08-29
+
+## Changes
+1. proxy.py `_debug_capture`: per-subdomain Redis ring buffer (last 100
+   request/response pairs, 1h TTL): method, path, status, req/resp headers,
+   body preview (2KB). Fire-and-forget — capture failure can't break a request.
+2. `debugger.py` router: GET /debugger/{sub} (owner-or-admin enforced via live
+   registry + DB history fallback), DELETE (clear), POST /replay — replays a
+   captured (or crafted {method,path,headers,body}) request through the tunnel
+   and returns status/timing/headers/body.
+3. Dashboard Active Tunnels: 🔍 Debug button per tunnel → inspector modal:
+   capture table (time/method/path/status), row-click expands full headers +
+   body, per-row ↻ replay, Clear.
+
+## Machine assertions (all PASS — live tunnel `myapi`)
+  D0 3 requests sent through the tunnel
+  D1 GET /debugger/myapi → 3 entries, newest first (GET /?i=3 200)
+  D2 other user (vtest) → 403 (ownership enforced)
+  D3 POST replay {index:0} → replayed GET /?i=3 → 200 (9ms)
+  D4 DELETE clear → {"cleared":"myapi"}
+  D5 after clear → 0 entries
+
+## Notes
+- This closes pinggy's biggest feature gap (request inspection + replay) —
+  v1 is inspect+replay; header-rewrite rules (pinggy's "live header
+  modifications") remain future work.
+- Storage is ephemeral by design (Redis, 100/1h) — no PII accumulation.

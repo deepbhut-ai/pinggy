@@ -1,0 +1,16 @@
+=== v1.10.0 Sun Aug 30 14:07:09 IST 2026 — DDoS / API-hit shield + WebSocket tunnels ===
+--- RateLimitMiddleware (outermost, Redis sliding window ZSET):
+  T1 API zone (60/min/IP): 70 hammer requests -> exactly 60x200 + 10x429 Retry-After  PASS
+  T2 AUTH zone (10/min/IP): 13 bad logins -> 429s; strikes>=3 -> AUTO-BAN (blocked:ip key, 1h);
+     subsequent requests on ANY endpoint -> 429 (fail2ban-style)  PASS
+  T3 TUNNEL zone (240/min/IP + 600/min/subdomain): 300 reqs through live tunnel ->
+     exactly 240x200 + 60x429  PASS
+  zones: auth paths login/register/forgot/verify-otp/reset-password; /health,/docs exempt
+--- WebSocket pass-through (tunnel_websocket ASGI route on /*):
+  ws://0f4f398.localhost:8020/ -> SSH remote port -> local echo server -> "ECHO:hello-tunnel"  PASS
+  security checks reuse token security (basic-auth/ip-whitelist/bearer); multi-port aware (endpoint_port)
+  HMR/socket.io/live-reload through tunnels now work
+--- Fixes during test: WebSocketRoute endpoint must be (websocket) signature calling ASGI fn
+  (Starlette routes non-(scope,receive,send) signatures as endpoint-style); client->server
+  ASGI events are "websocket.receive" not "websocket.send".
+--- Server restarts clean; /health 200; JS untouched.

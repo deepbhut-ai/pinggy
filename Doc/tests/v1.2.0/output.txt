@@ -1,0 +1,33 @@
+# v1.2.0 — Active Tunnels: per-direction Sent ↑ / Received ↓ data — 2026-08-30
+
+User feedback: "Active tunnel — Sent & receive Data is missing" (only a single
+combined Data number was shown).
+
+## Changes
+1. Migration 0022: tunnels += bytes_sent (responses out of the local service)
+   and bytes_received (requests into it), both BIGINT default 0.
+2. TunnelSession + increment_request_count(subdomain, total, sent, received):
+   in-memory per-direction counters with DB write-through (best-effort).
+3. proxy.py counts per request: received = len(request body), sent =
+   len(response body); bytes_transferred now = sent + received (more accurate
+   than the previous response-only total).
+4. TunnelOut exposes bytes_sent/bytes_received; /tunnels/my, /tunnels (admin
+   live), /tunnels/history (DB) all return them.
+5. UI: user Active Tunnels table — "Data" column replaced by green
+   **↓ Received** and brand **↑ Sent** columns (human-readable KB/MB); admin
+   All Tunnels table likewise.
+
+## Machine assertions (all PASS)
+  R1b 5000B POST through tunnel → 200, tiny body
+  R2  /tunnels/my → reqs=1 received(↓)=5000 sent(↑)=11 total=5011
+  R3  DB row → 1 | 5000 | 11 | 5011 (write-through verified)
+  R4  /tunnels/history exposes ↓/↑ fields
+  JS: node --check both pages OK
+
+## Browser verification (vtest, live tunnel with traffic)
+  Active Tunnels row: 4 requests · ↓ 23.4 KB · ↑ 0.5 KB · rate · active
+  (screenshot-active-tunnels.png). Asymmetric values prove direction split.
+
+## Semantics (documented for users)
+  ↓ Received = request bytes arriving at your local service
+  ↑ Sent     = response bytes leaving your local service

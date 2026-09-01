@@ -1,0 +1,16 @@
+=== v1.5.0 verification — 2FA email OTP Sun Aug 30 04:30:36 IST 2026 ===
+--- migration:
+0023 -> 0024 users.twofa_enabled (from server.log)
+
+--- API flow (vtest@iraglobaltech.com, 2FA enabled):
+1. PUT /auth/2fa {"enabled":true} -> {"twofa_enabled":true} [200]
+2. GET /auth/2fa -> {"twofa_enabled":true}
+3. POST /auth/login (correct password) -> {"otp_required":true,"challenge":"..."} (NO token)
+4. POST /auth/verify-otp wrong code -> 401
+5. POST /auth/verify-otp code from email_logs (subject "IRAGT verification code: NNNNNN") -> 200 {access_token, user}
+6. Replay same challenge+code -> 401 (one-time consume)
+
+--- Redis store: otp:{challenge} -> sha256(code):email, TTL 300s (verified via flow above)
+--- Browser E2E: login page password -> OTP input appears -> code 357575 entered -> redirected to /dashboard
+--- Security modal: dashboard 🛡️ Security button -> modal shows 2FA status + Disable button
+--- JS: login.html + dashboard.html node --check OK

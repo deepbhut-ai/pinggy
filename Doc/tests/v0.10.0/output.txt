@@ -1,0 +1,38 @@
+# v0.10.0 — API keys + management REST + Python SDK (Track 4) — 2026-08-29
+
+## Changes
+1. Migration 0020: `api_keys` (SHA-256 key_hash UNIQUE, prefix for display,
+   last_used_at) — raw key shown exactly once at creation.
+2. `apikeys.py` router: create/list/revoke (owner-scoped, audited:
+   apikey.create / apikey.revoke).
+3. `manage.py` router (X-Api-Key **or** JWT auth): GET /manage/tunnels (live +
+   history), POST /manage/tunnels/{sub}/stop (ownership enforced), GET/POST
+   /manage/tokens, DELETE /manage/tokens/{id} — with fixed_subdomain +
+   custom_domain on create (validated).
+4. `deps.get_api_user`: X-Api-Key → owner user dict (checks is_active,
+   updates last_used); falls back to JWT Bearer manually (bug fixed: initial
+   fallback crashed → 500; now proper 401).
+5. `sdk/pinggy_sdk.py`: zero-dependency Python SDK (TunnelClient:
+   tokens/create/delete, tunnels, stop_tunnel, ssh_command helper, plans).
+6. Dashboard: API Keys nav page — table (prefix only, last-used), create with
+   one-time reveal + copy, revoke, and an inline SDK quick-start snippet.
+
+## Machine assertions (all PASS)
+  K1  POST /apikeys → 201, raw pk_ key returned once
+  K2  GET /apikeys → prefix only, no raw key in list
+  K3  GET /manage/tunnels (X-Api-Key) → live+history JSON
+  K4  GET /manage/tokens (key) → owner's tokens
+  K5  POST /manage/tokens (key) → created with fixed_subdomain=sdktest
+  K6  bad key → 401
+  K7b no auth → 401 (fixed from 500)
+  K7c bad key → 401
+  K7d JWT Bearer still works on /manage → 200 (dual auth confirmed)
+  K8  SDK E2E: tokens() / create_token() / tunnels() / delete_token() /
+      ssh_command() all functional
+  K9  last_used_at updated after key use
+  K10 revoke → works
+  K11 revoked key → 401
+
+## Browser verification
+  Dashboard API Keys page: nav item, empty-state table, Create button,
+  Python SDK quick-start snippet (screenshot-apikeys.png).

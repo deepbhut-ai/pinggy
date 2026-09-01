@@ -1,0 +1,41 @@
+# v0.4.0 — Phase C: payment-key settings UI + coupons — 2026-08-29
+
+Confirmed scope: Job 3 + settings hub foundation + approved coupons suggestion.
+
+## Changes
+1. Migration 0012: `app_settings` (key/value/updated_by/updated_at) + `coupons`
+   (code, percent_off 1-100, max_redemptions 0=∞, redeemed, active, expires_at).
+2. `app/core/app_settings.py`: DB>env resolution (get_setting/set_setting),
+   payment_method_enabled (explicit flag > key presence), SETTING_DEFS registry.
+3. `app/api/routers/settings.py`: GET /settings (masked secrets + source),
+   PUT /settings (audited, secrets never logged), coupons CRUD (audited),
+   GET /settings/coupons/public (active list for checkout UI).
+4. payments.py rewired: checkout prices/keys/URLs/mode read via DB settings;
+   `coupon` param applies percent-off discount on all 3 gateways; coupon recorded
+   on payments row (coupon_code — column added in Phase E, insert is defensive);
+   redemption incremented in _mark_paid_and_upgrade; POST /payments/coupon/validate.
+5. admin.html: ⚙️ Settings page (grouped Stripe/PayPal/NowPayments/General, masked
+   secrets, source badges, save-all) + 🎟️ Coupons page (table + create form).
+
+## Machine assertions (all PASS)
+  C1 GET /settings → 13 keys, env defaults, unset secrets empty
+  C2 PUT {stripe_secret_key, stripe_enabled} → 200, audited (masked in audit)
+  C3 GET /settings → stripe masked "sk_••••123", source=db, enabled=true
+  C4 POST /settings/coupons LAUNCH20 20% max100 → 201
+  C5 GET /settings/coupons → row present
+  C6 POST /payments/coupon/validate LAUNCH20 → {percent_off:20, base 199 → 159.2}
+  C7 invalid coupon → 404
+  C8 POST /payments/checkout (stripe, coupon) → reached Stripe API with the DB-stored
+     key → 502 "Invalid API Key provided: sk_test_***y123" (EXPECTED with fake key —
+     proves DB→gateway key flow; no 503 gate anymore)
+  coupon_code psql error in log is expected (column lands in Phase E migration 0015)
+
+## Browser verification
+  ⚙️ Settings page renders grouped inputs with masked values + source badges.
+  🎟️ Coupons page renders LAUNCH20 row (20%, 100 max, 0 redeemed, Active) +
+  Create form. Screenshots: screenshot-settings.png, screenshot-coupons.png.
+
+## Notes
+- Test stripe key sk_test_51ExampleKey123 left in local app_settings (harmless, fake);
+  delete via Settings UI or `DELETE FROM app_settings WHERE key LIKE 'stripe%';`
+- LAUNCH20 coupon kept for demo/checkout testing.

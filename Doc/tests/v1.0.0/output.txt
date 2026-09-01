@@ -1,0 +1,38 @@
+# v1.0.0 — TCP tunnels + persistent ports (Track 5) — 2026-08-29
+
+The "1.0 feature-complete" release per the competitive roadmap.
+
+## Changes
+1. Migration 0021: tokens += tunnel_mode (http|tcp, default http) and
+   tcp_port (INTEGER UNIQUE, persistent, Pro-only).
+2. `app/core/tcp_relay.py`: public TCP listeners (0.0.0.0:port) piping both
+   directions to the token's SSH-forwarded remote port; per-subdomain cleanup
+   on tunnel disconnect; free-port allocator for future auto-assignment.
+3. ssh_server `_setup_tunnel`: loads tunnel_mode + tcp_port with the token
+   lookup; starts the relay when mode=tcp; `_cleanup_tunnel` closes relays
+   owned by the dying tunnel. (Bug found in verification: the mode/port
+   SELECT was initially not applied — the multi-edit reported success but the
+   old single-column query remained; caught because port 15000 never listened,
+   fixed and re-verified.)
+4. tokens API: PUT accepts tunnel_mode + tcp_port — Pro-gated (402 for free
+   plans), port uniqueness enforced (409), range 1024-65535.
+5. UI: Configure page regains the Tunnel-type select (HTTP / TCP (Pro));
+  edit-token modal gains Tunnel type + Persistent TCP port fields.
+
+## Machine assertions (all PASS)
+  T1  free-plan user sets tunnel_mode=tcp → 402 Payment Required
+  T2  Pro user sets tunnel_mode=tcp + tcp_port=15000 → 200 (DB: mode=tcp port=15000)
+  T3b tunnel connect → port 15000 LISTENING (public relay open)
+  T3d TCP E2E: socket client sent b"hello-tcp" → received b"echo:hello-tcp"
+      (full path: public port → relay → SSH remote port → client's local 9091
+       echo server → back)
+  T4  tunnel disconnect → relay closed (0 listeners)
+  T5  token restored to http mode
+
+## Notes
+- TCP tunnels are Pro-gated — a new differentiator on our Pro plan (matches
+  pinggy Pro's "1 persistent TCP port").
+- UDP intentionally not implemented (niche; NAT complexity) — documented in
+  the competitive analysis.
+- The web debugger (v0.11.0) applies to HTTP tunnels; TCP traffic is not
+  captured (raw streams).

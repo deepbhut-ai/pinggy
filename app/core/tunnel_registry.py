@@ -21,10 +21,16 @@ class TunnelSession:
     protocol: str             # "http" or "tcp"
     user_email: str           # SSH username used to connect
     ssh_peer: str             # remote address of SSH client
-    custom_domain: str = ""  # custom domain (if token has one)
+    custom_domain: str = ""  # primary custom domain (if token has one)
+    custom_domains: list = field(default_factory=list)  # extra domains (v1.4.0)
+    endpoints: dict = field(default_factory=dict)   # v1.9.0 multi-port: address -> remote_port
+    local_ports: dict = field(default_factory=dict)  # v1.9.0 multi-port: address -> client local port (display)
+    token: str = ""           # authenticating tunnel token (security lookups, v0.8.0)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     request_count: int = 0
     bytes_transferred: int = 0
+    bytes_sent: int = 0      # responses out of the local service (v1.2.0)
+    bytes_received: int = 0  # requests into the local service (v1.2.0)
     # Reference to the asyncssh SSHServerConnection for cleanup
     ssh_conn: Any = None
     # Callback to send log lines to the user's SSH terminal (live request log)
@@ -46,6 +52,21 @@ class TunnelSession:
     @property
     def is_alive(self) -> bool:
         return self.ssh_conn is not None
+
+    def endpoint_port(self, address: str) -> int:
+        """v1.9.0: remote port serving this address (falls back to the default)."""
+        try:
+            return self.endpoints.get(address.strip().lower().split(":")[0], self.remote_port)
+        except Exception:
+            return self.remote_port
+
+    def all_addresses(self) -> list[str]:
+        """Canonical order: subdomain host, primary domain, extras."""
+        out = [self.subdomain]
+        if self.custom_domain:
+            out.append(self.custom_domain)
+        out.extend(d for d in (self.custom_domains or []))
+        return out
 
 
 _domain: str = "localhost"
@@ -84,10 +105,14 @@ async def get_tunnel(subdomain: str) -> TunnelSession | None:
 
 async def get_tunnel_by_custom_domain(custom_domain: str) -> TunnelSession | None:
     """Find the active tunnel assigned to a custom domain."""
-    normalized_domain = custom_domain.strip().lower()
+    normalized_domain = custom_domain.strip().lower().split(":")[0]  # strip :port
     for tunnel in _tunnels.values():
-        if tunnel.custom_domain.strip().lower() == normalized_domain:
+        if tunnel.custom_domain.strip().lower().split(":")[0] == normalized_domain:
             return tunnel
+        # v1.4.0: match extra domains attached to the token
+        for d in getattr(tunnel, "custom_domains", []) or []:
+            if str(d).strip().lower() == normalized_domain:
+                return tunnel
     return None
 
 
@@ -102,11 +127,37 @@ async def list_tunnels() -> list[TunnelSession]:
     return list(_tunnels.values())
 
 
-async def increment_request_count(subdomain: str, bytes_count: int = 0) -> None:
+async def increment_request_count(subdomain: str, bytes_count: int = 0, sent: int = 0, received: int = 0) -> None:
+    """Increment traffic counters for a tunnel.
+
+    sent     = response bytes leaving the local service (↑)
+    received = request bytes arriving at the local service (↓)
+    bytes_count = total for this request (sent + received) — keeps
+    bytes_transferred as the combined total.
+
+    Updates the in-memory session AND writes through to the tunnels table so
+    per-token traffic and analytics see real numbers. DB failure must never
+    break the proxied request — swallowed.
+    """
     tunnel = _tunnels.get(subdomain)
     if tunnel:
         tunnel.request_count += 1
         tunnel.bytes_transferred += bytes_count
+        tunnel.bytes_sent += sent
+        tunnel.bytes_received += received
+        try:
+            from app.core.db import get_conn
+            async with get_conn() as db:
+                cur = await db.execute(
+                    "UPDATE tunnels SET request_count = %s, bytes_transferred = %s, "
+                    "bytes_sent = %s, bytes_received = %s "
+                    "WHERE subdomain = %s AND status = 'active'",
+                    (tunnel.request_count, tunnel.bytes_transferred,
+                     tunnel.bytes_sent, tunnel.bytes_received, subdomain),
+                )
+                await cur.close()
+        except Exception:
+            pass  # stats write-through is best-effort
 
 
 def log_to_tunnel(subdomain: str, message: str) -> None:

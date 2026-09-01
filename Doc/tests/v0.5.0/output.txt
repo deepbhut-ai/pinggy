@@ -1,0 +1,52 @@
+# v0.5.0 — Phase D: email system + announcements + password reset — 2026-08-29
+
+Confirmed scope: Job 6 (login email, forgot password, tunnel-stopped, new account,
+campaigns) + approved announcements suggestion.
+
+## Changes
+1. Migration 0013: `email_logs` (to/subject/kind/status/error), `password_resets`
+   (token_hash UNIQUE, expires_at, used_at), `payments.coupon_code` (column the
+   v0.4.0 code already wrote defensively).
+2. Migration 0014: `announcements` (title/body/level/active).
+3. `app/core/email.py`: SMTP via app_settings (smtp_host/port/user/password/from/
+   enabled — manageable in ⚙️ Settings), templates (welcome/reset/tunnel_stopped),
+   every send logged to email_logs, failures never break requests.
+4. auth.py: POST /auth/forgot-password (no account enumeration; mints SHA-256-hashed
+   single-use 30-min token; sends reset email) + POST /auth/reset-password
+   (single-use enforced, audited).
+5. Hooks: welcome email on self-service register; tunnel-stopped email on SSH
+   disconnect (ssh_server._cleanup_tunnel).
+6. announcements router: CRUD (authed list — users see active only), POST /campaign
+   (all|pro|free audiences, 503-gated until SMTP configured, audited),
+   GET /announcements/logs, GET /announcements/smtp-status.
+7. UI: login.html forgot/reset forms (+ auto-opens via ?reset=TOKEN);
+   admin 📣 Announcements page (table + publish form + campaign composer + email
+   logs + SMTP status banner); user dashboard announcement banner.
+8. **Pre-existing critical bug fixed**: dashboard.html had `let tunnelRateTracker`
+   declared TWICE → SyntaxError killed the whole script → the user dashboard page
+   NEVER loaded (inherited from the prod-server copy; /admin was unaffected).
+   Removed the duplicate — dashboard loads for the first time.
+
+## Machine assertions (all PASS)
+  D1 POST /announcements → 201 (title/level/active)
+  D2 GET /announcements (user) → active-only list
+  D3 GET /announcements/smtp-status → {configured:false}
+  D4 POST /auth/forgot-password → 200 generic response (no enumeration)
+  D5 DB: password_resets row (unused, valid) + email_logs row (kind=reset,
+     status=failed "SMTP not configured") — correct behavior with SMTP off
+  D6 POST /announcements/campaign → 503 until SMTP configured
+  D7 reset flow E2E: valid token → pw updated → login 200 → token reuse 400
+  D8 vtest password restored (NewPass@77)
+
+## Browser verification
+  Admin 📣 Announcements: SMTP warning banner, announcement row (success level),
+  publish form, campaign composer (audience select), email logs table showing the
+  failed reset email. (screenshot-announcements.png)
+  User dashboard: announcement banner renders above content; page fully loads.
+  (screenshot-dashboard-banner.png)
+  Login page: Forgot password? → email form + Send Reset Link (screenshot-forgot.png)
+
+## Notes
+- SMTP intentionally OFF locally — set it in ⚙️ Settings (smtp_*) to activate real
+  sends; all flows degrade gracefully and are logged.
+- Reset-link URL uses public_base_url setting.

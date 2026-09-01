@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login — Tunnel</title>
+<title>Login — IRAGT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -58,11 +58,20 @@
   .back-link { text-align: center; margin-top: 1.5rem; font-size: .825rem; }
   .back-link a { color: var(--text-dim); }
 </style>
+<style>
+  /* v1.3 polish */
+  .auth-card { transition: box-shadow .2s, transform .2s; }
+  .auth-card:hover { box-shadow: 0 24px 48px -20px rgba(0,0,0,.55); }
+  .btn { transition: transform .12s, box-shadow .12s; }
+  .btn:hover { transform: translateY(-1px); }
+  input:focus { outline: 2px solid color-mix(in srgb, var(--primary, #6366f1) 55%, transparent); outline-offset: 1px; }
+  .auth-tab { transition: background .15s, color .15s; }
+</style>
 </head>
 <body>
 
 <div class="auth-card">
-  <div class="logo">⚡ Tunnel</div>
+  <div class="logo">⚡ IRAGT</div>
   <div class="subtitle">Secure tunnels to localhost</div>
 
   <div class="auth-tabs">
@@ -80,9 +89,39 @@
       <label>Password</label>
       <input type="password" id="loginPassword" placeholder="Password">
     </div>
+    <div class="form-group" id="otpGroup" style="display:none">
+      <label>Verification code</label>
+      <input type="text" id="loginOtp" placeholder="6-digit code from your email" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+      <p class="auth-note" style="margin-top:.35rem">We sent a 6-digit code to your email (expires in 5 min).</p>
+    </div>
     <div class="auth-error" id="loginError"></div>
-    <button class="btn" onclick="doLogin()">Login</button>
-    <p class="auth-note">Don't have an account? <a href="#" onclick="switchTab('register', document.querySelector('.auth-tab:nth-child(2)'));return false">Sign up</a></p>
+    <div class="auth-success" id="loginSuccess" style="display:none"></div>
+    <button class="btn" id="loginBtn" onclick="doLogin()">Login</button>
+    <p class="auth-note"><a href="#" onclick="switchTab('forgot', document.querySelector('.auth-tab:nth-child(1)'));return false">Forgot password?</a> · Don't have an account? <a href="#" onclick="switchTab('register', document.querySelector('.auth-tab:nth-child(2)'));return false">Sign up</a></p>
+  </div>
+
+  <!-- Forgot / Reset Form (Job 6) -->
+  <div class="auth-form" id="forgotForm">
+    <div id="forgotRequestBox">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="forgotEmail" placeholder="user@example.com">
+      </div>
+      <div class="auth-error" id="forgotError"></div>
+      <div class="auth-success" id="forgotSuccess"></div>
+      <button class="btn" onclick="doForgot()">Send Reset Link</button>
+      <p class="auth-note">If SMTP is not configured, ask the admin to reset your password.</p>
+    </div>
+    <div id="resetBox" style="display:none">
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" id="resetPassword" placeholder="Min 4 characters">
+      </div>
+      <div class="auth-error" id="resetError"></div>
+      <div class="auth-success" id="resetSuccess"></div>
+      <button class="btn" onclick="doReset()">Set New Password</button>
+    </div>
+    <p class="auth-note"><a href="#" onclick="switchTab('login', document.querySelector('.auth-tab:nth-child(1)'));return false">← Back to Login</a></p>
   </div>
 
   <!-- Register Form -->
@@ -127,12 +166,69 @@ const API = '/api/v1';
 function switchTab(tab, el) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById(tab + 'Form').classList.add('active');
+  if (el) el.classList.add('active');
+  const form = document.getElementById(tab + 'Form');
+  if (form) form.classList.add('active');
   document.getElementById('loginError').style.display = 'none';
   document.getElementById('registerError').style.display = 'none';
   document.getElementById('registerSuccess').style.display = 'none';
 }
+
+// ---- Forgot / reset password (Job 6) ----
+let RESET_TOKEN = null;
+
+async function doForgot() {
+  const email = document.getElementById('forgotEmail').value.trim();
+  const errEl = document.getElementById('forgotError');
+  const okEl = document.getElementById('forgotSuccess');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  if (!email) { errEl.textContent = 'Enter your email'; errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch(`${API}/auth/forgot-password`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Request failed');
+    okEl.textContent = data.detail + ' (If SMTP is off, the link is in email_logs and the admin can hand it over.)';
+    okEl.style.display = 'block';
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+}
+
+function showResetForm(token) {
+  RESET_TOKEN = token;
+  switchTab('forgot', null);
+  document.getElementById('forgotRequestBox').style.display = 'none';
+  document.getElementById('resetBox').style.display = 'block';
+}
+
+async function doReset() {
+  const pw = document.getElementById('resetPassword').value;
+  const errEl = document.getElementById('resetError');
+  const okEl = document.getElementById('resetSuccess');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  if (!RESET_TOKEN || pw.length < 4) { errEl.textContent = 'Enter a password (min 4 chars)'; errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch(`${API}/auth/reset-password`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: RESET_TOKEN, new_password: pw })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Reset failed');
+    okEl.textContent = data.detail + ' Redirecting to login…';
+    okEl.style.display = 'block';
+    setTimeout(() => { RESET_TOKEN = null; window.location.href = '/login'; }, 1500);
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+}
+
+// Auto-open reset form when arriving via ?reset=TOKEN
+(async function() {
+  const params = new URLSearchParams(window.location.search);
+  const rt = params.get('reset');
+  if (rt) showResetForm(rt);
+})();
+
+let OTP_CHALLENGE = null;
 
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
@@ -140,6 +236,25 @@ async function doLogin() {
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
   if (!email || !password) { errEl.textContent = 'Please enter email and password'; errEl.style.display = 'block'; return; }
+
+  // Step 2: verify OTP after challenge was issued
+  if (OTP_CHALLENGE) {
+    const code = document.getElementById('loginOtp').value.trim();
+    if (!code) { errEl.textContent = 'Enter the 6-digit code from your email'; errEl.style.display = 'block'; return; }
+    try {
+      const res = await fetch(`${API}/auth/verify-otp`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge: OTP_CHALLENGE, code })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Verification failed');
+      localStorage.setItem('pinggy_token', data.access_token);
+      localStorage.setItem('pinggy_user', JSON.stringify(data.user));
+      window.location.replace(data.user.role === 'admin' ? '/admin' : '/dashboard');
+    } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+    return;
+  }
+
   try {
     const res = await fetch(`${API}/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -147,6 +262,14 @@ async function doLogin() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Login failed');
+    if (data.otp_required) {
+      OTP_CHALLENGE = data.challenge;
+      document.getElementById('otpGroup').style.display = 'block';
+      document.getElementById('loginBtn').textContent = 'Verify & Login';
+      document.getElementById('loginPassword').parentElement.style.display = 'none';
+      document.getElementById('loginOtp').focus();
+      return;
+    }
     localStorage.setItem('pinggy_token', data.access_token);
     localStorage.setItem('pinggy_user', JSON.stringify(data.user));
     // Replace current history entry so back button doesn't go back to login

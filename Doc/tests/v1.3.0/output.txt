@@ -1,0 +1,40 @@
+# v1.3.0 — Branding & UX batch — 2026-08-30
+
+User-reported items addressed in this release: rebrand (#9), platform auto-detect
+(#2), yearly toggle (#4), usage tooltips (#10), API docs (#3), apikey/login
+emails (#8), design polish (#11).
+
+## Changes
+1. **Rebrand Pinggy → IRAGT**: page titles, logos (landing/login/dashboard/admin),
+   admin headers, SSH tunnel banner, email templates, invoice header, .env
+   APP_NAME (health now reports "IRAGT"). localStorage keys (pinggy_token) and
+   DB/internal names intentionally unchanged to preserve sessions/data.
+2. **Platform auto-detect** (Configure): selector defaults from navigator
+   (mac/windows/linux); a manual choice or loaded saved config pins it.
+3. **Yearly toggle FIXED**: the re-render hardcoded Monthly-active classes so the
+   toggle visually snapped back. Template now reflects billingCycle; prices,
+   /yr labels, savings line, and checkout all follow.
+4. **Chart tooltips**: My Usage bars use styled CSS tooltips (date — value);
+   admin Insights charts got hover-value titles.
+5. **API Docs page** (new nav item): auth header, endpoint table (manage/apikeys/
+   plans/analytics), curl example, Python SDK sample.
+6. **Emails**: login alert (kind=login) + API-key created (kind=apikey, raw key
+   intentionally NOT emailed) — best-effort, logged in email_logs.
+7. **Design polish**: user dashboard — gradient bg accent, card/StatCard hover
+   lift, primary-button gradient+shadow, nav pill+active bar, table row hover,
+   focus rings, styled scrollbars, toast/modal animations. Landing: pricing/
+   feature card hover lift. Login: card glow + input focus.
+
+## Machine assertions (all PASS)
+  V1 /health → {"app":"IRAGT"}
+  V2 landing contains IRAGT logo; V3 login title "Login — IRAGT"
+  V4 only localStorage-key pinggy mentions remain on landing/login
+  V5 login email logged (login:failed — SMTP off, expected)
+  V6 apikey 201 + apikey email logged
+  JS node --check: all 4 HTML pages OK
+
+## Browser verification (0 JS errors)
+  API Docs renders endpoint table + curl + SDK. setCycle('yearly') → prices
+  switch to /yr + save 17% line; Yearly button stays active after re-render.
+  Configure platform pre-selected from UA. My Usage: 87 bars carry data-tip.
+  Screenshots: screenshot-api-docs.png, screenshot-yearly.png.

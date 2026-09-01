@@ -1,0 +1,83 @@
+# Local run verification — 2026-08-29 (VS Code integrated browser)
+
+## Goal
+Run the IRAGT "pinggy" tunnel-service project locally inside the VS Code integrated browser.
+
+## Environment fixes required
+1. `.venv` shipped in the project copy was built on LINUX (ELF x86-64 binaries,
+   `home = /usr/bin` in pyvenv.cfg) — project was copied from prod server `/opt/pinggy`.
+   Executing it on macOS failed with `zsh: permission denied`.
+   Fix: rebuilt with `python3 -m venv .venv --clear` + `pip install -r requirements.txt`
+   (Python 3.10.0, macOS framework build). All deps import OK.
+2. Port 8000 (node PID 48594), 8010 (python PID 48840) and 8030 were already in use
+   on this machine → app started with `APP_PORT=8020` env override.
+3. Local PostgreSQL (brew postgresql@14) already accepts `postgres:root@localhost:5432`
+   → `.env` DB credentials worked unchanged. Redis on 6379 was already running.
+
+## Startup
+Command (terminal, background):
+  APP_PORT=8020 .venv/bin/python run.py
+
+Auto-setup log: DB `pinggy` created, pgcrypto enabled, Alembic migrations
+0001→0009 applied, default admin created (email='admin', password='admin').
+Startup lines:
+  [pinggy] DB pool ready on postgresql://postgres:root@localhost:5432/pinggy
+  [pinggy] Redis connected on redis://localhost:6379/0
+  [ssh] Server listening on 0.0.0.0:2222
+  INFO: Uvicorn running on http://127.0.0.1:8020
+
+## Machine-verifiable assertions (all PASS)
+  curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8020/health   -> 200
+  curl -s http://127.0.0.1:8020/health                                  -> {"status":"ok","app":"pinggy","env":"production"}
+  curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8020/         -> 200 (landing)
+  curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8020/login    -> 200
+  curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8020/admin    -> 200
+  curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8020/docs     -> 200
+  curl -s http://127.0.0.1:8020/ | grep -c -i pinggy                    -> 5 (>= 1 expected)
+  POST /api/v1/auth/login {"email":"admin","password":"admin"}          -> 200 + access_token (JWT HS256)
+
+## Integrated-browser UI verification (VS Code browser)
+- http://127.0.0.1:8020/ landing page renders (hero, features, pricing ₹0/₹199/Custom).
+- /login page renders; switched to Login mode, submitted admin/admin.
+- Redirected to /admin "pinggy Admin" dashboard: logged in as admin (Default Admin,
+  User ID c566c434-cbe6-4899-9d90-7978493d9094), stats Total Users=1, tunnel tables empty.
+- Screenshots: screenshot-landing.png, screenshot-admin-dashboard.png (this folder).
+
+## Notes / caveats
+- `.env` is the PRODUCTION config (APP_ENV=production, TUNNEL_DOMAIN=iraglobaltech.com,
+  fake payment keys sk_test_xxx / PayPal xxx with *_ENABLED=true). Tunnels created
+  locally would advertise *.iraglobaltech.com URLs that only resolve on the prod server.
+- `GET /api/v1/users/me` does NOT exist; `/users/{user_id}` treats "me" as a UUID and 500s
+  (psycopg InvalidTextRepresentation). Use the real user UUID. Pre-existing API shape,
+  not a local-setup issue.
+- No code was changed in this run — environment setup only (venv rebuild + local DB).
+
+================================================================================
+# v0.1.0 — dev bootstrap verification — 2026-08-29 (after .env swap + admin re-identity + Doc scaffold)
+
+App restarted with new dev .env (APP_ENV=dev, port 8020, TUNNEL_DOMAIN=localhost:8020,
+payments disabled, dev JWT secret). Server banner: "ssh -p 2222 -R0:localhost:PORT localhost:8020".
+
+## Machine assertions (all PASS)
+  curl /health                                        -> {"status":"ok","app":"pinggy","env":"dev"}
+  POST /auth/login support@callingagents.in            -> 200 + JWT
+  GET  /auth/me (Bearer)                              -> {"email":"support@callingagents.in","role":"admin",...}
+  POST /auth/login admin/admin (OLD creds)            -> 401  (identity replaced)
+  curl -H "Host: zzprobe.localhost:8020" /            -> 502 "No tunnel found" (TunnelProxy intercepts)
+  GET / /login /admin /docs                           -> 200 x4
+
+## Tunnel E2E (Doc/tests/v0.1.0/tunnel_e2e.py) — PASS, exit 0
+  http.server 9090 -> SSH reverse forward (token auth, remote port 65457)
+  -> subdomain http://jwrvvf1.localhost:8020/ -> HTTP 200, 1396 bytes ("Directory listing")
+  http.server access log: "GET / HTTP/1.1" 200 -
+  Admin dashboard "Recent Tunnel Activity" lists both E2E tunnels under
+  support@callingagents.in (screenshot-admin-new-identity.png).
+
+## Gotchas found & documented
+  - E2E test must fetch the tunnel URL from a WORKER THREAD: a blocking urlopen in the
+    same event loop as the asyncssh client deadlocks the forwarded channel (timeout).
+  - admin.html hardcodes "iraglobaltech.com" strings in System Info (cosmetic; real
+    dev domain is localhost:8020).
+  - tokens table is empty locally (0006 backfill predates admin seeding) — SSH auth
+    falls back to users.tunnel_token (works, verified by E2E).
+

@@ -1,0 +1,13 @@
+=== v1.6.0 Sun Aug 30 07:16:06 IST 2026 — API key plan caps + optional expiry ===
+--- migration: 0024 -> 0025 api_keys.expires_at TIMESTAMPTZ NULL (+idx) — from server.log
+--- Cap (free plan = support@callingagents.in):
+  created captest-1..5 -> 201 x5; captest-6 -> 402 "API key limit reached (5 on the free plan). Revoke an unused key or upgrade to Pro for 10 keys."
+  (pro cap = 10, same code path; vtest at 2/10 shown in UI)
+--- Expiry:
+  created expiry-test (90d) -> auth 200; DB-forced expires_at = now()-1h -> auth 401 (rejected)
+  ui-expiry-test created via UI dropdown "In 30 days" -> expires_at = 2026-09-29 (+30d exactly), auth 200
+  invalid expiry_days=7 -> 400 "expiry_days must be 30, 90, or null" (validation branch)
+--- UI (browser):
+  title "API Keys 2 / 10 used" (plan-aware); Expires column (never | date | expired badge)
+  Create modal: Name + Expires dropdown (Never/30/90) -> created-key modal with real-key curl -> 200 when run
+--- JS: node --check OK. Test keys cleaned up after.

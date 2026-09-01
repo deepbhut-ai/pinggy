@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>pinggy Admin</title>
+<title>IRAGT Admin</title>
 <style>
   :root {
     --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
@@ -162,7 +162,7 @@
 <!-- ============ LOGIN VIEW (hidden — auth is on /login page) ============ -->
 <div id="loginView" style="display:none">
   <div class="login-card">
-    <h1>pinggy Admin</h1>
+    <h1>IRAGT Admin</h1>
     <p>Sign in with your account</p>
     <div id="loginError" style="color:var(--red);font-size:.8rem;margin-bottom:.75rem;display:none;"></div>
     <div class="form-group">
@@ -181,7 +181,7 @@
 <!-- ============ APP VIEW ============ -->
 <div id="appView">
   <div class="topbar">
-    <h1>⚡ pinggy Admin</h1>
+    <h1>⚡ IRAGT Admin</h1>
     <div class="right">
       <span class="user-info" id="topbarUser"></span>
       <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
@@ -195,7 +195,14 @@
       <a href="#" data-page="tunnels" onclick="navigate('tunnels', this)" id="navTunnels" style="display:none">🔗 All Tunnels</a>
       <a href="#" data-page="payments" onclick="navigate('payments', this)" id="navPayments" style="display:none">💳 Payments</a>
       <a href="#" data-page="ipmonitor" onclick="navigate('ipmonitor', this)" id="navIpMonitor" style="display:none">🛡️ IP Monitor</a>
+      <a href="#" data-page="audit" onclick="navigate('audit', this)" id="navAudit" style="display:none">📋 Audit Log</a>
+      <a href="#" data-page="settings" onclick="navigate('settings', this)" id="navSettings" style="display:none">⚙️ Settings</a>
+      <a href="#" data-page="coupons" onclick="navigate('coupons', this)" id="navCoupons" style="display:none">🎟️ Coupons</a>
+      <a href="#" data-page="announce" onclick="navigate('announce', this)" id="navAnnounce" style="display:none">📣 Announcements</a>
+      <a href="#" data-page="plans" onclick="navigate('plans', this)" id="navPlans" style="display:none">💎 Plans</a>
+      <a href="#" data-page="invoices" onclick="navigate('invoices', this)" id="navInvoices" style="display:none">🧾 Invoices</a>
       <a href="#" data-page="register" onclick="navigate('register', this)" id="navRegister" style="display:none">➕ Add User</a>
+      <a href="#" data-page="tickets" onclick="navigate('tickets', this)" id="navTickets" style="display:none">🎫 Tickets</a>
     </div>
     <div class="content" id="pageContent"></div>
   </div>
@@ -285,7 +292,14 @@ async function showApp() {
     document.getElementById('navTunnels').style.display = 'block';
     document.getElementById('navPayments').style.display = 'block';
     document.getElementById('navIpMonitor').style.display = 'block';
+    document.getElementById('navAudit').style.display = 'block';
+    document.getElementById('navSettings').style.display = 'block';
+    document.getElementById('navCoupons').style.display = 'block';
+    document.getElementById('navAnnounce').style.display = 'block';
+    document.getElementById('navPlans').style.display = 'block';
+    document.getElementById('navInvoices').style.display = 'block';
     document.getElementById('navRegister').style.display = 'block';
+    document.getElementById('navTickets').style.display = 'block';
   }
   navigate('dashboard', document.querySelector('.sidebar a'));
 }
@@ -297,13 +311,20 @@ function navigate(page, el) {
   document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
   if (el) el.classList.add('active');
   const c = document.getElementById('pageContent');
-  if (page === 'dashboard') { c.innerHTML = renderDashboard(); loadAdminStats(); }
+  if (page === 'dashboard') { c.innerHTML = renderDashboard(); loadAdminStats(); loadSystemInfo(); loadInsights(); }
   else if (page === 'users') loadUsers();
   else if (page === 'tokens') loadAllTokens();
   else if (page === 'tunnels') loadAllTunnels();
   else if (page === 'payments') loadAllPayments();
   else if (page === 'ipmonitor') loadIpMonitor();
+  else if (page === 'audit') loadAuditLog();
+  else if (page === 'settings') loadSettings();
+  else if (page === 'coupons') loadCoupons();
+  else if (page === 'announce') loadAnnouncements();
+  else if (page === 'plans') loadPlans();
+  else if (page === 'invoices') loadInvoices();
   else if (page === 'register') c.innerHTML = renderRegisterForm();
+  else if (page === 'tickets') loadAdminTickets();
 }
 
 // ---- Dashboard ----
@@ -329,6 +350,15 @@ function renderDashboard() {
     </div>
     <div id="adminStats" style="margin-bottom:1.5rem"></div>
     ${adminCards}
+    <div class="card" style="margin-top:1.5rem">
+      <div class="card-header"><h2>📈 Insights (Daily / Monthly)</h2>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" id="insRangeBtn" onclick="cycleInsightsRange()">📅 30d</button>
+          <button class="btn btn-sm" onclick="loadInsights()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="card-body" id="insightsBody"><p class="empty">Loading insights…</p></div>
+    </div>
     <div id="recentActivity" style="margin-top:1.5rem"></div>
     <div class="card">
       <div class="card-header"><h2>System Info</h2></div>
@@ -338,11 +368,95 @@ function renderDashboard() {
           <tr><td>Swagger Docs</td><td><a href="/docs" target="_blank">/docs</a></td></tr>
           <tr><td>ReDoc</td><td><a href="/redoc" target="_blank">/redoc</a></td></tr>
           <tr><td>Health Check</td><td><a href="/health" target="_blank">/health</a></td></tr>
-          <tr><td>SSH Server</td><td class="code">ssh.iraglobaltech.com:2222</td></tr>
-          <tr><td>Tunnel Domain</td><td class="code">iraglobaltech.com</td></tr>
+          <tr><td>SSH Server</td><td class="code" id="sysSshServer">—</td></tr>
+          <tr><td>Tunnel Domain</td><td class="code" id="sysTunnelDomain">—</td></tr>
         </table>
       </div>
     </div>`;
+}
+
+// ---- Insights (Job 7): dependency-free bar charts ----
+let insightsState = { range: 30, tab: 'daily', data: null };
+
+function cycleInsightsRange() {
+  insightsState.range = insightsState.range === 30 ? 60 : insightsState.range === 60 ? 90 : 30;
+  loadInsights();
+}
+
+async function loadInsights() {
+  const btn = document.getElementById('insRangeBtn');
+  if (btn) btn.textContent = `📅 ${insightsState.range}d`;
+  try {
+    insightsState.data = await api(`/analytics/overview?days=${insightsState.range}`);
+    renderInsights();
+  } catch (e) {
+    const el = document.getElementById('insightsBody');
+    if (el) el.innerHTML = `<p style="color:var(--red)">${e.message}</p>`;
+  }
+}
+
+function barChart(title, points, fmt = v => v) {
+  // points: [{label, value}] — renders vertical bars with max-height scaling + tooltip
+  const max = Math.max(1, ...points.map(p => p.value));
+  const bars = points.map(p => `
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:.25rem;position:relative" title="${esc(p.label)}: ${fmt(p.value)}">
+      <div style="width:70%;height:${Math.max(2, Math.round((p.value / max) * 90))}px;background:var(--primary);border-radius:3px 3px 0 0;opacity:.85"></div>
+      <div style="font-size:.6rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${esc(p.label)}</div>
+    </div>`).join('');
+  return `<div style="margin-bottom:1rem">
+    <div style="font-size:.8rem;font-weight:600;margin-bottom:.4rem">${title} <span style="color:var(--text-dim);font-weight:400">(hover bars for values)</span></div>
+    <div style="display:flex;align-items:flex-end;gap:2px;height:110px">${bars}</div>
+  </div>`;
+}
+
+function renderInsights() {
+  const el = document.getElementById('insightsBody');
+  if (!el || !insightsState.data) return;
+  const d = insightsState.data;
+  const s = d.summary;
+  let charts = '';
+  if (insightsState.tab === 'daily') {
+    const pts = k => d.daily.map(x => ({ label: x.day.slice(5), value: x[k] }));
+    charts = barChart('Signups / day', pts('signups'))
+           + barChart('Tunnels created / day', pts('tunnels'))
+           + barChart('Tunnel requests / day', pts('requests'))
+           + barChart('Revenue / day (₹)', pts('revenue'), v => '₹' + v);
+  } else {
+    const pts = k => d.monthly.map(x => ({ label: x.month.slice(2), value: x[k] }));
+    charts = barChart('Signups / month', pts('signups'))
+           + barChart('Tunnels created / month', pts('tunnels'))
+           + barChart('Tunnel requests / month', pts('requests'))
+           + barChart('Revenue / month (₹)', pts('revenue'), v => '₹' + v);
+  }
+  el.innerHTML = `
+    <div class="stat-grid" style="margin-bottom:1rem">
+      <div class="stat-card"><div class="label">Signups today</div><div class="value">${s.signups_today}</div></div>
+      <div class="stat-card"><div class="label">Signups this month</div><div class="value">${s.signups_this_month}</div></div>
+      <div class="stat-card"><div class="label">Tunnels today</div><div class="value">${s.tunnels_today}</div></div>
+      <div class="stat-card"><div class="label">Tunnels this month</div><div class="value">${s.tunnels_this_month}</div></div>
+      <div class="stat-card"><div class="label">Revenue this month</div><div class="value">₹${s.revenue_this_month}</div></div>
+      <div class="stat-card"><div class="label">Pro users</div><div class="value">${s.pro_users} / ${s.total_users}</div></div>
+    </div>
+    <div class="tabs" style="margin-bottom:1rem">
+      <button class="tab ${insightsState.tab === 'daily' ? 'active' : ''}" onclick="insightsState.tab='daily';renderInsights()">📅 Daily</button>
+      <button class="tab ${insightsState.tab === 'monthly' ? 'active' : ''}" onclick="insightsState.tab='monthly';renderInsights()">🗓️ Monthly</button>
+    </div>
+    ${charts}`;
+}
+
+// ---- System Info (settings-driven via /tunnels/info) ----
+async function loadSystemInfo() {
+  try {
+    const info = await api('/tunnels/info');
+    const domain = info.domain || '—';
+    const hostOnly = domain.split(':')[0];
+    // Same derivation as buildSSHCommand(): prod uses a DNS-only ssh.<domain> host
+    const sshHost = hostOnly.includes('iraglobaltech.com') ? 'ssh.iraglobaltech.com' : hostOnly;
+    const d = document.getElementById('sysTunnelDomain');
+    const s = document.getElementById('sysSshServer');
+    if (d) d.textContent = domain;
+    if (s) s.textContent = `${sshHost}:${info.ssh_port}`;
+  } catch (e) { /* leave placeholders on failure */ }
 }
 
 // ---- Admin Stats (loaded async) ----
@@ -411,6 +525,7 @@ async function loadAllTunnels() {
   try {
     const tunnels = await api('/tunnels/history?limit=500');
     const active = tunnels.filter(t => t.status === 'active');
+    const fmtB = b => b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB';
     let rows = tunnels.map((t, i) => `<tr>
       <td>${i + 1}</td>
       <td class="code">${t.subdomain}</td>
@@ -418,11 +533,12 @@ async function loadAllTunnels() {
       <td><a href="${t.url}" target="_blank" style="color:var(--primary)">${t.url}</a></td>
       <td>${t.remote_port}</td>
       <td>${t.request_count}</td>
-      <td>${(t.bytes_transferred / 1024).toFixed(1)} KB</td>
+      <td>↓ ${fmtB(t.bytes_received || 0)}</td>
+      <td>↑ ${fmtB(t.bytes_sent || 0)}</td>
       <td><span class="badge ${t.status === 'active' ? 'badge-green' : 'badge-red'}">${t.status}</span></td>
       <td>${t.created_at.replace('T',' ').substring(0,19)}</td>
     </tr>`).join('');
-    if (!rows) rows = '<tr><td colspan="9" class="empty">No tunnels found</td></tr>';
+    if (!rows) rows = '<tr><td colspan="10" class="empty">No tunnels found</td></tr>';
     c.innerHTML = `
     <div class="stat-grid">
       <div class="stat-card"><div class="label">Total Tunnels</div><div class="value">${tunnels.length}</div></div>
@@ -432,7 +548,7 @@ async function loadAllTunnels() {
     <div class="card">
       <div class="card-header"><h2>All Tunnels (${tunnels.length})</h2><button class="btn btn-sm" onclick="loadAllTunnels()">🔄 Refresh</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>#</th><th>Subdomain</th><th>User</th><th>URL</th><th>Port</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>#</th><th>Subdomain</th><th>User</th><th>URL</th><th>Port</th><th>Requests</th><th>↓ Received</th><th>↑ Sent</th><th>Status</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
@@ -451,7 +567,10 @@ async function loadUsers() {
       const totalRequests = userTunnels.reduce((sum, t) => sum + t.request_count, 0);
       const totalData = userTunnels.reduce((sum, t) => sum + t.bytes_transferred, 0);
       const isOnline = activeCount > 0;
-      const statusBadge = isOnline
+      const disabled = u.is_active === false;
+      const statusBadge = disabled
+        ? `<span class="badge badge-red">Disabled</span>`
+        : isOnline
         ? `<span style="display:inline-flex;align-items:center;gap:.3rem"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 1.5s infinite"></span><span class="badge badge-green">Online</span></span>`
         : `<span style="display:inline-flex;align-items:center;gap:.3rem"><span style="width:8px;height:8px;border-radius:50%;background:#94a3b8"></span><span class="badge">Offline</span></span>`;
       return `<tr>
@@ -466,6 +585,10 @@ async function loadUsers() {
         <td>${(totalData / 1024).toFixed(1)} KB</td>
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" onclick="viewUser('${u.id}')">View</button>
+          <button class="btn btn-sm" onclick="editUser('${u.id}')">✏️ Edit</button>
+          ${disabled
+            ? `<button class="btn btn-sm" onclick="setUserActive('${u.id}','${u.email}',true)" title="Re-enable account access">✅ Enable</button>`
+            : `<button class="btn btn-sm btn-danger" onclick="setUserActive('${u.id}','${u.email}',false)" title="Disable account access">🚫 Disable</button>`}
           ${u.plan !== 'pro' ? `<button class="btn btn-sm" onclick="quickActivatePro('${u.id}','${u.email}')" title="Activate Pro for 30 days">⭐ Pro</button>` : ''}
         </td>
       </tr>`;
@@ -618,6 +741,56 @@ async function deleteUser(userId, email) {
   }, 'Delete', 'btn-danger');
 }
 
+// ---- Edit user (email / name / role / password reset) ----
+async function editUser(id) {
+  let u;
+  try {
+    const users = await api('/users?limit=500');
+    u = users.find(x => x.id === id);
+  } catch (e) { toast(e.message, 'error'); return; }
+  if (!u) { toast('User not found', 'error'); return; }
+  showModal(`Edit User — ${esc(u.email)}`, `
+    <div class="form-group"><label>Email</label><input type="text" id="editEmail" value="${esc(u.email || '')}"></div>
+    <div class="form-group"><label>Full Name</label><input type="text" id="editFullName" value="${esc(u.full_name || '')}"></div>
+    <div class="form-group"><label>Role</label>
+      <select id="editRole" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>user</option>
+        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
+      </select></div>
+    <div class="form-group"><label>New Password</label><input type="text" id="editPassword" autocomplete="off" placeholder="(leave blank to keep current)"></div>
+    <p style="font-size:.75rem;color:var(--text-dim)">Changing the email re-links their tokens automatically is NOT supported yet — tokens rows keep the old email (SSH auth for those tokens will fail until re-created).</p>
+  `, async () => {
+    try {
+      const email = document.getElementById('editEmail').value.trim();
+      const full_name = document.getElementById('editFullName').value.trim();
+      const role = document.getElementById('editRole').value;
+      const password = document.getElementById('editPassword').value;
+      const params = new URLSearchParams();
+      if (email && email !== u.email) params.set('email', email);
+      if (full_name !== (u.full_name || '')) params.set('full_name', full_name);
+      if (role !== u.role) params.set('role', role);
+      if (password) params.set('password', password);
+      if (![...params.keys()].length) { closeModal(); toast('No changes'); return; }
+      await api(`/users/${id}?${params.toString()}`, 'PUT');
+      closeModal();
+      toast('User updated');
+      loadUsers();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Save Changes');
+}
+
+// ---- Enable / disable account access ----
+function setUserActive(id, email, active) {
+  showModal(active ? 'Enable Account' : 'Disable Account', `<p style="font-size:.875rem;color:var(--text-dim);line-height:1.5">${active ? 'Re-enable' : 'Disable'} account access for <strong style="color:var(--text)">${esc(email)}</strong>?<br>${active ? 'They will be able to log in and open tunnels again.' : 'Their login, API tokens and SSH tunnels will be rejected immediately.'}</p>`, async () => {
+    try {
+      closeModal();
+      await api(`/users/${id}?is_active=${active}`, 'PUT');
+      toast(active ? 'Account enabled' : 'Account disabled');
+      loadUsers();
+    } catch (e) { toast(e.message, 'error'); }
+  }, active ? 'Enable' : 'Disable', active ? '' : 'btn-danger');
+}
+
 // ---- Modal helpers ----
 function showModal(title, bodyHtml, onConfirm, confirmText = 'Confirm', confirmClass = '') {
   document.getElementById('modalTitle').textContent = title;
@@ -631,6 +804,32 @@ function showModal(title, bodyHtml, onConfirm, confirmText = 'Confirm', confirmC
 
 function closeModal() {
   document.getElementById('modalOverlay').style.display = 'none';
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---- Audit Log ----
+async function loadAuditLog() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const logs = await api('/audit?limit=200');
+    const rows = logs.map(l => `<tr>
+      <td style="white-space:nowrap">${l.created_at ? l.created_at.replace('T',' ').substring(0,19) : '—'}</td>
+      <td>${esc(l.actor_email)}</td>
+      <td><span class="badge ${l.action.startsWith('user.') ? 'badge-green' : ''}">${esc(l.action)}</span></td>
+      <td>${esc(l.target || '—')}</td>
+      <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(l.details || '')}">${esc(l.details || '—')}</td>
+    </tr>`).join('');
+    c.innerHTML = `<div class="card">
+      <div class="card-header"><h2>📋 Audit Log (${logs.length})</h2><button class="btn btn-sm" onclick="loadAuditLog()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Time (UTC)</th><th>Actor</th><th>Action</th><th>Target</th><th>Details</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="empty">No audit entries yet</td></tr>'}</tbody></table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
 async function saveCustomDomain(userId) {
@@ -728,6 +927,9 @@ async function loadAllTokens() {
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const tokens = await api('/tokens/admin/all');
+    const totReq = tokens.reduce((s, t) => s + (t.total_requests || 0), 0);
+    const totByt = tokens.reduce((s, t) => s + (t.total_bytes || 0), 0);
+    const fmtData = b => b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB';
     let rows = tokens.map((t, i) => `<tr>
       <td>${i + 1}</td>
       <td class="code">${t.token}</td>
@@ -735,21 +937,26 @@ async function loadAllTokens() {
       <td>${t.user_email}</td>
       <td class="code">${t.subdomain}</td>
       <td>${t.custom_domain || '—'}</td>
+      <td>${t.total_requests || 0}</td>
+      <td>${fmtData(t.total_bytes || 0)}</td>
+      <td><span class="badge ${t.active_tunnels > 0 ? 'badge-green' : ''}">${t.active_tunnels || 0}</span></td>
       <td>${t.created_at ? t.created_at.replace('T',' ').substring(0,19) : '—'}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="adminRegenToken('${t.id}')">🔄 Regen</button>
         <button class="btn btn-sm btn-danger" onclick="adminDeleteToken('${t.id}')">🗑️</button>
       </td>
     </tr>`).join('');
-    if (!rows) rows = '<tr><td colspan="8" class="empty">No tokens found</td></tr>';
+    if (!rows) rows = '<tr><td colspan="11" class="empty">No tokens found</td></tr>';
     c.innerHTML = `
     <div class="stat-grid">
       <div class="stat-card"><div class="label">Total Tokens</div><div class="value">${tokens.length}</div></div>
+      <div class="stat-card"><div class="label">Total Requests (all tokens)</div><div class="value">${totReq}</div></div>
+      <div class="stat-card"><div class="label">Total Data (all tokens)</div><div class="value">${fmtData(totByt)}</div></div>
     </div>
     <div class="card">
       <div class="card-header"><h2>All Tokens (${tokens.length})</h2><button class="btn btn-sm" onclick="loadAllTokens()">🔄 Refresh</button></div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table><thead><tr><th>#</th><th>Token</th><th>Name</th><th>User</th><th>Subdomain</th><th>Custom Domain</th><th>Created</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+        <table><thead><tr><th>#</th><th>Token</th><th>Name</th><th>User</th><th>Subdomain</th><th>Custom Domain</th><th>Requests</th><th>Data</th><th>Active Tunnels</th><th>Created</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
     </div>`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
@@ -821,6 +1028,372 @@ async function loadAllPayments() {
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 
+// ---- Settings (payment gateway keys etc.) ----
+async function loadSettings() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const rows = await api('/settings');
+    const groups = {};
+    rows.forEach(s => {
+      const g = s.key.startsWith('stripe') ? 'Stripe' : s.key.startsWith('paypal') ? 'PayPal'
+              : s.key.startsWith('nowpayments') ? 'NowPayments (crypto)' : 'General';
+      (groups[g] = groups[g] || []).push(s);
+    });
+    const order = ['Stripe', 'PayPal', 'NowPayments (crypto)', 'General'];
+    const html = order.filter(g => groups[g]).map(g => `
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-header"><h2>${g}</h2></div>
+        <div class="card-body">${groups[g].map(s => `
+          <div class="form-group">
+            <label>${s.label} <span class="badge" style="font-size:.65rem">${s.source === 'db' ? 'DB override' : 'env default'}${s.is_set ? '' : ' · not set'}</span></label>
+            <div style="display:flex;gap:.5rem">
+              <input type="text" data-setting-key="${s.key}" value="${esc(s.value)}" placeholder="${s.is_secret ? '(unchanged — enter new value to replace)' : ''}" style="flex:1" ${s.is_secret && s.is_set ? 'autocomplete="off"' : ''}>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`).join('');
+    c.innerHTML = `
+      <div class="card">
+        <div class="card-header"><h2>⚙️ Settings</h2>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-sm" onclick="saveSettings()">💾 Save All</button>
+            <button class="btn btn-sm btn-ghost" onclick="loadSettings()">🔄 Refresh</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <p style="font-size:.78rem;color:var(--text-dim);margin-bottom:1rem">Secrets are masked (sk_1••••abc). Leave a field empty to keep the stored value; type a new value to replace it. Changes apply immediately (no server restart). Non-secret fields (prices, URLs, toggles) always save what you type. Toggles accept true/false.</p>
+          ${html}
+        </div>
+      </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function saveSettings() {
+  const inputs = document.querySelectorAll('[data-setting-key]');
+  const values = {};
+  inputs.forEach(i => { if (i.value.trim() !== '') values[i.dataset.settingKey] = i.value.trim(); });
+  if (!Object.keys(values).length) { toast('No changes (empty fields keep stored values)'); return; }
+  try {
+    await api('/settings', 'PUT', { values });
+    toast(`Saved ${Object.keys(values).length} setting(s)`);
+    loadSettings();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Coupons ----
+async function loadCoupons() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const coupons = await api('/settings/coupons');
+    const rows = coupons.map(cp => `<tr>
+      <td class="code">${esc(cp.code)}</td>
+      <td>${cp.percent_off}%</td>
+      <td>${cp.max_redemptions || '∞'}</td>
+      <td>${cp.redeemed}</td>
+      <td><span class="badge ${cp.active ? 'badge-green' : 'badge-red'}">${cp.active ? 'Active' : 'Inactive'}</span></td>
+      <td>${cp.expires_at ? cp.expires_at.substring(0,10) : '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm" onclick="toggleCoupon('${cp.id}', ${!cp.active})">${cp.active ? '⏸️ Disable' : '▶️ Enable'}</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteCoupon('${cp.id}')">🗑️</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty">No coupons yet</td></tr>';
+    c.innerHTML = `
+    <div class="card">
+      <div class="card-header"><h2>🎟️ Coupons (${coupons.length})</h2><button class="btn btn-sm" onclick="loadCoupons()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Code</th><th>Discount</th><th>Max Uses</th><th>Redeemed</th><th>Status</th><th>Expires</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>Create Coupon</h2></div>
+      <div class="card-body">
+        <div class="form-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem">
+          <div class="form-group"><label>Code (blank = auto)</label><input type="text" id="cpCode" placeholder="SAVE20"></div>
+          <div class="form-group"><label>Percent off</label><input type="number" id="cpPct" value="20" min="1" max="100"></div>
+          <div class="form-group"><label>Max uses (0=∞)</label><input type="number" id="cpMax" value="0" min="0"></div>
+          <div class="form-group"><label>Expires (optional)</label><input type="date" id="cpExp"></div>
+        </div>
+        <button class="btn btn-sm" onclick="createCoupon()">➕ Create</button>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function createCoupon() {
+  try {
+    const body = {
+      code: document.getElementById('cpCode').value.trim() || null,
+      percent_off: parseInt(document.getElementById('cpPct').value) || 20,
+      max_redemptions: parseInt(document.getElementById('cpMax').value) || 0,
+      expires_at: document.getElementById('cpExp').value || null,
+    };
+    const cp = await api('/settings/coupons', 'POST', body);
+    toast(`Coupon ${cp.code} created`);
+    loadCoupons();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function toggleCoupon(id, active) {
+  try {
+    await api(`/settings/coupons/${id}`, 'PUT', { active });
+    toast(active ? 'Coupon enabled' : 'Coupon disabled');
+    loadCoupons();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteCoupon(id) {
+  showModal('Delete Coupon', '<p style="font-size:.875rem;color:var(--text-dim)">Delete this coupon? Users will no longer be able to redeem it.</p>', async () => {
+    try {
+      closeModal();
+      await api(`/settings/coupons/${id}`, 'DELETE');
+      toast('Coupon deleted');
+      loadCoupons();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Delete', 'btn-danger');
+}
+
+// ---- Announcements + Campaigns + Email logs (Job 6) ----
+async function loadAnnouncements() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const [anns, smtp] = await Promise.all([api('/announcements?active_only=false'), api('/announcements/smtp-status')]);
+    const rows = anns.map(a => `<tr>
+      <td>${esc(a.title)}</td>
+      <td><span class="badge ${a.level === 'warning' ? 'badge-red' : a.level === 'success' ? 'badge-green' : ''}">${a.level}</span></td>
+      <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(a.body)}">${esc(a.body)}</td>
+      <td><span class="badge ${a.active ? 'badge-green' : 'badge-red'}">${a.active ? 'Active' : 'Hidden'}</span></td>
+      <td>${a.created_at ? a.created_at.replace('T',' ').substring(0,16) : '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm" onclick="toggleAnnouncement('${a.id}', ${!a.active})">${a.active ? '🙈 Hide' : '👁️ Show'}</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteAnnouncement('${a.id}')">🗑️</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No announcements</td></tr>';
+    c.innerHTML = `
+    <div class="stat-grid" style="margin-bottom:1rem">
+      <div class="stat-card"><div class="label">SMTP</div><div class="value" style="font-size:1rem"><span class="badge ${smtp.configured ? 'badge-green' : 'badge-red'}">${smtp.configured ? 'Configured' : 'Not configured'}</span></div></div>
+      <div class="stat-card"><div class="label">Announcements</div><div class="value">${anns.length}</div></div>
+    </div>
+    ${smtp.configured ? '' : `<div class="card" style="margin-bottom:1rem"><div class="card-body" style="font-size:.8rem;color:var(--text-dim)">⚠️ SMTP is not configured — password-reset links and campaigns won't send. Set SMTP Host/Port/User/Password/From in ⚙️ Settings, then enable smtp_enabled.</div></div>`}
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header"><h2>📣 Announcements</h2><button class="btn btn-sm" onclick="loadAnnouncements()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Title</th><th>Level</th><th>Body</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem">
+      <div class="card">
+        <div class="card-header"><h2>New Announcement</h2></div>
+        <div class="card-body">
+          <div class="form-group"><label>Title</label><input type="text" id="annTitle" placeholder="Scheduled maintenance"></div>
+          <div class="form-group"><label>Body</label><textarea id="annBody" rows="3" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)"></textarea></div>
+          <div class="form-group"><label>Level</label>
+            <select id="annLevel" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+              <option value="info">info</option><option value="warning">warning</option><option value="success">success</option>
+            </select></div>
+          <button class="btn btn-sm" onclick="createAnnouncement()">➕ Publish</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>✉️ Email Campaign</h2></div>
+        <div class="card-body">
+          <div class="form-group"><label>Subject</label><input type="text" id="cmpSubject" placeholder="Big news!"></div>
+          <div class="form-group"><label>Body</label><textarea id="cmpBody" rows="3" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)"></textarea></div>
+          <div class="form-group"><label>Audience</label>
+            <select id="cmpAudience" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+              <option value="all">All users</option><option value="pro">Pro users</option><option value="free">Free users</option>
+            </select></div>
+          <button class="btn btn-sm" onclick="sendCampaign()">🚀 Send</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-header"><h2>📬 Email Logs</h2></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>To</th><th>Subject</th><th>Kind</th><th>Status</th><th>Error</th><th>Created</th></tr></thead><tbody id="emailLogBody"></tbody></table>
+      </div>
+    </div>`;
+    loadEmailLogs();
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function loadEmailLogs() {
+  try {
+    const logs = await api('/announcements/logs');
+    const rows = logs.map(l => `<tr>
+      <td>${esc(l.to_email)}</td><td>${esc(l.subject)}</td>
+      <td><span class="badge">${esc(l.kind)}</span></td>
+      <td><span class="badge ${l.status === 'sent' ? 'badge-green' : l.status === 'failed' ? 'badge-red' : ''}">${l.status}</span></td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(l.error || '')}">${esc(l.error || '—')}</td>
+      <td>${l.created_at ? l.created_at.replace('T',' ').substring(0,19) : '—'}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No emails yet</td></tr>';
+    const el = document.getElementById('emailLogBody');
+    if (el) el.innerHTML = rows;
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function createAnnouncement() {
+  try {
+    await api('/announcements', 'POST', {
+      title: document.getElementById('annTitle').value.trim(),
+      body: document.getElementById('annBody').value.trim(),
+      level: document.getElementById('annLevel').value,
+    });
+    toast('Announcement published');
+    loadAnnouncements();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function toggleAnnouncement(id, active) {
+  try { await api(`/announcements/${id}`, 'PUT', { active }); toast(active ? 'Shown' : 'Hidden'); loadAnnouncements(); }
+  catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteAnnouncement(id) {
+  showModal('Delete Announcement', '<p style="font-size:.875rem;color:var(--text-dim)">Remove this announcement?</p>', async () => {
+    try { closeModal(); await api(`/announcements/${id}`, 'DELETE'); toast('Deleted'); loadAnnouncements(); }
+    catch (e) { toast(e.message, 'error'); }
+  }, 'Delete', 'btn-danger');
+}
+
+async function sendCampaign() {
+  showModal('Send Campaign', '<p style="font-size:.875rem;color:var(--text-dim)">Email every user in the selected audience. This cannot be undone.</p>', async () => {
+    try {
+      closeModal();
+      const r = await api('/announcements/campaign', 'POST', {
+        subject: document.getElementById('cmpSubject').value.trim(),
+        body: document.getElementById('cmpBody').value.trim(),
+        audience: document.getElementById('cmpAudience').value,
+      });
+      toast(r.detail);
+      loadEmailLogs();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 'Send');
+}
+
+// ---- Plans editor (Job 1) ----
+async function loadPlans() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const plans = await api('/plans?include_inactive=true');
+    c.innerHTML = plans.map(p => `
+    <div class="card" style="margin-bottom:1rem${p.active ? '' : ';opacity:.55'}">
+      <div class="card-header"><h2>${p.id === 'pro' ? '⭐ ' : ''}${esc(p.name)} <span class="badge" style="font-size:.65rem">${p.id}</span>${p.active ? '' : ' <span class="badge badge-red">hidden</span>'}</h2>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" onclick="editPlan('${p.id}')">✏️ Edit</button>
+          <button class="btn btn-sm" onclick="togglePlan('${p.id}', ${!p.active})">${p.active ? '🙈 Hide' : '👁️ Show'}</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+          <div><span style="color:var(--text-dim);font-size:.8rem">INR</span> <strong>₹${p.price_inr}</strong>/mo</div>
+          <div><span style="color:var(--text-dim);font-size:.8rem">USD</span> <strong>$${p.price_usd}</strong>/mo</div>
+          <div style="color:var(--text-dim);font-size:.85rem">${esc(p.tagline || '')}</div>
+        </div>
+        <ul style="font-size:.85rem;color:var(--text-dim);margin:0;padding-left:1.1rem">${(p.features||[]).map(f => `<li>${esc(f)}</li>`).join('')}</ul>
+      </div>
+    </div>`).join('') + '<p style="font-size:.78rem;color:var(--text-dim)">These plans power the public landing pricing, checkout prices, and the upgrade flow.</p>';
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function editPlan(id) {
+  api('/plans?include_inactive=true').then(plans => {
+    const p = plans.find(x => x.id === id);
+    if (!p) return;
+    showModal(`Edit Plan — ${esc(p.name)}`, `
+      <div class="form-group"><label>Name</label><input type="text" id="plName" value="${esc(p.name)}"></div>
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+        <div class="form-group"><label>Price INR / month</label><input type="number" step="0.01" id="plInr" value="${p.price_inr}"></div>
+        <div class="form-group"><label>Price USD / month</label><input type="number" step="0.01" id="plUsd" value="${p.price_usd}"></div>
+      </div>
+      <div class="form-group"><label>Tagline</label><input type="text" id="plTagline" value="${esc(p.tagline || '')}"></div>
+      <div class="form-group"><label>Features (one per line)</label><textarea id="plFeatures" rows="6" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">${esc((p.features||[]).join('\n'))}</textarea></div>
+      <div class="form-group"><label>CTA label</label><input type="text" id="plCta" value="${esc(p.cta_label || '')}"></div>
+    `, async () => {
+      try {
+        await api(`/plans/${id}`, 'PUT', {
+          name: document.getElementById('plName').value.trim(),
+          price_inr: parseFloat(document.getElementById('plInr').value) || 0,
+          price_usd: parseFloat(document.getElementById('plUsd').value) || 0,
+          tagline: document.getElementById('plTagline').value.trim(),
+          features: document.getElementById('plFeatures').value.split('\n').map(s => s.trim()).filter(Boolean),
+          cta_label: document.getElementById('plCta').value.trim() || undefined,
+        });
+        closeModal(); toast('Plan saved — landing updated'); loadPlans();
+      } catch (e) { toast(e.message, 'error'); }
+    }, 'Save Plan');
+  }).catch(e => toast(e.message, 'error'));
+}
+
+async function togglePlan(id, active) {
+  try { await api(`/plans/${id}`, 'PUT', { active }); toast(active ? 'Plan visible' : 'Plan hidden'); loadPlans(); }
+  catch (e) { toast(e.message, 'error'); }
+}
+
+// ---- Invoices (Job 8) ----
+async function loadInvoices() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading…</p></div></div>';
+  try {
+    const invs = await api('/invoices/admin/all');
+    const paidCount = invs.filter(i => i.status === 'paid').length;
+    const revenue = invs.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0);
+    const rows = invs.map(i => `<tr>
+      <td class="code">${esc(i.invoice_no)}</td>
+      <td>${esc(i.user_email)}</td>
+      <td>${i.plan}</td>
+      <td>${i.seats}</td>
+      <td>${i.coupon_code ? `<span class="badge">${esc(i.coupon_code)}</span>` : '—'}</td>
+      <td>${i.currency === 'INR' ? '₹' : '$'}${i.amount}</td>
+      <td><span class="badge ${i.status === 'paid' ? 'badge-green' : 'badge-red'}">${i.status}</span></td>
+      <td>${i.issued_at ? i.issued_at.replace('T',' ').substring(0,16) : '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="viewInvoice('${i.id}')">👁️ View</button>
+        ${i.status === 'paid' ? `<button class="btn btn-sm btn-danger" onclick="voidInvoice('${i.id}')">Void</button>` : ''}
+      </td>
+    </tr>`).join('') || '<tr><td colspan="9" class="empty">No invoices yet (created automatically when a payment is paid)</td></tr>';
+    c.innerHTML = `
+    <div class="stat-grid" style="margin-bottom:1rem">
+      <div class="stat-card"><div class="label">Invoices</div><div class="value">${invs.length}</div></div>
+      <div class="stat-card"><div class="label">Paid</div><div class="value">${paidCount}</div></div>
+      <div class="stat-card"><div class="label">Invoiced Revenue</div><div class="value">₹${revenue.toFixed(2)}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>🧾 Invoices</h2><button class="btn btn-sm" onclick="loadInvoices()">🔄 Refresh</button></div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table><thead><tr><th>Invoice #</th><th>User</th><th>Plan</th><th>Seats</th><th>Coupon</th><th>Amount</th><th>Status</th><th>Issued</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function viewInvoice(id) {
+  try {
+    const i = await api(`/invoices/${id}`);
+    showModal(`Invoice ${esc(i.invoice_no)}`, `
+      <table style="font-size:.85rem">
+        <tr><td>Invoice #</td><td class="code">${esc(i.invoice_no)}</td></tr>
+        <tr><td>Billed to</td><td>${esc(i.user_email)}</td></tr>
+        <tr><td>Plan</td><td>${i.plan} (${i.seats} seat${i.seats !== 1 ? 's' : ''})</td></tr>
+        <tr><td>Coupon</td><td>${i.coupon_code || '—'}</td></tr>
+        <tr><td>Amount</td><td><strong>${i.currency === 'INR' ? '₹' : '$'}${i.amount}</strong></td></tr>
+        <tr><td>Status</td><td>${i.status}</td></tr>
+        <tr><td>Issued</td><td>${i.issued_at ? i.issued_at.replace('T',' ').substring(0,19) : '—'}</td></tr>
+      </table>
+    `, async () => { closeModal(); window.open(`/api/v1/invoices/${i.id}/print?token=${encodeURIComponent(token)}`, '_blank'); }, '🖨️ Print', '');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function voidInvoice(id) {
+  showModal('Void Invoice', '<p style="font-size:.875rem;color:var(--text-dim)">Void this invoice? It stays on record but is marked void.</p>', async () => {
+    try { closeModal(); await api(`/invoices/${id}/void`, 'POST'); toast('Invoice voided'); loadInvoices(); }
+    catch (e) { toast(e.message, 'error'); }
+  }, 'Void', 'btn-danger');
+}
+
 // ---- IP Monitor ----
 let ipMonitorState = { tab: 'live', limit: 100, searchQuery: '' };
 let ipMonitorPollTimer = null;
@@ -843,6 +1416,84 @@ function startIpMonitorPolling() {
 
 function stopIpMonitorPolling() {
   if (ipMonitorPollTimer) { clearInterval(ipMonitorPollTimer); ipMonitorPollTimer = null; }
+}
+
+// ---- Admin Tickets (v1.4.0) ----
+let adminTicketFilter = 'all';
+async function loadAdminTickets() {
+  const c = document.getElementById('pageContent');
+  c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
+  try {
+    const q = adminTicketFilter === 'all' ? '' : `?status=${adminTicketFilter}`;
+    const tickets = await api(`/tickets/admin/all${q}`);
+    const badge = s => s === 'open' ? '<span class="badge badge-red">open</span>' : s === 'answered' ? '<span class="badge badge-green">answered</span>' : '<span class="badge">closed</span>';
+    c.innerHTML = `
+    <div class="card">
+      <div class="card-header"><h2>🎫 Support Tickets (${tickets.length})</h2>
+        <div style="display:flex;gap:.4rem">
+          ${['all','open','answered','closed'].map(f => `<button class="btn btn-sm ${adminTicketFilter===f?'':'btn-ghost'}" onclick="adminTicketFilter='${f}';loadAdminTickets()">${f}</button>`).join('')}
+        </div>
+      </div>
+      <div class="card-body">
+        ${tickets.length ? `
+        <table class="table" style="font-size:.85rem">
+          <thead><tr><th>User</th><th>Subject</th><th>Status</th><th>Updated</th></tr></thead>
+          <tbody>${tickets.map(t => `
+            <tr style="cursor:pointer" onclick="openAdminTicket('${t.id}')">
+              <td>${t.user_email}</td>
+              <td>${t.subject}</td>
+              <td>${badge(t.status)}</td>
+              <td style="color:var(--text-dim)">${new Date(t.updated_at).toLocaleString()}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : '<p class="empty">No tickets.</p>'}
+      </div>
+    </div>`;
+  } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+async function openAdminTicket(id) {
+  try {
+    const t = await api(`/tickets/${id}`);
+    showModal(`🎫 ${t.subject}`, `
+      <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.6rem">From: ${t.user_email} · status: ${t.status}</div>
+      <div style="max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:.6rem">
+        ${t.messages.map(m => `
+        <div style="padding:.6rem .8rem;border-radius:var(--radius);background:${m.is_staff ? 'rgba(106,166,240,.1)' : 'var(--bg)'};border:1px solid var(--border)">
+          <div style="font-size:.72rem;color:var(--text-dim);margin-bottom:.25rem">${m.is_staff ? '🛟 Staff' : m.sender} · ${new Date(m.created_at).toLocaleString()}</div>
+          <div style="font-size:.85rem;white-space:pre-wrap">${m.body.replace(/</g, '&lt;')}</div>
+        </div>`).join('')}
+      </div>
+      ${t.status !== 'closed' ? `
+      <div style="margin-top:.8rem">
+        <textarea id="admTkReply" rows="2" placeholder="Staff reply…" style="width:100%"></textarea>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem">
+          <button class="btn btn-sm btn-ghost" onclick="adminCloseTicket('${t.id}')">Close ticket</button>
+          <button class="btn btn-sm" onclick="adminReplyTicket('${t.id}')">Send reply</button>
+        </div>
+      </div>` : '<p class="empty" style="margin-top:.8rem">Closed.</p>'}`,
+      () => closeModal(), 'Close', 'btn-ghost');
+    document.getElementById('modalConfirm').style.display = 'none';
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function adminReplyTicket(id) {
+  const msg = document.getElementById('admTkReply').value.trim();
+  if (!msg) return toast('Write a reply first', 'error');
+  try {
+    await api(`/tickets/${id}/reply`, 'POST', JSON.stringify({ message: msg }));
+    toast('Reply sent — user notified');
+    openAdminTicket(id);
+    loadAdminTickets();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function adminCloseTicket(id) {
+  try {
+    await api(`/tickets/${id}/close`, 'POST');
+    toast('Ticket closed');
+    closeModal();
+    loadAdminTickets();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 async function loadIpMonitor() {
@@ -940,10 +1591,24 @@ function renderIpMonitorLayout(stats, config, blockedIps, ips) {
           <tr><td>Redis Connected</td><td><span class="badge ${config.redis_connected ? 'badge-green' : 'badge-red'}">${config.redis_connected ? 'Yes' : 'No'}</span></td></tr>
           <tr><td>Geo Lookup</td><td><span class="badge ${config.geo_enabled ? 'badge-green' : 'badge-red'}">${config.geo_enabled ? 'Enabled' : 'Disabled'}</span></td></tr>
           <tr><td>Geo API</td><td class="code">${config.geo_api_url || '—'}</td></tr>
-          <tr><td>Rate Window</td><td>${config.rate_window_seconds || 60} seconds</td></tr>
-          <tr><td>Block Threshold</td><td>${config.block_threshold || 500} requests per window</td></tr>
-          <tr><td>Block Duration</td><td>${config.block_duration_seconds || 3600} seconds</td></tr>
+          <tr><td>Config Source</td><td><span class="badge ${config.config_source === 'redis' ? 'badge-green' : ''}">${config.config_source === 'redis' ? 'Runtime (Redis overrides)' : 'Env defaults'}</span></td></tr>
         </table>
+        <div class="card" style="margin-top:1rem">
+          <div class="card-header"><h2>Auto-Block Settings (runtime — no restart needed)</h2></div>
+          <div class="card-body">
+            <div class="switch" style="margin-bottom:1rem">
+              <input type="checkbox" id="cfgAutoBlock" ${config.auto_block_enabled ? 'checked' : ''}>
+              <span class="track"><span class="thumb"></span></span>
+              <label for="cfgAutoBlock">Auto IP blocking ${config.auto_block_enabled ? 'ON' : 'OFF'}</label>
+            </div>
+            <div class="form-group"><label>Rate window (seconds)</label><input type="number" id="cfgRateWindow" value="${config.rate_window_seconds || 60}" min="10" max="86400"></div>
+            <div class="form-group"><label>Block threshold (requests per window)</label><input type="number" id="cfgBlockThreshold" value="${config.block_threshold || 500}" min="10" max="1000000"></div>
+            <div class="form-group"><label>Block duration (seconds)</label><input type="number" id="cfgBlockDuration" value="${config.block_duration_seconds || 3600}" min="60" max="2592000"></div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <button class="btn btn-sm" onclick="saveIpConfig()">💾 Save Settings</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>`;
@@ -980,6 +1645,20 @@ function renderIpList(ips) {
   if (!tbody) return;
   tbody.innerHTML = renderIpListRows(ips);
   filterIpList();
+}
+
+async function saveIpConfig() {
+  try {
+    const body = {
+      auto_block_enabled: document.getElementById('cfgAutoBlock').checked,
+      rate_window_seconds: parseInt(document.getElementById('cfgRateWindow').value) || 60,
+      block_threshold: parseInt(document.getElementById('cfgBlockThreshold').value) || 500,
+      block_duration_seconds: parseInt(document.getElementById('cfgBlockDuration').value) || 3600,
+    };
+    await api('/ip-monitor/config', 'PUT', body);
+    toast('IP monitor settings saved');
+    loadIpMonitor();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 function filterIpList() {

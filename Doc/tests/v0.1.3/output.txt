@@ -1,0 +1,30 @@
+# v0.1.3 — Job 0: three parked suggestions implemented — 2026-08-29
+
+Approved as "Job 0" by user alongside the Jobs 1–9 backlog.
+
+## Changes
+1. **admin.html System Info settings-driven** (was hardcoded ssh.iraglobaltech.com /
+   iraglobaltech.com): new `loadSystemInfo()` fetches `/tunnels/info` and fills
+   `#sysSshServer` / `#sysTunnelDomain`; wired into `navigate('dashboard')`.
+2. **main.py middleware comment fixed**: documents true Starlette order
+   (last added = outermost → TunnelProxy runs first; proxied traffic not IP-counted).
+   Comment-only; no behavior change.
+3. **auto_setup.py seeds tokens row**: `_ensure_default_admin` now also INSERTs the
+   seeded admin token into `tokens` (ON CONFLICT DO NOTHING) — closes the
+   migration-0006-backfill-never-sees-the-seed gap for FRESH installs.
+
+## Machine assertions (all PASS)
+  Fresh-DB test (scratch DB pinggy_scratch, port 8021/2223):
+    auto_setup → tokens table has 1 row (admin / Default / token 00f21d…) ✓
+    (scratch DB dropped after test)
+  Dev server restarted on 8020 with new code:
+    GET /health → 200 ✓
+  Browser (VS Code integrated), /admin dashboard System Info:
+    SSH Server = "localhost:2222", Tunnel Domain = "localhost:8020" (was prod values) ✓
+    screenshot-system-info.png
+  main.py check: no functional diff (comment + none) — server boots clean ✓
+
+## Notes
+- Local DB's admin token row already existed from v0.1.1 backfill (idempotent insert).
+- 2222/8020 restart gotcha: old server was in ANOTHER terminal's job table — kill by
+  lsof PID, `kill %1` in wrong shell silently no-ops.
