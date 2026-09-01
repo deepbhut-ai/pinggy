@@ -1,44 +1,59 @@
-# page-map.md — MASTER page & connection map (pages.md/impact-map.md derive from this)
+# Page Map — Complete Routing & Data Connections
 
-Local base: http://127.0.0.1:8020 · Prod: https://iraglobaltech.com (nginx → 127.0.0.1:8000)
+## Pages Table
 
-## Page table
-| URL | Page name | DB tables (R/W) | Functions/endpoints | Components (static) | Auth | Links to | Linked from | Shares data with |
-|---|---|---|---|---|---|---|---|---|
-| / | Landing | — | GET / | landing.html | none | /login | /login ("← Back to home"), /dashboard nav after login | none |
-| /login | Login / Sign-up | users W (via /auth/register) | POST /auth/register, POST /auth/login | login.html | none | /admin (role=admin), /dashboard (role=user) | / ("Get Started"), landing pricing buttons | users (auth) |
-| /admin | Admin panel | users R/W (incl. is_active), tunnels R, tokens R, payments R, audit_logs R, tickets+ticket_messages R/W | GET/PUT/DELETE /users, /tokens/admin/*, /payments/admin/*, /ip-monitor/* (incl. PUT /config), GET /audit, GET /tunnels/stats, GET /tunnels/history (All Tunnels view), DELETE /tunnels/{sub}, GET /tickets/admin/all, POST /tickets/{id}/reply|close, GET /tickets/{id} | admin.html | JWT, role=admin | /dashboard (via user link), /docs, /redoc, /health | /login (on admin login) | users/tunnels/tokens/payments/tickets + Redis IP stats — ALL admin views |
-| /dashboard | User dashboard | users R/W (custom-domain, plan), tokens R/W, tunnels R, token_domains R/W, teams+team_members R/W, tickets+ticket_messages R/W | GET /auth/me, /auth/tunnel-token, POST /auth/regenerate-token, /tokens CRUD, POST/DELETE /tokens/{id}/domains, /teams CRUD, /tickets CRUD, PUT /users/me/custom-domain, POST /payments/checkout, GET /tunnels/my, POST /tunnels/{sub}/stop | dashboard.html | JWT | / (logout), /login (expired) | / (nav when logged in), /admin | users, tokens, tunnels, payments, teams, tickets |
-| /docs, /redoc | API docs (auto) | — | openapi | FastAPI built-in | none | — | /admin System Info table | none |
-| /health | Health check | — | GET /health | JSON | none | — | /admin System Info | none |
-| http://{sub}.localhost:8020 | Tunnels (dynamic) | tunnels W (request_count, bytes), users R (token auth at SSH time) | TunnelProxyMiddleware → 127.0.0.1:{remote_port} | — (proxied user content) | none (public URL) | — | — | tunnels table + in-memory registry (with /admin, /dashboard views) |
+| URL | Page Name | DB Tables (R/W) | Functions/Endpoints | Components | Auth | Links To | Linked From | Shares Data With |
+|-----|-----------|-----------------|---------------------|------------|------|----------|-------------|------------------|
+| `/` | Landing | none | none | Hero, Features, CTA buttons | None | /login, /dashboard | — | — |
+| `/login` | Login Form | users (R) | POST /api/auth/login | Email input, Password input, Form | None | /dashboard (on success), /signup | Landing | Tunnel Registry |
+| `/signup` | Sign Up Form | users (W) | POST /api/auth/register | Email input, Password input, Name input, Form | None | /login (on cancel), /dashboard (on success) | Login | — |
+| `/dashboard` | User Dashboard | tunnels (R), users (R) | GET /api/tunnels, GET /api/me | Tunnel list, Active tunnels, Stats cards | JWT Required | /admin (if admin), /login (logout) | Login, Landing | tunnels table, users table |
+| `/admin` | Admin Panel | users (R/W), tunnels (R), payments (R) | GET /api/users/*, PUT /api/users/*, GET /api/payments/admin/all | User table, Payment table, IP Monitor | Admin Only | /dashboard (back to user) | — | users table, tunnels table, payments table |
 
-## Navigation graph
+---
+
+## Navigation Graph
+
 ```
-/            → /login
-/login       → /admin (admin) | /dashboard (user)
-/admin       → /dashboard, /docs, /redoc, /health
-/dashboard   → /, /login
-```
-
-## Data-flow graph (change on A reflects on B)
-```
-/login (register)      ––[users INSERT]––> /admin (user list, stats), /dashboard
-/dashboard (tokens)    ––[tokens table]–-> SSH auth (tunnel connect), /admin (All Tokens)
-SSH connect            ––[tunnels table + registry]–-> /admin (All Tunnels, activity), /dashboard
-{sub}.localhost tunnel ––[request_count/bytes + Redis]–> /admin (stats, IP Monitor), /dashboard
-payments webhook       ––[users.plan]–> /dashboard (plan badge, checkout CTA)
-admin user CRUD        ––[users]–> /login (credentials), /dashboard
+Landing (/login → /login)
+   ↓
+Login → Signup (link back)
+   ↓
+Dashboard (POST /api/auth/login success)
+   ↓ (if admin)
+Admin Panel
 ```
 
-## Shared state
-- JWT in localStorage (admin.html, dashboard.html) — key name per page code.
-- Redis db0: ip counters/blocklist — written by middleware on every direct request,
-  read by /admin IP Monitor tab.
-- In-memory tunnel registry — written by SSH server, read by proxy; gone on restart
-  (tunnels table rows remain but are stale until marked closed on graceful shutdown).
-- v1.4.0: tickets data-flow edge /dashboard ––[tickets]––> /admin (user creates → admin Tickets list reflects; staff reply → user Support badge reflects). token_domains edge /dashboard Domains ––[token_domains]––> tunnel proxy Host routing.
+---
 
-## Orphan check
-- All pages reachable (/ ← start, /login ← /, /admin & /dashboard ← /login).
-- /docs /redoc /health are utility endpoints (linked from /admin).
+## Data-Flow Graph
+
+| Source | Action | Target | Connection |
+|--------|--------|--------|------------|
+| Dashboard | User creates tunnel | Dashboard, Tunnel Registry | Shared `tunnels` table; new tunnel appears in list after polling |
+| Dashboard | User deletes tunnel | Dashboard | Shared `tunnels` table; tunnel removed from list after polling |
+| Admin Panel | Admin updates user plan | Dashboard | Shared `users` table; user's plan shown on Dashboard after login refresh |
+| Admin Panel | Admin disables user | Dashboard | Shared `users` table; user logged out on next auth check |
+| Login | Auth success | Dashboard | JWT token stored in localStorage; Dashboard checks token validity |
+
+---
+
+## Polling & Real-Time Updates
+
+- **Dashboard polls `/api/tunnels` every 5 seconds** to refresh tunnel list and stats (request_count, bytes_transferred)
+- **Admin Panel polls `/api/users`, `/api/payments/admin/all` on tab focus**
+
+---
+
+## Orphan Check
+
+- **Landing page** has no inbound links except external referrals; serves as entry point only
+- **Signup page** only accessed from Login; no direct external path
+- All other pages have inbound links ✓
+
+---
+
+## Blocked IPs & Session State
+
+- **IP Monitor** (not a page) blocks malicious IPs; affects all pages indirectly
+- **Redis cache** stores session tokens and rate-limit buckets; shared across all endpoints

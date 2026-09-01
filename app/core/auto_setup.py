@@ -112,7 +112,7 @@ def _run_migrations() -> None:
 
 
 def _ensure_default_admin() -> None:
-    """Create the default admin user (admin/admin) if no users exist yet.
+    """Create the default admin user (support@callingagents.in) if no users exist yet.
 
     Uses bcrypt for password hashing (same as the app's security module).
     """
@@ -134,17 +134,18 @@ def _ensure_default_admin() -> None:
                     logger.info("Users already exist (%d) — skipping default admin.", count)
                     return
 
-                # Create default admin: username 'admin', password 'admin'
+                # Create default admin: email 'support@callingagents.in', password 'Calling@2025_26'
                 import secrets as _secrets
                 tunnel_token = _secrets.token_hex(8)
-                hashed = bcrypt.hashpw(b"admin", bcrypt.gensalt()).decode()
+                hashed = bcrypt.hashpw(b"Calling@2025_26", bcrypt.gensalt()).decode()
                 cur.execute(
                     """
                     INSERT INTO users (email, password_hash, full_name, role, tunnel_token)
                     VALUES (%s, %s, %s, %s, %s)
                     """,
-                    ("admin", hashed, "Default Admin", "admin", tunnel_token),
+                    ("support@callingagents.in", hashed, "Calling Agents Admin", "admin", tunnel_token),
                 )
+<<<<<<< HEAD
                 # Also register the token in the multi-token table. Migration 0006's
                 # backfill runs BEFORE this seed (during _run_migrations), so it never
                 # sees the freshly seeded admin — insert here to keep both in sync.
@@ -154,9 +155,9 @@ def _ensure_default_admin() -> None:
                     VALUES (%s, %s, 'Default', NULL)
                     ON CONFLICT (token) DO NOTHING
                     """,
-                    ("admin", tunnel_token),
+                    ("support@callingagents.in", tunnel_token),
                 )
-                logger.info("Default admin user created (email='admin', password='admin').")
+                logger.info("Default admin user created (email='support@callingagents.in', password='Calling@2025_26').")
     except Exception as e:
         logger.error("Failed to create default admin: %s", e)
         raise
