@@ -41,6 +41,16 @@ async def register(
     row = await cur.fetchone()
     await cur.close()
 
+    # Also create a token in the multi-token table so the dashboard
+    # Quickstart / Manage Tokens shows it immediately (v1.7.0 tokens table).
+    cur = await db.execute(
+        "INSERT INTO tokens (user_email, token, name) VALUES (%s, %s, %s) "
+        "RETURNING id",
+        (row[1], tunnel_token, "Default Token"),
+    )
+    await cur.fetchone()
+    await cur.close()
+
     user = UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4])
     token = create_access_token(subject=user.id, extra={"email": user.email, "role": user.role})
     from app.core.audit import log_audit
