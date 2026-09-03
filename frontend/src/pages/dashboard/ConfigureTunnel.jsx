@@ -75,16 +75,15 @@ export default function ConfigureTunnel() {
   const selToken = tokens.find((t) => t.token === tokenSel);
   const port = localAddr.split(':').pop() || '8080';
 
-  // multi-port rows: show ALL tokens' addresses (subdomain + custom domain + extras)
+  // multi-port rows: one row per token — each token gets its own local port
   useEffect(() => {
     if (!multiPort || !tokens.length) return;
-    const addrs = [];
-    tokens.forEach((t) => {
-      addrs.push({ addr: `${t.subdomain}.iraglobaltech.com`, port: '', tokenName: t.name || 'Unnamed' });
-      if (t.custom_domain) addrs.push({ addr: t.custom_domain, port: '', tokenName: t.name || 'Unnamed' });
-      (t.domains || []).forEach((d) => addrs.push({ addr: d, port: '', tokenName: t.name || 'Unnamed' }));
-    });
-    setMultiPorts(addrs);
+    setMultiPorts(tokens.map((t) => ({
+      addr: `${t.subdomain}.iraglobaltech.com`,
+      port: '',
+      tokenName: t.name || 'Unnamed',
+      token: t.token,
+    })));
   }, [multiPort, tokens]);
 
   const portList = multiPort ? multiPorts.map((m) => m.port.trim()).filter(Boolean) : null;
@@ -269,16 +268,18 @@ export default function ConfigureTunnel() {
             </p>
           )}
 
-          {/* 3a. Multi-port ENABLED — show all tokens' addresses → port list */}
+          {/* 3a. Multi-port ENABLED — one row per token, each with its own port */}
           {multiPort && (
             <div className="multiport-box">
               <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.5rem' }}>
-                All your tunnel addresses — assign a local port to each:
+                Assign a local port to each token — one SSH command for all:
               </p>
               {multiPorts.map((m, i) => (
                 <div key={i} style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem' }}>
-                  <span className="code" style={{ flex: 1, fontSize: '.8rem' }}>{m.addr}</span>
-                  {m.tokenName && <span className="badge" style={{ fontSize: '.6rem', flexShrink: 0 }}>{m.tokenName}</span>}
+                  <span style={{ flex: 1, fontSize: '.82rem' }}>
+                    <strong>{m.tokenName}</strong>
+                    <span className="dim" style={{ fontSize: '.72rem', marginLeft: '.4rem' }}>{m.addr}</span>
+                  </span>
                   <input
                     type="number"
                     min="1"
