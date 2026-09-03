@@ -162,7 +162,7 @@ export default function ManageTokens() {
             <table>
               <thead>
                 <tr>
-                  <th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Type</th>
+                  <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Type</th>
                   <th>Security</th><th>Custom Domain</th><th>Requests</th><th>Data</th>
                   <th>Active</th><th>Created</th><th>Actions</th>
                 </tr>
@@ -188,7 +188,7 @@ export default function ManageTokens() {
                       style={{ cursor: 'pointer', transition: '.15s' }}
                       onClick={() => setSelected(selected?.id === t.id ? null : t)}
                     >
-                      <td>{i + 1}</td>
+                      <td><span className="code dim" style={{ fontSize: '.72rem' }}>{t.id.substring(0, 8)}…</span></td>
                       <td>
                         <span className="token-value">
                           <strong className="code">{t.token.substring(0, 8)}••••••••</strong>{' '}
