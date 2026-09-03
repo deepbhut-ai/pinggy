@@ -220,7 +220,7 @@ export default function ConfigureTunnel() {
           <h2>Tunnel Settings</h2>
         </div>
         <div className="card-body">
-          {/* Token dropdown — same style as Quickstart */}
+          {/* 1. Token selector — first */}
           <label className="dim" style={{ fontSize: '.78rem', fontWeight: 600, display: 'block', marginBottom: '.3rem' }}>Access token</label>
           <div className="token-dropdown-wrapper" style={{ marginBottom: '1rem' }}>
             <div className="token-dropdown-box" onClick={() => tokens.length > 0 && setTokenDropdownOpen(!tokenDropdownOpen)}>
@@ -255,62 +255,17 @@ export default function ConfigureTunnel() {
             )}
           </div>
 
-          <div className="form-row">
-            <div className="form-group" style={{ maxWidth: 240 }}>
-              <label>App / Service preset</label>
-              <select
-                value={preset}
-                onChange={(e) => {
-                  const p = APP_PRESETS.find((a) => a.key === e.target.value);
-                  setPreset(e.target.value);
-                  if (p) setLocalAddr(`127.0.0.1:${p.p}`);
-                }}
-              >
-                {APP_PRESETS.map((a) => <option key={a.key} value={a.key}>{a.n} — :{a.p}</option>)}
-              </select>
-            </div>
-            <div className="form-group" style={{ maxWidth: 130 }}>
-              <label>Tunnel type</label>
-              <select value={tunnelType} onChange={(e) => setTunnelType(e.target.value)}>
-                <option value="http">HTTP</option>
-                <option value="tcp">TCP (Pro)</option>
-              </select>
-            </div>
-            {isTcp && (
-              <div className="form-group" style={{ flex: 1, minWidth: 180 }}>
-                <label>TCP mode</label>
-                <div className="inline-note amber" style={{ margin: 0, padding: '.5rem .7rem' }}>
-                  TCP tunnels use the token's persistent port. {selToken?.tcp_port
-                    ? <>Your public port: <strong className="code">{selToken.tcp_port}</strong></>
-                    : <>Set the port under <strong>Manage Tokens → Edit → Tunnel type</strong>.</>}
-                </div>
-              </div>
-            )}
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Local address — what you want to share</label>
-              <input type="text" value={localAddr} onChange={(e) => setLocalAddr(e.target.value)} placeholder="127.0.0.1:8080" />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group" style={{ maxWidth: 180 }}>
-              <label>Platform</label>
-              <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
-                <option value="windows">Windows (CMD)</option>
-                <option value="linux">Linux</option>
-                <option value="mac">Mac</option>
-              </select>
-            </div>
-          </div>
-          <div className="form-row">
-            <label className="checkbox-label" style={{ flex: '0 0 auto' }}>
-              <input type="checkbox" checked={multiPort} onChange={(e) => setMultiPort(e.target.checked)} />
-              Multi-port <span className="badge" style={{ marginLeft: '.2rem' }}>Pro</span> — each address → its own local port, one command
-            </label>
-          </div>
+          {/* 2. Multi-port toggle — right after token */}
+          <label className="checkbox-label" style={{ marginBottom: '1rem', fontSize: '.85rem' }}>
+            <input type="checkbox" checked={multiPort} onChange={(e) => setMultiPort(e.target.checked)} />
+            Multi-port — run multiple services through one tunnel
+          </label>
+
+          {/* 3a. Multi-port ENABLED — show address → port list */}
           {multiPort && selToken && (
             <div className="multiport-box">
               <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.5rem' }}>
-                One local port per address — order matters (subdomain → primary → extras):
+                Each address routes to its own local port — one SSH command for all:
               </p>
               {multiPorts.map((m, i) => (
                 <div key={m.addr} style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem' }}>
@@ -330,9 +285,58 @@ export default function ConfigureTunnel() {
                   />
                 </div>
               ))}
-              <p className="dim" style={{ fontSize: '.72rem' }}>Pro feature — one SSH connection, each address routes to its own local project.</p>
             </div>
           )}
+
+          {/* 3b. Multi-port DISABLED — show single service config */}
+          {!multiPort && (
+            <div className="form-row">
+              <div className="form-group" style={{ maxWidth: 240 }}>
+                <label>App / Service preset</label>
+                <select
+                  value={preset}
+                  onChange={(e) => {
+                    const p = APP_PRESETS.find((a) => a.key === e.target.value);
+                    setPreset(e.target.value);
+                    if (p) setLocalAddr(`127.0.0.1:${p.p}`);
+                  }}
+                >
+                  {APP_PRESETS.map((a) => <option key={a.key} value={a.key}>{a.n} — :{a.p}</option>)}
+                </select>
+              </div>
+              <div className="form-group" style={{ maxWidth: 130 }}>
+                <label>Tunnel type</label>
+                <select value={tunnelType} onChange={(e) => setTunnelType(e.target.value)}>
+                  <option value="http">HTTP</option>
+                  <option value="tcp">TCP (Pro)</option>
+                </select>
+              </div>
+              {isTcp && (
+                <div className="form-group" style={{ flex: 1, minWidth: 180 }}>
+                  <label>TCP mode</label>
+                  <div className="inline-note amber" style={{ margin: 0, padding: '.5rem .7rem' }}>
+                    TCP tunnels use the token's persistent port. {selToken?.tcp_port
+                      ? <>Your public port: <strong className="code">{selToken.tcp_port}</strong></>
+                      : <>Set the port under <strong>Manage Tokens → Edit → Tunnel type</strong>.</>}
+                  </div>
+                </div>
+              )}
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Local address — what you want to share</label>
+                <input type="text" value={localAddr} onChange={(e) => setLocalAddr(e.target.value)} placeholder="127.0.0.1:8080" />
+              </div>
+            </div>
+          )}
+          <div className="form-row">
+            <div className="form-group" style={{ maxWidth: 180 }}>
+              <label>Platform</label>
+              <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
+                <option value="windows">Windows (CMD)</option>
+                <option value="linux">Linux</option>
+                <option value="mac">Mac</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
