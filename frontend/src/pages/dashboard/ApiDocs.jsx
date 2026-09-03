@@ -41,7 +41,13 @@ export default function ApiDocs() {
     { method: 'GET',    path: '/manage/devices',          desc: 'Your connected remote devices' },
     { method: 'GET',    path: '/tokens',                  desc: 'List your tunnel tokens' },
     { method: 'POST',   path: '/tokens',                  desc: 'Create a new tunnel token' },
+    { method: 'PUT',    path: '/tokens/{id}',             desc: 'Update token — set name, subdomain (fixed_subdomain), tunnel type' },
     { method: 'DELETE', path: '/tokens/{id}',             desc: 'Delete a tunnel token' },
+    { method: 'POST',   path: '/tokens/{id}/domains',     desc: 'Attach an extra custom domain to a token (Pro)' },
+    { method: 'DELETE', path: '/tokens/{id}/domains/{domain}', desc: 'Remove an extra domain from a token' },
+    { method: 'POST',   path: '/tokens/{id}/regenerate',  desc: 'Regenerate a token (old one stops working)' },
+    { method: 'PUT',    path: '/users/me/custom-domain',  desc: 'Set/clear your primary custom domain on a token' },
+    { method: 'GET',    path: '/users/me/verify-domain',   desc: 'Verify a domain\'s DNS points to our server' },
     { method: 'GET',    path: '/apikeys',                 desc: 'List your API keys' },
     { method: 'POST',   path: '/apikeys',                 desc: 'Create an API key' },
     { method: 'GET',    path: '/invoices',                desc: 'Your invoices' },
@@ -56,12 +62,20 @@ export default function ApiDocs() {
     'POST/apikeys': JSON.stringify({ name: 'My API key', expiry_days: null }, null, 2),
     'POST/tickets': JSON.stringify({ subject: 'Need help', message: 'My tunnel is not connecting' }, null, 2),
     'POST/teams':   JSON.stringify({ name: 'My team' }, null, 2),
+    'PUT/tokens/{id}': JSON.stringify({ name: 'My token', fixed_subdomain: 'my-subdomain', tunnel_mode: 'http' }, null, 2),
+    'POST/tokens/{id}/domains': JSON.stringify({ domain: 'app.mydomain.com' }, null, 2),
+    'PUT/users/me/custom-domain': JSON.stringify({ custom_domain: 'mydomain.com', token_id: '' }, null, 2),
   };
 
   // Path param hints — {param: description}
   const PATH_PARAMS = {
     'POST/manage/tunnels/{sub}/stop': { sub: 'Subdomain of the live tunnel to stop' },
     'DELETE/tokens/{id}':             { id: 'Token ID (get it from GET /tokens)' },
+    'PUT/tokens/{id}':                { id: 'Token ID (get it from GET /tokens)' },
+    'POST/tokens/{id}/domains':       { id: 'Token ID (get it from GET /tokens)' },
+    'DELETE/tokens/{id}/domains/{domain}': { id: 'Token ID', domain: 'Domain to remove (e.g. app.mydomain.com)' },
+    'POST/tokens/{id}/regenerate':    { id: 'Token ID (get it from GET /tokens)' },
+    'GET/users/me/verify-domain':      { domain: 'Domain to verify (e.g. mydomain.com)' },
   };
 
   const verifyKey = async () => {
@@ -103,7 +117,15 @@ export default function ApiDocs() {
       let testPath = ep.path;
       const params = pathParams[key] || {};
 
-      if (ep.path === '/manage/tunnels/{sub}/stop' && !params.sub) {
+      // Generic path param replacement for user-entered values
+      ['sub', 'id', 'domain'].forEach((p) => {
+        if (params[p] && testPath.includes(`{${p}}`)) {
+          testPath = testPath.replace(`{${p}}`, encodeURIComponent(params[p]));
+        }
+      });
+
+      // Auto-fetch real values for known endpoints if not user-provided
+      if ((ep.path === '/manage/tunnels/{sub}/stop') && !params.sub) {
         const t = await fetch(`${base}/api/v1/manage/tunnels`, { headers: { 'X-Api-Key': apiKey.trim() } });
         const td = await t.json().catch(() => ({}));
         if (!td.live?.length) {
@@ -112,11 +134,10 @@ export default function ApiDocs() {
           return;
         }
         testPath = ep.path.replace('{sub}', td.live[0].subdomain);
-      } else if (ep.path === '/manage/tunnels/{sub}/stop') {
-        testPath = ep.path.replace('{sub}', params.sub);
       }
 
-      if (ep.path === '/tokens/{id}' && !params.id) {
+      const needsTokenId = ['/tokens/{id}', '/tokens/{id}/domains', '/tokens/{id}/regenerate'].some((p) => ep.path === p);
+      if (needsTokenId && !params.id && testPath.includes('{id}')) {
         const t = await fetch(`${base}/api/v1/tokens`, { headers: { 'X-Api-Key': apiKey.trim() } });
         const td = await t.json().catch(() => []);
         if (!Array.isArray(td) || !td.length) {
@@ -124,25 +145,67 @@ export default function ApiDocs() {
           setTestingEndpoint(null);
           return;
         }
-        testPath = ep.path.replace('{id}', td[td.length - 1].id);
-      } else if (ep.path === '/tokens/{id}') {
-        testPath = ep.path.replace('{id}', params.id);
+        testPath = testPath.replace('{id}', td[td.length - 1].id);
+      }
+
+      // Warn if a required path param is still missing
+      const missingParam = testPath.match(/\{(\w+)\}/);
+      if (missingParam) {
+        toast(`Enter a value for "${missingParam[1]}" above`, 'error');
+        setTestingEndpoint(null);
+        return;
       }
 
       const opts = { method: ep.method, headers: { 'X-Api-Key': apiKey.trim() } };
 
-      // POST — use the user's editable JSON body
-      if (ep.method === 'POST' && SAMPLE_BODIES[key]) {
-        const rawBody = requestBodies[key] ?? SAMPLE_BODIES[key];
+      // PUT/POST with body — use the user's editable JSON body
+      const bodyKey = ep.method + ep.path;
+      if ((ep.method === 'POST' || ep.method === 'PUT') && SAMPLE_BODIES[bodyKey]) {
+        const rawBody = requestBodies[bodyKey] ?? SAMPLE_BODIES[bodyKey];
+        let parsed;
         try {
-          JSON.parse(rawBody); // validate JSON
-          opts.headers['Content-Type'] = 'application/json';
-          opts.body = rawBody;
+          parsed = JSON.parse(rawBody); // validate JSON
         } catch {
           toast('Invalid JSON in request body — fix it and try again', 'error');
           setTestingEndpoint(null);
           return;
         }
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = rawBody;
+        // PUT /users/me/custom-domain — API uses query params, not JSON body
+        if (ep.path === '/users/me/custom-domain') {
+          const d = (parsed.custom_domain || '').trim();
+          const tid = (parsed.token_id || '').trim();
+          if (!d) {
+            toast('Enter a custom_domain value in the JSON body', 'error');
+            setTestingEndpoint(null);
+            return;
+          }
+          opts.body = undefined;
+          opts.headers['Content-Type'] = undefined;
+          let queryUrl = `${base}/api/v1${ep.path}?custom_domain=${encodeURIComponent(d)}`;
+          if (tid) queryUrl += `&token_id=${encodeURIComponent(tid)}`;
+          const resp2 = await fetch(queryUrl, opts);
+          const data2 = await resp2.json().catch(() => ({}));
+          setResults((prev) => ({ ...prev, [key]: { ok: resp2.ok, status: resp2.status, data: data2, testedAt: new Date().toLocaleTimeString() } }));
+          setTestingEndpoint(null);
+          return;
+        }
+      }
+
+      // GET /users/me/verify-domain — needs a domain query param
+      if (ep.path === '/users/me/verify-domain') {
+        const domainVal = (pathParams[key]?.domain || '').trim();
+        if (!domainVal) {
+          toast('Enter a domain in the "domain" field above', 'error');
+          setTestingEndpoint(null);
+          return;
+        }
+        const resp2 = await fetch(`${base}/api/v1${ep.path}?domain=${encodeURIComponent(domainVal)}`, opts);
+        const data2 = await resp2.json().catch(() => ({}));
+        setResults((prev) => ({ ...prev, [key]: { ok: resp2.ok, status: resp2.status, data: data2, testedAt: new Date().toLocaleTimeString() } }));
+        setTestingEndpoint(null);
+        return;
       }
 
       const resp = await fetch(`${base}/api/v1${testPath}`, opts);
@@ -224,7 +287,7 @@ export default function ApiDocs() {
           return (
             <div key={key} className="apidocs-card">
               <div className="apidocs-card-header">
-                <span className={`badge ${ep.method === 'GET' ? 'badge-green' : ep.method === 'POST' ? 'badge-blue' : 'badge-red'}`}>{ep.method}</span>
+                <span className={`badge ${ep.method === 'GET' ? 'badge-green' : ep.method === 'POST' ? 'badge-blue' : ep.method === 'PUT' ? '' : 'badge-red'}`}>{ep.method}</span>
                 <span className="code apidocs-path">{ep.path}</span>
               </div>
               <p className="dim apidocs-desc">{ep.desc}</p>

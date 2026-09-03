@@ -8,7 +8,7 @@ from psycopg import AsyncConnection
 
 from app.core.audit import log_audit
 from app.core.db import get_db
-from app.core.deps import get_admin_user, get_current_user
+from app.core.deps import get_admin_user, get_api_user
 from app.core.security import hash_password
 from app.schemas.auth import UserOut
 
@@ -247,7 +247,7 @@ async def delete_user(
 async def update_my_custom_domain(
     custom_domain: str | None = None,
     token_id: str | None = None,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """Update the current user's custom domain. Available to any logged-in user.
@@ -362,7 +362,7 @@ async def update_my_custom_domain(
 @router.get("/me/verify-domain")
 async def verify_my_domain_dns(
     domain: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
 ):
     """Check if a custom domain's DNS A record points to our server.
     Can be called anytime to re-verify without saving."""
