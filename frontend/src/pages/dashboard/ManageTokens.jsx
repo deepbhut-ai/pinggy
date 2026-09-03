@@ -217,20 +217,17 @@ export default function ManageTokens() {
             <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. My API Server" autoFocus />
           </div>
           <div className="form-group">
-            <label>Fixed subdomain — your permanent URL (empty = random each connect)</label>
+            <label>Subdomain</label>
             <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. myapi" />
-            {createSub.trim() ? (
+            {createSub.trim() && (
               <div className="inline-note" style={{ marginTop: '.35rem', padding: '.4rem .6rem', fontSize: '.78rem' }}>
-                <span>🔗 Your URL: <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.iraglobaltech.com</span></span>
+                <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.iraglobaltech.com</span></span>
               </div>
-            ) : (
-              <div className="dim" style={{ fontSize: '.75rem', marginTop: '.3rem' }}>A random subdomain will be generated (e.g. a1b2c3d.iraglobaltech.com) unless you set one.</div>
             )}
           </div>
           <div className="form-group">
-            <label>Custom domain (optional — Pro only)</label>
+            <label>Domain</label>
             <input type="text" value={createDomain} onChange={(e) => setCreateDomain(e.target.value)} placeholder="e.g. api.myapp.com" />
-            <div className="dim" style={{ fontSize: '.75rem', marginTop: '.3rem' }}>Point your domain's A record to 13.140.131.204 via Cloudflare (Proxied, SSL Flexible).</div>
           </div>
         </Modal>
       )}
