@@ -6,7 +6,7 @@ from psycopg import AsyncConnection
 
 from app.core.audit import log_audit
 from app.core.db import get_db
-from app.core.deps import get_admin_user, get_current_user
+from app.core.deps import get_admin_user, get_api_user
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -60,7 +60,7 @@ async def create_invoice_for_payment(db: AsyncConnection, payment_id) -> None:
 
 @router.get("/my")
 async def my_invoices(
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
@@ -95,7 +95,7 @@ async def admin_all_invoices(
 @router.get("/{invoice_id}")
 async def get_invoice(
     invoice_id: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(f"SELECT {_COLS} FROM invoices WHERE id = %s OR invoice_no = %s",

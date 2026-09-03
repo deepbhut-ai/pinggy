@@ -50,9 +50,14 @@ export default function ApiDocs() {
     { method: 'GET',    path: '/users/me/verify-domain',   desc: 'Verify a domain\'s DNS points to our server' },
     { method: 'GET',    path: '/apikeys',                 desc: 'List your API keys' },
     { method: 'POST',   path: '/apikeys',                 desc: 'Create an API key' },
-    { method: 'GET',    path: '/invoices',                desc: 'Your invoices' },
+    { method: 'GET',    path: '/invoices/my',            desc: 'Your invoices' },
     { method: 'GET',    path: '/plans',                   desc: 'Available plans' },
-    { method: 'GET',    path: '/teams',                   desc: 'Your teams' },
+    { method: 'GET',    path: '/teams',                   desc: 'List your teams (with members + tokens)' },
+    { method: 'POST',   path: '/teams',                  desc: 'Create a new team' },
+    { method: 'POST',   path: '/teams/{team_id}/members', desc: 'Add a member to a team' },
+    { method: 'PATCH',  path: '/teams/{team_id}/members/{email}', desc: 'Change a member role (admin/member)' },
+    { method: 'DELETE', path: '/teams/{team_id}/members/{email}', desc: 'Remove a member from a team' },
+    { method: 'GET',    path: '/tickets/my',              desc: 'List your support tickets' },
     { method: 'POST',   path: '/tickets',                 desc: 'Open a support ticket' },
   ];
 
@@ -65,6 +70,8 @@ export default function ApiDocs() {
     'PUT/tokens/{id}': JSON.stringify({ name: 'My token', fixed_subdomain: 'my-subdomain', tunnel_mode: 'http' }, null, 2),
     'POST/tokens/{id}/domains': JSON.stringify({ domain: 'app.mydomain.com' }, null, 2),
     'PUT/users/me/custom-domain': JSON.stringify({ custom_domain: 'mydomain.com', token_id: '' }, null, 2),
+    'POST/teams/{team_id}/members': JSON.stringify({ email: 'teammate@example.com', role: 'member' }, null, 2),
+    'PATCH/teams/{team_id}/members/{email}': JSON.stringify({ role: 'admin' }, null, 2),
   };
 
   // Path param hints — {param: description}
@@ -76,6 +83,9 @@ export default function ApiDocs() {
     'DELETE/tokens/{id}/domains/{domain}': { id: 'Token ID', domain: 'Domain to remove (e.g. app.mydomain.com)' },
     'POST/tokens/{id}/regenerate':    { id: 'Token ID (get it from GET /tokens)' },
     'GET/users/me/verify-domain':      { domain: 'Domain to verify (e.g. mydomain.com)' },
+    'POST/teams/{team_id}/members':   { team_id: 'Team ID (get it from GET /teams)' },
+    'PATCH/teams/{team_id}/members/{email}': { team_id: 'Team ID', email: 'Member email to promote/demote' },
+    'DELETE/teams/{team_id}/members/{email}': { team_id: 'Team ID', email: 'Member email to remove' },
   };
 
   const verifyKey = async () => {
@@ -287,7 +297,7 @@ export default function ApiDocs() {
           return (
             <div key={key} className="apidocs-card">
               <div className="apidocs-card-header">
-                <span className={`badge ${ep.method === 'GET' ? 'badge-green' : ep.method === 'POST' ? 'badge-blue' : ep.method === 'PUT' ? '' : 'badge-red'}`}>{ep.method}</span>
+                <span className={`badge ${ep.method === 'GET' ? 'badge-green' : ep.method === 'DELETE' ? 'badge-red' : ep.method === 'PATCH' ? 'badge-red' : 'badge-blue'}`}>{ep.method}</span>
                 <span className="code apidocs-path">{ep.path}</span>
               </div>
               <p className="dim apidocs-desc">{ep.desc}</p>
