@@ -218,10 +218,6 @@ export default function ConfigureTunnel() {
       <div className="card">
         <div className="card-header">
           <h2>Tunnel Settings</h2>
-          <select value="" onChange={(e) => loadConfig(e.target.value)} style={{ maxWidth: 150 }}>
-            <option value="">📂 Load saved…</option>
-            {configs.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
         </div>
         <div className="card-body">
           {/* Token dropdown — same style as Quickstart */}
