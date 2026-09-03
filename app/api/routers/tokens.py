@@ -196,20 +196,25 @@ async def create_token(
     db: AsyncConnection = Depends(get_db),
 ):
     """Create a new token for the current user.
-    Free plan is limited to 1 token (single tunnel).
-    Pro users can set a custom_domain at creation time."""
-    # Plan limit check
-    if (user.get("plan") or "free") != "pro":
-        cur = await db.execute(
-            "SELECT COUNT(*) FROM tokens WHERE user_email = %s", (user["email"],)
-        )
-        row = await cur.fetchone()
-        await cur.close()
-        if row[0] >= 1:
+    Token limit = seats (Free = 1, Pro = seats purchased)."""
+    # Token limit = user's seat count (Free defaults to 1)
+    max_tokens = int(user.get("seats") or 1)
+    cur = await db.execute(
+        "SELECT COUNT(*) FROM tokens WHERE user_email = %s", (user["email"],)
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    if row[0] >= max_tokens:
+        if (user.get("plan") or "free") == "free":
             raise HTTPException(
                 status.HTTP_402_PAYMENT_REQUIRED,
-                "Free plan allows only 1 tunnel token. Upgrade to Pro to create more.",
+                f"Free plan allows only 1 tunnel token. Upgrade to Pro to create more.",
             )
+        raise HTTPException(
+            status.HTTP_402_PAYMENT_REQUIRED,
+            f"You've reached your limit of {max_tokens} tokens (seats). "
+            "Buy more seats under Plan → Upgrade to create additional tokens.",
+        )
 
     # Validate custom_domain uniqueness if provided
     custom_domain = None
