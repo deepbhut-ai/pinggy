@@ -102,7 +102,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--brand); box-shad
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   margin-bottom: 1rem; overflow: hidden;
 }
-.card-header { padding: .9rem 1.25rem; border-bottom: 1px solid var(--border); }
+.card-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; padding: .9rem 1.25rem; border-bottom: 1px solid var(--border); }
 .card-header h2 { font-size: 1rem; font-weight: 700; }
 .card-body { padding: 1.25rem; }
 
