@@ -255,11 +255,16 @@ export default function ConfigureTunnel() {
             )}
           </div>
 
-          {/* 2. Multi-port toggle — right after token */}
-          <label className="checkbox-label" style={{ marginBottom: '1rem', fontSize: '.85rem' }}>
-            <input type="checkbox" checked={multiPort} onChange={(e) => setMultiPort(e.target.checked)} />
-            Multi-port — run multiple services through one tunnel
+          {/* 2. Multi-port toggle — Pro only, disabled for Free */}
+          <label className="checkbox-label" style={{ marginBottom: '1rem', fontSize: '.85rem', opacity: isPro ? 1 : .5 }}>
+            <input type="checkbox" checked={multiPort && isPro} onChange={(e) => { if (!isPro) { toast('Multi-port is a Pro feature — upgrade to enable', 'error'); return; } setMultiPort(e.target.checked); }} disabled={!isPro} />
+            Multi-port — run multiple services through one tunnel {!isPro && <span className="badge" style={{ marginLeft: '.3rem' }}>Pro</span>}
           </label>
+          {!isPro && (
+            <p className="dim" style={{ fontSize: '.75rem', marginTop: '-.5rem', marginBottom: '1rem' }}>
+              Free plan supports single port only. <a href="/dashboard/plan" style={{ color: 'var(--brand)' }}>Upgrade to Pro</a> for multi-port.
+            </p>
+          )}
 
           {/* 3a. Multi-port ENABLED — show address → port list */}
           {multiPort && selToken && (
@@ -370,30 +375,29 @@ export default function ConfigureTunnel() {
               <div style={{ fontSize: '.75rem', color: '#475569', marginTop: '.35rem' }}>Scan to open this tunnel URL on your phone</div>
             </div>
           )}
-        </div>
-      </div>
 
-      <div className="card">
-        <div className="card-header"><h2>Advanced Options</h2></div>
-        <div className="card-body">
-          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-            <label className="checkbox-label">
-              <input type="checkbox" checked={keepAlive} onChange={(e) => setKeepAlive(e.target.checked)} />
-              Keep Alive (30s interval)
-            </label>
-            <label className="checkbox-label">
-              <input type="checkbox" checked={autoReconnect} onChange={(e) => setAutoReconnect(e.target.checked)} />
-              Auto-Reconnect (in downloaded script)
-            </label>
-            <label className="checkbox-label">
-              <input type="checkbox" checked={strictHost} onChange={(e) => setStrictHost(e.target.checked)} />
-              Strict Host Key Check
-            </label>
-            <label className="checkbox-label">
-              <input type="checkbox" checked={verbose} onChange={(e) => setVerbose(e.target.checked)} />
-              Verbose output (-v)
-            </label>
-          </div>
+          {/* Advanced options — collapsed by default */}
+          <details style={{ marginTop: '1rem' }}>
+            <summary style={{ fontSize: '.8rem', cursor: 'pointer', fontWeight: 600, color: 'var(--text-dim)' }}>⚙️ Advanced options</summary>
+            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '.75rem' }}>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={keepAlive} onChange={(e) => setKeepAlive(e.target.checked)} />
+                Keep Alive (30s interval)
+              </label>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={autoReconnect} onChange={(e) => setAutoReconnect(e.target.checked)} />
+                Auto-Reconnect (in downloaded script)
+              </label>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={strictHost} onChange={(e) => setStrictHost(e.target.checked)} />
+                Strict Host Key Check
+              </label>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={verbose} onChange={(e) => setVerbose(e.target.checked)} />
+                Verbose output (-v)
+              </label>
+            </div>
+          </details>
         </div>
       </div>
     </>
