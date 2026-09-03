@@ -10,7 +10,7 @@ export default function ManageTokens() {
   const [tokens, setTokens] = useState([]);
   const [selected, setSelected] = useState(null); // full token object for guide
   const [createOpen, setCreateOpen] = useState(false);
-  const [createName, setCreateName] = useState('New Token');
+  const [createName, setCreateName] = useState('');
   const [createDomain, setCreateDomain] = useState('');
   const [createSub, setCreateSub] = useState('');
   const [editOpen, setEditOpen] = useState(null); // token
@@ -120,7 +120,7 @@ export default function ManageTokens() {
           <div className="page-subtitle">Create separate credentials for each tunnel or project.</div>
         </div>
         <div className="page-toolbar-actions">
-          <button className="btn" onClick={() => { setCreateName('New Token'); setCreateDomain(''); setCreateSub(''); setCreateOpen(true); }}>+ Subdomain Token</button>
+          <button className="btn" onClick={() => { setCreateName(''); setCreateDomain(''); setCreateSub(''); setCreateOpen(true); }}>+ Subdomain Token</button>
         </div>
       </div>
 
@@ -214,11 +214,11 @@ export default function ManageTokens() {
         <Modal title="Subdomain Token" confirmLabel="Create" onConfirm={create} onClose={() => setCreateOpen(false)}>
           <div className="form-group">
             <label>Token name</label>
-            <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. My API Server" autoFocus />
+            <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. My Website" autoFocus />
           </div>
           <div className="form-group">
             <label>Subdomain</label>
-            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. myapi" />
+            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. mywebsite" />
             {createSub.trim() && (
               <div className="inline-note" style={{ marginTop: '.35rem', padding: '.4rem .6rem', fontSize: '.78rem' }}>
                 <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.iraglobaltech.com</span></span>
@@ -227,7 +227,7 @@ export default function ManageTokens() {
           </div>
           <div className="form-group">
             <label>Domain</label>
-            <input type="text" value={createDomain} onChange={(e) => setCreateDomain(e.target.value)} placeholder="e.g. api.myapp.com" />
+            <input type="text" value={createDomain} onChange={(e) => setCreateDomain(e.target.value)} placeholder="e.g. mywebsite.com" />
           </div>
         </Modal>
       )}
