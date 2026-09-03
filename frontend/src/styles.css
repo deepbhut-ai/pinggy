@@ -246,11 +246,67 @@ tr:hover td { background: var(--surface-1); }
 .tl-card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; min-width: 0; }
 
 /* ---- Wizard (Quickstart guided flow) ---- */
-.wizard-dots { display: flex; align-items: center; justify-content: center; gap: .5rem; margin-bottom: 1.5rem; }
-.wizard-dot { width: 32px; height: 32px; border-radius: 50%; background: var(--bg); border: 2px solid var(--border); color: var(--text-dim); display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; transition: .2s; }
-.wizard-dot.active { background: var(--brand); border-color: var(--brand); color: #fff; transform: scale(1.15); }
+.wizard-dots { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 1.5rem; }
+.wizard-dot-group { display: flex; align-items: center; gap: 0; }
+.wizard-dot { width: 36px; height: 36px; border-radius: 50%; background: var(--bg); border: 2px solid var(--border); color: var(--text-dim); display: flex; align-items: center; justify-content: center; font-size: .85rem; font-weight: 700; transition: all .3s cubic-bezier(.4,0,.2,1); z-index: 1; }
+.wizard-dot.active { background: var(--brand); border-color: var(--brand); color: #fff; transform: scale(1.2); box-shadow: 0 0 0 4px var(--brand-light); animation: wizard-dot-pulse 2s ease-in-out infinite; }
 .wizard-dot.done { background: var(--green); border-color: var(--green); color: #fff; }
-.wizard-dot:not(:last-child)::after { content: ''; position: absolute; }
+.wizard-dot-line { width: 40px; height: 2px; background: var(--border); transition: background .3s; }
+.wizard-dot-line.filled { background: var(--green); }
+.wizard-dot-label { font-size: .7rem; color: var(--text-dim); margin-left: .4rem; margin-right: .6rem; white-space: nowrap; transition: .2s; }
+.wizard-dot-label.current { color: var(--brand); font-weight: 700; }
+.wizard-dot-label.done { color: var(--green); }
+
+@keyframes wizard-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px var(--brand-light); }
+  50% { box-shadow: 0 0 0 8px rgba(106,166,240,.08); }
+}
+
+/* Step card slide-in animation */
+.wizard-animate-in { animation: wizard-slide-in .4s cubic-bezier(.4,0,.2,1); }
+@keyframes wizard-slide-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Fade-in for individual elements inside steps */
+.wizard-fade-in { animation: wizard-fade-up .4s ease both; }
+@keyframes wizard-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Pulsing step icon */
+.wizard-icon-pulse { animation: wizard-icon-bounce 2.5s ease-in-out infinite; }
+@keyframes wizard-icon-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+/* Celebrate icon on last step */
+.wizard-icon-celebrate { animation: wizard-celebrate 1.5s ease-in-out infinite; }
+@keyframes wizard-celebrate {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.15) rotate(-5deg); }
+  75% { transform: scale(1.15) rotate(5deg); }
+}
+
+/* Checklist items appear one by one */
+.wizard-checklist-item { display: flex; align-items: flex-start; gap: .6rem; padding: .5rem 0; border-bottom: 1px solid var(--border); font-size: .85rem; color: var(--text-dim); line-height: 1.6; opacity: 0; animation: wizard-checklist-in .4s ease forwards; }
+.wizard-checklist-item:last-child { border-bottom: none; }
+.wizard-checklist-item strong { color: var(--text); }
+.wizard-checklist-num { width: 24px; height: 24px; border-radius: 50%; background: var(--brand-light); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: .72rem; font-weight: 700; flex-shrink: 0; }
+@keyframes wizard-checklist-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* URL pop-in on step 4 */
+.wizard-url-pop { animation: wizard-url-pop .5s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes wizard-url-pop {
+  from { opacity: 0; transform: scale(.8); }
+  to { opacity: 1; transform: scale(1); }
+}
 
 .wizard-step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 1rem; }
 .wizard-step-header { display: flex; gap: 1rem; align-items: flex-start; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--bg); }
@@ -259,16 +315,27 @@ tr:hover td { background: var(--surface-1); }
 .wizard-step-header p { font-size: .82rem; color: var(--text-dim); line-height: 1.5; }
 .wizard-step-body { padding: 1.25rem 1.5rem; }
 .wizard-info-box { padding: .875rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; }
-.wizard-checklist { list-style: none; margin: 0; padding: 0; font-size: .85rem; color: var(--text-dim); line-height: 2; }
-.wizard-checklist li { padding-left: 1.2rem; position: relative; }
-.wizard-checklist li::before { content: '▸'; position: absolute; left: 0; color: var(--brand); font-weight: 700; }
-.wizard-checklist strong { color: var(--text); }
+.wizard-checklist { list-style: none; margin: 0; padding: 0; }
 .wizard-step-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; padding-top: .8rem; border-top: 1px solid var(--border); }
 
 .token-row { display: flex; gap: .5rem; align-items: center; }
 .token-row input { flex: 1; font-family: var(--mono); }
 .icon-btn { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: .3rem .5rem; cursor: pointer; color: var(--text); font-size: .85rem; transition: .15s; }
 .icon-btn:hover { border-color: var(--brand); }
+
+/* ---- Token dropdown (single box, expands below) ---- */
+.token-dropdown-wrapper { position: relative; margin-bottom: .75rem; }
+.token-dropdown-box { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .55rem .75rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: .15s; min-height: 42px; }
+.token-dropdown-box:hover { border-color: var(--brand); }
+.token-dropdown-value { flex: 1; font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.token-dropdown-right { display: flex; align-items: center; gap: .35rem; flex-shrink: 0; }
+.token-dropdown-chevron { font-size: .65rem; color: var(--text-dim); margin-left: .2rem; }
+.token-dropdown-options { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 50; overflow: hidden; animation: token-dd-in .2s ease; }
+@keyframes token-dd-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.token-dropdown-option { display: flex; align-items: center; gap: .5rem; padding: .5rem .75rem; cursor: pointer; transition: .15s; border-bottom: 1px solid var(--border); }
+.token-dropdown-option:last-child { border-bottom: none; }
+.token-dropdown-option:hover { background: var(--surface-1); }
+.token-dropdown-option.selected { background: var(--brand-light); }
 
 .inline-note { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; padding: .75rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); }
 .inline-note.amber { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.3); }

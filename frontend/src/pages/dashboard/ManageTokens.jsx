@@ -117,7 +117,7 @@ export default function ManageTokens() {
           <div className="page-subtitle">Create separate credentials for each tunnel or project.</div>
         </div>
         <div className="page-toolbar-actions">
-          <button className="btn" onClick={() => { setCreateName('New Token'); setCreateDomain(''); setCreateOpen(true); }}>+ Generate Token</button>
+          <button className="btn" onClick={() => { setCreateName('New Token'); setCreateDomain(''); setCreateOpen(true); }}>+ Subdomain Token</button>
         </div>
       </div>
 
@@ -131,7 +131,7 @@ export default function ManageTokens() {
         </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {tokens.length === 0 ? (
-            <p className="empty">No tokens yet. Click "Generate New Token" to create one.</p>
+            <p className="empty">No tokens yet. Click "Subdomain Token" to create one.</p>
           ) : (
             <table>
               <thead>
@@ -208,7 +208,7 @@ export default function ManageTokens() {
 
       {/* Create modal */}
       {createOpen && (
-        <Modal title="Generate New Token" confirmLabel="Create" onConfirm={create} onClose={() => setCreateOpen(false)}>
+        <Modal title="Subdomain Token" confirmLabel="Create" onConfirm={create} onClose={() => setCreateOpen(false)}>
           <div className="form-group">
             <label>Token name</label>
             <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. My API Server" autoFocus />

@@ -12,6 +12,7 @@ export default function DashboardOverview() {
   const [tunnels, setTunnels] = useState([]);
   const [tokens, setTokens] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [selectedTokenId, setSelectedTokenId] = useState(null);
   const rateRef = useRef({});
   const pollRef = useRef(null);
 
@@ -26,6 +27,7 @@ export default function DashboardOverview() {
       setInfo(infoD);
       setTunnels(tunnelsD);
       setTokens(tokensD);
+      if (tokensD[0] && !selectedTokenId) setSelectedTokenId(tokensD[0].id);
       setAnnouncements(annsD);
     } catch (e) { /* silent */ }
   }, []);
@@ -51,7 +53,8 @@ export default function DashboardOverview() {
     return () => clearInterval(pollRef.current);
   }, []);
 
-  const token = tokens.length > 0 ? tokens[0].token : '';
+  const selectedToken = tokens.find((t) => t.id === selectedTokenId) || tokens[0] || null;
+  const token = selectedToken?.token || '';
   const isPro = (user?.plan || 'free') === 'pro';
   const totalRequests = tunnels.reduce((s, t) => s + (t.request_count || 0), 0);
   const totalBytes = tunnels.reduce((s, t) => s + (t.bytes_transferred || 0), 0);
@@ -85,6 +88,15 @@ export default function DashboardOverview() {
           <div className="page-subtitle">Overview of your tunnel workspace</div>
         </div>
         <div className="page-toolbar-actions">
+          {tokens.length > 0 && (
+            <select value={selectedTokenId || ''} onChange={(e) => setSelectedTokenId(e.target.value)} style={{ width: 'auto', minWidth: 180 }}>
+              {tokens.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name || 'Unnamed'} ({isPro ? 'Pro' : 'Free'})
+                </option>
+              ))}
+            </select>
+          )}
           <span className={`badge ${tunnels.length ? 'badge-green' : 'badge-blue'}`}>
             {tunnels.length ? `${tunnels.length} active` : 'Ready to connect'}
           </span>
@@ -117,7 +129,7 @@ export default function DashboardOverview() {
         </div>
         <div className="summary-card">
           <div className="summary-label">Custom domain</div>
-          <div className="summary-value">{tokens[0]?.custom_domain || 'Not set yet'}</div>
+          <div className="summary-value">{selectedToken?.custom_domain || 'Not set yet'}</div>
           <div className="summary-sub">Uses the canonical domain for this token</div>
         </div>
         <div className="summary-card">
@@ -142,7 +154,7 @@ export default function DashboardOverview() {
             </div>
             <div className="meta-box">
               <div className="label">Custom domain</div>
-              <div className="value">{tokens[0]?.custom_domain || 'Not assigned'}</div>
+              <div className="value">{selectedToken?.custom_domain || 'Not assigned'}</div>
             </div>
           </div>
         </div>

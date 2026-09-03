@@ -14,10 +14,14 @@ const OS_HINTS = {
 const TOTAL_STEPS = 4;
 const STORAGE_KEY = 'pinggy_quickstart_progress';
 
-// Quickstart — clean guided wizard for complete beginners.
-// Only the page-toolbar shows at top. Then one step at a time.
-// Step 1: Get your token  →  Step 2: Copy your command
-// Step 3: Run it in terminal  →  Step 4: Access your tunnel
+const STEP_META = [
+  { icon: '🔑', label: 'Token',    title: 'Get your access token',     desc: 'Your token is like a password that connects your computer to our server.' },
+  { icon: '📋', label: 'Command',  title: 'Copy your tunnel command',  desc: 'Choose your operating system and local port, then copy the command.' },
+  { icon: '▶️', label: 'Run',      title: 'Run the command',           desc: 'Open your terminal, paste the command, and press Enter.' },
+  { icon: '🎉', label: 'Access',   title: 'Access your tunnel',        desc: 'Your tunnel is live — share the URL with anyone.' },
+];
+
+// Quickstart — animated guided wizard for complete beginners.
 export default function Quickstart() {
   const { user } = useAuth();
   const toast = useToast();
@@ -27,10 +31,12 @@ export default function Quickstart() {
   const [os, setOs] = useState('cmd');
   const [autoReconnect, setAutoReconnect] = useState(false);
   const [tokenVisible, setTokenVisible] = useState(true);
+  const [tokenDropdownOpen, setTokenDropdownOpen] = useState(false);
   const [detectedOS, setDetectedOS] = useState('windows');
   const [selectedOS, setSelectedOS] = useState('windows');
+  const [animKey, setAnimKey] = useState(0); // forces re-mount for enter animation
+  const [selectedTokenId, setSelectedTokenId] = useState(null);
 
-  // Which step the user is currently on (1-indexed). Only one step visible at a time.
   const [currentStep, setCurrentStep] = useState(() => {
     try {
       const saved = parseInt(localStorage.getItem(STORAGE_KEY) || '1', 10);
@@ -38,18 +44,24 @@ export default function Quickstart() {
     } catch { return 1; }
   });
 
-  const token = tokens.length > 0 ? tokens[0].token : '';
+  const selectedToken = tokens.find((t) => t.id === selectedTokenId) || tokens[0] || null;
+  const token = selectedToken?.token || '';
   const isPro = (user?.plan || 'free') === 'pro';
 
-  // Persist current step so user doesn't lose place on refresh.
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, String(currentStep));
+    setAnimKey((k) => k + 1); // trigger enter animation on step change
   }, [currentStep]);
 
   const goNext = () => {
     if (currentStep < TOTAL_STEPS) {
-      setCurrentStep((s) => s + 1);
-      toast(`Step ${currentStep} done! Moving to step ${currentStep + 1}…`, 'success');
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      if (nextStep === TOTAL_STEPS) {
+        toast('🎉 All done! Your tunnel is ready to use.', 'success');
+      } else {
+        toast(`Step ${currentStep} done! Moving to step ${nextStep}…`, 'success');
+      }
     }
   };
 
@@ -71,12 +83,32 @@ export default function Quickstart() {
       ]);
       setInfo(infoD);
       setTokens(tokensD);
+      if (tokensD[0] && !selectedTokenId) setSelectedTokenId(tokensD[0].id);
     } catch (e) { toast(e.message, 'error'); }
-  }, [toast]);
+  }, [toast, selectedTokenId]);
 
   useEffect(() => { load(); }, [load]);
 
-  // Auto-detect OS
+  // Toast when token state changes (instead of inline messages on page)
+  const [prevTokenState, setPrevTokenState] = useState(null);
+  useEffect(() => {
+    const state = token ? 'has_token' : 'no_token';
+    if (prevTokenState !== null && prevTokenState !== state) {
+      if (state === 'no_token') toast('No token yet — create one in Manage Tokens', 'error');
+      else toast('Token ready! Copy it and click Next to continue', 'success');
+    }
+    setPrevTokenState(state);
+  }, [token, prevTokenState, toast]);
+
+  // If user lands directly on step 4 (e.g. after refresh), show the success toast
+  const [shownStep4Toast, setShownStep4Toast] = useState(false);
+  useEffect(() => {
+    if (currentStep === TOTAL_STEPS && !shownStep4Toast) {
+      toast('🎉 All done! Your tunnel is ready to use.', 'success');
+      setShownStep4Toast(true);
+    }
+  }, [currentStep, shownStep4Toast, toast]);
+
   useEffect(() => {
     const ua = navigator.userAgent;
     if (/Mac|iPhone|iPad|iPod/i.test(ua)) { setDetectedOS('mac'); setSelectedOS('mac'); setOs('mac'); }
@@ -86,7 +118,7 @@ export default function Quickstart() {
 
   const sshHost = info?.domain?.includes('iraglobaltech.com') ? 'ssh.iraglobaltech.com' : (info?.domain || '');
   const sshPort = info?.ssh_port || 2222;
-  const subdomain = tokens[0]?.subdomain || '';
+  const subdomain = selectedToken?.subdomain || '';
 
   const buildCmd = () => {
     if (!token) return 'Create a token first in step 1 →';
@@ -100,9 +132,9 @@ export default function Quickstart() {
   // ── Step content renderers ──
 
   const renderStep1 = () => (
-    <div className="wizard-step-card">
+    <div className="wizard-step-card wizard-animate-in" key={animKey}>
       <div className="wizard-step-header">
-        <span className="wizard-step-icon">🔑</span>
+        <span className="wizard-step-icon wizard-icon-pulse">🔑</span>
         <div>
           <h3>Step 1 — Get your access token</h3>
           <p className="dim">Your token is like a password that connects your computer to our server. You already have one — just copy it below.</p>
@@ -110,7 +142,7 @@ export default function Quickstart() {
       </div>
 
       <div className="wizard-step-body">
-        <div className="wizard-info-box">
+        <div className="wizard-info-box wizard-fade-in" style={{ animationDelay: '.1s' }}>
           <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>📋 What is a token?</p>
           <p className="dim" style={{ fontSize: '.82rem', lineHeight: 1.6 }}>
             A token is a unique code that identifies your account. When you run a command on your computer,
@@ -118,24 +150,43 @@ export default function Quickstart() {
           </p>
         </div>
 
-        <p className="dim" style={{ marginBottom: '.4rem', fontWeight: 600, fontSize: '.8rem' }}>Your access token</p>
-        <div className="token-row">
-          <input type="text" value={tokenVisible ? token : '••••••••••••••••'} readOnly />
-          <button className="icon-btn" title="Copy token" onClick={() => { copyToClipboard(token); toast('Token copied!'); }}>📋</button>
-          <button className="icon-btn" title="Show/Hide token" onClick={() => setTokenVisible(!tokenVisible)}>{tokenVisible ? '🙈' : '👁'}</button>
+        <p className="dim wizard-fade-in" style={{ marginBottom: '.4rem', fontWeight: 600, fontSize: '.8rem', animationDelay: '.2s' }}>Your access token</p>
+        <div className="wizard-fade-in token-dropdown-wrapper" style={{ animationDelay: '.25s' }}>
+          {/* Single box: shows token value + Free/Pro tag, click to expand options below */}
+          <div className="token-dropdown-box" onClick={() => tokens.length > 0 && setTokenDropdownOpen(!tokenDropdownOpen)}>
+            <span className="token-dropdown-value code">
+              {token ? (tokenVisible ? token : '••••••••••••••••') : 'No token yet'}
+            </span>
+            <div className="token-dropdown-right">
+              <span className={`badge ${isPro ? 'badge-blue' : ''}`} style={{ fontSize: '.65rem' }}>{isPro ? 'Pro' : 'Free'}</span>
+              {token && (
+                <>
+                  <button className="icon-btn" title="Copy token" onClick={(e) => { e.stopPropagation(); copyToClipboard(token); toast('Token copied!'); }}>📋</button>
+                  <button className="icon-btn" title="Show/Hide token" onClick={(e) => { e.stopPropagation(); setTokenVisible(!tokenVisible); }}>{tokenVisible ? '🙈' : '👁'}</button>
+                </>
+              )}
+              {tokens.length > 0 && <span className="token-dropdown-chevron">{tokenDropdownOpen ? '▲' : '▼'}</span>}
+            </div>
+          </div>
+          {/* Expanded options below */}
+          {tokenDropdownOpen && tokens.length > 0 && (
+            <div className="token-dropdown-options">
+              {tokens.map((t) => (
+                <div
+                  key={t.id}
+                  className={`token-dropdown-option ${t.id === selectedTokenId ? 'selected' : ''}`}
+                  onClick={() => { setSelectedTokenId(t.id); setTokenDropdownOpen(false); }}
+                >
+                  <span className="code">{t.token.substring(0, 8)}…</span>
+                  <span className="dim" style={{ fontSize: '.78rem' }}>{t.name || 'Unnamed'}</span>
+                  <span className={`badge ${isPro ? 'badge-blue' : ''}`} style={{ fontSize: '.6rem' }}>{isPro ? 'Pro' : 'Free'}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {!token ? (
-          <div className="inline-note amber">
-            <strong>No token yet.</strong> Go to <a href="/dashboard/tokens" style={{ color: 'var(--brand)' }}>Manage Tokens</a> to create one, then come back here.
-          </div>
-        ) : (
-          <div className="inline-note" style={{ background: 'rgba(41,169,127,.08)', borderColor: 'rgba(41,169,127,.3)' }}>
-            <span>✅ Your token is ready! Copy it and click "Next" to continue.</span>
-          </div>
-        )}
-
-        <div className="wizard-step-nav">
+        <div className="wizard-step-nav wizard-fade-in" style={{ animationDelay: '.4s' }}>
           <span />
           <button className="btn btn-sm" onClick={goNext} disabled={!token}>
             Next →
@@ -146,9 +197,9 @@ export default function Quickstart() {
   );
 
   const renderStep2 = () => (
-    <div className="wizard-step-card">
+    <div className="wizard-step-card wizard-animate-in" key={animKey}>
       <div className="wizard-step-header">
-        <span className="wizard-step-icon">📋</span>
+        <span className="wizard-step-icon wizard-icon-pulse">📋</span>
         <div>
           <h3>Step 2 — Copy your tunnel command</h3>
           <p className="dim">Choose your operating system and local port, then copy the command below.</p>
@@ -156,7 +207,7 @@ export default function Quickstart() {
       </div>
 
       <div className="wizard-step-body">
-        <div className="wizard-info-box">
+        <div className="wizard-info-box wizard-fade-in" style={{ animationDelay: '.1s' }}>
           <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>📋 What is this command?</p>
           <p className="dim" style={{ fontSize: '.82rem', lineHeight: 1.6 }}>
             This is a single line of text you'll paste into your computer's terminal (command window).
@@ -164,56 +215,55 @@ export default function Quickstart() {
           </p>
         </div>
 
-        <p className="dim" style={{ marginBottom: '.4rem', fontWeight: 600, fontSize: '.8rem' }}>Choose your operating system</p>
-        <div className="os-tabs">
+        <p className="dim wizard-fade-in" style={{ marginBottom: '.4rem', fontWeight: 600, fontSize: '.8rem', animationDelay: '.2s' }}>Choose your operating system</p>
+        <div className="os-tabs wizard-fade-in" style={{ animationDelay: '.25s' }}>
           <button className={`os-tab ${selectedOS === 'windows' ? 'active' : ''}`} onClick={() => { setSelectedOS('windows'); setOs('cmd'); }}>🪟 Windows</button>
           <button className={`os-tab ${selectedOS === 'mac' ? 'active' : ''}`} onClick={() => { setSelectedOS('mac'); setOs('mac'); }}>🍎 Mac</button>
           <button className={`os-tab ${selectedOS === 'linux' ? 'active' : ''}`} onClick={() => { setSelectedOS('linux'); setOs('linux'); }}>🐧 Linux</button>
         </div>
 
-        {/* Sub-options: Windows has CMD + PowerShell, Mac/Linux just Terminal */}
         {selectedOS === 'windows' && (
           <>
-            <p className="dim" style={{ marginBottom: '.4rem', fontWeight: 600, fontSize: '.8rem', marginTop: '.75rem' }}>Choose your terminal</p>
-            <div className="os-tabs">
+            <p className="dim wizard-fade-in" style={{ marginBottom: '.4rem', fontWeight: 600, fontSize: '.8rem', marginTop: '.75rem', animationDelay: '.3s' }}>Choose your terminal</p>
+            <div className="os-tabs wizard-fade-in" style={{ animationDelay: '.35s' }}>
               <button className={`os-tab ${os === 'cmd' ? 'active' : ''}`} onClick={() => setOs('cmd')}>🪟 Command Prompt (CMD)</button>
               <button className={`os-tab ${os === 'powershell' ? 'active' : ''}`} onClick={() => setOs('powershell')}>{'>_'} PowerShell</button>
             </div>
           </>
         )}
         {selectedOS === 'mac' && (
-          <p className="dim" style={{ marginBottom: '.4rem', fontWeight: 600, fontSize: '.8rem', marginTop: '.75rem' }}>Terminal is the only option on Mac.</p>
+          <p className="dim wizard-fade-in" style={{ marginBottom: '.4rem', fontWeight: 600, fontSize: '.8rem', marginTop: '.75rem', animationDelay: '.3s' }}>Terminal is the only option on Mac.</p>
         )}
         {selectedOS === 'linux' && (
-          <p className="dim" style={{ marginBottom: '.4rem', fontWeight: 600, fontSize: '.8rem', marginTop: '.75rem' }}>Terminal is the only option on Linux.</p>
+          <p className="dim wizard-fade-in" style={{ marginBottom: '.4rem', fontWeight: 600, fontSize: '.8rem', marginTop: '.75rem', animationDelay: '.3s' }}>Terminal is the only option on Linux.</p>
         )}
 
-        <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.5rem', padding: '.4rem .6rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+        <p className="dim wizard-fade-in" style={{ fontSize: '.78rem', marginBottom: '.5rem', padding: '.4rem .6rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', animationDelay: '.4s' }}>
           {os === 'cmd' && '💡 Open Command Prompt: Press Win+R → type "cmd" → Enter'}
           {os === 'powershell' && '💡 Open PowerShell: Press Win+X → click "Windows PowerShell"'}
           {os === 'linux' && '💡 Open Terminal: Press Ctrl+Alt+T (or search "Terminal" in your app menu)'}
           {os === 'mac' && '💡 Open Terminal: Press Cmd+Space → type "Terminal" → Enter'}
         </p>
 
-        <label className="checkbox-label">
+        <label className="checkbox-label wizard-fade-in" style={{ animationDelay: '.45s' }}>
           <input type="checkbox" checked={autoReconnect} onChange={(e) => setAutoReconnect(e.target.checked)} />
           Automatically reconnect if the server or network disconnects
         </label>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.5rem' }}>
+        <div className="wizard-fade-in" style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.5rem', animationDelay: '.5s' }}>
           <label style={{ fontSize: '.85rem', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>Local port:</label>
           <input type="number" value={localPort} min="1" max="65535" onChange={(e) => setLocalPort(parseInt(e.target.value) || 8080)} style={{ width: 80 }} />
           <span style={{ fontSize: '.8rem', color: 'var(--text-dim)' }}>The port your local service runs on (e.g. 3000, 8080)</span>
         </div>
 
-        <p className="dim" style={{ marginBottom: '.5rem' }}>{OS_HINTS[os]}</p>
+        <p className="dim wizard-fade-in" style={{ marginBottom: '.5rem', animationDelay: '.55s' }}>{OS_HINTS[os]}</p>
 
-        <div className="cmd-box cmd-box-relative">
+        <div className="cmd-box cmd-box-relative wizard-fade-in" style={{ animationDelay: '.6s' }}>
           <pre>{buildCmd()}</pre>
           <button className="btn btn-sm copy-btn" onClick={() => { copyToClipboard(buildCmd()); toast('Command copied!'); }}>📋 Copy</button>
         </div>
 
-        <div className="wizard-step-nav">
+        <div className="wizard-step-nav wizard-fade-in" style={{ animationDelay: '.65s' }}>
           <button className="btn btn-sm btn-ghost" onClick={goPrev}>← Back</button>
           <button className="btn btn-sm" onClick={goNext}>Next →</button>
         </div>
@@ -222,9 +272,9 @@ export default function Quickstart() {
   );
 
   const renderStep3 = () => (
-    <div className="wizard-step-card">
+    <div className="wizard-step-card wizard-animate-in" key={animKey}>
       <div className="wizard-step-header">
-        <span className="wizard-step-icon">▶️</span>
+        <span className="wizard-step-icon wizard-icon-pulse">▶️</span>
         <div>
           <h3>Step 3 — Run the command in your terminal</h3>
           <p className="dim">Open your terminal, paste the command, and press Enter. Keep the window open.</p>
@@ -233,20 +283,27 @@ export default function Quickstart() {
 
       <div className="wizard-step-body">
         <div className="wizard-info-box">
-          <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>📋 How to do this</p>
+          <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>📋 Follow these steps</p>
           <ol className="wizard-checklist">
-            <li><strong>Open your terminal</strong> — {os === 'cmd' && 'Press Win+R, type "cmd", press Enter'}{os === 'powershell' && 'Press Win+X, click "Windows PowerShell"'}{os === 'linux' && 'Press Ctrl+Alt+T'}{os === 'mac' && 'Press Cmd+Space, type "Terminal", press Enter'}</li>
-            <li><strong>Paste the command</strong> — Right-click in the terminal and select "Paste" (or use Ctrl+Shift+V on Linux)</li>
-            <li><strong>Press Enter</strong> — The terminal will show a connection message with your tunnel URL</li>
-            <li><strong>Keep the terminal open</strong> — Your tunnel stays active only while this window is running</li>
+            {[
+              { strong: 'Open your terminal', rest: os === 'cmd' ? '— Press Win+R, type "cmd", press Enter' : os === 'powershell' ? '— Press Win+X, click "Windows PowerShell"' : os === 'linux' ? '— Press Ctrl+Alt+T' : '— Press Cmd+Space, type "Terminal", press Enter' },
+              { strong: 'Paste the command', rest: '— Right-click in the terminal and select "Paste" (or use Ctrl+Shift+V on Linux)' },
+              { strong: 'Press Enter', rest: '— The terminal will show a connection message with your tunnel URL' },
+              { strong: 'Keep the terminal open', rest: '— Your tunnel stays active only while this window is running' },
+            ].map((item, i) => (
+              <li key={i} className="wizard-checklist-item" style={{ animationDelay: `${.15 + i * .12}s` }}>
+                <span className="wizard-checklist-num">{i + 1}</span>
+                <span><strong>{item.strong}</strong> {item.rest}</span>
+              </li>
+            ))}
           </ol>
         </div>
 
-        <div className="inline-note" style={{ background: 'rgba(245,158,11,.08)', borderColor: 'rgba(245,158,11,.3)' }}>
+        <div className="inline-note wizard-fade-in" style={{ background: 'rgba(245,158,11,.08)', borderColor: 'rgba(245,158,11,.3)', animationDelay: '.7s' }}>
           <span>⚠️ <strong>Don't close the terminal!</strong> If you close it, your tunnel will stop working.</span>
         </div>
 
-        <div className="wizard-step-nav">
+        <div className="wizard-step-nav wizard-fade-in" style={{ animationDelay: '.8s' }}>
           <button className="btn btn-sm btn-ghost" onClick={goPrev}>← Back</button>
           <button className="btn btn-sm" onClick={goNext}>Next →</button>
         </div>
@@ -255,9 +312,9 @@ export default function Quickstart() {
   );
 
   const renderStep4 = () => (
-    <div className="wizard-step-card">
+    <div className="wizard-step-card wizard-animate-in" key={animKey}>
       <div className="wizard-step-header">
-        <span className="wizard-step-icon">🎉</span>
+        <span className="wizard-step-icon wizard-icon-celebrate">🎉</span>
         <div>
           <h3>Step 4 — Access your tunnel!</h3>
           <p className="dim">Your tunnel is now live. Use the URL below to share your local app with anyone.</p>
@@ -265,11 +322,11 @@ export default function Quickstart() {
       </div>
 
       <div className="wizard-step-body">
-        <div className="wizard-info-box">
+        <div className="wizard-info-box wizard-fade-in" style={{ animationDelay: '.1s' }}>
           <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>🌐 Your tunnel address</p>
           {subdomain ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
-              <a href={`https://${subdomain}.iraglobaltech.com`} target="_blank" rel="noreferrer" className="code" style={{ color: 'var(--brand)', fontWeight: 700, fontSize: '1rem' }}>
+              <a href={`https://${subdomain}.iraglobaltech.com`} target="_blank" rel="noreferrer" className="code wizard-url-pop" style={{ color: 'var(--brand)', fontWeight: 700, fontSize: '1rem' }}>
                 https://{subdomain}.iraglobaltech.com
               </a>
               <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${subdomain}.iraglobaltech.com`); toast('Copied!'); }}>📋</button>
@@ -279,25 +336,34 @@ export default function Quickstart() {
           )}
         </div>
 
-        <div className="wizard-info-box">
+        <div className="wizard-info-box wizard-fade-in" style={{ animationDelay: '.2s' }}>
           <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>📋 What now?</p>
-          <ul className="wizard-checklist" style={{ paddingLeft: '1.2rem' }}>
-            <li>Open the URL in your browser — you'll see your local app live on the internet</li>
-            <li>Share this URL with anyone — they can access your app from anywhere</li>
-            <li>To stop the tunnel, just close the terminal window</li>
-            {isPro ? (
-              <li>Want a custom domain like <span className="code">myapp.com</span>? Go to <a href="/dashboard/domains" style={{ color: 'var(--brand)' }}>Manage Domains</a></li>
-            ) : (
-              <li>Want a custom domain? <a href="/dashboard/plan" style={{ color: 'var(--brand)' }}>Upgrade to Pro</a> for unlimited domains</li>
-            )}
+          <ul className="wizard-checklist" style={{ paddingLeft: 0 }}>
+            {[
+              'Open the URL in your browser — you\'ll see your local app live on the internet',
+              'Share this URL with anyone — they can access your app from anywhere',
+              'To stop the tunnel, just close the terminal window',
+            ].map((text, i) => (
+              <li key={i} className="wizard-checklist-item" style={{ animationDelay: `${.3 + i * .12}s` }}>
+                <span className="wizard-checklist-num">{i + 1}</span>
+                <span>{text}</span>
+              </li>
+            ))}
           </ul>
+          {isPro ? (
+            <li className="wizard-checklist-item" style={{ animationDelay: '.66s', listStyle: 'none' }}>
+              <span className="wizard-checklist-num">4</span>
+              <span>Want a custom domain like <span className="code">myapp.com</span>? Go to <a href="/dashboard/domains" style={{ color: 'var(--brand)' }}>Manage Domains</a></span>
+            </li>
+          ) : (
+            <li className="wizard-checklist-item" style={{ animationDelay: '.66s', listStyle: 'none' }}>
+              <span className="wizard-checklist-num">4</span>
+              <span>Want a custom domain? <a href="/dashboard/plan" style={{ color: 'var(--brand)' }}>Upgrade to Pro</a> for unlimited domains</span>
+            </li>
+          )}
         </div>
 
-        <div className="guide-success" style={{ width: '100%' }}>
-          <span>🎉 All done! Your tunnel is ready to use.</span>
-        </div>
-
-        <div className="wizard-step-nav">
+        <div className="wizard-step-nav wizard-fade-in" style={{ animationDelay: '.8s' }}>
           <button className="btn btn-sm btn-ghost" onClick={goPrev}>← Back</button>
           <button className="btn btn-sm btn-ghost" onClick={resetWizard}>↺ Start over</button>
         </div>
@@ -319,16 +385,22 @@ export default function Quickstart() {
         </div>
       </div>
 
-      {/* Step indicator dots */}
+      {/* Animated step indicator with connecting lines */}
       <div className="wizard-dots">
         {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((n) => (
-          <div key={n} className={`wizard-dot ${n === currentStep ? 'active' : ''} ${n < currentStep ? 'done' : ''}`}>
-            {n < currentStep ? '✓' : n}
+          <div key={n} className="wizard-dot-group">
+            {n > 1 && <div className={`wizard-dot-line ${n <= currentStep ? 'filled' : ''}`} />}
+            <div className={`wizard-dot ${n === currentStep ? 'active' : ''} ${n < currentStep ? 'done' : ''}`}>
+              {n < currentStep ? '✓' : n}
+            </div>
+            <span className={`wizard-dot-label ${n === currentStep ? 'current' : ''} ${n < currentStep ? 'done' : ''}`}>
+              {STEP_META[n - 1].label}
+            </span>
           </div>
         ))}
       </div>
 
-      {/* Only the current step is shown */}
+      {/* Only the current step is shown with animation */}
       {steps[currentStep - 1]()}
     </>
   );
