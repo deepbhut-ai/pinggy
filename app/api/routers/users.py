@@ -36,14 +36,13 @@ async def _verify_domain_dns(domain: str) -> dict:
                 if resp.status_code == 200:
                     try:
                         body = resp.json()
-                        if body.get("app") == "pinggy":
+                        if body.get("status") == "ok":
                             return {"dns_resolves": True, "pointed_ip": domain, "status": "ok",
                                     "message": f"✅ Domain verified — {domain} is correctly configured and reaching this server"}
                     except Exception:
                         pass
-                # Got a response but not our health endpoint — still reached a server
-                return {"dns_resolves": True, "pointed_ip": domain, "status": "ok",
-                        "message": f"✅ Domain verified — {domain} is responding (HTTP {resp.status_code})"}
+                return {"dns_resolves": True, "pointed_ip": domain, "status": "error",
+                        "message": f"⚠️ {domain} responded with HTTP {resp.status_code}, but its health check is not healthy"}
             except httpx.ConnectError:
                 return {"dns_resolves": False, "pointed_ip": None, "status": "no_dns",
                         "message": f"⚠️ {domain} is not configured — no DNS record found. Add an A record pointing to 13.140.131.204 (or proxy via Cloudflare)"}

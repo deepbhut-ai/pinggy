@@ -11,15 +11,13 @@ const OS_HINTS = {
   mac: 'Open Terminal (Cmd+Space → "Terminal") and paste the following command:',
 };
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 3;
 const STORAGE_KEY = 'pinggy_quickstart_progress';
 
 const STEP_META = [
   { icon: '🔑', label: 'Token',    title: 'Get your access token',     desc: 'Your token is like a password that connects your computer to our server.' },
   { icon: '🌐', label: 'Domain',   title: 'Configure your domain',     desc: 'View your subdomain and optionally add a custom domain.' },
   { icon: '📋', label: 'Command',  title: 'Copy your tunnel command',  desc: 'Choose your operating system and local port, then copy the command.' },
-  { icon: '▶️', label: 'Run',      title: 'Run the command',           desc: 'Open your terminal, paste the command, and press Enter.' },
-  { icon: '🎉', label: 'Access',   title: 'Access your tunnel',        desc: 'Your tunnel is live — share the URL with anyone.' },
 ];
 
 // Quickstart — animated guided wizard for complete beginners.
@@ -28,9 +26,11 @@ export default function Quickstart() {
   const toast = useToast();
   const [info, setInfo] = useState(null);
   const [tokens, setTokens] = useState([]);
-  const [localPort, setLocalPort] = useState(8080);
+  const [localPort, setLocalPort] = useState('');
   const [os, setOs] = useState('cmd');
-  const [autoReconnect, setAutoReconnect] = useState(false);
+  const [autoReconnect, setAutoReconnect] = useState(true);
+  const [portError, setPortError] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [tokenVisible, setTokenVisible] = useState(true);
   const [tokenDropdownOpen, setTokenDropdownOpen] = useState(false);
   const [customDomainInput, setCustomDomainInput] = useState('');
@@ -126,24 +126,37 @@ export default function Quickstart() {
 
   const buildCmd = () => {
     if (!token) return 'Create a token first in step 1 →';
-    const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${localPort} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
+    const port = localPort || 'PORT';
+    const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
     if (!autoReconnect) return ssh;
     if (os === 'cmd') return `for /L %i in (0,1,2147483647) do @(${ssh} & echo Disconnected. Reconnecting in 5 seconds... & timeout /t 5 /nobreak >nul)`;
     if (os === 'powershell') return `while ($true) { ${ssh}; Write-Host "Disconnected. Reconnecting in 5 seconds..."; Start-Sleep -Seconds 5 }`;
     return `while true; do\n  ${ssh}\n  echo "Disconnected. Reconnecting in 5 seconds..."\n  sleep 5\ndone`;
   };
 
-  const saveCustomDomain = async () => {
+  const submitQuickstart = () => {
+    const port = Number(localPort);
+    if (!localPort || !Number.isInteger(port) || port < 1 || port > 65535) {
+      setPortError(true);
+      toast('Enter a valid local port from 1 to 65535', 'error');
+      return;
+    }
+    setPortError(false);
+    setSubmitted(true);
+    toast('Done! Your Quickstart setup is complete.', 'success');
+  };
+
+  const verifyCustomDomain = async () => {
     const d = customDomainInput.trim().toLowerCase();
     if (!d) return toast('Enter a domain first', 'error');
     if (!selectedToken) return toast('Select a token first', 'error');
     try {
       await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(d)}&token_id=${encodeURIComponent(selectedToken.id)}`, 'PUT');
-      toast(`${d} saved — verifying DNS...`);
+      setDnsStatus(null);
+      toast(`${d} added — checking domain health...`);
       setCustomDomainInput('');
       await load();
-      // Auto-verify after save
-      verifyDomain(d);
+      await verifyDomain(d);
     } catch (e) { toast(e.message, 'error'); }
   };
 
@@ -151,8 +164,9 @@ export default function Quickstart() {
     const d = (domain || selectedToken?.custom_domain || '').trim().toLowerCase();
     if (!d) return;
     setDnsChecking(true);
+    setDnsStatus(null);
     try {
-      toast('Checking DNS...');
+      toast('Checking domain health...');
       const data = await api(`/users/me/verify-domain?domain=${encodeURIComponent(d)}`);
       setDnsStatus(data);
       toast(data.message);
@@ -274,8 +288,8 @@ export default function Quickstart() {
             <p className="dim" style={{ fontSize: '.78rem', lineHeight: 1.5, marginBottom: '.5rem' }}>
               Check if your domain's DNS is correctly pointing to our server.
             </p>
-            <button className="btn btn-sm" onClick={() => verifyDomain()} disabled={dnsChecking}>
-              {dnsChecking ? '🔄 Checking...' : '🔍 Verify DNS'}
+            <button className="btn btn-sm" onClick={() => verifyDomain()} disabled={dnsChecking || dnsStatus?.status === 'ok'}>
+              {dnsChecking ? '🔄 Checking...' : dnsStatus?.status === 'ok' ? '✅ Verified' : dnsStatus ? '🔄 Re-verify' : '🔍 Verify'}
             </button>
             {dnsStatus && (
               <div className={`inline-note wizard-fade-in ${dnsStatus.status === 'ok' ? '' : 'amber'}`} style={{ marginTop: '.5rem', fontSize: '.82rem' }}>
@@ -304,7 +318,7 @@ export default function Quickstart() {
                 { num: 1, title: 'Add your domain to Cloudflare', body: 'Go to Cloudflare Dashboard → Add Site → enter your domain. Change nameservers at your domain registrar.', link: 'https://dash.cloudflare.com', linkText: 'Open Cloudflare →' },
                 { num: 2, title: 'Add DNS A Record', body: 'Type: A | Name: @ | Content: 13.140.131.204 | Proxy: Proxied. For subdomains (e.g. app.mydomain.com): Name: app instead of @.' },
                 { num: 3, title: 'Set SSL mode', body: 'Cloudflare → SSL/TLS → Overview → set to Flexible.' },
-                { num: 4, title: 'Enter your domain and save', body: 'Type your domain in the box below and click Save. Your tunnel will be accessible at https://yourdomain.com', isLast: true },
+                { num: 4, title: 'Enter your domain and verify', body: 'Type your domain in the box below and click Verify. We will check its health endpoint and confirm when it reaches our server.', isLast: true },
               ].map((step, i) => (
                 <div key={i} className="dns-guide-step wizard-fade-in" style={{ animationDelay: `${.3 + i * .15}s` }}>
                   <div className="dns-guide-num">{step.num}</div>
@@ -320,7 +334,9 @@ export default function Quickstart() {
             {/* Domain input */}
             <div className="wizard-fade-in" style={{ animationDelay: '.95s', display: 'flex', gap: '.5rem', alignItems: 'center', marginTop: '1rem' }}>
               <input type="text" value={customDomainInput} onChange={(e) => setCustomDomainInput(e.target.value)} placeholder="e.g. myapp.com" style={{ flex: 1 }} />
-              <button className="btn btn-sm" onClick={saveCustomDomain}>Save</button>
+              <button className="btn btn-sm" onClick={verifyCustomDomain} disabled={dnsChecking}>
+                {dnsChecking ? '🔄 Checking...' : '✅ Verify'}
+              </button>
             </div>
           </div>
         )}
@@ -395,7 +411,21 @@ export default function Quickstart() {
 
         <div className="wizard-fade-in" style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.5rem', animationDelay: '.5s' }}>
           <label style={{ fontSize: '.85rem', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>Local port:</label>
-          <input type="number" value={localPort} min="1" max="65535" onChange={(e) => setLocalPort(parseInt(e.target.value) || 8080)} style={{ width: 80 }} />
+          <input
+            type="number"
+            value={localPort}
+            min="1"
+            max="65535"
+            placeholder="e.g. 8080"
+            aria-invalid={portError}
+            onChange={(e) => { setLocalPort(e.target.value); setPortError(false); }}
+            onBlur={() => {
+              const port = Number(localPort);
+              setPortError(!localPort || !Number.isInteger(port) || port < 1 || port > 65535);
+            }}
+            style={{ width: 110, borderColor: portError ? 'var(--red)' : undefined }}
+          />
+          {portError && <span style={{ color: 'var(--red)', fontSize: '.78rem' }}>Required: enter a port from 1 to 65535</span>}
           <span style={{ fontSize: '.8rem', color: 'var(--text-dim)' }}>The port your local service runs on (e.g. 3000, 8080)</span>
         </div>
 
@@ -403,118 +433,28 @@ export default function Quickstart() {
 
         <div className="cmd-box cmd-box-relative wizard-fade-in" style={{ animationDelay: '.6s' }}>
           <pre>{buildCmd()}</pre>
-          <button className="btn btn-sm copy-btn" onClick={() => { copyToClipboard(buildCmd()); toast('Command copied!'); }}>📋 Copy</button>
+          <button className="btn btn-sm copy-btn" onClick={() => { copyToClipboard(buildCmd()); toast('Command copied!'); }} disabled={!localPort || portError}>📋 Copy</button>
         </div>
 
         <div className="wizard-step-nav wizard-fade-in" style={{ animationDelay: '.65s' }}>
           <button className="btn btn-sm btn-ghost" onClick={goPrev}>← Back</button>
-          <button className="btn btn-sm" onClick={goNext}>Next →</button>
+          <button className="btn btn-sm" onClick={submitQuickstart} disabled={submitted}>
+            {submitted ? '✅ Submitted' : 'Submit'}
+          </button>
         </div>
+
+        {submitted && (
+          <div className="inline-note wizard-fade-in" style={{ background: 'rgba(41,169,127,.08)', borderColor: 'rgba(41,169,127,.3)', marginTop: '1rem' }}>
+            <span>✅ Done! Continue with your API setup:</span>
+            <a className="btn btn-sm" href="/dashboard/apikeys">🔑 Create API Key</a>
+            <a className="btn btn-sm btn-ghost" href="/dashboard/apidocs">📚 Open API Docs</a>
+          </div>
+        )}
       </div>
     </div>
   );
 
-  const renderStep4 = () => (
-    <div className="wizard-step-card wizard-animate-in" key={animKey}>
-      <div className="wizard-step-header">
-        <span className="wizard-step-icon wizard-icon-pulse">▶️</span>
-        <div>
-          <h3>Step 4 — Run the command in your terminal</h3>
-          <p className="dim">Open your terminal, paste the command, and press Enter. Keep the window open.</p>
-        </div>
-      </div>
-
-      <div className="wizard-step-body">
-        <div className="wizard-info-box">
-          <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>📋 Follow these steps</p>
-          <ol className="wizard-checklist">
-            {[
-              { strong: 'Open your terminal', rest: os === 'cmd' ? '— Press Win+R, type "cmd", press Enter' : os === 'powershell' ? '— Press Win+X, click "Windows PowerShell"' : os === 'linux' ? '— Press Ctrl+Alt+T' : '— Press Cmd+Space, type "Terminal", press Enter' },
-              { strong: 'Paste the command', rest: '— Right-click in the terminal and select "Paste" (or use Ctrl+Shift+V on Linux)' },
-              { strong: 'Press Enter', rest: '— The terminal will show a connection message with your tunnel URL' },
-              { strong: 'Keep the terminal open', rest: '— Your tunnel stays active only while this window is running' },
-            ].map((item, i) => (
-              <li key={i} className="wizard-checklist-item" style={{ animationDelay: `${.15 + i * .12}s` }}>
-                <span className="wizard-checklist-num">{i + 1}</span>
-                <span><strong>{item.strong}</strong> {item.rest}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        <div className="inline-note wizard-fade-in" style={{ background: 'rgba(245,158,11,.08)', borderColor: 'rgba(245,158,11,.3)', animationDelay: '.7s' }}>
-          <span>⚠️ <strong>Don't close the terminal!</strong> If you close it, your tunnel will stop working.</span>
-        </div>
-
-        <div className="wizard-step-nav wizard-fade-in" style={{ animationDelay: '.8s' }}>
-          <button className="btn btn-sm btn-ghost" onClick={goPrev}>← Back</button>
-          <button className="btn btn-sm" onClick={goNext}>Next →</button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStep5 = () => (
-    <div className="wizard-step-card wizard-animate-in" key={animKey}>
-      <div className="wizard-step-header">
-        <span className="wizard-step-icon wizard-icon-celebrate">🎉</span>
-        <div>
-          <h3>Step 5 — Access your tunnel!</h3>
-          <p className="dim">Your tunnel is now live. Use the URL below to share your local app with anyone.</p>
-        </div>
-      </div>
-
-      <div className="wizard-step-body">
-        <div className="wizard-info-box wizard-fade-in" style={{ animationDelay: '.1s' }}>
-          <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>🌐 Your tunnel address</p>
-          {subdomain ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
-              <a href={`https://${subdomain}.iraglobaltech.com`} target="_blank" rel="noreferrer" className="code wizard-url-pop" style={{ color: 'var(--brand)', fontWeight: 700, fontSize: '1rem' }}>
-                https://{subdomain}.iraglobaltech.com
-              </a>
-              <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${subdomain}.iraglobaltech.com`); toast('Copied!'); }}>📋</button>
-            </div>
-          ) : (
-            <p className="dim" style={{ fontSize: '.85rem' }}>Your subdomain will appear here once your tunnel connects. Make sure you ran the command in step 3.</p>
-          )}
-        </div>
-
-        <div className="wizard-info-box wizard-fade-in" style={{ animationDelay: '.2s' }}>
-          <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>📋 What now?</p>
-          <ul className="wizard-checklist" style={{ paddingLeft: 0 }}>
-            {[
-              'Open the URL in your browser — you\'ll see your local app live on the internet',
-              'Share this URL with anyone — they can access your app from anywhere',
-              'To stop the tunnel, just close the terminal window',
-            ].map((text, i) => (
-              <li key={i} className="wizard-checklist-item" style={{ animationDelay: `${.3 + i * .12}s` }}>
-                <span className="wizard-checklist-num">{i + 1}</span>
-                <span>{text}</span>
-              </li>
-            ))}
-          </ul>
-          {isPro ? (
-            <li className="wizard-checklist-item" style={{ animationDelay: '.66s', listStyle: 'none' }}>
-              <span className="wizard-checklist-num">4</span>
-              <span>Want a custom domain like <span className="code">myapp.com</span>? Go to <a href="/dashboard/domains" style={{ color: 'var(--brand)' }}>Manage Domains</a></span>
-            </li>
-          ) : (
-            <li className="wizard-checklist-item" style={{ animationDelay: '.66s', listStyle: 'none' }}>
-              <span className="wizard-checklist-num">4</span>
-              <span>Want a custom domain? <a href="/dashboard/plan" style={{ color: 'var(--brand)' }}>Upgrade to Pro</a> for unlimited domains</span>
-            </li>
-          )}
-        </div>
-
-        <div className="wizard-step-nav wizard-fade-in" style={{ animationDelay: '.8s' }}>
-          <button className="btn btn-sm btn-ghost" onClick={goPrev}>← Back</button>
-          <button className="btn btn-sm btn-ghost" onClick={resetWizard}>↺ Start over</button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const steps = [renderStep1, renderStep2, renderStep3, renderStep4, renderStep5];
+  const steps = [renderStep1, renderStep2, renderStep3];
 
   return (
     <>

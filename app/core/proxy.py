@@ -222,6 +222,10 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
         host = request.headers.get("host", "")
         subdomain = _extract_subdomain(host)
 
+        # Health checks must reach FastAPI even when the host has no live tunnel.
+        if request.url.path == "/health":
+            return await call_next(request)
+
         # If no subdomain, pass through to normal FastAPI routes
         if not subdomain:
             return await call_next(request)

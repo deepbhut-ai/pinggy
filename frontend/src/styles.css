@@ -179,6 +179,45 @@ tr:hover td { background: var(--surface-1); }
 .page-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: .75rem; flex-wrap: wrap; position: sticky; top: -1.5rem; z-index: 20; background: var(--bg); padding-top: .5rem; margin-top: -.5rem; }
 .page-toolbar-actions { display: flex; gap: .5rem; align-items: center; }
 
+/* ---- API keys workspace ---- */
+.api-keys-page { max-width: 980px; }
+.api-keys-summary { display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: 1.35rem 1.5rem; margin-bottom: 1rem; background: linear-gradient(110deg, rgba(106,166,240,.18), rgba(41,169,127,.08)); border: 1px solid rgba(106,166,240,.25); border-radius: var(--radius-lg); }
+.api-keys-kicker { color: var(--brand); font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.api-keys-summary h2 { margin: .25rem 0 .3rem; font-size: 1.15rem; }
+.api-keys-summary p { color: var(--text-dim); font-size: .82rem; max-width: 540px; line-height: 1.5; }
+.api-keys-meter { min-width: 145px; padding-left: 1.25rem; border-left: 1px solid rgba(255,255,255,.14); }
+.api-keys-meter span { color: var(--text-dim); font-size: .72rem; }
+.api-keys-meter strong { display: block; margin: .15rem 0 .45rem; font-size: 1.3rem; }
+.api-keys-meter small { color: var(--text-dim); font-size: .75rem; font-weight: 400; }
+.api-keys-meter-track { height: 5px; background: rgba(0,0,0,.25); border-radius: 999px; overflow: hidden; }
+.api-keys-meter-track i { display: block; height: 100%; background: var(--brand); border-radius: inherit; transition: width .3s ease; }
+.api-keys-alert { padding: .75rem 1rem; margin-bottom: 1rem; border: 1px solid rgba(222,95,75,.4); border-radius: var(--radius); color: var(--text); background: rgba(222,95,75,.1); font-size: .82rem; }
+.api-keys-guide-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border); }
+.api-keys-guide-heading h2 { margin: .25rem 0 .3rem; font-size: 1rem; }
+.api-keys-guide-heading p { color: var(--text-dim); font-size: .78rem; line-height: 1.45; }
+.api-keys-guide-grid { display: grid; grid-template-columns: 1fr; gap: 0; }
+.api-keys-guide-step { display: flex; gap: .7rem; min-width: 0; padding: .8rem 0; }
+.api-keys-guide-step > div { min-width: 0; flex: 1; }
+.api-keys-guide-step + .api-keys-guide-step { border-left: 0; border-top: 1px solid var(--border); }
+.api-keys-step-number { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 24px; border: 1px solid rgba(106,166,240,.35); border-radius: 999px; color: var(--brand); font-family: var(--mono); font-size: .68rem; font-weight: 700; flex-shrink: 0; }
+.api-keys-guide-step strong { display: block; margin-bottom: .35rem; font-size: .82rem; }
+.api-keys-guide-step p { color: var(--text-dim); font-size: .77rem; line-height: 1.5; }
+.api-keys-guide-step .cmd-box { margin: .7rem 0 0; padding: .6rem .7rem; }
+.api-keys-guide-step .cmd-box pre { display: block; min-width: 0; overflow-x: auto; padding-right: 4.5rem; font-size: .72rem; }
+.api-keys-guide .cmd-box-relative { display: flex; align-items: center; gap: .6rem; overflow: hidden; }
+.api-keys-guide .cmd-box-relative pre { flex: 1; padding-right: 0; }
+.api-keys-guide .cmd-box-relative .copy-btn { position: static; flex-shrink: 0; white-space: nowrap; }
+.api-keys-guide-note { margin-top: 1rem; padding-top: .75rem; border-top: 1px solid var(--border); color: var(--text-dim); font-size: .75rem; }
+.api-keys-inventory-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+.api-keys-inventory-header h2 { font-size: 1rem; }
+.api-keys-inventory-header p { color: var(--text-dim); font-size: .75rem; margin-top: .2rem; }
+@media (max-width: 760px) {
+  .api-keys-summary { align-items: flex-start; flex-direction: column; gap: 1rem; }
+  .api-keys-meter { width: 100%; padding: .8rem 0 0; border-left: 0; border-top: 1px solid rgba(255,255,255,.14); }
+  .api-keys-guide-grid { gap: 0; }
+  .api-keys-guide-heading { flex-direction: column; }
+}
+
 /* ---- Workspace strip (Quickstart) ---- */
 .workspace-strip { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1.2rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1.25rem; flex-wrap: wrap; }
 .workspace-strip .left { display: flex; align-items: center; gap: .75rem; }

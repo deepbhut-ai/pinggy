@@ -41,7 +41,7 @@ export default function ApiKeys() {
   };
 
   return (
-    <>
+    <div className="api-keys-page">
       <div className="page-toolbar">
         <div>
           <div className="page-title">
@@ -61,39 +61,67 @@ export default function ApiKeys() {
         </div>
       </div>
 
-      {atCap && (
-        <div className="card" style={{ borderColor: 'var(--red)', marginBottom: '1rem' }}>
-          <div className="card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '.8rem 1rem' }}>
-            <span style={{ fontSize: '.85rem' }}>⚠️ You've reached the <strong>{limit}-key limit</strong> of the {user?.plan} plan. Revoke a key you no longer use, or upgrade for 10.</span>
-          </div>
+      <div className="api-keys-summary">
+        <div>
+          <span className="api-keys-kicker">Programmatic access</span>
+          <h2>One key for every workflow</h2>
+          <p>Create separate keys for CI, scripts, and integrations. Full secrets are shown only once.</p>
         </div>
-      )}
+        <div className="api-keys-meter">
+          <span>Key capacity</span>
+          <strong>{keys.length} <small>/ {limit}</small></strong>
+          <div className="api-keys-meter-track"><i style={{ width: `${Math.min((keys.length / limit) * 100, 100)}%` }} /></div>
+        </div>
+      </div>
+
+      {atCap && <div className="api-keys-alert">⚠️ You've reached the <strong>{limit}-key limit</strong> of the {user?.plan} plan. Revoke an unused key or upgrade to Pro.</div>}
 
       {/* How to connect guide */}
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div className="card-header"><h2>🔌 How to connect & use your API key</h2></div>
+      <div className="card api-keys-guide" style={{ marginBottom: '1rem' }}>
+        <div className="api-keys-guide-heading">
+          <div>
+            <span className="api-keys-kicker">Quick connection</span>
+            <h2>🔌 How to connect & use your API key</h2>
+            <p>Authenticate requests from your terminal, backend, or CI pipeline in three steps.</p>
+          </div>
+          <a className="btn btn-sm btn-ghost" href="/dashboard/apidocs">View API Docs →</a>
+        </div>
         <div className="card-body">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '.9rem' }}>
-            <div>
-              <div style={{ fontSize: '.82rem', fontWeight: 600, marginBottom: '.3rem' }}><span style={{ color: 'var(--brand)' }}>Step 1.</span> Create a key — click "+ Create API Key" above. The full key (starts with <span className="code">pk_</span>) is shown <strong>only once</strong>.</div>
+          <div className="api-keys-guide-grid">
+            <div className="api-keys-guide-step">
+              <span className="api-keys-step-number">01</span>
+              <div>
+                <strong>Create a key</strong>
+                <p>Click <span className="code">+ Create API Key</span>. Your full <span className="code">pk_</span> key appears once, so copy it immediately.</p>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: '.82rem', fontWeight: 600, marginBottom: '.3rem' }}><span style={{ color: 'var(--brand)' }}>Step 2.</span> Send the key as a header on every request:</div>
-              <div className="cmd-box"><pre>X-Api-Key: pk_your_key_here</pre></div>
+            <div className="api-keys-guide-step">
+              <span className="api-keys-step-number">02</span>
+              <div>
+                <strong>Send the key securely</strong>
+                <p>Include it as the <span className="code">X-Api-Key</span> header on every management request.</p>
+                <div className="cmd-box"><pre>X-Api-Key: pk_your_key_here</pre></div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: '.82rem', fontWeight: 600, marginBottom: '.3rem' }}><span style={{ color: 'var(--brand)' }}>Step 3.</span> Call any endpoint under <span className="code">{origin}/api/v1</span> — test with curl:</div>
-              <div className="cmd-box cmd-box-relative">
-                <pre>curl -H "X-Api-Key: pk_your_key" {origin}/api/v1/manage/tunnels</pre>
-                <button className="btn btn-sm copy-btn" onClick={() => { copyToClipboard(`curl -H "X-Api-Key: pk_your_key" ${origin}/api/v1/manage/tunnels`); toast('Copied'); }}>📋 Copy</button>
+            <div className="api-keys-guide-step">
+              <span className="api-keys-step-number">03</span>
+              <div>
+                <strong>Make your first request</strong>
+                <p>Call an endpoint under <span className="code">{origin}/api/v1</span>. This lists your live tunnels:</p>
+                <div className="cmd-box cmd-box-relative">
+                  <pre>curl -H "X-Api-Key: pk_your_key" {origin}/api/v1/manage/tunnels</pre>
+                  <button className="btn btn-sm copy-btn" onClick={() => { copyToClipboard(`curl -H "X-Api-Key: pk_your_key" ${origin}/api/v1/manage/tunnels`); toast('Copied'); }}>📋 Copy</button>
+                </div>
               </div>
             </div>
           </div>
+          <div className="api-keys-guide-note">Tip: use one key per integration and set a short expiry for CI credentials.</div>
         </div>
       </div>
 
       {/* Keys table */}
-      <div className="card">
+      <div className="card api-keys-inventory">
+        <div className="api-keys-inventory-header"><div><h2>Your API keys</h2><p>Active credentials and recent usage</p></div><span className="badge badge-green">{keys.length ? 'Ready' : 'No keys yet'}</span></div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {keys.length === 0 ? (
             <p className="empty">No API keys yet</p>
@@ -127,7 +155,7 @@ export default function ApiKeys() {
       </div>
 
       {/* SDK quick start */}
-      <div className="card" style={{ marginTop: '1rem' }}>
+      <div className="card api-keys-sdk" style={{ marginTop: '1rem' }}>
         <div className="card-header"><h2>Python SDK quick start</h2></div>
         <div className="card-body">
           <div className="cmd-box"><pre>{`from sdk.pinggy_sdk import TunnelClient
@@ -175,6 +203,6 @@ client.stop_tunnel("mysub")      # stop a live tunnel`}</pre></div>
           <p className="dim" style={{ fontSize: '.75rem', marginTop: '.8rem' }}>Returns your live tunnels as JSON → the key works.</p>
         </Modal>
       )}
-    </>
+    </div>
   );
 }
