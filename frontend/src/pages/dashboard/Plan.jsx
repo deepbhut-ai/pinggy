@@ -71,7 +71,7 @@ export default function Plan() {
       const resp = await api('/payments/checkout', 'POST', JSON.stringify({
         method: payMethod,
         plan: (checkoutPlan?.id || 'pro').toLowerCase(),
-        seats: seats || 1,
+        seats: 1,
         cycle: cycle || 'monthly',
       }));
       if (resp.url) window.location.href = resp.url;
@@ -80,11 +80,11 @@ export default function Plan() {
   };
 
   const inrTotal = cycle === 'yearly'
-    ? Math.round((checkoutPlan?.price_inr || 199) * 10) * seats
-    : (checkoutPlan?.price_inr || 199) * seats;
+    ? Math.round((checkoutPlan?.price_inr || 199) * 10)
+    : (checkoutPlan?.price_inr || 199);
   const usdTotal = cycle === 'yearly'
-    ? Math.round((checkoutPlan?.price_usd || 2.99) * 10) * seats
-    : (checkoutPlan?.price_usd || 2.99) * seats;
+    ? Math.round((checkoutPlan?.price_usd || 2.99) * 10)
+    : (checkoutPlan?.price_usd || 2.99);
   const baseInr = checkoutPlan?.price_inr || 199;
   const baseUsd = checkoutPlan?.price_usd || 2.99;
 
@@ -251,14 +251,6 @@ export default function Plan() {
                 <span className="badge badge-blue">{cycle === 'yearly' ? 'Yearly' : 'Monthly'}</span>
               </div>
               <div className="order-row">
-                <span>Seats</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}>
-                  <button className="icon-btn" style={{ width: 24, height: 24, fontSize: '.85rem', padding: 0 }} onClick={() => setSeats(Math.max(1, seats - 1))}>−</button>
-                  <strong>{seats}</strong>
-                  <button className="icon-btn" style={{ width: 24, height: 24, fontSize: '.85rem', padding: 0 }} onClick={() => setSeats(Math.min(10, seats + 1))}>+</button>
-                </span>
-              </div>
-              <div className="order-row">
                 <span>Billing cycle</span>
                 <span style={{ display: 'inline-flex', gap: '.25rem' }}>
                   <button className={`btn btn-sm ${cycle === 'monthly' ? '' : 'btn-ghost'}`} style={{ padding: '.15rem .5rem', fontSize: '.75rem' }} onClick={() => setCycle('monthly')}>Monthly</button>
@@ -267,7 +259,7 @@ export default function Plan() {
               </div>
               {cycle === 'yearly' && (
                 <div className="order-row" style={{ color: 'var(--green)' }}>
-                  <span>Savings</span><span>₹{baseInr * seats * 2}</span>
+                  <span>Savings</span><span>₹{baseInr * 2}</span>
                 </div>
               )}
               <div style={{ borderTop: '1px solid var(--border)', marginTop: '.5rem', paddingTop: '.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
