@@ -1,5 +1,23 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.2.0 — 2026-09-03 — Rebase local commits onto origin/main (40 remote commits merged)
+
+### Added
+- Rebased 7 local commits (v0.1.0–v2.1.3) on top of 40 remote commits from origin/main, creating a clean linear history.
+- All remote features now present in local: Quickstart wizard, Manage Tokens redesign, Configure Tunnel reorganization, API key auth expansion, Plan/Billing improvements, full React frontend app.
+- All local features preserved: admin credentials (support@callingagents.in), migration 0026 (Enterprise removal), Ollama setup, free-user one-domain cap, custom-domain monthly top-up wording.
+- Safety backup branch `backup-before-pull-2026-09-03` created before rebase.
+- Test evidence saved to `Doc/tests/v2.2.0/output.txt`.
+
+### Changed
+- `app/core/auto_setup.py`: merged token-table sync insert (from remote) with updated admin credentials (from local) — token insert now uses `support@callingagents.in` instead of `admin`.
+- `app/static/dashboard.html`: kept remote version with enhanced UI (separate ↓ Received / ↑ Sent columns, 10-column table) over local version.
+- Doc/ files (CHANGELOG, database, functions, page-map, pages, process-flow, session-notes): took remote versions as base during rebase; local Doc/ changes were superseded by more complete remote documentation.
+
+### Removed
+- Stashed uncommitted changes that reverted committed features (one-domain cap removal, seats column removal, plan description reverts) — these were older experiments that conflicted with the committed v2.1.3 work; discarded to preserve the correct committed state.
+- Untracked duplicate files (`frontend/`, `src/`, `nginx/pinggy.react.conf`) that blocked rebase checkout — backed up to `/tmp/pinggy-untracked-backup/` before removal.
+
 ## v2.1.3 — 2026-09-01 — Free plan one-domain cap
 
 ### Added

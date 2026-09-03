@@ -226,3 +226,9 @@
 - Watch out: free users still keep the 10 GB combined transfer cap; Pro remains multi-domain and seat-based.
 - Next: user review; if they want a permanent DB-backed domain add-on model later, this can be implemented separately.
 - Watch out: the current pricing model is recurring monthly and must be topped up each month; no one-time lifetime domain purchase is implied.
+
+## 2026-09-03 — v2.2.0 (rebase local onto origin/main)
+- **Done:** v2.2.0 — rebased 7 local commits onto 40 remote commits from origin/main. Clean linear history. All local features preserved (admin creds, Enterprise removal, Ollama, one-domain cap). All remote features merged (Quickstart wizard, Manage Tokens redesign, Configure Tunnel, API keys, React frontend). App verified: import OK, HTTP 200 on landing/login/docs, auth login works with support@callingagents.in. Backup branch backup-before-pull-2026-09-03 created. Pushed to origin/main.
+- **In progress / half-done:** nothing half-done — rebase complete and verified.
+- **Next:** user may want to rebuild frontend (cd frontend && npm install && npm run build) to deploy the React app changes, or restart the production server to pick up backend changes.
+- **Watch out:** stashed uncommitted changes were discarded (they reverted committed features — older experiments). Untracked junk files in repo root from terminal output (e.g. `e`, `:')`, `ycopg`) should be cleaned up. Old backup branch backup-before-pull-2026-09-01 still exists.

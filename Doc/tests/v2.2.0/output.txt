@@ -1,0 +1,27 @@
+=== v2.2.0 Rebase Test Evidence ===
+Date: 2026-09-03
+
+--- App Import ---
+.venv/bin/python -c "import app.main; print('Import OK')"
+Result: Import OK
+
+--- HTTP Status Codes ---
+Landing page (GET /): 200
+Login page (GET /login): 200
+API docs (GET /docs): 200
+
+--- Auth Login (support@callingagents.in) ---
+POST /api/v1/auth/login
+Status: 200
+Response: {"access_token":"eyJ...","token_type":"bearer","user":{"email":"support@callingagents.in","role":"admin","plan":"free","seats":1,"is_active":true}}
+
+--- Feature Verification ---
+- Admin credentials: support@callingagents.in / Calling@2025_26 (in auto_setup.py)
+- Migration 0026_remove_enterprise_plan.py: present
+- Free domain limit (_enforce_free_domain_limit): present in tokens.py
+- Frontend React app: all dashboard pages present (ActiveTunnels, ManageTokens, ConfigureTunnel, Quickstart, etc.)
+
+--- Git State ---
+Local main: 7 commits ahead of origin/main (rebased cleanly)
+Backup branch: backup-before-pull-2026-09-03
+No conflict markers in any tracked file
