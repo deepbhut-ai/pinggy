@@ -342,62 +342,61 @@ export default function ConfigureTunnel() {
               </select>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h2>Generated Command</h2>
-          <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-            <button className="btn btn-sm" onClick={() => { copyToClipboard(buildCmd()); toast('Command copied'); }}>📋 Copy</button>
-            <button className="btn btn-sm" onClick={() => download('sh')} title="Download macOS/Linux script">⬇️ .sh</button>
-            <button className="btn btn-sm" onClick={() => download('bat')} title="Download Windows batch file">⬇️ .bat</button>
-            <button className="btn btn-sm" onClick={() => download('command')} title="Download double-clickable macOS app">⬇️ .command</button>
-          </div>
-        </div>
-        <div className="card-body">
-          <div className="tabs" style={{ marginBottom: '.75rem' }}>
-            <button className={`tab ${cmdTab === 'ssh' ? 'active' : ''}`} onClick={() => setCmdTab('ssh')}>SSH</button>
-            <button className={`tab ${cmdTab === 'docker' ? 'active' : ''}`} onClick={() => setCmdTab('docker')}>Docker</button>
-          </div>
-          <p className="dim" style={{ marginBottom: '.5rem' }}>{PLATFORM_HINTS[platform]}</p>
-          <div className="cmd-box"><pre>{buildCmd()}</pre></div>
-          <div className="inline-note" style={{ marginTop: '.75rem' }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <strong>Your tunnel URL will be:</strong><br />
-              <span style={{ color: 'var(--brand)' }} className="code">{previewUrl}</span>
+          {/* Generated Command — inside the same card */}
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: '1.25rem', paddingTop: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.75rem', flexWrap: 'wrap', gap: '.5rem' }}>
+              <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Generated Command</h2>
+              <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+                <button className="btn btn-sm" onClick={() => { copyToClipboard(buildCmd()); toast('Command copied'); }}>📋 Copy</button>
+                <button className="btn btn-sm" onClick={() => download('sh')} title="Download macOS/Linux script">⬇️ .sh</button>
+                <button className="btn btn-sm" onClick={() => download('bat')} title="Download Windows batch file">⬇️ .bat</button>
+                <button className="btn btn-sm" onClick={() => download('command')} title="Download double-clickable macOS app">⬇️ .command</button>
+              </div>
             </div>
-            <button className="btn btn-sm" onClick={showQr}>📱 QR Code</button>
-          </div>
-          {qr && (
-            <div style={{ marginTop: '.75rem', textAlign: 'center', padding: '.75rem', background: '#fff', borderRadius: 'var(--radius)' }}>
-              <img src={qr} alt="Tunnel QR" style={{ height: 180, width: 180 }} />
-              <div style={{ fontSize: '.75rem', color: '#475569', marginTop: '.35rem' }}>Scan to open this tunnel URL on your phone</div>
+            <div className="tabs" style={{ marginBottom: '.75rem' }}>
+              <button className={`tab ${cmdTab === 'ssh' ? 'active' : ''}`} onClick={() => setCmdTab('ssh')}>SSH</button>
+              <button className={`tab ${cmdTab === 'docker' ? 'active' : ''}`} onClick={() => setCmdTab('docker')}>Docker</button>
             </div>
-          )}
+            <p className="dim" style={{ marginBottom: '.5rem' }}>{PLATFORM_HINTS[platform]}</p>
+            <div className="cmd-box"><pre>{buildCmd()}</pre></div>
+            <div className="inline-note" style={{ marginTop: '.75rem' }}>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <strong>Your tunnel URL will be:</strong><br />
+                <span style={{ color: 'var(--brand)' }} className="code">{previewUrl}</span>
+              </div>
+              <button className="btn btn-sm" onClick={showQr}>📱 QR Code</button>
+            </div>
+            {qr && (
+              <div style={{ marginTop: '.75rem', textAlign: 'center', padding: '.75rem', background: '#fff', borderRadius: 'var(--radius)' }}>
+                <img src={qr} alt="Tunnel QR" style={{ height: 180, width: 180 }} />
+                <div style={{ fontSize: '.75rem', color: '#475569', marginTop: '.35rem' }}>Scan to open this tunnel URL on your phone</div>
+              </div>
+            )}
 
-          {/* Advanced options — collapsed by default */}
-          <details style={{ marginTop: '1rem' }}>
-            <summary style={{ fontSize: '.8rem', cursor: 'pointer', fontWeight: 600, color: 'var(--text-dim)' }}>⚙️ Advanced options</summary>
-            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '.75rem' }}>
-              <label className="checkbox-label">
-                <input type="checkbox" checked={keepAlive} onChange={(e) => setKeepAlive(e.target.checked)} />
-                Keep Alive (30s interval)
-              </label>
-              <label className="checkbox-label">
-                <input type="checkbox" checked={autoReconnect} onChange={(e) => setAutoReconnect(e.target.checked)} />
-                Auto-Reconnect (in downloaded script)
-              </label>
-              <label className="checkbox-label">
-                <input type="checkbox" checked={strictHost} onChange={(e) => setStrictHost(e.target.checked)} />
-                Strict Host Key Check
-              </label>
-              <label className="checkbox-label">
-                <input type="checkbox" checked={verbose} onChange={(e) => setVerbose(e.target.checked)} />
-                Verbose output (-v)
-              </label>
-            </div>
-          </details>
+            {/* Advanced options — collapsed by default */}
+            <details style={{ marginTop: '1rem' }}>
+              <summary style={{ fontSize: '.8rem', cursor: 'pointer', fontWeight: 600, color: 'var(--text-dim)' }}>⚙️ Advanced options</summary>
+              <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '.75rem' }}>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={keepAlive} onChange={(e) => setKeepAlive(e.target.checked)} />
+                  Keep Alive (30s interval)
+                </label>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={autoReconnect} onChange={(e) => setAutoReconnect(e.target.checked)} />
+                  Auto-Reconnect (in downloaded script)
+                </label>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={strictHost} onChange={(e) => setStrictHost(e.target.checked)} />
+                  Strict Host Key Check
+                </label>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={verbose} onChange={(e) => setVerbose(e.target.checked)} />
+                  Verbose output (-v)
+                </label>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
     </>
