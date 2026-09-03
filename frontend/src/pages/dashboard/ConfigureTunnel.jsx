@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api, getToken } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/Toast';
 import { copyToClipboard } from '../../utils';
 
@@ -21,6 +22,7 @@ const PLATFORM_HINTS = {
 };
 
 export default function ConfigureTunnel() {
+  const { user } = useAuth();
   const toast = useToast();
   const [info, setInfo] = useState(null);
   const [tokens, setTokens] = useState([]);
@@ -39,6 +41,10 @@ export default function ConfigureTunnel() {
   const [strictHost, setStrictHost] = useState(false);
   const [verbose, setVerbose] = useState(false);
   const [qr, setQr] = useState(null);
+  const [tokenDropdownOpen, setTokenDropdownOpen] = useState(false);
+  const [tokenVisible, setTokenVisible] = useState(false);
+
+  const isPro = (user?.plan || 'free') === 'pro';
 
   const load = useCallback(async () => {
     try {
@@ -198,9 +204,17 @@ export default function ConfigureTunnel() {
 
   return (
     <>
-      <div className="page-title">Configure Tunnel</div>
-      <div className="page-subtitle">Build and customize your tunnel command</div>
+      <div className="page-toolbar">
+        <div>
+          <div className="page-title">Configure Tunnel</div>
+          <div className="page-subtitle">Build and customize your tunnel command</div>
+        </div>
+        <div className="page-toolbar-actions">
+          <a className="btn btn-ghost btn-sm" href="/dashboard">← Dashboard</a>
+        </div>
+      </div>
 
+      {/* Token selector + tunnel settings */}
       <div className="card">
         <div className="card-header">
           <h2>Tunnel Settings</h2>
@@ -210,10 +224,45 @@ export default function ConfigureTunnel() {
               <option value="">📂 Load saved…</option>
               {configs.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <button className="btn btn-sm" onClick={reset}>Reset</button>
+            <button className="btn btn-sm btn-ghost" onClick={reset}>Reset</button>
           </div>
         </div>
         <div className="card-body">
+          {/* Token dropdown — same style as Quickstart */}
+          <label className="dim" style={{ fontSize: '.78rem', fontWeight: 600, display: 'block', marginBottom: '.3rem' }}>Access token</label>
+          <div className="token-dropdown-wrapper" style={{ marginBottom: '1rem' }}>
+            <div className="token-dropdown-box" onClick={() => tokens.length > 0 && setTokenDropdownOpen(!tokenDropdownOpen)}>
+              <span className="token-dropdown-value code">
+                {tokenSel ? (tokenVisible ? tokenSel : '••••••••••••••••') : 'No token selected'}
+              </span>
+              <div className="token-dropdown-right">
+                <span className={`badge ${isPro ? 'badge-blue' : ''}`} style={{ fontSize: '.65rem' }}>{isPro ? 'Pro' : 'Free'}</span>
+                {tokenSel && (
+                  <>
+                    <button className="icon-btn" title="Copy token" onClick={(e) => { e.stopPropagation(); copyToClipboard(tokenSel); toast('Token copied!'); }}>📋</button>
+                    <button className="icon-btn" title="Show/Hide token" onClick={(e) => { e.stopPropagation(); setTokenVisible(!tokenVisible); }}>{tokenVisible ? '🙈' : '👁'}</button>
+                  </>
+                )}
+                {tokens.length > 0 && <span className="token-dropdown-chevron">{tokenDropdownOpen ? '▲' : '▼'}</span>}
+              </div>
+            </div>
+            {tokenDropdownOpen && tokens.length > 0 && (
+              <div className="token-dropdown-options">
+                {tokens.map((t) => (
+                  <div
+                    key={t.id}
+                    className={`token-dropdown-option ${t.token === tokenSel ? 'selected' : ''}`}
+                    onClick={() => { setTokenSel(t.token); setTokenDropdownOpen(false); }}
+                  >
+                    <span className="code">{t.token.substring(0, 8)}…</span>
+                    <span className="dim" style={{ fontSize: '.78rem' }}>{t.name || 'Unnamed'}</span>
+                    <span className={`badge ${isPro ? 'badge-blue' : ''}`} style={{ fontSize: '.6rem' }}>{isPro ? 'Pro' : 'Free'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="form-row">
             <div className="form-group" style={{ maxWidth: 240 }}>
               <label>App / Service preset</label>
@@ -257,17 +306,6 @@ export default function ConfigureTunnel() {
                 <option value="windows">Windows (CMD)</option>
                 <option value="linux">Linux</option>
                 <option value="mac">Mac</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Access token</label>
-              <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)}>
-                {tokens.map((t) => (
-                  <option key={t.id} value={t.token}>
-                    {t.name || 'Unnamed'} — {t.token.substring(0, 8)}... (→ {t.subdomain}.iraglobaltech.com)
-                  </option>
-                ))}
-                {tokens.length === 0 && <option value="">No tokens — create one in Manage Tokens</option>}
               </select>
             </div>
           </div>

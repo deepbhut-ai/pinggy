@@ -25,6 +25,8 @@ export default function ApiKeys() {
     if (!newName.trim()) return toast('Give the key a name', 'error');
     try {
       const k = await api('/apikeys', 'POST', { name: newName.trim(), expiry_days: expiry ? parseInt(expiry) : null });
+      // Save the full key to localStorage so API Docs can auto-use it
+      localStorage.setItem('pinggy_api_key', k.key);
       setCreateOpen(false);
       setCreatedKey(k);
       load();
@@ -35,6 +37,8 @@ export default function ApiKeys() {
     if (!window.confirm(`Revoke API key "${k.name}"? Scripts using it will stop working immediately.`)) return;
     try {
       await api(`/apikeys/${k.id}`, 'DELETE');
+      // Clear saved key if it matches the revoked one
+      localStorage.removeItem('pinggy_api_key');
       toast('API key revoked');
       load();
     } catch (e) { toast(e.message, 'error'); }

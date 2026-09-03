@@ -46,6 +46,7 @@ class ApiKeyOut(BaseModel):
     created_at: str | None = None
     last_used_at: str | None = None
     expires_at: str | None = None  # v1.6.0 — None = never expires
+    key: str | None = None  # full key — visible to owner in API Docs (auto-use)
 
 
 class ApiKeyCreated(ApiKeyOut):
@@ -58,7 +59,7 @@ async def list_api_keys(
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
-        "SELECT id, name, prefix, created_at, last_used_at, expires_at FROM api_keys "
+        "SELECT id, name, prefix, created_at, last_used_at, expires_at, key_plain FROM api_keys "
         "WHERE user_email = %s ORDER BY created_at DESC",
         (user["email"],),
     )
@@ -68,7 +69,8 @@ async def list_api_keys(
         ApiKeyOut(id=str(r[0]), name=r[1], prefix=r[2],
                   created_at=r[3].isoformat() if r[3] else None,
                   last_used_at=r[4].isoformat() if r[4] else None,
-                  expires_at=r[5].isoformat() if r[5] else None)
+                  expires_at=r[5].isoformat() if r[5] else None,
+                  key=(r[6] or None))
         for r in rows
     ]
 
@@ -103,11 +105,11 @@ async def create_api_key(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "expiry_days must be 30, 90, or null (never)")
     raw = "pk_" + secrets.token_urlsafe(32)
     cur = await db.execute(
-        """INSERT INTO api_keys (user_email, name, key_hash, prefix, expires_at)
-           VALUES (%s, %s, %s, %s,
+        """INSERT INTO api_keys (user_email, name, key_hash, prefix, key_plain, expires_at)
+           VALUES (%s, %s, %s, %s, %s,
                    CASE WHEN %s::int IS NULL THEN NULL ELSE now() + (%s::int || ' days')::interval END)
            RETURNING id, name, prefix, created_at, expires_at""",
-        (user["email"], body.name, _hash_key(raw), raw[:8], body.expiry_days, body.expiry_days),
+        (user["email"], body.name, _hash_key(raw), raw[:8], raw, body.expiry_days, body.expiry_days),
     )
     r = await cur.fetchone()
     await cur.close()

@@ -386,6 +386,26 @@ tr:hover td { background: var(--surface-1); }
 .token-dropdown-option:hover { background: var(--surface-1); }
 .token-dropdown-option.selected { background: var(--brand-light); }
 
+/* ---- API Docs endpoint cards ---- */
+.apidocs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: .75rem; }
+.apidocs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; transition: .2s; }
+.apidocs-card:hover { border-color: var(--brand); }
+.apidocs-card-header { display: flex; align-items: center; gap: .5rem; margin-bottom: .4rem; }
+.apidocs-path { font-size: .82rem; font-weight: 600; word-break: break-all; }
+.apidocs-desc { font-size: .78rem; margin-bottom: .6rem; }
+.apidocs-card-actions { display: flex; align-items: center; gap: .75rem; }
+.apidocs-result { font-size: .72rem; font-weight: 600; }
+.apidocs-result.ok { color: var(--green); }
+.apidocs-result.fail { color: var(--red); }
+.apidocs-response { margin-top: .6rem; padding: .6rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); max-height: 200px; overflow: auto; }
+.apidocs-response pre { font-size: .72rem; font-family: var(--mono); white-space: pre-wrap; word-break: break-all; color: var(--text-dim); line-height: 1.5; }
+.badge-red { background: rgba(222,95,75,.15); color: var(--red); }
+.apidocs-edit { margin-bottom: .6rem; }
+.apidocs-edit-toggle { font-size: .72rem; padding: .25rem .6rem; }
+.apidocs-edit-body { margin-top: .5rem; padding: .6rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); }
+.apidocs-json-input { width: 100%; font-family: var(--mono); font-size: .75rem; line-height: 1.5; resize: vertical; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); padding: .5rem; outline: none; }
+.apidocs-json-input:focus { border-color: var(--brand); }
+
 .inline-note { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; padding: .75rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: .825rem; color: var(--text-dim); }
 .inline-note.amber { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.3); }
 .domain-box { margin-top: .9rem; padding-top: .8rem; border-top: 1px solid var(--border); }
