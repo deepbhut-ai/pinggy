@@ -227,7 +227,7 @@ export default function Plan() {
       <div className="card">
         <div className="card-header"><h2>ℹ️ Plan details</h2></div>
         <div className="card-body" style={{ fontSize: '.85rem', color: 'var(--text-dim)', lineHeight: 1.7 }}>
-          • <strong style={{ color: 'var(--text)' }}>Free</strong>: 1 tunnel at a time · 10 GB transfer cap · 60-minute timeout · unlimited subdomains (pick your own, e.g. myapp.iraglobaltech.com) · 1 custom domain only.<br />
+          • <strong style={{ color: 'var(--text)' }}>Free</strong>: 1 tunnel at a time · 10 GB transfer cap · 60-minute timeout · unlimited subdomains · 1 custom domain only.<br />
           • <strong style={{ color: 'var(--text)' }}>Pro</strong>: unlimited tunnel duration · multiple tunnels (scales with seats) · 1 custom domain + unlimited subdomains · priority support.<br />
           • Upgrades are processed via Stripe / PayPal / Crypto — you'll be redirected to complete payment securely.<br />
           • Need a custom downgrade or Enterprise quote? Open a ticket under <strong style={{ color: 'var(--text)' }}>Support</strong> — our team will process it.<br />

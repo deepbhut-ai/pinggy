@@ -117,7 +117,7 @@ export default function Billing() {
           <span style={{ fontSize: '1.5rem' }}>🆓</span>
           <div style={{ flex: 1, minWidth: 200 }}>
             <strong style={{ fontSize: '.95rem' }}>You are on Free</strong>
-            <div className="dim" style={{ fontSize: '.825rem' }}>1 tunnel · 60-minute timeout · unlimited subdomains (pick your own)</div>
+            <div className="dim" style={{ fontSize: '.825rem' }}>1 tunnel · 60-minute timeout · unlimited subdomains</div>
           </div>
           <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
             <a className="btn btn-sm" href="/dashboard/plan">Upgrade Plan →</a>
