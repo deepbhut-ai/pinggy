@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.core.audit import log_audit
 from app.core.db import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_api_user
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -36,7 +36,7 @@ def _team_out(r) -> dict:
 
 @router.get("")
 async def my_teams(
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """Teams I own + teams I'm a member of (with member counts)."""
@@ -84,7 +84,7 @@ class TeamIn(BaseModel):
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_team(
     body: TeamIn,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
@@ -112,7 +112,7 @@ class MemberIn(BaseModel):
 async def add_member(
     team_id: str,
     body: MemberIn,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     # only team admins/owner can add
@@ -162,7 +162,7 @@ async def change_member_role(
     team_id: str,
     email: str,
     body: RoleIn,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """v1.7.0 — promote/demote a member (owner only). Owner role itself is fixed."""
@@ -195,7 +195,7 @@ async def change_member_role(
 async def remove_member(
     team_id: str,
     email: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     email = email.strip().lower()
@@ -223,7 +223,7 @@ async def remove_member(
 @router.get("/{team_id}/activity")
 async def get_team_activity(
     team_id: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """v1.13.0 — recent team-relevant events (members can view)."""
@@ -237,7 +237,7 @@ async def get_team_activity(
 @router.delete("/{team_id}")
 async def delete_team(
     team_id: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(

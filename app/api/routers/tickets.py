@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.core.audit import log_audit
 from app.core.db import get_db
-from app.core.deps import get_admin_user, get_current_user
+from app.core.deps import get_admin_user, get_api_user
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
@@ -25,7 +25,7 @@ def _ticket(r) -> dict:
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_ticket(
     body: TicketIn,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
@@ -45,7 +45,7 @@ async def create_ticket(
 
 @router.get("/my")
 async def my_tickets(
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
@@ -61,7 +61,7 @@ async def my_tickets(
 @router.get("/{ticket_id}")
 async def get_ticket(
     ticket_id: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
@@ -97,7 +97,7 @@ class ReplyIn(BaseModel):
 async def reply_ticket(
     ticket_id: str,
     body: ReplyIn,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute("SELECT user_email, status FROM tickets WHERE id = %s", (ticket_id,))
@@ -138,7 +138,7 @@ async def reply_ticket(
 @router.post("/{ticket_id}/close")
 async def close_ticket(
     ticket_id: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute("SELECT user_email FROM tickets WHERE id = %s", (ticket_id,))
