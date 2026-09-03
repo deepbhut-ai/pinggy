@@ -75,14 +75,17 @@ export default function ConfigureTunnel() {
   const selToken = tokens.find((t) => t.token === tokenSel);
   const port = localAddr.split(':').pop() || '8080';
 
-  // multi-port rows: subdomain → primary → extras
+  // multi-port rows: show ALL tokens' addresses (subdomain + custom domain + extras)
   useEffect(() => {
-    if (!multiPort || !selToken) return;
-    const addrs = [`${selToken.subdomain}.iraglobaltech.com`];
-    if (selToken.custom_domain) addrs.push(selToken.custom_domain);
-    (selToken.domains || []).forEach((d) => addrs.push(d));
-    setMultiPorts(addrs.map((a) => ({ addr: a, port: '' })));
-  }, [multiPort, tokenSel]);
+    if (!multiPort || !tokens.length) return;
+    const addrs = [];
+    tokens.forEach((t) => {
+      addrs.push({ addr: `${t.subdomain}.iraglobaltech.com`, port: '', tokenName: t.name || 'Unnamed' });
+      if (t.custom_domain) addrs.push({ addr: t.custom_domain, port: '', tokenName: t.name || 'Unnamed' });
+      (t.domains || []).forEach((d) => addrs.push({ addr: d, port: '', tokenName: t.name || 'Unnamed' }));
+    });
+    setMultiPorts(addrs);
+  }, [multiPort, tokens]);
 
   const portList = multiPort ? multiPorts.map((m) => m.port.trim()).filter(Boolean) : null;
   const sshPort = info?.ssh_port || 2222;
@@ -266,15 +269,16 @@ export default function ConfigureTunnel() {
             </p>
           )}
 
-          {/* 3a. Multi-port ENABLED — show address → port list */}
-          {multiPort && selToken && (
+          {/* 3a. Multi-port ENABLED — show all tokens' addresses → port list */}
+          {multiPort && (
             <div className="multiport-box">
               <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.5rem' }}>
-                Each address routes to its own local port — one SSH command for all:
+                All your tunnel addresses — assign a local port to each:
               </p>
               {multiPorts.map((m, i) => (
-                <div key={m.addr} style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem' }}>
+                <div key={i} style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem' }}>
                   <span className="code" style={{ flex: 1, fontSize: '.8rem' }}>{m.addr}</span>
+                  {m.tokenName && <span className="badge" style={{ fontSize: '.6rem', flexShrink: 0 }}>{m.tokenName}</span>}
                   <input
                     type="number"
                     min="1"
