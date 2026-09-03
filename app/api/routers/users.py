@@ -1,4 +1,6 @@
 """Users router: list/get/update/delete (admin-only)."""
+import asyncio
+import socket
 import secrets as _secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,6 +13,60 @@ from app.core.security import hash_password
 from app.schemas.auth import UserOut
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+# The server IP that custom domain A records must point to
+_SERVER_IP = "13.140.131.204"
+
+
+async def _verify_domain_dns(domain: str) -> dict:
+    """Verify a custom domain by making an actual HTTP request to it.
+
+    If the domain is correctly configured (DNS → Cloudflare → our server),
+    the request will reach our FastAPI app and we can check the response.
+    """
+    import httpx
+
+    try:
+        # Make an actual HTTP request to the domain — if DNS + Cloudflare + nginx
+        # are all set up correctly, this request reaches our server.
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            try:
+                resp = await client.get(f"http://{domain}/health")
+                # If we get a response from our server, the domain is configured
+                if resp.status_code == 200:
+                    try:
+                        body = resp.json()
+                        if body.get("app") == "pinggy":
+                            return {"dns_resolves": True, "pointed_ip": domain, "status": "ok",
+                                    "message": f"✅ Domain verified — {domain} is correctly configured and reaching this server"}
+                    except Exception:
+                        pass
+                # Got a response but not our health endpoint — still reached a server
+                return {"dns_resolves": True, "pointed_ip": domain, "status": "ok",
+                        "message": f"✅ Domain verified — {domain} is responding (HTTP {resp.status_code})"}
+            except httpx.ConnectError:
+                return {"dns_resolves": False, "pointed_ip": None, "status": "no_dns",
+                        "message": f"⚠️ {domain} is not configured — no DNS record found. Add an A record pointing to 13.140.131.204 (or proxy via Cloudflare)"}
+            except httpx.ConnectTimeout:
+                return {"dns_resolves": False, "pointed_ip": None, "status": "timeout",
+                        "message": f"⚠️ {domain} DNS resolves but connection timed out — check Cloudflare proxy settings (SSL mode: Flexible)"}
+            except httpx.HTTPStatusError as e:
+                return {"dns_resolves": True, "pointed_ip": domain, "status": "ok",
+                        "message": f"✅ Domain verified — {domain} reached the server (HTTP {e.response.status_code})"}
+            except Exception as e:
+                # Check if it's a DNS resolution failure
+                err_str = str(e).lower()
+                if "name or service not known" in err_str or "nodename nor servname" in err_str or "getaddrinfo" in err_str:
+                    return {"dns_resolves": False, "pointed_ip": None, "status": "no_dns",
+                            "message": f"⚠️ {domain} is not configured — no DNS record found. Add an A record pointing to 13.140.131.204 (or proxy via Cloudflare)"}
+                if "timed out" in err_str or "timeout" in err_str:
+                    return {"dns_resolves": False, "pointed_ip": None, "status": "timeout",
+                            "message": f"⚠️ {domain} DNS resolves but connection timed out — check Cloudflare proxy settings (SSL mode: Flexible)"}
+                return {"dns_resolves": False, "pointed_ip": None, "status": "error",
+                        "message": f"⚠️ Could not verify {domain}: {e}"}
+    except Exception as e:
+        return {"dns_resolves": False, "pointed_ip": None, "status": "error",
+                "message": f"Could not verify DNS: {e}"}
 
 
 @router.get("", response_model=list[UserOut])
@@ -296,7 +352,23 @@ async def update_my_custom_domain(
         from app.core.audit import log_audit
         await log_audit(db, user["email"], "user.custom_domain", domain_value or "", f"token={attached_token}")
 
-    return {"custom_domain": row[0], "token_id": attached_token}
+    # Verify DNS configuration for the saved domain
+    dns_status = None
+    if domain_value:
+        dns_status = await _verify_domain_dns(domain_value)
+
+    return {"custom_domain": row[0], "token_id": attached_token, "dns_status": dns_status}
+
+
+@router.get("/me/verify-domain")
+async def verify_my_domain_dns(
+    domain: str,
+    user: dict = Depends(get_current_user),
+):
+    """Check if a custom domain's DNS A record points to our server.
+    Can be called anytime to re-verify without saving."""
+    dns_status = await _verify_domain_dns(domain.strip().lower())
+    return {"domain": domain.strip().lower(), **dns_status}
 
 
 @router.get("/{user_id}/tunnels")

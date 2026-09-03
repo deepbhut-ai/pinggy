@@ -29,14 +29,14 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token payload")
     cur = await db.execute(
-        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at, is_active FROM users WHERE id = %s",
+        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, seats, plan_expires_at, is_active FROM users WHERE id = %s",
         (user_id,),
     )
     row = await cur.fetchone()
     await cur.close()
     if not row:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
-    if not row[8]:
+    if not row[9]:
         # Account disabled by an admin — existing tokens stop working immediately
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
     return {
@@ -47,8 +47,9 @@ async def get_current_user(
         "tunnel_token": row[4],
         "custom_domain": row[5],
         "plan": row[6] or "free",
-        "plan_expires_at": row[7].isoformat() if row[7] else None,
-        "is_active": row[8],
+        "seats": int(row[7] or 1),
+        "plan_expires_at": row[8].isoformat() if row[8] else None,
+        "is_active": row[9],
     }
 
 
@@ -77,18 +78,18 @@ async def get_api_user(
         if not email:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid API key")
         cur = await db.execute(
-            "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at, is_active "
+            "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, seats, plan_expires_at, is_active "
             "FROM users WHERE email = %s",
             (email,),
         )
         row = await cur.fetchone()
         await cur.close()
-        if not row or not row[8]:
+        if not row or not row[9]:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
         return {
             "id": str(row[0]), "email": row[1], "full_name": row[2], "role": row[3],
             "tunnel_token": row[4], "custom_domain": row[5], "plan": row[6] or "free",
-            "plan_expires_at": row[7].isoformat() if row[7] else None, "is_active": row[8],
+            "seats": int(row[7] or 1), "plan_expires_at": row[8].isoformat() if row[8] else None, "is_active": row[9],
         }
     # No API key — fall back to JWT Bearer
     creds = bearer_scheme  # HTTPBearer dependency resolves via FastAPI; call directly:
@@ -104,7 +105,7 @@ async def get_api_user(
     if not user_id:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token payload")
     cur = await db.execute(
-        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, plan_expires_at, is_active "
+        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, seats, plan_expires_at, is_active "
         "FROM users WHERE id = %s",
         (user_id,),
     )
@@ -112,12 +113,12 @@ async def get_api_user(
     await cur.close()
     if not row:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
-    if not row[8]:
+    if not row[9]:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
     return {
         "id": str(row[0]), "email": row[1], "full_name": row[2], "role": row[3],
         "tunnel_token": row[4], "custom_domain": row[5], "plan": row[6] or "free",
-        "plan_expires_at": row[7].isoformat() if row[7] else None, "is_active": row[8],
+        "seats": int(row[7] or 1), "plan_expires_at": row[8].isoformat() if row[8] else None, "is_active": row[9],
     }
 
 

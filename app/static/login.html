@@ -151,17 +151,26 @@
 const API = '/api/v1';
 
 // Check if already logged in — redirect to dashboard/admin
-(async function() {
+async function checkLoggedIn() {
   const token = localStorage.getItem('pinggy_token');
   if (!token) return;
   try {
     const res = await fetch(`${API}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } });
     if (res.ok) {
       const user = await res.json();
-      window.location.href = user.role === 'admin' ? '/admin' : '/dashboard';
+      window.location.replace(user.role === 'admin' ? '/admin' : '/dashboard');
     }
   } catch {}
-})();
+}
+checkLoggedIn();
+
+// bfcache: when the user hits Back from the dashboard, the browser may restore
+// this page from memory without re-running scripts. Re-check auth synchronously.
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted || (performance && performance.getEntriesByType && performance.getEntriesByType('navigation').some(n => n.type === 'back_forward'))) {
+    checkLoggedIn();
+  }
+});
 
 function switchTab(tab, el) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));

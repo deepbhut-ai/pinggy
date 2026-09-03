@@ -17,6 +17,11 @@ ssh_host_key.pub
 .vscode/
 .idea/
 
+# Frontend (React/Vite) — node_modules is huge, dist is a build artifact
+node_modules/
+frontend/dist/
+frontend/node_modules/
+
 # OS
 Thumbs.db
 .DS_Store
