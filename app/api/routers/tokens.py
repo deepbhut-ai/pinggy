@@ -51,6 +51,7 @@ async def _token_traffic(db: AsyncConnection, token: str) -> tuple[int, int, int
 class TokenCreate(BaseModel):
     name: str = Field(default="New Token", max_length=120)
     custom_domain: str | None = Field(default=None, max_length=255)
+    fixed_subdomain: str | None = Field(default=None, max_length=50)  # permanent subdomain at creation time
 
 
 class TokenUpdate(BaseModel):
@@ -227,12 +228,24 @@ async def create_token(
             await cur.close()
             custom_domain = cd
 
+    # v1: optional fixed subdomain at creation — validate uniqueness
+    fixed_sub = None
+    if body.fixed_subdomain:
+        fixed_sub = body.fixed_subdomain.strip().lower()
+        if not all(c.isalnum() for c in fixed_sub):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Subdomain can only contain letters and numbers")
+        cur = await db.execute("SELECT id FROM tokens WHERE fixed_subdomain = %s", (fixed_sub,))
+        if await cur.fetchone():
+            await cur.close()
+            raise HTTPException(status.HTTP_409_CONFLICT, f"Subdomain '{fixed_sub}' is already taken. Choose another one.")
+        await cur.close()
+
     token = _generate_token()
     cur = await db.execute(
-        "INSERT INTO tokens (user_email, token, name, custom_domain) "
-        "VALUES (%s, %s, %s, %s) "
-        "RETURNING id, token, name, custom_domain, created_at",
-        (user["email"], token, body.name, custom_domain),
+        "INSERT INTO tokens (user_email, token, name, custom_domain, fixed_subdomain) "
+        "VALUES (%s, %s, %s, %s, %s) "
+        "RETURNING id, token, name, custom_domain, fixed_subdomain, created_at",
+        (user["email"], token, body.name, custom_domain, fixed_sub),
     )
     row = await cur.fetchone()
     await cur.close()
@@ -241,8 +254,9 @@ async def create_token(
         token=row[1],
         name=row[2],
         custom_domain=row[3],
-        subdomain=_subdomain_from_token(row[1]),
-        created_at=row[4].isoformat() if row[4] else None,
+        subdomain=row[4] or _subdomain_from_token(row[1]),
+        fixed_subdomain=row[4],
+        created_at=row[5].isoformat() if row[5] else None,
     )
 
 

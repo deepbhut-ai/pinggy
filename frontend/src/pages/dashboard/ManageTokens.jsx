@@ -12,6 +12,7 @@ export default function ManageTokens() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('New Token');
   const [createDomain, setCreateDomain] = useState('');
+  const [createSub, setCreateSub] = useState('');
   const [editOpen, setEditOpen] = useState(null); // token
   const [editState, setEditState] = useState({});
   const [regenOpen, setRegenOpen] = useState(null);
@@ -36,10 +37,12 @@ export default function ManageTokens() {
     const name = createName.trim() || 'New Token';
     try {
       const payload = { name };
-      const d = createDomain.trim();
+      const d = createDomain.trim().toLowerCase();
+      const sub = createSub.trim().toLowerCase();
       if (d) payload.custom_domain = d;
+      if (sub) payload.fixed_subdomain = sub;
       const result = await api('/tokens', 'POST', payload);
-      toast('Token created: ' + result.token + (d ? ' · domain: ' + d : ''));
+      toast('Token created: ' + result.token + (sub ? ` · subdomain: ${sub}.iraglobaltech.com` : '') + (d ? ` · domain: ${d}` : ''));
       setCreateOpen(false);
       load();
     } catch (e) {
@@ -117,7 +120,7 @@ export default function ManageTokens() {
           <div className="page-subtitle">Create separate credentials for each tunnel or project.</div>
         </div>
         <div className="page-toolbar-actions">
-          <button className="btn" onClick={() => { setCreateName('New Token'); setCreateDomain(''); setCreateOpen(true); }}>+ Subdomain Token</button>
+          <button className="btn" onClick={() => { setCreateName('New Token'); setCreateDomain(''); setCreateSub(''); setCreateOpen(true); }}>+ Subdomain Token</button>
         </div>
       </div>
 
@@ -212,6 +215,17 @@ export default function ManageTokens() {
           <div className="form-group">
             <label>Token name</label>
             <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. My API Server" autoFocus />
+          </div>
+          <div className="form-group">
+            <label>Fixed subdomain — your permanent URL (empty = random each connect)</label>
+            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. myapi" />
+            {createSub.trim() ? (
+              <div className="inline-note" style={{ marginTop: '.35rem', padding: '.4rem .6rem', fontSize: '.78rem' }}>
+                <span>🔗 Your URL: <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.iraglobaltech.com</span></span>
+              </div>
+            ) : (
+              <div className="dim" style={{ fontSize: '.75rem', marginTop: '.3rem' }}>A random subdomain will be generated (e.g. a1b2c3d.iraglobaltech.com) unless you set one.</div>
+            )}
           </div>
           <div className="form-group">
             <label>Custom domain (optional — Pro only)</label>
