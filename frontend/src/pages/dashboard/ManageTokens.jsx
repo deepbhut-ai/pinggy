@@ -229,6 +229,7 @@ export default function ManageTokens() {
             <label>Domain</label>
             <input type="text" value={createDomain} onChange={(e) => setCreateDomain(e.target.value)} placeholder="e.g. mysite.com" />
           </div>
+          <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Both subdomain and domain are optional — fill in either one or both.</p>
         </Modal>
       )}
 
