@@ -238,6 +238,19 @@ export default function ApiDocs() {
       <div className="page-title">API Documentation</div>
       <div className="page-subtitle">Manage IRAGT from scripts, CI pipelines, and the Python SDK</div>
 
+      {/* Full API documentation links */}
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <div className="card-header"><h2>📚 Full API Documentation</h2></div>
+        <div className="card-body">
+          <p className="dim" style={{ marginBottom: '.75rem' }}>Browse the complete interactive API reference — all 96 endpoints with request/response schemas, parameters, and examples.</p>
+          <div style={{ display: 'flex', gap: '.75rem', flexWrap: 'wrap' }}>
+            <a className="btn btn-sm" href="/docs" target="_blank" rel="noreferrer">🔧 Swagger UI →</a>
+            <a className="btn btn-sm btn-ghost" href="/redoc" target="_blank" rel="noreferrer">📖 ReDoc →</a>
+            <a className="btn btn-sm btn-ghost" href="/api/v1/openapi.json" target="_blank" rel="noreferrer">📄 OpenAPI JSON →</a>
+          </div>
+        </div>
+      </div>
+
       {/* API key input — set once, then test endpoints below */}
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div className="card-header"><h2>🔑 Set your API key</h2></div>
