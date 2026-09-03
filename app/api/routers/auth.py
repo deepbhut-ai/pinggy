@@ -253,7 +253,8 @@ async def me(user: dict = Depends(get_current_user)):
     return UserOut(
         id=user["id"], email=user["email"], full_name=user["full_name"], role=user["role"],
         tunnel_token=user.get("tunnel_token"), custom_domain=user.get("custom_domain"),
-        plan=user.get("plan") or "free", is_active=user.get("is_active", True),
+        plan=user.get("plan") or "free", plan_expires_at=user.get("plan_expires_at"),
+        seats=int(user.get("seats") or 1), is_active=user.get("is_active", True),
     )
 
 
