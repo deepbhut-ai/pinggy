@@ -11,11 +11,12 @@ const OS_HINTS = {
   mac: 'Open Terminal (Cmd+Space → "Terminal") and paste the following command:',
 };
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 const STORAGE_KEY = 'pinggy_quickstart_progress';
 
 const STEP_META = [
   { icon: '🔑', label: 'Token',    title: 'Get your access token',     desc: 'Your token is like a password that connects your computer to our server.' },
+  { icon: '🌐', label: 'Domain',   title: 'Configure your domain',     desc: 'View your subdomain and optionally add a custom domain.' },
   { icon: '📋', label: 'Command',  title: 'Copy your tunnel command',  desc: 'Choose your operating system and local port, then copy the command.' },
   { icon: '▶️', label: 'Run',      title: 'Run the command',           desc: 'Open your terminal, paste the command, and press Enter.' },
   { icon: '🎉', label: 'Access',   title: 'Access your tunnel',        desc: 'Your tunnel is live — share the URL with anyone.' },
@@ -32,6 +33,9 @@ export default function Quickstart() {
   const [autoReconnect, setAutoReconnect] = useState(false);
   const [tokenVisible, setTokenVisible] = useState(true);
   const [tokenDropdownOpen, setTokenDropdownOpen] = useState(false);
+  const [customDomainInput, setCustomDomainInput] = useState('');
+  const [dnsStatus, setDnsStatus] = useState(null);
+  const [dnsChecking, setDnsChecking] = useState(false);
   const [detectedOS, setDetectedOS] = useState('windows');
   const [selectedOS, setSelectedOS] = useState('windows');
   const [animKey, setAnimKey] = useState(0); // forces re-mount for enter animation
@@ -100,14 +104,14 @@ export default function Quickstart() {
     setPrevTokenState(state);
   }, [token, prevTokenState, toast]);
 
-  // If user lands directly on step 4 (e.g. after refresh), show the success toast
-  const [shownStep4Toast, setShownStep4Toast] = useState(false);
+  // If user lands directly on last step (e.g. after refresh), show the success toast
+  const [shownFinalToast, setShownFinalToast] = useState(false);
   useEffect(() => {
-    if (currentStep === TOTAL_STEPS && !shownStep4Toast) {
+    if (currentStep === TOTAL_STEPS && !shownFinalToast) {
       toast('🎉 All done! Your tunnel is ready to use.', 'success');
-      setShownStep4Toast(true);
+      setShownFinalToast(true);
     }
-  }, [currentStep, shownStep4Toast, toast]);
+  }, [currentStep, shownFinalToast, toast]);
 
   useEffect(() => {
     const ua = navigator.userAgent;
@@ -127,6 +131,33 @@ export default function Quickstart() {
     if (os === 'cmd') return `for /L %i in (0,1,2147483647) do @(${ssh} & echo Disconnected. Reconnecting in 5 seconds... & timeout /t 5 /nobreak >nul)`;
     if (os === 'powershell') return `while ($true) { ${ssh}; Write-Host "Disconnected. Reconnecting in 5 seconds..."; Start-Sleep -Seconds 5 }`;
     return `while true; do\n  ${ssh}\n  echo "Disconnected. Reconnecting in 5 seconds..."\n  sleep 5\ndone`;
+  };
+
+  const saveCustomDomain = async () => {
+    const d = customDomainInput.trim().toLowerCase();
+    if (!d) return toast('Enter a domain first', 'error');
+    if (!selectedToken) return toast('Select a token first', 'error');
+    try {
+      await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(d)}&token_id=${encodeURIComponent(selectedToken.id)}`, 'PUT');
+      toast(`${d} saved — verifying DNS...`);
+      setCustomDomainInput('');
+      await load();
+      // Auto-verify after save
+      verifyDomain(d);
+    } catch (e) { toast(e.message, 'error'); }
+  };
+
+  const verifyDomain = async (domain) => {
+    const d = (domain || selectedToken?.custom_domain || '').trim().toLowerCase();
+    if (!d) return;
+    setDnsChecking(true);
+    try {
+      toast('Checking DNS...');
+      const data = await api(`/users/me/verify-domain?domain=${encodeURIComponent(d)}`);
+      setDnsStatus(data);
+      toast(data.message);
+    } catch (e) { toast(e.message, 'error'); }
+    setDnsChecking(false);
   };
 
   // ── Step content renderers ──
@@ -199,9 +230,121 @@ export default function Quickstart() {
   const renderStep2 = () => (
     <div className="wizard-step-card wizard-animate-in" key={animKey}>
       <div className="wizard-step-header">
+        <span className="wizard-step-icon wizard-icon-pulse">🌐</span>
+        <div>
+          <h3>Step 2 — Configure your domain</h3>
+          <p className="dim">Your tunnel comes with a free subdomain. You can also add a custom domain like myapp.com.</p>
+        </div>
+      </div>
+
+      <div className="wizard-step-body">
+        {/* Show the selected token's domain info */}
+        {selectedToken && (
+          <div className="wizard-fade-in wizard-info-box" style={{ animationDelay: '.1s' }}>
+            <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>🌐 Your tunnel domain</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                <span className="badge" style={{ flexShrink: 0 }}>Subdomain</span>
+                <a href={`https://${selectedToken.subdomain}.iraglobaltech.com`} target="_blank" rel="noreferrer" className="code" style={{ color: 'var(--brand)', fontWeight: 600, fontSize: '.82rem' }}>
+                  https://{selectedToken.subdomain}.iraglobaltech.com
+                </a>
+                <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${selectedToken.subdomain}.iraglobaltech.com`); toast('Copied!'); }}>📋</button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                <span className="badge badge-blue" style={{ flexShrink: 0 }}>Custom domain</span>
+                {selectedToken.custom_domain ? (
+                  <>
+                    <a href={`https://${selectedToken.custom_domain}`} target="_blank" rel="noreferrer" className="code" style={{ color: 'var(--green)', fontWeight: 600, fontSize: '.82rem' }}>
+                      https://{selectedToken.custom_domain}
+                    </a>
+                    <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${selectedToken.custom_domain}`); toast('Copied!'); }}>📋</button>
+                  </>
+                ) : (
+                  <span className="dim" style={{ fontSize: '.82rem' }}>Not set — add one below ↓</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DNS verification — show when custom domain is set */}
+        {selectedToken && selectedToken.custom_domain && (
+          <div className="wizard-fade-in wizard-info-box" style={{ animationDelay: '.15s' }}>
+            <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>🔍 Verify your domain</p>
+            <p className="dim" style={{ fontSize: '.78rem', lineHeight: 1.5, marginBottom: '.5rem' }}>
+              Check if your domain's DNS is correctly pointing to our server.
+            </p>
+            <button className="btn btn-sm" onClick={() => verifyDomain()} disabled={dnsChecking}>
+              {dnsChecking ? '🔄 Checking...' : '🔍 Verify DNS'}
+            </button>
+            {dnsStatus && (
+              <div className={`inline-note wizard-fade-in ${dnsStatus.status === 'ok' ? '' : 'amber'}`} style={{ marginTop: '.5rem', fontSize: '.82rem' }}>
+                <span>{dnsStatus.message}</span>
+                {dnsStatus.status !== 'ok' && (
+                  <button className="btn btn-sm" style={{ marginLeft: 'auto', padding: '.2rem .5rem', fontSize: '.72rem' }} onClick={() => verifyDomain()} disabled={dnsChecking}>
+                    🔄 Re-check
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Custom domain setup — only show if not already set */}
+        {selectedToken && !selectedToken.custom_domain && (
+          <div className="wizard-fade-in wizard-info-box" style={{ animationDelay: '.2s' }}>
+            <p className="dim" style={{ marginBottom: '.5rem', fontWeight: 600, fontSize: '.8rem' }}>🔗 Add a custom domain (optional)</p>
+            <p className="dim" style={{ fontSize: '.78rem', lineHeight: 1.5, marginBottom: '.75rem' }}>
+              Want to use your own domain like <span className="code">myapp.com</span> instead of the subdomain? Follow these steps.
+            </p>
+
+            {/* Animated step-by-step DNS instructions */}
+            <div className="dns-guide">
+              {[
+                { num: 1, title: 'Add your domain to Cloudflare', body: 'Go to Cloudflare Dashboard → Add Site → enter your domain. Change nameservers at your domain registrar.', link: 'https://dash.cloudflare.com', linkText: 'Open Cloudflare →' },
+                { num: 2, title: 'Add DNS A Record', body: 'Type: A | Name: @ | Content: 13.140.131.204 | Proxy: Proxied. For subdomains (e.g. app.mydomain.com): Name: app instead of @.' },
+                { num: 3, title: 'Set SSL mode', body: 'Cloudflare → SSL/TLS → Overview → set to Flexible.' },
+                { num: 4, title: 'Enter your domain and save', body: 'Type your domain in the box below and click Save. Your tunnel will be accessible at https://yourdomain.com', isLast: true },
+              ].map((step, i) => (
+                <div key={i} className="dns-guide-step wizard-fade-in" style={{ animationDelay: `${.3 + i * .15}s` }}>
+                  <div className="dns-guide-num">{step.num}</div>
+                  <div className="dns-guide-content">
+                    <div className="dns-guide-title">{step.title}</div>
+                    <div className="dns-guide-body">{step.body}</div>
+                    {step.link && <a href={step.link} target="_blank" rel="noreferrer" className="dns-guide-link">{step.linkText}</a>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Domain input */}
+            <div className="wizard-fade-in" style={{ animationDelay: '.95s', display: 'flex', gap: '.5rem', alignItems: 'center', marginTop: '1rem' }}>
+              <input type="text" value={customDomainInput} onChange={(e) => setCustomDomainInput(e.target.value)} placeholder="e.g. myapp.com" style={{ flex: 1 }} />
+              <button className="btn btn-sm" onClick={saveCustomDomain}>Save</button>
+            </div>
+          </div>
+        )}
+
+        {selectedToken && selectedToken.custom_domain && (
+          <div className="wizard-fade-in inline-note" style={{ background: 'rgba(41,169,127,.08)', borderColor: 'rgba(41,169,127,.3)', animationDelay: '.2s' }}>
+            <span>✅ Custom domain is set! You can change it in <a href="/dashboard/domains" style={{ color: 'var(--brand)' }}>Manage Domains</a>.</span>
+          </div>
+        )}
+
+        <div className="wizard-step-nav wizard-fade-in" style={{ animationDelay: '.3s' }}>
+          <button className="btn btn-sm btn-ghost" onClick={goPrev}>← Back</button>
+          <button className="btn btn-sm" onClick={goNext}>Next →</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep3 = () => (
+    <div className="wizard-step-card wizard-animate-in" key={animKey}>
+      <div className="wizard-step-header">
         <span className="wizard-step-icon wizard-icon-pulse">📋</span>
         <div>
-          <h3>Step 2 — Copy your tunnel command</h3>
+          <h3>Step 3 — Copy your tunnel command</h3>
           <p className="dim">Choose your operating system and local port, then copy the command below.</p>
         </div>
       </div>
@@ -271,12 +414,12 @@ export default function Quickstart() {
     </div>
   );
 
-  const renderStep3 = () => (
+  const renderStep4 = () => (
     <div className="wizard-step-card wizard-animate-in" key={animKey}>
       <div className="wizard-step-header">
         <span className="wizard-step-icon wizard-icon-pulse">▶️</span>
         <div>
-          <h3>Step 3 — Run the command in your terminal</h3>
+          <h3>Step 4 — Run the command in your terminal</h3>
           <p className="dim">Open your terminal, paste the command, and press Enter. Keep the window open.</p>
         </div>
       </div>
@@ -311,12 +454,12 @@ export default function Quickstart() {
     </div>
   );
 
-  const renderStep4 = () => (
+  const renderStep5 = () => (
     <div className="wizard-step-card wizard-animate-in" key={animKey}>
       <div className="wizard-step-header">
         <span className="wizard-step-icon wizard-icon-celebrate">🎉</span>
         <div>
-          <h3>Step 4 — Access your tunnel!</h3>
+          <h3>Step 5 — Access your tunnel!</h3>
           <p className="dim">Your tunnel is now live. Use the URL below to share your local app with anyone.</p>
         </div>
       </div>
@@ -371,7 +514,7 @@ export default function Quickstart() {
     </div>
   );
 
-  const steps = [renderStep1, renderStep2, renderStep3, renderStep4];
+  const steps = [renderStep1, renderStep2, renderStep3, renderStep4, renderStep5];
 
   return (
     <>
