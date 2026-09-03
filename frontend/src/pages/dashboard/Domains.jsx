@@ -105,15 +105,15 @@ export default function Domains() {
                 <td><button className="btn btn-sm btn-danger" onClick={() => setRemoveModal(t.custom_domain)}>Remove</button></td>
               </tr>
             )}
-            {/* Extra domains rows */}
+            {/* Extra subdomains rows (subdomains of your domain) */}
             {(t.domains || []).map((d) => (
               <tr key={d}>
-                <td><span className="badge badge-green">Extra domain</span></td>
+                <td><span className="badge badge-green">Subdomain</span></td>
                 <td className="code" style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
                   https://{d}
                   <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${d}`); toast('Copied'); }}>📋</button>
                 </td>
-                <td className="dim" style={{ fontSize: '.78rem' }}>same tunnel, own DNS record</td>
+                <td className="dim" style={{ fontSize: '.78rem' }}>subdomain of your domain, routes to this token</td>
                 <td><button className="btn btn-sm btn-danger" onClick={() => removeExtra(d, t.id)}>Remove</button></td>
               </tr>
             ))}
@@ -136,7 +136,7 @@ export default function Domains() {
         <div className="stats-sep"></div>
         <div><div className="stats-num">{nPrim}</div><div className="stats-lbl">primary domains</div></div>
         <div className="stats-sep"></div>
-        <div><div className="stats-num">{nExtra}</div><div className="stats-lbl">extra domains</div></div>
+        <div><div className="stats-num">{nExtra}</div><div className="stats-lbl">subdomains</div></div>
       </div>
 
       {/* Add domain */}
@@ -157,8 +157,8 @@ export default function Domains() {
                   {myOwn.map((t) => <option key={t.id} value={t.id}>{t.name || t.token.slice(0, 12)} ({t.subdomain})</option>)}
                 </select>
                 <select value={addType} onChange={(e) => setAddType(e.target.value)} style={{ width: 'auto' }}>
-                  <option value="extra">Extra domain — same tunnel, own address</option>
-                  <option value="primary">Primary domain — the token's main address</option>
+                  <option value="extra">Subdomain — e.g. api.yourdomain.com (unlimited on Pro)</option>
+                  <option value="primary">Primary domain — your 1 main domain (Pro)</option>
                 </select>
                 <button className="btn btn-sm" onClick={addDomain}>Add</button>
               </div>

@@ -475,7 +475,7 @@ async def add_token_domain(
     user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """Attach an extra custom domain to a token (Pro: up to 3 extras + primary)."""
+    """Attach an extra subdomain/domain to a token (Pro: unlimited subdomains of your 1 domain)."""
     cur = await db.execute(
         "SELECT id, user_email FROM tokens WHERE id = %s", (token_id,)
     )
@@ -484,7 +484,7 @@ async def add_token_domain(
     if not t or (t[1] != user["email"] and user["role"] != "admin"):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
     if (user.get("plan") or "free") != "pro":
-        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, "Multiple domains are a Pro feature.")
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, "Multiple subdomains are a Pro feature.")
     domain = body.domain.strip().lower()
     domain = _validate_custom_domain(domain, user)
     # v1.8.0: cross-store check — cannot be an extra if it's someone's primary
@@ -493,11 +493,6 @@ async def add_token_domain(
     await cur.close()
     if prim:
         raise HTTPException(status.HTTP_409_CONFLICT, f"That domain is already the primary custom domain of {prim[0]}'s token.")
-    cur = await db.execute("SELECT COUNT(*) FROM token_domains WHERE token_id = %s", (token_id,))
-    count = (await cur.fetchone())[0]
-    await cur.close()
-    if count >= 3:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Limit reached: 3 extra domains per token (plus the primary).")
     try:
         cur = await db.execute(
             "INSERT INTO token_domains (token_id, domain) VALUES (%s, %s) RETURNING domain",
