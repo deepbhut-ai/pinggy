@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from app.core.audit import log_audit
 from app.core.db import get_db
-from app.core.deps import get_admin_user, get_current_user
+from app.core.deps import get_admin_user, get_api_user
 
 router = APIRouter(prefix="/tokens", tags=["tokens"])
 
@@ -94,7 +94,7 @@ def _validate_custom_domain(domain: str, user: dict) -> str:
 
 @router.get("", response_model=list[TokenOut])
 async def list_tokens(
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """List all tokens for the current user (own + tokens shared via teams, v1.7.0)."""
@@ -191,7 +191,7 @@ async def list_tokens(
 @router.post("", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
 async def create_token(
     body: TokenCreate,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """Create a new token for the current user.
@@ -279,7 +279,7 @@ class TeamAssignIn(BaseModel):
 async def assign_token_to_team(
     token_id: str,
     body: TeamAssignIn,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """Assign/unassign a token to a team. Requires: token owner, or team owner/admin (to pull in / release a member-shared token)."""
@@ -311,7 +311,7 @@ async def assign_token_to_team(
 async def update_token(
     token_id: str,
     body: TokenUpdate,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """Update a token's name, custom domain, or security options (v0.8.0).
@@ -458,7 +458,7 @@ class DomainIn(BaseModel):
 async def add_token_domain(
     token_id: str,
     body: DomainIn,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """Attach an extra custom domain to a token (Pro: up to 3 extras + primary)."""
@@ -501,7 +501,7 @@ async def add_token_domain(
 async def remove_token_domain(
     token_id: str,
     domain: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute("SELECT user_email FROM tokens WHERE id = %s", (token_id,))
@@ -524,7 +524,7 @@ async def remove_token_domain(
 @router.delete("/{token_id}", status_code=status.HTTP_200_OK)
 async def delete_token(
     token_id: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """Delete a token."""
@@ -548,7 +548,7 @@ async def delete_token(
 @router.post("/{token_id}/regenerate", response_model=TokenOut)
 async def regenerate_token(
     token_id: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     """Regenerate the token string (old token stops working)."""

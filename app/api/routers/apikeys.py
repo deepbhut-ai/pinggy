@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.core.audit import log_audit
 from app.core.db import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_api_user
 
 router = APIRouter(prefix="/apikeys", tags=["apikeys"])
 
@@ -54,7 +54,7 @@ class ApiKeyCreated(ApiKeyOut):
 
 @router.get("", response_model=list[ApiKeyOut])
 async def list_api_keys(
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
@@ -85,7 +85,7 @@ class ApiKeyIn(BaseModel):
 @router.post("", response_model=ApiKeyCreated, status_code=status.HTTP_201_CREATED)
 async def create_api_key(
     body: ApiKeyIn,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     # v1.6.0 — plan-based cap (expired keys still count; revoke frees a slot)
@@ -135,7 +135,7 @@ async def create_api_key(
 @router.delete("/{key_id}", status_code=status.HTTP_200_OK)
 async def revoke_api_key(
     key_id: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
     cur = await db.execute(
