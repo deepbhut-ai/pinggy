@@ -217,8 +217,8 @@ export default function ManageTokens() {
             <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. My Website" autoFocus />
           </div>
           <div className="form-group">
-            <label>Subdomain (iraglobaltech.com)</label>
-            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. mysite" />
+            <label>Subdomain</label>
+            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. xyz.mysite.com" />
             {createSub.trim() && (
               <div className="inline-note" style={{ marginTop: '.35rem', padding: '.4rem .6rem', fontSize: '.78rem' }}>
                 <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.iraglobaltech.com</span></span>
@@ -226,7 +226,7 @@ export default function ManageTokens() {
             )}
           </div>
           <div className="form-group">
-            <label>Custom domain</label>
+            <label>Domain</label>
             <input type="text" value={createDomain} onChange={(e) => setCreateDomain(e.target.value)} placeholder="e.g. mysite.com" />
           </div>
         </Modal>
