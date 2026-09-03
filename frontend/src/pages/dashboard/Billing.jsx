@@ -117,7 +117,7 @@ export default function Billing() {
           <span style={{ fontSize: '1.5rem' }}>🆓</span>
           <div style={{ flex: 1, minWidth: 200 }}>
             <strong style={{ fontSize: '.95rem' }}>You are on Free</strong>
-            <div className="dim" style={{ fontSize: '.825rem' }}>1 tunnel · 60-minute timeout · random subdomain each connect</div>
+            <div className="dim" style={{ fontSize: '.825rem' }}>1 tunnel · 60-minute timeout · unlimited subdomains (pick your own)</div>
           </div>
           <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
             <a className="btn btn-sm" href="/dashboard/plan">Upgrade Plan →</a>
@@ -328,7 +328,7 @@ export default function Billing() {
           </p>
           <div style={{ margin: '.75rem 0', padding: '.75rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '.825rem' }} className="dim">
             You will lose: persistent tunnels, fixed subdomains, custom domain.<br />
-            Free limits: 1 tunnel · 60-minute timeout · random subdomain.
+            Free limits: 1 tunnel · 60-minute timeout · unlimited subdomains.
           </div>
           <p className="dim" style={{ fontSize: '.78rem', marginTop: '.6rem' }}>Note: an admin will process your downgrade. Your Pro stays active until then.</p>
         </Modal>

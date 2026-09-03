@@ -222,7 +222,7 @@ export default function DashboardOverview() {
           <span style={{ fontSize: '1.25rem' }}>⚠️</span>
           <div style={{ flex: 1, minWidth: 200 }}>
             <strong style={{ fontSize: '.9rem' }}>Free plan</strong>
-            <span className="dim"> — tunnels disconnect after 60 min & get a random subdomain each time.</span>
+            <span className="dim"> — tunnels disconnect after 60 min unless you set a fixed subdomain in Manage Tokens.</span>
           </div>
           <a href="/dashboard/plan" className="btn btn-sm">Upgrade to Pro →</a>
         </div>
