@@ -119,9 +119,6 @@ export default function ManageTokens() {
           <div className="page-title">Manage Tokens</div>
           <div className="page-subtitle">Create separate credentials for each tunnel or project.</div>
         </div>
-        <div className="page-toolbar-actions">
-          <button className="btn" onClick={() => { setCreateName(''); setCreateDomain(''); setCreateSub(''); setCreateOpen(true); }}>+ Subdomain Token</button>
-        </div>
       </div>
 
       <div className="card">
