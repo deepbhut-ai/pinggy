@@ -120,4 +120,5 @@ app.include_router(admin_router)  # /admin, /dashboard, / (landing page)
 
 @app.get("/health", tags=["system"])
 async def health():
+    """Return basic service metadata for uptime checks."""
     return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}
