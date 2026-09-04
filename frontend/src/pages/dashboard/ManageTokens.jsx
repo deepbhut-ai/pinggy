@@ -8,6 +8,7 @@ export default function ManageTokens() {
   const toast = useToast();
   const [info, setInfo] = useState(null);
   const [tokens, setTokens] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [selected, setSelected] = useState(null); // full token object for guide
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
@@ -22,12 +23,14 @@ export default function ManageTokens() {
 
   const load = useCallback(async () => {
     try {
-      const [infoD, tokensD] = await Promise.all([
+      const [infoD, tokensD, meD] = await Promise.all([
         api('/tunnels/info').catch(() => ({})),
         api('/tokens'),
+        api('/auth/me').catch(() => ({})),
       ]);
       setInfo(infoD);
       setTokens(tokensD);
+      setCurrentUser(meD);
     } catch (e) { toast(e.message, 'error'); }
   }, [toast]);
 
@@ -134,6 +137,24 @@ export default function ManageTokens() {
       load();
     } catch (e) { toast(e.message, 'error'); }
   };
+
+  const userDomains = Array.from(
+    new Set(
+      [
+        currentUser?.custom_domain,
+        ...tokens.flatMap((t) => [t.custom_domain, ...(t.domains || [])]),
+      ]
+        .map((d) => (d ? String(d).trim().toLowerCase() : ''))
+        .filter(Boolean)
+    )
+  );
+
+  const availableDomains = [
+    ...userDomains,
+    ...(createDomain && !userDomains.includes(createDomain.trim().toLowerCase())
+      ? [createDomain.trim().toLowerCase()]
+      : []),
+  ];
 
   return (
     <>
@@ -268,6 +289,8 @@ export default function ManageTokens() {
                 setCreateMode('new');
                 setCreateSelectedToken('');
                 setCreateName('');
+                setCreateDomain('');
+                setCreateSub('');
               } else {
                 setCreateMode('existing');
                 setCreateSelectedToken(e.target.value);
@@ -295,7 +318,22 @@ export default function ManageTokens() {
           {/* Domain */}
           <div className="form-group">
             <label>Domain</label>
-            <input type="text" value={createDomain} onChange={(e) => setCreateDomain(e.target.value)} placeholder="e.g. mysite.com" />
+            <select
+              value={createDomain}
+              onChange={(e) => setCreateDomain(e.target.value)}
+            >
+              <option value="">-- Select a domain (optional) --</option>
+              {availableDomains.map((dom) => (
+                <option key={dom} value={dom}>
+                  {dom}
+                </option>
+              ))}
+            </select>
+            {availableDomains.length === 0 && (
+              <div className="dim" style={{ fontSize: '.75rem', marginTop: '.3rem' }}>
+                No custom domains added yet. You can add one in the Domains section.
+              </div>
+            )}
           </div>
 
           {/* Subdomain */}
@@ -308,7 +346,7 @@ export default function ManageTokens() {
               </div>
             )}
           </div>
-          <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Both subdomain and domain are optional — fill in either one or both.</p>
+          <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Both subdomain and domain are optional — select a domain or enter a subdomain (or both).</p>
         </Modal>
       )}
 

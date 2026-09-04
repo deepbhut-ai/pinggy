@@ -8,10 +8,14 @@ export default function ManageTokens() {
   const toast = useToast();
   const [info, setInfo] = useState(null);
   const [tokens, setTokens] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [selected, setSelected] = useState(null); // full token object for guide
   const [createOpen, setCreateOpen] = useState(false);
-  const [createName, setCreateName] = useState('New Token');
+  const [createName, setCreateName] = useState('');
   const [createDomain, setCreateDomain] = useState('');
+  const [createSub, setCreateSub] = useState('');
+  const [createMode, setCreateMode] = useState('new'); // 'new' or 'existing'
+  const [createSelectedToken, setCreateSelectedToken] = useState('');
   const [editOpen, setEditOpen] = useState(null); // token
   const [editState, setEditState] = useState({});
   const [regenOpen, setRegenOpen] = useState(null);
@@ -19,12 +23,14 @@ export default function ManageTokens() {
 
   const load = useCallback(async () => {
     try {
-      const [infoD, tokensD] = await Promise.all([
+      const [infoD, tokensD, meD] = await Promise.all([
         api('/tunnels/info').catch(() => ({})),
         api('/tokens'),
+        api('/auth/me').catch(() => ({})),
       ]);
       setInfo(infoD);
       setTokens(tokensD);
+      setCurrentUser(meD);
     } catch (e) { toast(e.message, 'error'); }
   }, [toast]);
 
@@ -33,13 +39,36 @@ export default function ManageTokens() {
   const sshPort = info?.ssh_port || 2222;
 
   const create = async () => {
+    // If selecting an existing token, update it instead of creating new
+    if (createMode === 'existing' && createSelectedToken) {
+      const t = tokens.find((tk) => tk.id === createSelectedToken);
+      if (!t) return toast('Select a token first', 'error');
+      const payload = {};
+      const d = createDomain.trim().toLowerCase();
+      const sub = createSub.trim().toLowerCase();
+      if (d) payload.custom_domain = d;
+      if (sub) payload.fixed_subdomain = sub;
+      if (createName.trim()) payload.name = createName.trim();
+      if (!Object.keys(payload).length) return toast('Enter a domain or subdomain to update', 'error');
+      try {
+        await api(`/tokens/${t.id}`, 'PUT', payload);
+        toast('Token updated' + (sub ? ` · subdomain: ${sub}.iraglobaltech.com` : '') + (d ? ` · domain: ${d}` : ''));
+        setCreateOpen(false);
+        load();
+      } catch (e) { toast(e.message, 'error'); }
+      return;
+    }
+
+    // Create new token
     const name = createName.trim() || 'New Token';
     try {
       const payload = { name };
-      const d = createDomain.trim();
+      const d = createDomain.trim().toLowerCase();
+      const sub = createSub.trim().toLowerCase();
       if (d) payload.custom_domain = d;
+      if (sub) payload.fixed_subdomain = sub;
       const result = await api('/tokens', 'POST', payload);
-      toast('Token created: ' + result.token + (d ? ' · domain: ' + d : ''));
+      toast('Token created: ' + result.token + (sub ? ` · subdomain: ${sub}.iraglobaltech.com` : '') + (d ? ` · domain: ${d}` : ''));
       setCreateOpen(false);
       load();
     } catch (e) {
@@ -109,6 +138,24 @@ export default function ManageTokens() {
     } catch (e) { toast(e.message, 'error'); }
   };
 
+  const userDomains = Array.from(
+    new Set(
+      [
+        currentUser?.custom_domain,
+        ...tokens.flatMap((t) => [t.custom_domain, ...(t.domains || [])]),
+      ]
+        .map((d) => (d ? String(d).trim().toLowerCase() : ''))
+        .filter(Boolean)
+    )
+  );
+
+  const availableDomains = [
+    ...userDomains,
+    ...(createDomain && !userDomains.includes(createDomain.trim().toLowerCase())
+      ? [createDomain.trim().toLowerCase()]
+      : []),
+  ];
+
   return (
     <>
       <div className="page-toolbar">
@@ -117,9 +164,35 @@ export default function ManageTokens() {
           <div className="page-subtitle">Create separate credentials for each tunnel or project.</div>
         </div>
         <div className="page-toolbar-actions">
-          <button className="btn" onClick={() => { setCreateName('New Token'); setCreateDomain(''); setCreateOpen(true); }}>+ Subdomain Token</button>
+          <button className="btn" onClick={() => { setCreateName(''); setCreateDomain(''); setCreateSub(''); setCreateMode('new'); setCreateSelectedToken(''); setCreateOpen(true); }}>+ Subdomain Token</button>
         </div>
       </div>
+
+      {info && info.seats != null && (
+        <div className="card" style={{ marginBottom: '1rem', padding: '.75rem 1rem', display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+            <span style={{ fontSize: '.8rem', color: 'var(--text-dim)' }}>Domain seats:</span>
+            <span style={{ fontWeight: 700, color: 'var(--brand)' }}>{info.domain_tokens_used ?? 0} / {info.seats}</span>
+            {info.plan === 'pro' && (
+              <span style={{ fontSize: '.7rem', color: 'var(--green)', fontWeight: 600 }}>
+                ({info.seats - (info.domain_tokens_used ?? 0)} remaining)
+              </span>
+            )}
+          </div>
+          {info.plan === 'pro' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+              <span style={{ fontSize: '.8rem', color: 'var(--text-dim)' }}>Subdomain tokens:</span>
+              <span style={{ fontWeight: 700, color: 'var(--green)' }}>Unlimited</span>
+              <span style={{ fontSize: '.7rem', color: 'var(--text-dim)' }}>({info.subdomain_tokens_used ?? 0} in use)</span>
+            </div>
+          )}
+          {info.plan !== 'pro' && (
+            <div style={{ fontSize: '.8rem', color: 'var(--text-dim)' }}>
+              Upgrade to Pro for unlimited subdomain tokens and more domain seats.
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card">
         <div className="card-header">
@@ -136,7 +209,7 @@ export default function ManageTokens() {
             <table>
               <thead>
                 <tr>
-                  <th>#</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Type</th>
+                  <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Type</th>
                   <th>Security</th><th>Custom Domain</th><th>Requests</th><th>Data</th>
                   <th>Active</th><th>Created</th><th>Actions</th>
                 </tr>
@@ -162,7 +235,7 @@ export default function ManageTokens() {
                       style={{ cursor: 'pointer', transition: '.15s' }}
                       onClick={() => setSelected(selected?.id === t.id ? null : t)}
                     >
-                      <td>{i + 1}</td>
+                      <td><span className="code dim" style={{ fontSize: '.72rem' }}>{t.id.substring(0, 8)}…</span></td>
                       <td>
                         <span className="token-value">
                           <strong className="code">{t.token.substring(0, 8)}••••••••</strong>{' '}
@@ -184,8 +257,7 @@ export default function ManageTokens() {
                       <td>{t.created_at ? t.created_at.substring(0, 10) : '—'}</td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <button className="btn btn-sm btn-ghost" title="Edit" onClick={() => openEdit(t)}>✏️</button>{' '}
-                        <button className="btn btn-sm btn-ghost" title="Regenerate" onClick={() => setRegenOpen(t)}>🔄</button>{' '}
-                        <button className="btn btn-sm btn-danger" title="Delete" onClick={() => setDelOpen(t)}>🗑️</button>
+                        <button className="btn btn-sm btn-ghost" title="Regenerate" onClick={() => setRegenOpen(t)}>🔄</button>
                       </td>
                     </tr>
                   );
@@ -208,16 +280,73 @@ export default function ManageTokens() {
 
       {/* Create modal */}
       {createOpen && (
-        <Modal title="Subdomain Token" confirmLabel="Create" onConfirm={create} onClose={() => setCreateOpen(false)}>
+        <Modal title="Subdomain Token" confirmLabel={createMode === 'existing' ? 'Update' : 'Create'} onConfirm={create} onClose={() => setCreateOpen(false)}>
+          {/* First: select mode — new or existing token */}
+          <div className="form-group">
+            <label>Select token</label>
+            <select value={createMode === 'existing' ? createSelectedToken : 'new'} onChange={(e) => {
+              if (e.target.value === 'new') {
+                setCreateMode('new');
+                setCreateSelectedToken('');
+                setCreateName('');
+                setCreateDomain('');
+                setCreateSub('');
+              } else {
+                setCreateMode('existing');
+                setCreateSelectedToken(e.target.value);
+                const t = tokens.find((tk) => tk.id === e.target.value);
+                if (t) {
+                  setCreateName(t.name || '');
+                  setCreateDomain(t.custom_domain || '');
+                  setCreateSub(t.fixed_subdomain || '');
+                }
+              }
+            }}>
+              <option value="new">+ Create new token</option>
+              {tokens.map((t) => (
+                <option key={t.id} value={t.id}>{t.name || 'Unnamed'} — {t.subdomain}.iraglobaltech.com</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Token name */}
           <div className="form-group">
             <label>Token name</label>
-            <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. My API Server" autoFocus />
+            <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. My Website" />
           </div>
+
+          {/* Domain */}
           <div className="form-group">
-            <label>Custom domain (optional — Pro only)</label>
-            <input type="text" value={createDomain} onChange={(e) => setCreateDomain(e.target.value)} placeholder="e.g. api.myapp.com" />
-            <div className="dim" style={{ fontSize: '.75rem', marginTop: '.3rem' }}>Point your domain's A record to 13.140.131.204 via Cloudflare (Proxied, SSL Flexible).</div>
+            <label>Domain</label>
+            <select
+              value={createDomain}
+              onChange={(e) => setCreateDomain(e.target.value)}
+            >
+              <option value="">-- Select a domain (optional) --</option>
+              {availableDomains.map((dom) => (
+                <option key={dom} value={dom}>
+                  {dom}
+                </option>
+              ))}
+            </select>
+            {availableDomains.length === 0 && (
+              <div className="dim" style={{ fontSize: '.75rem', marginTop: '.3rem' }}>
+                No custom domains added yet. You can add one in the Domains section.
+              </div>
+            )}
           </div>
+
+          {/* Subdomain */}
+          <div className="form-group">
+            <label>Subdomain</label>
+            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. xyz.mysite.com" />
+            {createSub.trim() && (
+              <div className="inline-note" style={{ marginTop: '.35rem', padding: '.4rem .6rem', fontSize: '.78rem' }}>
+                <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.iraglobaltech.com</span></span>
+              </div>
+            )}
+          </div>
+          <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Both subdomain and domain are optional — select a domain or enter a subdomain (or both).</p>
         </Modal>
       )}
 
@@ -281,14 +410,6 @@ export default function ManageTokens() {
         </Modal>
       )}
 
-      {/* Delete modal */}
-      {delOpen && (
-        <Modal title="Delete Token" confirmLabel="Delete" onConfirm={del} onClose={() => setDelOpen(null)}>
-          <p className="dim" style={{ fontSize: '.875rem', lineHeight: 1.5 }}>
-            Are you sure? This token will be permanently deleted. Active tunnels using it will be disconnected.
-          </p>
-        </Modal>
-      )}
     </>
   );
 }
