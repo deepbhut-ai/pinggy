@@ -8,14 +8,11 @@ export default function ManageTokens() {
   const toast = useToast();
   const [info, setInfo] = useState(null);
   const [tokens, setTokens] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
   const [selected, setSelected] = useState(null); // full token object for guide
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createDomain, setCreateDomain] = useState('');
   const [createSub, setCreateSub] = useState('');
-  const [createMode, setCreateMode] = useState('new'); // 'new' or 'existing'
-  const [createSelectedToken, setCreateSelectedToken] = useState('');
   const [editOpen, setEditOpen] = useState(null); // token
   const [editState, setEditState] = useState({});
   const [regenOpen, setRegenOpen] = useState(null);
@@ -23,14 +20,12 @@ export default function ManageTokens() {
 
   const load = useCallback(async () => {
     try {
-      const [infoD, tokensD, meD] = await Promise.all([
+      const [infoD, tokensD] = await Promise.all([
         api('/tunnels/info').catch(() => ({})),
         api('/tokens'),
-        api('/auth/me').catch(() => ({})),
       ]);
       setInfo(infoD);
       setTokens(tokensD);
-      setCurrentUser(meD);
     } catch (e) { toast(e.message, 'error'); }
   }, [toast]);
 
@@ -39,27 +34,6 @@ export default function ManageTokens() {
   const sshPort = info?.ssh_port || 2222;
 
   const create = async () => {
-    // If selecting an existing token, update it instead of creating new
-    if (createMode === 'existing' && createSelectedToken) {
-      const t = tokens.find((tk) => tk.id === createSelectedToken);
-      if (!t) return toast('Select a token first', 'error');
-      const payload = {};
-      const d = createDomain.trim().toLowerCase();
-      const sub = createSub.trim().toLowerCase();
-      if (d) payload.custom_domain = d;
-      if (sub) payload.fixed_subdomain = sub;
-      if (createName.trim()) payload.name = createName.trim();
-      if (!Object.keys(payload).length) return toast('Enter a domain or subdomain to update', 'error');
-      try {
-        await api(`/tokens/${t.id}`, 'PUT', payload);
-        toast('Token updated' + (sub ? ` · subdomain: ${sub}.iraglobaltech.com` : '') + (d ? ` · domain: ${d}` : ''));
-        setCreateOpen(false);
-        load();
-      } catch (e) { toast(e.message, 'error'); }
-      return;
-    }
-
-    // Create new token
     const name = createName.trim() || 'New Token';
     try {
       const payload = { name };
@@ -140,12 +114,13 @@ export default function ManageTokens() {
     } catch (e) { toast(e.message, 'error'); }
   };
 
+  // The Domain page stores user-added domains on the user's own tokens.
+  // Team tokens and generated/fixed subdomains must never appear here.
   const userDomains = Array.from(
     new Set(
-      [
-        currentUser?.custom_domain,
-        ...tokens.flatMap((t) => [t.custom_domain, ...(t.domains || [])]),
-      ]
+      tokens
+        .filter((t) => !t.via_team)
+        .flatMap((t) => [t.custom_domain, ...(t.domains || [])])
         .map((d) => (d ? String(d).trim().toLowerCase() : ''))
         .filter((d) => {
           if (!d) return false;
@@ -175,7 +150,7 @@ export default function ManageTokens() {
           <div className="page-subtitle">Create separate credentials for each tunnel or project.</div>
         </div>
         <div className="page-toolbar-actions">
-          <button className="btn" onClick={() => { setCreateName(''); setCreateDomain(''); setCreateSub(''); setCreateMode('new'); setCreateSelectedToken(''); setCreateOpen(true); }}>+ Subdomain Token</button>
+          <button className="btn" onClick={() => { setCreateName(''); setCreateDomain(''); setCreateSub(''); setCreateOpen(true); }}>+ Subdomain Token</button>
         </div>
       </div>
 
@@ -296,36 +271,7 @@ export default function ManageTokens() {
 
       {/* Create modal */}
       {createOpen && (
-        <Modal title="Subdomain Token" confirmLabel={createMode === 'existing' ? 'Update' : 'Create'} onConfirm={create} onClose={() => setCreateOpen(false)}>
-          {/* First: select mode — new or existing token */}
-          <div className="form-group">
-            <label>Select token</label>
-            <select value={createMode === 'existing' ? createSelectedToken : 'new'} onChange={(e) => {
-              if (e.target.value === 'new') {
-                setCreateMode('new');
-                setCreateSelectedToken('');
-                setCreateName('');
-                setCreateDomain('');
-                setCreateSub('');
-              } else {
-                setCreateMode('existing');
-                setCreateSelectedToken(e.target.value);
-                const t = tokens.find((tk) => tk.id === e.target.value);
-                if (t) {
-                  setCreateName(t.name || '');
-                  const cd = t.custom_domain ? String(t.custom_domain).trim().toLowerCase() : '';
-                  setCreateDomain(cd && !cd.endsWith('iraglobaltech.com') ? cd : '');
-                  setCreateSub(t.fixed_subdomain || '');
-                }
-              }
-            }}>
-              <option value="new">+ Create new token</option>
-              {tokens.map((t) => (
-                <option key={t.id} value={t.id}>{t.name || 'Unnamed'} — {t.subdomain}.iraglobaltech.com</option>
-              ))}
-            </select>
-          </div>
-
+        <Modal title="Subdomain Token" confirmLabel="Create" onConfirm={create} onClose={() => setCreateOpen(false)}>
           {/* Token name */}
           <div className="form-group">
             <label>Token name</label>
