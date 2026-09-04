@@ -107,6 +107,12 @@
   .plan-features li { font-size: .875rem; color: var(--text-dim); padding: .3rem 0; }
   .plan-features li strong { color: var(--text); }
 
+  /* ---- Public Help Center ---- */
+  .help-section { padding: 1rem 1.5rem 4rem; max-width: 1000px; margin: 0 auto; }
+  .help-card { display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: 2rem; background: linear-gradient(135deg, var(--surface), rgba(106,166,240,.1)); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .help-card h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: .4rem; }
+  .help-card p { color: var(--text-dim); max-width: 620px; }
+
   /* ---- CTA ---- */
   .cta-section { text-align: center; padding: 4rem 1.5rem; max-width: 600px; margin: 0 auto; }
   .cta-section h2 { font-size: 2rem; font-weight: 800; margin-bottom: 1rem; }
@@ -139,6 +145,7 @@
     .hero h1 { font-size: 2rem; }
     .hero p { font-size: 1rem; }
     .nav .links a:not(.btn) { display: none; }
+    .help-card { align-items: flex-start; flex-direction: column; }
   }
 </style>
 <style>
@@ -159,6 +166,7 @@
   <div class="links" id="navLinks">
     <a href="#features">Features</a>
     <a href="#how">How it Works</a>
+    <a href="/help-center">Help Center</a>
     <a href="/login" class="btn">Get Started</a>
   </div>
 </nav>
@@ -281,6 +289,17 @@
   </div>
 </section>
 
+<!-- Public Help Center -->
+<section class="help-section" id="help">
+  <div class="help-card">
+    <div>
+      <h2>Need help getting connected?</h2>
+      <p>Browse setup answers, troubleshooting guidance, and contact support without signing in.</p>
+    </div>
+    <a href="/help-center" class="btn btn-lg">Open Help Center →</a>
+  </div>
+</section>
+
 <!-- CTA -->
 <section class="cta-section">
   <h2>Ready to share your localhost?</h2>
@@ -290,7 +309,7 @@
 
 <!-- Footer -->
 <footer class="footer">
-  <p>Powered by SSH & Cloudflare · <a href="/docs">API Docs</a></p>
+  <p>Powered by SSH & Cloudflare · <a href="/docs">API Docs</a> · <a href="/help-center">Help Center</a></p>
 </footer>
 
 <script>
@@ -428,7 +447,7 @@ async function doLoginAfterRegister(email, password) {
       // User is logged in — replace nav with Dashboard link
       const navLinks = document.getElementById('navLinks');
       if (navLinks) {
-        navLinks.innerHTML = `<a href="#features">Features</a><a href="#how">How it Works</a><a href="/dashboard" style="color:var(--text)">${user.email}</a><a href="/dashboard" class="btn">Dashboard →</a>`;
+        navLinks.innerHTML = `<a href="#features">Features</a><a href="#how">How it Works</a><a href="/help-center">Help Center</a><a href="/dashboard" style="color:var(--text)">${user.email}</a><a href="/dashboard" class="btn">Dashboard →</a>`;
       }
       // Update CTA buttons to go to dashboard
       document.querySelectorAll('a[href="#auth"]').forEach(a => { a.href = '/dashboard'; });
