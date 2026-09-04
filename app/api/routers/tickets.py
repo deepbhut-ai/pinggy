@@ -13,6 +13,7 @@ router = APIRouter(prefix="/tickets", tags=["tickets"])
 class TicketIn(BaseModel):
     subject: str = Field(max_length=200)
     message: str = Field(min_length=1)
+    email: str | None = None
 
 
 def _ticket(r) -> dict:
@@ -21,7 +22,28 @@ def _ticket(r) -> dict:
             "updated_at": r[5].isoformat() if r[5] else None}
 
 
-# ---------------------------------------------------------------- user
+# ---------------------------------------------------------------- public & user
+@router.post("/public", status_code=status.HTTP_201_CREATED)
+async def create_public_ticket(
+    body: TicketIn,
+    db: AsyncConnection = Depends(get_db),
+):
+    sender_email = (body.email or "").strip().lower() or "guest@iraglobaltech.com"
+    cur = await db.execute(
+        "INSERT INTO tickets (user_email, subject) VALUES (%s, %s) RETURNING id, user_email, subject, status, created_at, updated_at",
+        (sender_email, body.subject),
+    )
+    t = await cur.fetchone()
+    await cur.close()
+    cur = await db.execute(
+        "INSERT INTO ticket_messages (ticket_id, sender_email, is_staff, body) VALUES (%s, %s, FALSE, %s)",
+        (t[0], sender_email, body.message),
+    )
+    await cur.close()
+    await log_audit(db, sender_email, "ticket.public_create", body.subject[:80], f"ticket {t[0]}")
+    return _ticket(t)
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_ticket(
     body: TicketIn,

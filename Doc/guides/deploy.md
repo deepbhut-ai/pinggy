@@ -2,6 +2,25 @@
 
 Target: Ubuntu server (13.140.131.204), Postgres + Redis on host, nginx in front.
 
+## Automated update
+
+For an existing installation, commit the intended code changes and run:
+
+```bash
+./scripts/deploy.sh
+```
+
+The script requires a clean working tree. It pushes `main`, fast-forwards the
+server checkout in `/opt/pinggy`, installs dependencies, builds the frontend,
+restarts `pinggy`, reloads nginx after validating its configuration, and checks
+`http://127.0.0.1:8000/health`. It never copies local `.env` files.
+
+Connection settings can be overridden without editing the script:
+
+```bash
+DEPLOY_HOST=example.com DEPLOY_USER=root SSH_IDENTITY=/path/to/key ./scripts/deploy.sh
+```
+
 ## What ships (v1.3.0 → v1.14.0)
 Branding, teams + role control, tickets, 2FA email OTP, API keys (caps + expiry),
 unified Domains page, multi-port tunnels, WebSocket tunnels, DDoS/API rate-limit

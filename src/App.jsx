@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
+import PublicHelpCenter from './pages/PublicHelpCenter';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 import DashboardOverview from './pages/dashboard/DashboardOverview';
 import Quickstart from './pages/dashboard/Quickstart';
@@ -31,6 +32,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/help-center" element={<PublicHelpCenter />} />
+      <Route path="/support" element={<PublicHelpCenter />} />
       <Route
         path="/dashboard"
         element={

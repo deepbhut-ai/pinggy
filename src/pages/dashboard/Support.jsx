@@ -39,30 +39,34 @@ export default function Support() {
 
   const create = async (e) => {
     e.preventDefault();
-    if (!subject.trim() || !message.trim()) return toast('Please fill in subject and message', 'error');
+    if (!email.trim() || !message.trim()) return toast('Please fill in your email and message', 'error');
 
     setSubmitting(true);
     try {
-      // Build a detailed ticket body incorporating the form fields
       const details = [];
       if (firstName.trim() || lastName.trim()) details.push(`Name: ${firstName.trim()} ${lastName.trim()}`.trim());
       if (email.trim()) details.push(`Email: ${email.trim()}`);
-      if (contactNumber.trim()) details.push(`Contact / Subdomain: ${contactNumber.trim()}`);
+      if (contactNumber.trim()) details.push(`Contact: ${contactNumber.trim()}`);
 
       const fullMessage = details.length > 0
         ? `${details.join(' | ')}\n\n${message.trim()}`
         : message.trim();
 
-      const t = await api('/tickets', 'POST', JSON.stringify({
-        subject: subject.trim(),
+      const finalSubject = subject.trim() || `Help Request from ${firstName.trim() || email.trim()}`;
+
+      const endpoint = user ? '/tickets' : '/tickets/public';
+      const t = await api(endpoint, 'POST', JSON.stringify({
+        subject: finalSubject,
         message: fullMessage,
+        email: email.trim(),
       }));
       toast('Request submitted successfully! Our team will contact you shortly.');
-      setSubject('');
       setMessage('');
       setContactNumber('');
-      load();
-      openTicketModal(t.id);
+      if (user) {
+        load();
+        if (t?.id) openTicketModal(t.id);
+      }
     } catch (e2) {
       toast(e2.message, 'error');
     } finally {
@@ -171,52 +175,43 @@ export default function Support() {
               <label>First Name</label>
               <input
                 type="text"
+                required
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                placeholder="e.g. John"
+                placeholder="First name"
               />
             </div>
             <div className="form-group">
               <label>Last Name</label>
               <input
                 type="text"
+                required
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                placeholder="e.g. Doe"
-              />
-            </div>
-          </div>
-
-          <div className="help-form-row">
-            <div className="form-group">
-              <label>Email Address</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="john@example.com"
-              />
-            </div>
-            <div className="form-group">
-              <label>Contact Number / Subdomain</label>
-              <input
-                type="text"
-                value={contactNumber}
-                onChange={(e) => setContactNumber(e.target.value)}
-                placeholder="+1 234 567 8900 or myapp.iraglobaltech.com"
+                placeholder="Last name"
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label>Subject</label>
+            <label>Email</label>
             <input
-              type="text"
+              type="email"
               required
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. TCP tunnel connection drop or domain configuration"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@company.com"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Contact Number</label>
+            <input
+              type="tel"
+              required
+              value={contactNumber}
+              onChange={(e) => setContactNumber(e.target.value)}
+              placeholder="+1 234 567 8900"
             />
           </div>
 
@@ -227,7 +222,7 @@ export default function Support() {
               rows={5}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Describe your issue or question in detail..."
+              placeholder="How can we help you?"
             />
           </div>
 
