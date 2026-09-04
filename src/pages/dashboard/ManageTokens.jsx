@@ -48,15 +48,12 @@ export default function ManageTokens() {
     if (sub && !/^[a-z0-9]+$/.test(sub)) {
       return toast('Subdomain can only contain letters and numbers', 'error');
     }
-    if (d && !sub) {
-      return toast('Enter a subdomain name for the selected domain', 'error');
-    }
     try {
       const payload = { name };
-      if (d && sub) payload.custom_domain = `${sub}.${d}`;
+      if (d) payload.custom_domain = sub ? `${sub}.${d}` : d;
       else if (sub) payload.fixed_subdomain = sub;
       const result = await api('/tokens', 'POST', payload);
-      const address = d && sub ? `${sub}.${d}` : (sub ? `${sub}.iraglobaltech.com` : '');
+      const address = d ? (sub ? `${sub}.${d}` : d) : (sub ? `${sub}.iraglobaltech.com` : '');
       toast('Token created: ' + result.token + (address ? ` · address: ${address}` : ''));
       setCreateOpen(false);
       load();
@@ -314,7 +311,7 @@ export default function ManageTokens() {
             )}
           </div>
           <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>
-            Select one of your domains and enter a subdomain name, or leave Domain empty to use iraglobaltech.com.
+            A subdomain is optional. Select a domain by itself, add a subdomain before it, or leave Domain empty to use iraglobaltech.com.
           </p>
         </Modal>
       )}
