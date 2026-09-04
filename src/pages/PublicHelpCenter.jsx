@@ -16,27 +16,36 @@ export default function PublicHelpCenter() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email.trim() || !message.trim()) {
-      return toast('Please provide your email and message', 'error');
-    }
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanContact = contactNumber.trim();
+    const cleanMessage = message.trim();
+    const namePattern = /^[\p{L}][\p{L}\p{M} .'-]{1,49}$/u;
+    const phonePattern = /^\+?[0-9][0-9 ()-]{6,19}$/;
+
+    if (!namePattern.test(cleanFirstName)) return toast('Enter a valid first name (2–50 characters)', 'error');
+    if (!namePattern.test(cleanLastName)) return toast('Enter a valid last name (2–50 characters)', 'error');
+    if (!e.currentTarget.elements.email.checkValidity()) return toast('Enter a valid email address', 'error');
+    if (!phonePattern.test(cleanContact)) return toast('Enter a valid contact number (7–20 digits/characters)', 'error');
+    if (cleanMessage.length < 10) return toast('Message must be at least 10 characters', 'error');
+    if (cleanMessage.length > 2000) return toast('Message cannot exceed 2,000 characters', 'error');
 
     setSubmitting(true);
     try {
       const details = [];
-      if (firstName.trim() || lastName.trim()) details.push(`Name: ${firstName.trim()} ${lastName.trim()}`.trim());
-      if (email.trim()) details.push(`Email: ${email.trim()}`);
-      if (contactNumber.trim()) details.push(`Contact: ${contactNumber.trim()}`);
+      details.push(`Name: ${cleanFirstName} ${cleanLastName}`);
+      details.push(`Email: ${cleanEmail}`);
+      details.push(`Contact: ${cleanContact}`);
 
-      const fullMessage = details.length > 0
-        ? `${details.join(' | ')}\n\n${message.trim()}`
-        : message.trim();
+      const fullMessage = `${details.join(' | ')}\n\n${cleanMessage}`;
 
-      const finalSubject = `Help Request from ${firstName.trim() || email.trim()}`;
+      const finalSubject = `Help Request from ${cleanFirstName}`;
 
       await api('/tickets/public', 'POST', JSON.stringify({
         subject: finalSubject,
         message: fullMessage,
-        email: email.trim(),
+        email: cleanEmail,
       }));
 
       toast('🎉 Your request has been submitted! Our support team will reach out shortly.');
@@ -138,6 +147,9 @@ export default function PublicHelpCenter() {
                 <input
                   type="text"
                   required
+                  minLength={2}
+                  maxLength={50}
+                  autoComplete="given-name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                 />
@@ -147,6 +159,9 @@ export default function PublicHelpCenter() {
                 <input
                   type="text"
                   required
+                  minLength={2}
+                  maxLength={50}
+                  autoComplete="family-name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                 />
@@ -157,7 +172,10 @@ export default function PublicHelpCenter() {
               <label>Email</label>
               <input
                 type="email"
+                name="email"
                 required
+                maxLength={254}
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -168,6 +186,10 @@ export default function PublicHelpCenter() {
               <input
                 type="tel"
                 required
+                minLength={7}
+                maxLength={20}
+                autoComplete="tel"
+                inputMode="tel"
                 value={contactNumber}
                 onChange={(e) => setContactNumber(e.target.value)}
               />
@@ -177,9 +199,13 @@ export default function PublicHelpCenter() {
               <label>Message</label>
               <textarea
                 required
+                minLength={10}
+                maxLength={2000}
+                rows={6}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
               />
+              <div className="form-hint">{message.length}/2000 characters · minimum 10</div>
             </div>
 
             <button type="submit" className="btn-submit" disabled={submitting}>

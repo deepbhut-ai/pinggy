@@ -1,7 +1,7 @@
 """Support tickets router (v1.4.0) — user submits/tracks, admin replies/closes."""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from psycopg import AsyncConnection
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from app.core.audit import log_audit
 from app.core.db import get_db
@@ -16,6 +16,12 @@ class TicketIn(BaseModel):
     email: str | None = None
 
 
+class PublicTicketIn(BaseModel):
+    subject: str = Field(min_length=3, max_length=200)
+    message: str = Field(min_length=10, max_length=5000)
+    email: EmailStr
+
+
 def _ticket(r) -> dict:
     return {"id": str(r[0]), "user_email": r[1], "subject": r[2], "status": r[3],
             "created_at": r[4].isoformat() if r[4] else None,
@@ -25,10 +31,10 @@ def _ticket(r) -> dict:
 # ---------------------------------------------------------------- public & user
 @router.post("/public", status_code=status.HTTP_201_CREATED)
 async def create_public_ticket(
-    body: TicketIn,
+    body: PublicTicketIn,
     db: AsyncConnection = Depends(get_db),
 ):
-    sender_email = (body.email or "").strip().lower() or "guest@iraglobaltech.com"
+    sender_email = str(body.email).strip().lower()
     cur = await db.execute(
         "INSERT INTO tickets (user_email, subject) VALUES (%s, %s) RETURNING id, user_email, subject, status, created_at, updated_at",
         (sender_email, body.subject),
