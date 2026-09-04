@@ -78,23 +78,19 @@ export default function PublicHelpCenter() {
       {/* ─── PUBLIC NAVBAR ─── */}
       <nav className="public-nav">
         <div className="public-nav-brand">
-          <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <a href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '1.4rem' }}>⚡</span>
             <span style={{ fontWeight: 900, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>IRAGT</span>
-          </Link>
+          </a>
         </div>
 
         <ul className="public-nav-links">
-          <li><Link to="/#features">Features</Link></li>
-          <li><Link to="/#solutions">Solutions</Link></li>
-          <li><Link to="/dashboard/quickstart">How It Works</Link></li>
-          <li><Link to="/dashboard/apidocs">Docs</Link></li>
-          <li><Link to="/help-center" style={{ color: '#aaff00', fontWeight: 700 }}>Help Center</Link></li>
+          <li><a href="/#features">Features</a></li>
+          <li><a href="/#how">How It Works</a></li>
         </ul>
 
         <div className="public-nav-actions">
-          <Link to="/login" className="btn-public-login">Log in</Link>
-          <Link to="/login" className="btn-public-try">Try Free Today →</Link>
+          <Link to="/login" className="btn">Get Started</Link>
         </div>
 
         <button
@@ -112,15 +108,11 @@ export default function PublicHelpCenter() {
       {mobileMenuOpen && (
         <div className="public-mobile-drawer">
           <ul className="public-mobile-links">
-            <li><Link to="/#features" onClick={() => setMobileMenuOpen(false)}>Features</Link></li>
-            <li><Link to="/#solutions" onClick={() => setMobileMenuOpen(false)}>Solutions</Link></li>
-            <li><Link to="/dashboard/quickstart" onClick={() => setMobileMenuOpen(false)}>How It Works</Link></li>
-            <li><Link to="/dashboard/apidocs" onClick={() => setMobileMenuOpen(false)}>Docs</Link></li>
-            <li><Link to="/help-center" onClick={() => setMobileMenuOpen(false)}>Help Center</Link></li>
+            <li><a href="/#features" onClick={() => setMobileMenuOpen(false)}>Features</a></li>
+            <li><a href="/#how" onClick={() => setMobileMenuOpen(false)}>How It Works</a></li>
           </ul>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem', marginTop: '1.5rem' }}>
-            <Link to="/login" className="btn-public-login" style={{ textAlign: 'center' }}>Log in</Link>
-            <Link to="/login" className="btn-public-try" style={{ textAlign: 'center' }}>Try Free Today →</Link>
+            <Link to="/login" className="btn" style={{ textAlign: 'center' }}>Get Started</Link>
           </div>
         </div>
       )}
