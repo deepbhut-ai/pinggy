@@ -138,30 +138,6 @@ export default function Support() {
         </p>
       </div>
 
-      {/* ─── QUICK RESOURCE CARDS ─── */}
-      <div className="help-resource-grid">
-        <Link to="/dashboard/quickstart" className="help-resource-card">
-          <div className="help-resource-icon">⚡</div>
-          <div className="help-resource-title">Quickstart Guide</div>
-          <div className="help-resource-desc">Get started in seconds with ready-to-run SSH and Docker commands.</div>
-        </Link>
-        <Link to="/dashboard/apidocs" className="help-resource-card">
-          <div className="help-resource-icon">📖</div>
-          <div className="help-resource-title">API & Docs</div>
-          <div className="help-resource-desc">Explore REST API endpoints, token schemas, and developer docs.</div>
-        </Link>
-        <Link to="/dashboard/domains" className="help-resource-card">
-          <div className="help-resource-icon">🌐</div>
-          <div className="help-resource-title">Custom Domains</div>
-          <div className="help-resource-desc">Setup DNS A records, Cloudflare SSL proxy, and manage domain routes.</div>
-        </Link>
-        <div className="help-resource-card" style={{ cursor: 'default' }}>
-          <div className="help-resource-icon">🟢</div>
-          <div className="help-resource-title">System Status</div>
-          <div className="help-resource-desc">All SSH edge servers and proxy listeners are operational.</div>
-        </div>
-      </div>
-
       {/* ─── SUBMIT REQUEST FORM (CALLINGAGENTS STYLE) ─── */}
       <div className="help-form-card">
         <div className="help-card-header">
