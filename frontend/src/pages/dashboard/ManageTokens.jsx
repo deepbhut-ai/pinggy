@@ -340,13 +340,11 @@ export default function ManageTokens() {
             <>
               {/* Subdomain */}
               <div className="form-group">
-                <label>{`Subdomain under ${createDomain}`}</label>
-                <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. api" />
-                {createSub.trim() && (
-                  <div className="inline-note" style={{ marginTop: '.35rem', padding: '.4rem .6rem', fontSize: '.78rem' }}>
-                    <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.{createDomain}</span></span>
-                  </div>
-                )}
+                <label>Subdomain</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.35rem' }}>
+                  <span className="code" style={{ whiteSpace: 'nowrap', color: 'var(--brand)', fontWeight: 600 }}>{createDomain}.</span>
+                  <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. api" />
+                </div>
               </div>
               <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Set the subdomain label for the selected domain.</p>
             </>
