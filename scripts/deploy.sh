@@ -81,7 +81,7 @@ command -v npm >/dev/null || {
   exit 1
 }
 
-npm ci
+npm ci --no-audit --no-fund
 npm run build
 
 systemctl restart pinggy
