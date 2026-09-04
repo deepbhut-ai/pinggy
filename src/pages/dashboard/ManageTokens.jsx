@@ -201,24 +201,14 @@ export default function ManageTokens() {
             <table>
               <thead>
                 <tr>
-                  <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Type</th>
-                  <th>Security</th><th>Custom Domain</th><th>Requests</th><th>Data</th>
+                  <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Requests</th><th>Data</th>
                   <th>Active</th><th>Created</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {tokens.map((t, i) => {
-                  const sec = t.security || {};
+                {tokens.map((t) => {
                   const teamRole = String(t.via_team?.my_role || '').toLowerCase();
                   const canDelete = !t.via_team || ['owner', 'admin', 'team_owner', 'team_admin'].includes(teamRole);
-                  const badges = [];
-                  if (sec.basic_auth_user) badges.push(<span key="a" className="badge" title="Basic auth enabled">🔐</span>);
-                  if (sec.ip_whitelist) badges.push(<span key="b" className="badge" title={'IP whitelist: ' + sec.ip_whitelist}>🌐</span>);
-                  if (sec.bearer_key) badges.push(<span key="c" className="badge" title="API key required">🔑</span>);
-                  if (sec.https_only) badges.push(<span key="d" className="badge" title="HTTPS only">🔒</span>);
-                  const typeBadge = t.tunnel_mode === 'tcp'
-                    ? <span className="badge badge-blue" title={'TCP tunnel on port ' + (t.tcp_port || '?')}>TCP{t.tcp_port ? ':' + t.tcp_port : ''}</span>
-                    : <span className="badge" title="HTTP tunnel">HTTP</span>;
                   const teamBadge = t.via_team
                     ? <span className="badge badge-blue" title={`Shared via team '${t.via_team.team_name}' (my role: ${t.via_team.my_role || 'member'})`}>👥 {t.via_team.team_name}</span>
                     : (t.team_id ? <span className="badge" title="Shared with a team">👥</span> : null);
@@ -242,9 +232,6 @@ export default function ManageTokens() {
                       </td>
                       <td>{t.name || '—'} {teamBadge}</td>
                       <td className="code">{t.subdomain}{t.fixed_subdomain ? ' 📌' : ''}</td>
-                      <td>{typeBadge}</td>
-                      <td>{badges.length ? badges : <span className="dim">—</span>}</td>
-                      <td>{t.custom_domain ? <span className="badge badge-blue">{t.custom_domain}</span> : <span className="dim">—</span>}</td>
                       <td>{t.total_requests || 0}</td>
                       <td>{formatBytes(t.total_bytes || 0)}</td>
                       <td><span className={`badge ${t.active_tunnels > 0 ? 'badge-green' : ''}`}>{t.active_tunnels || 0}</span></td>
