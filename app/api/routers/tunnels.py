@@ -31,9 +31,34 @@ async def tunnel_qr(
 
 
 @router.get("/info")
-async def tunnel_info(user: dict = Depends(get_current_user)):
+async def tunnel_info(
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
     """Return SSH connection instructions for the current user.
     Available to any logged-in user (not just admin)."""
+    # Seat usage: only domain tokens count against seats
+    seats = int(user.get("seats") or 1)
+    plan = user.get("plan") or "free"
+    cur = await db.execute(
+        "SELECT COUNT(*) FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL",
+        (user["email"],),
+    )
+    domain_tokens_used = int((await cur.fetchone())[0])
+    await cur.close()
+    # Subdomain tokens in use = tokens with a fixed_subdomain set (no custom domain)
+    cur = await db.execute(
+        "SELECT COUNT(*) FROM tokens WHERE user_email = %s AND custom_domain IS NULL AND fixed_subdomain IS NOT NULL",
+        (user["email"],),
+    )
+    subdomain_tokens_used = int((await cur.fetchone())[0])
+    await cur.close()
+    cur = await db.execute(
+        "SELECT COUNT(*) FROM tokens WHERE user_email = %s",
+        (user["email"],),
+    )
+    total_tokens = int((await cur.fetchone())[0])
+    await cur.close()
     return {
         "domain": settings.TUNNEL_DOMAIN,
         "ssh_port": settings.SSH_PORT,
@@ -42,6 +67,11 @@ async def tunnel_info(user: dict = Depends(get_current_user)):
         "url_format": f"https://[your-code].{settings.TUNNEL_DOMAIN}",
         "url_example": f"https://abc123.{settings.TUNNEL_DOMAIN}",
         "custom_domain": user.get("custom_domain"),
+        "seats": seats,
+        "plan": plan,
+        "domain_tokens_used": domain_tokens_used,
+        "subdomain_tokens_used": subdomain_tokens_used,
+        "total_tokens": total_tokens,
         "instructions": [
             f"1. Start your local service (e.g., on port 8080)",
             f"2. Run: ssh -p {settings.SSH_PORT} -R0:localhost:8080 {settings.TUNNEL_DOMAIN}",

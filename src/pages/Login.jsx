@@ -25,17 +25,6 @@ export default function Login() {
 
   const dest = (user) => (user.role === 'admin' ? '/admin' : '/dashboard');
 
-  // Admin pages are server-rendered by FastAPI (/admin is NOT a SPA route),
-  // so we must do a full page reload for admin.  Regular users go to /dashboard
-  // which is a SPA route and can use client-side navigation.
-  const goToDest = (user) => {
-    if (user.role === 'admin') {
-      window.location.href = '/admin';
-    } else {
-      navigate('/dashboard', { replace: true });
-    }
-  };
-
   // ---- Login (with 2FA step) ----
   const handleLogin = async (e) => {
     e?.preventDefault();
@@ -46,7 +35,7 @@ export default function Login() {
       setBusy(true);
       try {
         const data = await verifyOtp(otpChallenge, otpCode);
-        goToDest(data.user);
+        navigate(dest(data.user), { replace: true });
       } catch (err) {
         setError(err.message);
       } finally {
@@ -62,7 +51,7 @@ export default function Login() {
         setSuccess('We sent a 6-digit code to your email (expires in 5 min).');
         return;
       }
-      goToDest(data.user);
+      navigate(dest(data.user), { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

@@ -154,6 +154,17 @@ async def update_user(
     if seats and seats > 0:
         updates.append("seats = %s")
         params.append(seats)
+        # Auto-upgrade/downgrade plan based on seat count (unless plan was
+        # explicitly set above).  2+ seats → Pro (30-day expiry), 1 seat → Free.
+        if not plan:
+            if seats >= 2:
+                updates.append("plan = 'pro'")
+                updates.append(
+                    "plan_expires_at = GREATEST(COALESCE(plan_expires_at, now()), now()) + make_interval(days => 30)"
+                )
+            elif seats == 1:
+                updates.append("plan = 'free'")
+                updates.append("plan_expires_at = NULL")
     if is_active is not None:
         updates.append("is_active = %s")
         params.append(is_active)

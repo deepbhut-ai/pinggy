@@ -1,0 +1,28 @@
+                                     Table "public.users"
+     Column      |           Type           | Collation | Nullable |          Default          
+-----------------+--------------------------+-----------+----------+---------------------------
+ id              | uuid                     |           | not null | gen_random_uuid()
+ email           | character varying(255)   |           | not null | 
+ password_hash   | text                     |           | not null | 
+ full_name       | character varying(120)   |           |          | 
+ created_at      | timestamp with time zone |           | not null | now()
+ updated_at      | timestamp with time zone |           | not null | now()
+ role            | character varying(20)    |           | not null | 'user'::character varying
+ tunnel_token    | character varying(64)    |           | not null | 
+ custom_domain   | character varying(255)   |           |          | 
+ plan            | character varying(20)    |           | not null | 'free'::character varying
+ plan_expires_at | timestamp with time zone |           |          | 
+ seats           | integer                  |           | not null | 1
+ is_active       | boolean                  |           | not null | true
+ twofa_enabled   | boolean                  |           | not null | false
+Indexes:
+    "users_pkey" PRIMARY KEY, btree (id)
+    "idx_users_email" btree (email)
+    "idx_users_role" btree (role)
+    "idx_users_tunnel_token" btree (tunnel_token)
+    "users_custom_domain_key" UNIQUE CONSTRAINT, btree (custom_domain)
+    "users_email_key" UNIQUE CONSTRAINT, btree (email)
+    "users_tunnel_token_key" UNIQUE CONSTRAINT, btree (tunnel_token)
+Referenced by:
+    TABLE "tokens" CONSTRAINT "tokens_user_email_fkey" FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
+

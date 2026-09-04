@@ -74,7 +74,8 @@ async def register(
 async def login(payload: UserLogin, db: AsyncConnection = Depends(get_db)):
     cur = await db.execute(
         "SELECT id, email, password_hash, full_name, role, tunnel_token, is_active, "
-        "COALESCE(twofa_enabled, FALSE) FROM users WHERE email = %s",
+        "COALESCE(twofa_enabled, FALSE), custom_domain, plan, seats, plan_expires_at "
+        "FROM users WHERE email = %s",
         (payload.email,),
     )
     row = await cur.fetchone()
@@ -114,7 +115,9 @@ async def login(payload: UserLogin, db: AsyncConnection = Depends(get_db)):
         await log_audit(db, row[1], "auth.otp_challenge", row[1], "2FA code sent")
         return {"otp_required": True, "challenge": challenge}
 
-    user = UserOut(id=str(row[0]), email=row[1], full_name=row[3], role=row[4], tunnel_token=row[5], is_active=row[6])
+    user = UserOut(id=str(row[0]), email=row[1], full_name=row[3], role=row[4], tunnel_token=row[5], is_active=row[6],
+                   custom_domain=row[8], plan=row[9] or "free", seats=int(row[10] or 1),
+                   plan_expires_at=row[11].isoformat() if row[11] else None)
     token = create_access_token(subject=user.id, extra={"email": user.email, "role": user.role})
     from app.core.audit import log_audit
     await log_audit(db, user.email, "auth.login", user.email, "password login")

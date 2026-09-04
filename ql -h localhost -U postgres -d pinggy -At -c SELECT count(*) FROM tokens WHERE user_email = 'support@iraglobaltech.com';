@@ -1,0 +1,22 @@
+-[ RECORD 1 ]-+-------------------------------------
+id            | ed4f374e-9450-4f39-9a86-ef82a301207f
+user_email    | support@iraglobaltech.com
+token         | d0032765d83e7b51
+name          | My token
+custom_domain | aiagentsz.in
+created_at    | 2026-09-03 10:34:57.588636+00
+-[ RECORD 2 ]-+-------------------------------------
+id            | 722c2ae5-48ae-4430-b138-a0a7dc562388
+user_email    | support@iraglobaltech.com
+token         | 4d25017d628c58d8
+name          | Token 2
+custom_domain | 
+created_at    | 2026-09-03 13:24:53.479345+00
+-[ RECORD 3 ]-+-------------------------------------
+id            | 9df0e68e-f171-4dab-9152-1e7f5f3b4556
+user_email    | support@iraglobaltech.com
+token         | 5f6a4f274d0a5372
+name          | new
+custom_domain | 
+created_at    | 2026-09-03 13:57:03.007687+00
+

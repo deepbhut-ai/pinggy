@@ -145,7 +145,6 @@ def _ensure_default_admin() -> None:
                     """,
                     ("support@callingagents.in", hashed, "Calling Agents Admin", "admin", tunnel_token),
                 )
-<<<<<<< HEAD
                 # Also register the token in the multi-token table. Migration 0006's
                 # backfill runs BEFORE this seed (during _run_migrations), so it never
                 # sees the freshly seeded admin — insert here to keep both in sync.

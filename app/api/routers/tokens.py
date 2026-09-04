@@ -216,25 +216,29 @@ async def create_token(
     db: AsyncConnection = Depends(get_db),
 ):
     """Create a new token for the current user.
-    Token limit = seats (Free = 1, Pro = seats purchased)."""
-    # Token limit = user's seat count (Free defaults to 1)
-    max_tokens = int(user.get("seats") or 1)
-    cur = await db.execute(
-        "SELECT COUNT(*) FROM tokens WHERE user_email = %s", (user["email"],)
-    )
-    row = await cur.fetchone()
-    await cur.close()
-    if row[0] >= max_tokens:
-        if (user.get("plan") or "free") == "free":
+    Domain-token limit = seats (Free = 1, Pro = seats purchased).
+    Subdomain-only tokens (no custom_domain) are unlimited for Pro users."""
+    has_domain = bool(body.custom_domain and body.custom_domain.strip())
+    if has_domain:
+        # Only tokens WITH a custom_domain count against the seat limit
+        max_tokens = int(user.get("seats") or 1)
+        cur = await db.execute(
+            "SELECT COUNT(*) FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL",
+            (user["email"],),
+        )
+        row = await cur.fetchone()
+        await cur.close()
+        if row[0] >= max_tokens:
+            if (user.get("plan") or "free") == "free":
+                raise HTTPException(
+                    status.HTTP_402_PAYMENT_REQUIRED,
+                    f"Free plan allows only 1 custom-domain token. Upgrade to Pro for more.",
+                )
             raise HTTPException(
                 status.HTTP_402_PAYMENT_REQUIRED,
-                f"Free plan allows only 1 tunnel token. Upgrade to Pro to create more.",
+                f"You've reached your limit of {max_tokens} domain tokens (seats). "
+                "Buy more seats under Plan → Upgrade to create additional domain tokens.",
             )
-        raise HTTPException(
-            status.HTTP_402_PAYMENT_REQUIRED,
-            f"You've reached your limit of {max_tokens} tokens (seats). "
-            "Buy more seats under Plan → Upgrade to create additional tokens.",
-        )
 
     # Validate custom_domain uniqueness if provided
     custom_domain = None
