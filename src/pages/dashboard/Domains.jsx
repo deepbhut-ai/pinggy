@@ -10,7 +10,6 @@ export default function Domains() {
   const [addDom, setAddDom] = useState('');
   const [addTok, setAddTok] = useState('');
   const [addType, setAddType] = useState('extra');
-  const [subModal, setSubModal] = useState(null); // { tokenId, current }
   const [removeModal, setRemoveModal] = useState(null); // domain
 
   const load = useCallback(() => api('/tokens').then(setTokens).catch(() => {}), []);
@@ -21,7 +20,6 @@ export default function Domains() {
   }, [tokens, addTok]);
 
   const myOwn = tokens.filter((t) => !t.via_team || t.via_team.owner);
-  const nSub = myOwn.filter((t) => t.fixed_subdomain).length;
   const nPrim = myOwn.filter((t) => t.custom_domain).length;
   const nExtra = myOwn.reduce((n, t) => n + (t.domains?.length || 0), 0);
 
@@ -36,17 +34,6 @@ export default function Domains() {
         await api(`/tokens/${addTok}/domains`, 'POST', JSON.stringify({ domain }));
         toast(`${domain} attached — point its A record at 13.140.131.204`);
       }
-      load();
-    } catch (e) { toast(e.message, 'error'); }
-  };
-
-  const saveSubdomain = async () => {
-    const sub = subModal.newSub.trim().toLowerCase();
-    if (!sub) return toast('Enter a subdomain', 'error');
-    try {
-      await api(`/tokens/${subModal.tokenId}`, 'PUT', JSON.stringify({ fixed_subdomain: sub }));
-      toast(`Subdomain set: https://${sub}.iraglobaltech.com`);
-      setSubModal(null);
       load();
     } catch (e) { toast(e.message, 'error'); }
   };
@@ -71,7 +58,7 @@ export default function Domains() {
   const tokenCard = (t) => (
     <div className="card" key={t.id} style={{ marginTop: '1rem' }}>
       <div className="card-header">
-        <h2>🔑 {t.name || 'Token'} <span className="code dim" style={{ fontSize: '.75rem' }}>— https://{t.subdomain}.iraglobaltech.com</span>
+        <h2>🔑 {t.name || 'Token'}
           {t.team_id && <span className="badge" title="shared with a team" style={{ marginLeft: '.4rem' }}>👥</span>}
         </h2>
       </div>
@@ -79,20 +66,6 @@ export default function Domains() {
         <table style={{ fontSize: '.85rem' }}>
           <thead><tr><th>Type</th><th>Address</th><th>Note</th><th style={{ width: 130 }}></th></tr></thead>
           <tbody>
-            {/* Subdomain row */}
-            <tr>
-              <td><span className="badge">Subdomain</span></td>
-              <td className="code" style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
-                https://{t.subdomain}.iraglobaltech.com
-                <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${t.subdomain}.iraglobaltech.com`); toast('Copied'); }}>📋</button>
-              </td>
-              <td className="dim" style={{ fontSize: '.78rem' }}>{t.fixed_subdomain ? '📌 fixed — same address every connect' : 'random — new address each connect'}</td>
-              <td>
-                {t.fixed_subdomain
-                  ? <button className="btn btn-sm btn-ghost" onClick={() => setSubModal({ tokenId: t.id, current: t.fixed_subdomain, newSub: t.fixed_subdomain })}>Change</button>
-                  : <button className="btn btn-sm" onClick={() => setSubModal({ tokenId: t.id, current: '', newSub: '' })}>Set fixed</button>}
-              </td>
-            </tr>
             {/* Primary domain row */}
             {t.custom_domain && (
               <tr>
@@ -130,10 +103,6 @@ export default function Domains() {
 
       {/* Stats strip */}
       <div className="card stats-strip">
-        <div><div className="stats-num">{myOwn.length}</div><div className="stats-lbl">tokens</div></div>
-        <div className="stats-sep"></div>
-        <div><div className="stats-num">{nSub}</div><div className="stats-lbl">fixed subdomains</div></div>
-        <div className="stats-sep"></div>
         <div><div className="stats-num">{nPrim}</div><div className="stats-lbl">primary domains</div></div>
         <div className="stats-sep"></div>
         <div><div className="stats-num">{nExtra}</div><div className="stats-lbl">extra domains</div></div>
@@ -178,23 +147,7 @@ export default function Domains() {
         </div>
       </div>
 
-      {myOwn.map(tokenCard)}
-
-      {/* Set/Change subdomain modal */}
-      {subModal && (
-        <Modal
-          title={subModal.current ? 'Change subdomain' : 'Set a fixed subdomain'}
-          confirmLabel="Save"
-          onConfirm={saveSubdomain}
-          onClose={() => setSubModal(null)}
-        >
-          <div className="form-group">
-            <label>Subdomain (3–50 chars: a–z, 0–9, -)</label>
-            <input type="text" value={subModal.newSub} onChange={(e) => setSubModal({ ...subModal, newSub: e.target.value })} placeholder="e.g. my-app" autoFocus />
-          </div>
-          <p className="dim" style={{ fontSize: '.75rem' }}>Your tunnel will be at <span className="code">https://&lt;subdomain&gt;.iraglobaltech.com</span> on every connect.</p>
-        </Modal>
-      )}
+      {myOwn.filter((t) => t.custom_domain || (t.domains || []).length).map(tokenCard)}
 
       {/* Remove primary domain modal */}
       {removeModal && (
