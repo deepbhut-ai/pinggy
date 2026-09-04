@@ -1,35 +1,73 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
+import { useAuth } from '../../context/AuthContext';
+import { Link } from 'react-router-dom';
 
-// Support — tickets with conversation modal, reply, close (like legacy)
 export default function Support() {
   const toast = useToast();
+  const { user } = useAuth();
   const [tickets, setTickets] = useState([]);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [openTicket, setOpenTicket] = useState(null); // full ticket with messages
   const [reply, setReply] = useState('');
+  const [activeFaq, setActiveFaq] = useState(null);
 
   const load = useCallback(() => api('/tickets/my').then(setTickets).catch(() => {}), []);
-  useEffect(() => { load(); }, [load]);
 
-  const badge = (s) => s === 'open'
-    ? <span className="badge badge-red">open</span>
-    : s === 'answered'
-      ? <span className="badge badge-green">answered</span>
-      : <span className="badge">closed</span>;
+  useEffect(() => {
+    load();
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [load, user]);
+
+  const badge = (s) =>
+    s === 'open' ? (
+      <span className="badge badge-red">open</span>
+    ) : s === 'answered' ? (
+      <span className="badge badge-green">answered</span>
+    ) : (
+      <span className="badge">closed</span>
+    );
 
   const create = async (e) => {
     e.preventDefault();
-    if (!subject.trim() || !message.trim()) return toast('Fill in subject and message', 'error');
+    if (!subject.trim() || !message.trim()) return toast('Please fill in subject and message', 'error');
+
+    setSubmitting(true);
     try {
-      const t = await api('/tickets', 'POST', JSON.stringify({ subject: subject.trim(), message: message.trim() }));
-      toast('Ticket submitted — we\u2019ll reply soon');
-      setSubject(''); setMessage('');
+      // Build a detailed ticket body incorporating the form fields
+      const details = [];
+      if (firstName.trim() || lastName.trim()) details.push(`Name: ${firstName.trim()} ${lastName.trim()}`.trim());
+      if (email.trim()) details.push(`Email: ${email.trim()}`);
+      if (contactNumber.trim()) details.push(`Contact / Subdomain: ${contactNumber.trim()}`);
+
+      const fullMessage = details.length > 0
+        ? `${details.join(' | ')}\n\n${message.trim()}`
+        : message.trim();
+
+      const t = await api('/tickets', 'POST', JSON.stringify({
+        subject: subject.trim(),
+        message: fullMessage,
+      }));
+      toast('Request submitted successfully! Our team will contact you shortly.');
+      setSubject('');
+      setMessage('');
+      setContactNumber('');
       load();
       openTicketModal(t.id);
-    } catch (e2) { toast(e2.message, 'error'); }
+    } catch (e2) {
+      toast(e2.message, 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const openTicketModal = async (id) => {
@@ -37,7 +75,9 @@ export default function Support() {
       const t = await api(`/tickets/${id}`);
       setOpenTicket(t);
       setReply('');
-    } catch (e) { toast(e.message, 'error'); }
+    } catch (e) {
+      toast(e.message, 'error');
+    }
   };
 
   const sendReply = async () => {
@@ -47,7 +87,9 @@ export default function Support() {
       toast('Reply sent');
       openTicketModal(openTicket.id);
       load();
-    } catch (e) { toast(e.message, 'error'); }
+    } catch (e) {
+      toast(e.message, 'error');
+    }
   };
 
   const close = async (id, fromModal = false) => {
@@ -56,47 +98,183 @@ export default function Support() {
       toast('Ticket closed');
       if (fromModal) setOpenTicket(null);
       load();
-    } catch (e) { toast(e.message, 'error'); }
+    } catch (e) {
+      toast(e.message, 'error');
+    }
   };
 
-  return (
-    <>
-      <h2 style={{ marginBottom: '1rem' }}>Support</h2>
-      <p className="dim" style={{ marginBottom: '1.5rem', fontSize: '.9rem' }}>Stuck? Open a ticket — our team replies right here in your dashboard</p>
+  const faqs = [
+    {
+      q: 'How do I start an SSH tunnel?',
+      a: 'Run `ssh -p 2222 -R0:localhost:8080 <YOUR_TOKEN>@ssh.iraglobaltech.com` in your terminal. Your public URL will be printed immediately.',
+    },
+    {
+      q: 'What is the difference between Subdomain and Domain?',
+      a: 'A Subdomain provides a fast *.iraglobaltech.com URL (e.g. myapp.iraglobaltech.com). A Custom Domain allows pointing your own domain (e.g. api.yourcompany.com) via DNS A record.',
+    },
+    {
+      q: 'How do I connect multiple local ports on one tunnel?',
+      a: 'Use multi-port syntax in your SSH username: `TOKEN--3000,8000,5173`. Each remote listener maps in order to your token\'s addresses.',
+    },
+    {
+      q: 'How does Token Security work?',
+      a: 'You can enforce Basic Auth (username:password), IP Whitelisting, Bearer API keys, or HTTPS-only mode directly in Manage Tokens → Edit.',
+    },
+  ];
 
-      <form className="card" onSubmit={create}>
-        <div className="card-header"><h2>Open a Ticket</h2></div>
-        <div className="card-body">
+  return (
+    <div className="help-center-page">
+      {/* ─── HERO SECTION ─── */}
+      <div className="help-hero-banner">
+        <h1 className="help-hero-title">
+          HELP <span className="help-hero-outline">CENTER</span> <span className="help-hero-accent">SUPPORT</span>
+        </h1>
+        <p className="help-hero-sub">
+          Need help? Submit your request below, explore quick resources, or track your active tickets.
+        </p>
+      </div>
+
+      {/* ─── QUICK RESOURCE CARDS ─── */}
+      <div className="help-resource-grid">
+        <Link to="/dashboard/quickstart" className="help-resource-card">
+          <div className="help-resource-icon">⚡</div>
+          <div className="help-resource-title">Quickstart Guide</div>
+          <div className="help-resource-desc">Get started in seconds with ready-to-run SSH and Docker commands.</div>
+        </Link>
+        <Link to="/dashboard/apidocs" className="help-resource-card">
+          <div className="help-resource-icon">📖</div>
+          <div className="help-resource-title">API & Docs</div>
+          <div className="help-resource-desc">Explore REST API endpoints, token schemas, and developer docs.</div>
+        </Link>
+        <Link to="/dashboard/domains" className="help-resource-card">
+          <div className="help-resource-icon">🌐</div>
+          <div className="help-resource-title">Custom Domains</div>
+          <div className="help-resource-desc">Setup DNS A records, Cloudflare SSL proxy, and manage domain routes.</div>
+        </Link>
+        <div className="help-resource-card" style={{ cursor: 'default' }}>
+          <div className="help-resource-icon">🟢</div>
+          <div className="help-resource-title">System Status</div>
+          <div className="help-resource-desc">All SSH edge servers and proxy listeners are operational.</div>
+        </div>
+      </div>
+
+      {/* ─── SUBMIT REQUEST FORM (CALLINGAGENTS STYLE) ─── */}
+      <div className="help-form-card">
+        <div className="help-card-header">
+          <h2>Submit Your Request</h2>
+          <p className="dim">Please provide your details and issue description below.</p>
+        </div>
+
+        <form onSubmit={create}>
+          <div className="help-form-row">
+            <div className="form-group">
+              <label>First Name</label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="e.g. John"
+              />
+            </div>
+            <div className="form-group">
+              <label>Last Name</label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="e.g. Doe"
+              />
+            </div>
+          </div>
+
+          <div className="help-form-row">
+            <div className="form-group">
+              <label>Email Address</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="john@example.com"
+              />
+            </div>
+            <div className="form-group">
+              <label>Contact Number / Subdomain</label>
+              <input
+                type="text"
+                value={contactNumber}
+                onChange={(e) => setContactNumber(e.target.value)}
+                placeholder="+1 234 567 8900 or myapp.iraglobaltech.com"
+              />
+            </div>
+          </div>
+
           <div className="form-group">
             <label>Subject</label>
-            <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. TCP tunnel keeps dropping" />
+            <input
+              type="text"
+              required
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. TCP tunnel connection drop or domain configuration"
+            />
           </div>
-          <div className="form-group" style={{ marginTop: '.8rem' }}>
-            <label>Message</label>
-            <textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Describe the issue — include your subdomain if relevant" />
-          </div>
-          <button type="submit" className="btn btn-sm" style={{ marginTop: '.8rem' }}>Submit ticket</button>
-        </div>
-      </form>
 
-      <div className="card" style={{ marginTop: '1rem' }}>
-        <div className="card-header"><h2>🎫 My Tickets ({tickets.length})</h2></div>
+          <div className="form-group">
+            <label>Message</label>
+            <textarea
+              required
+              rows={5}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Describe your issue or question in detail..."
+            />
+          </div>
+
+          <button type="submit" className="btn-help-submit" disabled={submitting}>
+            {submitting ? 'Submitting…' : 'Submit Request →'}
+          </button>
+        </form>
+      </div>
+
+      {/* ─── MY TICKETS SECTION ─── */}
+      <div className="card" style={{ marginTop: '2rem' }}>
+        <div className="card-header">
+          <div>
+            <div className="section-label">Support History</div>
+            <h2>🎫 My Tickets <span className="token-meta">({tickets.length})</span></h2>
+          </div>
+          <button className="btn btn-sm btn-ghost" onClick={load}>🔄 Refresh</button>
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {tickets.length === 0 ? (
-            <p className="empty">No tickets yet.</p>
+            <p className="empty">No tickets yet. Submit a request above if you need assistance.</p>
           ) : (
             <table style={{ fontSize: '.85rem' }}>
-              <thead><tr><th>Subject</th><th>Status</th><th>Updated</th><th style={{ width: 80 }}></th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  <th>Status</th>
+                  <th>Last Updated</th>
+                  <th style={{ width: 100 }}>Actions</th>
+                </tr>
+              </thead>
               <tbody>
                 {tickets.map((t) => (
                   <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => openTicketModal(t.id)}>
-                    <td>{t.subject}</td>
+                    <td style={{ fontWeight: 600 }}>{t.subject}</td>
                     <td>{badge(t.status)}</td>
                     <td className="dim">{new Date(t.updated_at).toLocaleString()}</td>
                     <td>
-                      {t.status !== 'closed' && (
-                        <button className="btn btn-sm btn-ghost" onClick={(e) => { e.stopPropagation(); close(t.id); }}>Close</button>
-                      )}
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openTicketModal(t.id);
+                        }}
+                      >
+                        View
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -106,7 +284,35 @@ export default function Support() {
         </div>
       </div>
 
-      {/* Conversation modal */}
+      {/* ─── FAQ ACCORDION ─── */}
+      <div className="card" style={{ marginTop: '2rem' }}>
+        <div className="card-header">
+          <h2>❓ Frequently Asked Questions</h2>
+        </div>
+        <div className="card-body">
+          <div className="faq-list">
+            {faqs.map((faq, idx) => (
+              <div
+                key={idx}
+                className={`faq-item ${activeFaq === idx ? 'open' : ''}`}
+                onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+              >
+                <div className="faq-question">
+                  <span>{faq.q}</span>
+                  <span className="faq-arrow">{activeFaq === idx ? '▲' : '▼'}</span>
+                </div>
+                {activeFaq === idx && (
+                  <div className="faq-answer">
+                    <p>{faq.a}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── CONVERSATION MODAL ─── */}
       {openTicket && (
         <div className="modal-overlay" onClick={() => setOpenTicket(null)}>
           <div className="modal-box modal-wide" onClick={(e) => e.stopPropagation()}>
@@ -117,13 +323,14 @@ export default function Support() {
                   <div
                     key={i}
                     style={{
-                      padding: '.6rem .8rem', borderRadius: 'var(--radius)',
-                      background: m.is_staff ? 'rgba(106,166,240,.1)' : 'var(--bg)',
-                      border: '1px solid var(--border)',
+                      padding: '.6rem .8rem',
+                      borderRadius: 'var(--radius)',
+                      background: m.is_staff ? 'rgba(170,255,0,.08)' : 'var(--bg)',
+                      border: m.is_staff ? '1px solid rgba(170,255,0,.25)' : '1px solid var(--border)',
                     }}
                   >
-                    <div className="dim" style={{ fontSize: '.72rem', marginBottom: '.25rem' }}>
-                      {m.is_staff ? '🛟 IRAGT Support' : m.sender} · {m.created_at ? new Date(m.created_at).toLocaleString() : ''}
+                    <div className="dim" style={{ fontSize: '.72rem', marginBottom: '.25rem', color: m.is_staff ? 'var(--green)' : 'var(--text-dim)' }}>
+                      {m.is_staff ? '🛟 Support Team' : m.sender} · {m.created_at ? new Date(m.created_at).toLocaleString() : ''}
                     </div>
                     <div style={{ fontSize: '.85rem', whiteSpace: 'pre-wrap' }}>{m.body}</div>
                   </div>
@@ -131,10 +338,19 @@ export default function Support() {
               </div>
               {openTicket.status !== 'closed' ? (
                 <div style={{ marginTop: '.8rem' }}>
-                  <textarea rows={2} value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Write a reply…" />
+                  <textarea
+                    rows={3}
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    placeholder="Write a reply…"
+                  />
                   <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'flex-end', marginTop: '.5rem' }}>
-                    <button className="btn btn-sm btn-ghost" onClick={() => close(openTicket.id, true)}>Close ticket</button>
-                    <button className="btn btn-sm" onClick={sendReply}>Send reply</button>
+                    <button className="btn btn-sm btn-ghost" onClick={() => close(openTicket.id, true)}>
+                      Close ticket
+                    </button>
+                    <button className="btn btn-sm" onClick={sendReply}>
+                      Send reply
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -144,6 +360,6 @@ export default function Support() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

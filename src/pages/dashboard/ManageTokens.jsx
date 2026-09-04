@@ -145,13 +145,22 @@ export default function ManageTokens() {
         ...tokens.flatMap((t) => [t.custom_domain, ...(t.domains || [])]),
       ]
         .map((d) => (d ? String(d).trim().toLowerCase() : ''))
-        .filter(Boolean)
+        .filter((d) => {
+          if (!d) return false;
+          if (d.endsWith('iraglobaltech.com') || d === 'iraglobaltech.com') return false;
+          if (tokens.some((tk) => tk.subdomain === d || tk.fixed_subdomain === d)) return false;
+          return true;
+        })
     )
   );
 
   const availableDomains = [
     ...userDomains,
-    ...(createDomain && !userDomains.includes(createDomain.trim().toLowerCase())
+    ...(createDomain &&
+    !createDomain.trim().toLowerCase().endsWith('iraglobaltech.com') &&
+    createDomain.trim().toLowerCase() !== 'iraglobaltech.com' &&
+    !tokens.some((tk) => tk.subdomain === createDomain.trim().toLowerCase() || tk.fixed_subdomain === createDomain.trim().toLowerCase()) &&
+    !userDomains.includes(createDomain.trim().toLowerCase())
       ? [createDomain.trim().toLowerCase()]
       : []),
   ];
@@ -297,7 +306,8 @@ export default function ManageTokens() {
                 const t = tokens.find((tk) => tk.id === e.target.value);
                 if (t) {
                   setCreateName(t.name || '');
-                  setCreateDomain(t.custom_domain || '');
+                  const cd = t.custom_domain ? String(t.custom_domain).trim().toLowerCase() : '';
+                  setCreateDomain(cd && !cd.endsWith('iraglobaltech.com') ? cd : '');
                   setCreateSub(t.fixed_subdomain || '');
                 }
               }
@@ -339,7 +349,7 @@ export default function ManageTokens() {
           {/* Subdomain */}
           <div className="form-group">
             <label>Subdomain</label>
-            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. xyz.mysite.com" />
+            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. myapp" />
             {createSub.trim() && (
               <div className="inline-note" style={{ marginTop: '.35rem', padding: '.4rem .6rem', fontSize: '.78rem' }}>
                 <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.iraglobaltech.com</span></span>

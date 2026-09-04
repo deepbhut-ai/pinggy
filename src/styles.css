@@ -416,10 +416,42 @@ tr:hover td { background: var(--surface-1); }
 /* ---- Toast fix ---- */
 .toast { display: block; }
 
+/* ---- Help Center & Support (CallingAgents Style) ---- */
+.help-center-page { max-width: 1000px; margin: 0 auto; padding-bottom: 2rem; }
+.help-hero-banner { text-align: center; padding: 2rem 1rem 2.5rem; }
+.help-hero-title { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: .75rem; text-transform: uppercase; }
+.help-hero-outline { -webkit-text-stroke: 1.5px var(--brand); color: transparent; }
+.help-hero-accent { color: #aaff00; }
+.help-hero-sub { color: var(--text-dim); font-size: 1rem; max-width: 620px; margin: 0 auto; line-height: 1.5; }
+
+.help-resource-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.help-resource-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; transition: transform .2s, border-color .2s; text-decoration: none; color: inherit; display: block; }
+.help-resource-card:hover { transform: translateY(-3px); border-color: rgba(170,255,0,0.4); text-decoration: none; }
+.help-resource-icon { font-size: 1.75rem; margin-bottom: .5rem; }
+.help-resource-title { font-weight: 700; font-size: .95rem; color: var(--text); margin-bottom: .25rem; }
+.help-resource-desc { font-size: .8rem; color: var(--text-dim); line-height: 1.4; }
+
+.help-form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+.help-card-header { margin-bottom: 1.5rem; }
+.help-card-header h2 { font-size: 1.35rem; font-weight: 700; margin-bottom: .25rem; }
+.help-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.btn-help-submit { width: 100%; background: #aaff00; color: #000; font-weight: 800; font-size: 1rem; border: none; border-radius: var(--radius); padding: .85rem; cursor: pointer; transition: background .2s, transform .15s; margin-top: .5rem; }
+.btn-help-submit:hover { background: #95e000; transform: translateY(-1px); }
+.btn-help-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+.faq-list { display: flex; flex-direction: column; gap: .6rem; }
+.faq-item { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .85rem 1rem; cursor: pointer; transition: border-color .15s; }
+.faq-item:hover { border-color: var(--brand); }
+.faq-question { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: .9rem; color: var(--text); }
+.faq-arrow { font-size: .75rem; color: var(--text-dim); }
+.faq-answer { margin-top: .6rem; padding-top: .6rem; border-top: 1px solid var(--border); font-size: .85rem; color: var(--text-dim); line-height: 1.5; }
+
 @media (max-width: 768px) {
   .app-nav { display: none; }
   .app-main { padding: 1rem; }
   .tl-title { flex: 0 0 100%; }
   .tl-item { flex-direction: column; }
   .tl-bullet { margin-top: 0; }
+  .help-form-row { grid-template-columns: 1fr; }
+  .help-form-card { padding: 1.25rem; }
 }
