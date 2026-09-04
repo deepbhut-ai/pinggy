@@ -206,6 +206,9 @@ export default function ManageTokens() {
                 {tokens.map((t) => {
                   const teamRole = String(t.via_team?.my_role || '').toLowerCase();
                   const canDelete = !t.via_team || ['owner', 'admin', 'team_owner', 'team_admin'].includes(teamRole);
+                  const displayedSubdomain = t.custom_domain
+                    ? (isRootDomain(t.custom_domain) ? '' : t.custom_domain)
+                    : (t.fixed_subdomain || t.subdomain || '');
                   const teamBadge = t.via_team
                     ? <span className="badge badge-blue" title={`Shared via team '${t.via_team.team_name}' (my role: ${t.via_team.my_role || 'member'})`}>👥 {t.via_team.team_name}</span>
                     : (t.team_id ? <span className="badge" title="Shared with a team">👥</span> : null);
@@ -228,7 +231,10 @@ export default function ManageTokens() {
                         </span>
                       </td>
                       <td>{t.name || '—'} {teamBadge}</td>
-                      <td className="code">{t.subdomain}{t.fixed_subdomain ? ' 📌' : ''}</td>
+                      <td className="code">
+                        {displayedSubdomain || <span className="dim">—</span>}
+                        {displayedSubdomain && t.fixed_subdomain ? ' 📌' : ''}
+                      </td>
                       <td>{t.total_requests || 0}</td>
                       <td>{formatBytes(t.total_bytes || 0)}</td>
                       <td><span className={`badge ${t.active_tunnels > 0 ? 'badge-green' : ''}`}>{t.active_tunnels || 0}</span></td>
