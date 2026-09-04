@@ -13,6 +13,7 @@ export default function ManageTokens() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createDomain, setCreateDomain] = useState('');
+  const [createSub, setCreateSub] = useState('');
   const [editOpen, setEditOpen] = useState(null); // token
   const [editState, setEditState] = useState({});
   const [regenOpen, setRegenOpen] = useState(null);
@@ -40,9 +41,11 @@ export default function ManageTokens() {
     try {
       const payload = { name };
       const d = createDomain.trim().toLowerCase();
-      if (d) payload.custom_domain = d;
+      const sub = createSub.trim().toLowerCase();
+      if (d) payload.custom_domain = sub ? `${sub}.${d}` : d;
+      else if (sub) payload.fixed_subdomain = sub;
       const result = await api('/tokens', 'POST', payload);
-      toast('Token created: ' + result.token + (d ? ` · domain: ${d}` : ''));
+      toast('Token created: ' + result.token + (sub ? ` · address: ${sub}.${d || 'iraglobaltech.com'}` : '') + (!sub && d ? ` · domain: ${d}` : ''));
       setCreateOpen(false);
       load();
     } catch (e) {
@@ -138,7 +141,7 @@ export default function ManageTokens() {
           <div className="page-subtitle">Create separate credentials for each tunnel or project.</div>
         </div>
         <div className="page-toolbar-actions">
-          <button className="btn" onClick={() => { setCreateName(''); setCreateDomain(''); setCreateOpen(true); }}>+ Subdomain Token</button>
+          <button className="btn" onClick={() => { setCreateName(''); setCreateDomain(''); setCreateSub(''); setCreateOpen(true); }}>+ Subdomain Token</button>
         </div>
       </div>
 
@@ -283,7 +286,19 @@ export default function ManageTokens() {
             )}
           </div>
 
-          <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Select a domain for this token.</p>
+          {createDomain && (
+            <>
+              {/* Subdomain */}
+              <div className="form-group">
+                <label>Subdomain</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.35rem' }}>
+                  <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. api" />
+                  <span className="code" style={{ whiteSpace: 'nowrap', color: 'var(--brand)', fontWeight: 600 }}>.{createDomain}</span>
+                </div>
+              </div>
+              <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Set the subdomain label for the selected domain.</p>
+            </>
+          )}
         </Modal>
       )}
 
