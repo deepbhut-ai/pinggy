@@ -336,17 +336,21 @@ export default function ManageTokens() {
             )}
           </div>
 
-          {/* Subdomain */}
-          <div className="form-group">
-            <label>{createDomain ? `Subdomain under ${createDomain}` : 'Subdomain'}</label>
-            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder={createDomain ? 'e.g. api' : 'e.g. xyz'} />
-            {createSub.trim() && (
-              <div className="inline-note" style={{ marginTop: '.35rem', padding: '.4rem .6rem', fontSize: '.78rem' }}>
-                <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.{createDomain || 'iraglobaltech.com'}</span></span>
+          {createDomain && (
+            <>
+              {/* Subdomain */}
+              <div className="form-group">
+                <label>{`Subdomain under ${createDomain}`}</label>
+                <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. api" />
+                {createSub.trim() && (
+                  <div className="inline-note" style={{ marginTop: '.35rem', padding: '.4rem .6rem', fontSize: '.78rem' }}>
+                    <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.{createDomain}</span></span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>{createDomain ? 'Set the subdomain label for the selected domain.' : 'Select a domain above to create a subdomain under it.'}</p>
+              <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Set the subdomain label for the selected domain.</p>
+            </>
+          )}
         </Modal>
       )}
 
