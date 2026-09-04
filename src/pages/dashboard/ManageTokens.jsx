@@ -4,6 +4,14 @@ import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
 import { copyToClipboard, formatBytes } from '../../utils';
 
+const COMMON_SECOND_LEVEL_SUFFIXES = new Set(['ac', 'co', 'com', 'edu', 'gov', 'net', 'org']);
+
+function isRootDomain(domain) {
+  const labels = domain.split('.').filter(Boolean);
+  if (labels.length === 2) return true;
+  return labels.length === 3 && labels[2].length === 2 && COMMON_SECOND_LEVEL_SUFFIXES.has(labels[1]);
+}
+
 export default function ManageTokens() {
   const toast = useToast();
   const [info, setInfo] = useState(null);
@@ -126,21 +134,12 @@ export default function ManageTokens() {
           if (!d) return false;
           if (d.endsWith('iraglobaltech.com') || d === 'iraglobaltech.com') return false;
           if (tokens.some((tk) => tk.subdomain === d || tk.fixed_subdomain === d)) return false;
-          return true;
+          return isRootDomain(d);
         })
     )
   );
 
-  const availableDomains = [
-    ...userDomains,
-    ...(createDomain &&
-    !createDomain.trim().toLowerCase().endsWith('iraglobaltech.com') &&
-    createDomain.trim().toLowerCase() !== 'iraglobaltech.com' &&
-    !tokens.some((tk) => tk.subdomain === createDomain.trim().toLowerCase() || tk.fixed_subdomain === createDomain.trim().toLowerCase()) &&
-    !userDomains.includes(createDomain.trim().toLowerCase())
-      ? [createDomain.trim().toLowerCase()]
-      : []),
-  ];
+  const availableDomains = userDomains;
 
   return (
     <>
