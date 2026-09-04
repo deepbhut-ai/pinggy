@@ -129,11 +129,13 @@ export default function ManageTokens() {
   };
 
   const del = async () => {
+    const tokenToDelete = delOpen;
+    if (!tokenToDelete) return;
     try {
-      await api(`/tokens/${delOpen.id}`, 'DELETE');
+      await api(`/tokens/${tokenToDelete.id}`, 'DELETE');
       toast('Token deleted');
       setDelOpen(null);
-      if (selected?.id === delOpen.id) setSelected(null);
+      if (selected?.id === tokenToDelete.id) setSelected(null);
       load();
     } catch (e) { toast(e.message, 'error'); }
   };
@@ -226,6 +228,8 @@ export default function ManageTokens() {
               <tbody>
                 {tokens.map((t, i) => {
                   const sec = t.security || {};
+                  const teamRole = String(t.via_team?.my_role || '').toLowerCase();
+                  const canDelete = !t.via_team || ['owner', 'admin', 'team_owner', 'team_admin'].includes(teamRole);
                   const badges = [];
                   if (sec.basic_auth_user) badges.push(<span key="a" className="badge" title="Basic auth enabled">🔐</span>);
                   if (sec.ip_whitelist) badges.push(<span key="b" className="badge" title={'IP whitelist: ' + sec.ip_whitelist}>🌐</span>);
@@ -266,7 +270,10 @@ export default function ManageTokens() {
                       <td>{t.created_at ? t.created_at.substring(0, 10) : '—'}</td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <button className="btn btn-sm btn-ghost" title="Edit" onClick={() => openEdit(t)}>✏️</button>{' '}
-                        <button className="btn btn-sm btn-ghost" title="Regenerate" onClick={() => setRegenOpen(t)}>🔄</button>
+                        <button className="btn btn-sm btn-ghost" title="Regenerate" onClick={() => setRegenOpen(t)}>🔄</button>{' '}
+                        {canDelete && (
+                          <button className="btn btn-sm btn-danger" title="Delete token" aria-label={`Delete ${t.name || 'token'}`} onClick={() => setDelOpen(t)}>🗑️</button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -417,6 +424,21 @@ export default function ManageTokens() {
           <p className="dim" style={{ fontSize: '.875rem', lineHeight: 1.5 }}>
             Are you sure? The old token will stop working immediately. Any active tunnels using it will be disconnected.
           </p>
+        </Modal>
+      )}
+
+      {/* Delete modal */}
+      {delOpen && (
+        <Modal title="Delete Token" confirmLabel="Delete permanently" onConfirm={del} onClose={() => setDelOpen(null)}>
+          <p style={{ fontSize: '.9rem', lineHeight: 1.5 }}>
+            Delete <strong>{delOpen.name || 'this token'}</strong>?
+          </p>
+          <p className="dim" style={{ fontSize: '.825rem', lineHeight: 1.5, marginTop: '.5rem' }}>
+            The token will stop working immediately and any active tunnel using it will disconnect. This action cannot be undone.
+          </p>
+          <div className="cmd-box" style={{ marginTop: '.75rem' }}>
+            <span className="code">{delOpen.token.substring(0, 8)}••••••••</span>
+          </div>
         </Modal>
       )}
 
