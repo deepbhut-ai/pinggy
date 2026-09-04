@@ -70,6 +70,17 @@ if [[ -x .venv/bin/pip ]]; then
   .venv/bin/pip install -r requirements.txt
 fi
 
+# Non-interactive SSH shells do not load nvm automatically.
+if ! command -v npm >/dev/null && [[ -s /root/.nvm/nvm.sh ]]; then
+  export NVM_DIR=/root/.nvm
+  # shellcheck disable=SC1091
+  source "$NVM_DIR/nvm.sh"
+fi
+command -v npm >/dev/null || {
+  echo "ERROR: npm is not installed or available in PATH" >&2
+  exit 1
+}
+
 npm ci
 npm run build
 
