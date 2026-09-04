@@ -76,23 +76,19 @@ export default function PublicHelpCenter() {
       {/* ─── PUBLIC NAVBAR ─── */}
       <nav className="public-nav">
         <div className="public-nav-brand">
-          <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <a href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '1.4rem' }}>⚡</span>
-            <span style={{ fontWeight: 900, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>CallingAgents</span>
-          </Link>
+            <span style={{ fontWeight: 900, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>IRAGT</span>
+          </a>
         </div>
 
         <ul className="public-nav-links">
-          <li><a href="https://callingagents.in/#features">Features</a></li>
-          <li><a href="https://callingagents.in/#solutions">Solutions</a></li>
-          <li><a href="https://callingagents.in/#how-it-works">How It Works</a></li>
-          <li><a href="https://callingagents.in/show-pricing">Pricing</a></li>
-          <li><a href="https://callingagents.in/blogs">Blogs</a></li>
+          <li><a href="/#features">Features</a></li>
+          <li><a href="/#how">How It Works</a></li>
         </ul>
 
         <div className="public-nav-actions">
-          <a href="https://callingagents.in/login" className="btn-public-login">Log in</a>
-          <a href="https://callingagents.in/register" className="btn-public-try">Try Free Today</a>
+          <Link to="/login" className="btn">Get Started</Link>
         </div>
 
         <button
@@ -110,15 +106,11 @@ export default function PublicHelpCenter() {
       {mobileMenuOpen && (
         <div className="public-mobile-drawer">
           <ul className="public-mobile-links">
-            <li><a href="https://callingagents.in/#features" onClick={() => setMobileMenuOpen(false)}>Features</a></li>
-            <li><a href="https://callingagents.in/#solutions" onClick={() => setMobileMenuOpen(false)}>Solutions</a></li>
-            <li><a href="https://callingagents.in/#how-it-works" onClick={() => setMobileMenuOpen(false)}>How It Works</a></li>
-            <li><a href="https://callingagents.in/show-pricing" onClick={() => setMobileMenuOpen(false)}>Pricing</a></li>
-            <li><a href="https://callingagents.in/blogs" onClick={() => setMobileMenuOpen(false)}>Blogs</a></li>
+            <li><a href="/#features" onClick={() => setMobileMenuOpen(false)}>Features</a></li>
+            <li><a href="/#how" onClick={() => setMobileMenuOpen(false)}>How It Works</a></li>
           </ul>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem', marginTop: '1.5rem' }}>
-            <a href="https://callingagents.in/login" className="btn-public-login" style={{ textAlign: 'center' }}>Log in</a>
-            <a href="https://callingagents.in/register" className="btn-public-try" style={{ textAlign: 'center' }}>Try Free Today →</a>
+            <Link to="/login" className="btn" style={{ textAlign: 'center' }}>Get Started</Link>
           </div>
         </div>
       )}
@@ -129,7 +121,7 @@ export default function PublicHelpCenter() {
           HELP<span className="outline">CENTER</span> <span className="green">SUPPORT</span>
         </h1>
         <p>
-          Need help? Fill out the form and our support team will contact you shortly.
+          Get help with SSH tunnels, custom domains, access tokens, and your IRAGT account.
         </p>
       </section>
 
@@ -221,86 +213,9 @@ export default function PublicHelpCenter() {
         </div>
       </section>
 
-      {/* ─── EXACT CALLINGAGENTS FOOTER ─── */}
-      <footer className="exact-site-footer">
-        <div className="footer-top">
-          <div className="footer-brand">
-            <div style={{ marginBottom: '18px' }}>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <a href="https://callingagents.in" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: '#fff' }}>
-                  <span style={{ fontSize: '1.6rem' }}>⚡</span>
-                  <span style={{ fontWeight: 900, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>CallingAgents</span>
-                </a>
-                <div className="socialsec">
-                  <ul>
-                    <li>
-                      <a href="https://www.linkedin.com/company/callingagents" target="_blank" rel="noreferrer">
-                        <span style={{ fontSize: '1.1rem', color: '#aaff00' }}>🔗</span>
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            <p className="footer-desc">
-              The most affordable AI voice agent with in-house data privacy, 24/7 support, and industry-specific customisation.
-            </p>
-            <div className="footer-status">
-              <span className="status-dot"></span> All Systems Operational
-            </div>
-          </div>
-
-          <div className="footer-col">
-            <h4>Product</h4>
-            <ul>
-              <li><a href="https://callingagents.in/#features">Features</a></li>
-              <li><a href="mailto:support@callingagents.in">White Label</a></li>
-              <li><a href="https://callingagents.in/#how-it-works">API Access</a></li>
-              <li><a href="https://callingagents.in/#how-it-works">Integrations</a></li>
-            </ul>
-          </div>
-
-          <div className="footer-col">
-            <h4>Solutions</h4>
-            <ul>
-              <li><a href="https://callingagents.in/#solutions">Marketing Calls</a></li>
-              <li><a href="https://callingagents.in/#solutions">Appointment Booking</a></li>
-              <li><a href="https://callingagents.in/#solutions">Lead Generation</a></li>
-              <li><a href="https://callingagents.in/#solutions">HR Recruiting</a></li>
-              <li><a href="https://callingagents.in/#solutions">Call Centre</a></li>
-            </ul>
-          </div>
-
-          <div className="footer-col">
-            <h4>Company</h4>
-            <ul>
-              <li><a target="_blank" rel="noreferrer" href="https://callingagents.in/about-us">About Us</a></li>
-              <li><a target="_blank" rel="noreferrer" href="https://callingagents.in/blogs">Blogs</a></li>
-              <li><a target="_blank" rel="noreferrer" href="https://callingagents.in/carrers">Careers</a></li>
-              <li><a target="_blank" rel="noreferrer" href="https://callingagents.in/privacy">Privacy Policy</a></li>
-              <li><a target="_blank" rel="noreferrer" href="https://callingagents.in/terms-condition">Terms of Service</a></li>
-            </ul>
-          </div>
-
-          <div className="footer-col">
-            <h4>Support</h4>
-            <ul>
-              <li><a target="_blank" rel="noreferrer" href="https://zettalgor.com/zai_calling_agents_docs">Documentation</a></li>
-              <li><a target="_blank" rel="noreferrer" href="https://callingagents.in/help-center">Help Centre</a></li>
-              <li><a target="_blank" rel="noreferrer" href="https://callingagents.in/contact-us">Contact Us</a></li>
-              <li><a target="_blank" rel="noreferrer" href="https://callingagents.in/status-page">Status Page</a></li>
-              <li><a target="_blank" rel="noreferrer" href="https://callingagents.in/report-bug">Report Bug</a></li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="footer-bottom">
-          <p className="footer-copy">© 2026 Callingagents. All rights reserved.</p>
-          <div className="footer-legal">
-            <a target="_blank" rel="noreferrer" href="https://callingagents.in/privacy">Privacy Policy</a>
-            <a target="_blank" rel="noreferrer" href="https://callingagents.in/terms-condition">Terms of Service</a>
-          </div>
-        </div>
+      {/* ─── LANDING-PAGE FOOTER ─── */}
+      <footer className="public-footer">
+        <p>Powered by SSH &amp; Cloudflare · <a href="/docs">API Docs</a> · <a href="/">IRAGT Home</a></p>
       </footer>
     </div>
   );
