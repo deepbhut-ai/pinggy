@@ -46,13 +46,13 @@ export default function ManageTokens() {
       const payload = {};
       const d = createDomain.trim().toLowerCase();
       const sub = createSub.trim().toLowerCase();
-      if (d) payload.custom_domain = d;
-      if (sub) payload.fixed_subdomain = sub;
+      if (d) payload.custom_domain = sub ? `${sub}.${d}` : d;
+      else if (sub) payload.fixed_subdomain = sub;
       if (createName.trim()) payload.name = createName.trim();
       if (!Object.keys(payload).length) return toast('Enter a domain or subdomain to update', 'error');
       try {
         await api(`/tokens/${t.id}`, 'PUT', payload);
-        toast('Token updated' + (sub ? ` · subdomain: ${sub}.iraglobaltech.com` : '') + (d ? ` · domain: ${d}` : ''));
+        toast('Token updated' + (sub ? ` · address: ${sub}.${d || 'iraglobaltech.com'}` : '') + (!sub && d ? ` · domain: ${d}` : ''));
         setCreateOpen(false);
         load();
       } catch (e) { toast(e.message, 'error'); }
@@ -65,10 +65,10 @@ export default function ManageTokens() {
       const payload = { name };
       const d = createDomain.trim().toLowerCase();
       const sub = createSub.trim().toLowerCase();
-      if (d) payload.custom_domain = d;
-      if (sub) payload.fixed_subdomain = sub;
+      if (d) payload.custom_domain = sub ? `${sub}.${d}` : d;
+      else if (sub) payload.fixed_subdomain = sub;
       const result = await api('/tokens', 'POST', payload);
-      toast('Token created: ' + result.token + (sub ? ` · subdomain: ${sub}.iraglobaltech.com` : '') + (d ? ` · domain: ${d}` : ''));
+      toast('Token created: ' + result.token + (sub ? ` · address: ${sub}.${d || 'iraglobaltech.com'}` : '') + (!sub && d ? ` · domain: ${d}` : ''));
       setCreateOpen(false);
       load();
     } catch (e) {
@@ -338,15 +338,15 @@ export default function ManageTokens() {
 
           {/* Subdomain */}
           <div className="form-group">
-            <label>Subdomain</label>
-            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder="e.g. xyz.mysite.com" />
+            <label>{createDomain ? `Subdomain under ${createDomain}` : 'Subdomain'}</label>
+            <input type="text" value={createSub} onChange={(e) => setCreateSub(e.target.value)} placeholder={createDomain ? 'e.g. api' : 'e.g. xyz'} />
             {createSub.trim() && (
               <div className="inline-note" style={{ marginTop: '.35rem', padding: '.4rem .6rem', fontSize: '.78rem' }}>
-                <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.iraglobaltech.com</span></span>
+                <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.{createDomain || 'iraglobaltech.com'}</span></span>
               </div>
             )}
           </div>
-          <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Both subdomain and domain are optional — select a domain or enter a subdomain (or both).</p>
+          <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>{createDomain ? 'Set the subdomain label for the selected domain.' : 'Select a domain above to create a subdomain under it.'}</p>
         </Modal>
       )}
 
