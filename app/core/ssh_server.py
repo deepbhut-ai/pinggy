@@ -184,7 +184,8 @@ class MySSHServer(asyncssh.SSHServer):
             self._timeout_task = None
         tunnel = self._tunnel
         self._tunnel = None  # Set to None first to prevent double cleanup
-        await remove_tunnel(tunnel.subdomain)
+        # Update DB first, then remove from registry, so a DB failure leaves
+        # the tunnel visible and retryable instead of creating a stale row.
         try:
             from app.core.db import get_conn
             async with get_conn() as db:
@@ -202,6 +203,10 @@ class MySSHServer(asyncssh.SSHServer):
                     pass
         except Exception as e:
             logger.warning("Failed to update tunnel status in DB: %s", e)
+            # Do not remove from registry if DB update failed; next cleanup or
+            # takeover will retry.
+            return
+        await remove_tunnel(tunnel.subdomain)
         # Close any TCP relay owned by this tunnel (v1.0.0)
         try:
             from app.core.tcp_relay import stop_relay_for_subdomain
@@ -455,6 +460,18 @@ class MySSHServer(asyncssh.SSHServer):
                             stale.ssh_conn.close()
                         except Exception:
                             pass
+                    # Mark the stale DB row disconnected before inserting the new one.
+                    try:
+                        from app.core.db import get_conn
+                        async with get_conn() as db:
+                            cur = await db.execute(
+                                "UPDATE tunnels SET status = 'disconnected', closed_at = now() "
+                                "WHERE subdomain = %s AND status = 'active' AND closed_at IS NULL",
+                                (subdomain,),
+                            )
+                            await cur.close()
+                    except Exception:
+                        pass
                     break
                 subdomain = _generate_subdomain()
 
@@ -543,6 +560,7 @@ async def start_ssh_server() -> asyncio.AbstractServer:
         allow_pty=True,
         keepalive_interval=30,
         login_timeout=300,
+        reuse_address=True,
     )
 
     print(f"[ssh] Server listening on {settings.SSH_HOST}:{settings.SSH_PORT}")

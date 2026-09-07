@@ -36,6 +36,11 @@ async def lifespan(app: FastAPI):
     # Initialize tunnel registry
     init_registry(settings.TUNNEL_DOMAIN, settings.PROXY_PORT)
 
+    # Reconcile stale DB tunnel rows after a process restart
+    from app.core.tunnel_registry import reconcile_tunnels_with_db
+    reconcile_result = await reconcile_tunnels_with_db()
+    print(f"[{settings.APP_NAME}] Tunnel registry reconciled: {reconcile_result}")
+
     # Start SSH server for tunnels
     from app.core.ssh_server import start_ssh_server
     ssh_server = await start_ssh_server()
@@ -60,6 +65,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
+    description="IRAGT secure tunnel platform API — manage tokens, tunnels, domains, billing, and teams.",
+    version="1.0.0",
     debug=settings.APP_DEBUG,
     lifespan=lifespan,
     openapi_url="/api/v1/openapi.json",

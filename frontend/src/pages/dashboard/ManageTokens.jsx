@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
@@ -10,6 +10,7 @@ export default function ManageTokens() {
   const [tokens, setTokens] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [selected, setSelected] = useState(null); // full token object for guide
+  const [selectedRows, setSelectedRows] = useState(new Set()); // set of selected token IDs
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createDomain, setCreateDomain] = useState('');
@@ -18,6 +19,12 @@ export default function ManageTokens() {
   const [editState, setEditState] = useState({});
   const [regenOpen, setRegenOpen] = useState(null);
   const [delOpen, setDelOpen] = useState(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
+  // Pagination + search state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -115,6 +122,61 @@ export default function ManageTokens() {
     } catch (e) { toast(e.message, 'error'); }
   };
 
+  const bulkDelete = async () => {
+    try {
+      const idsToDelete = Array.from(selectedRows).slice(0, 100);
+      const result = await api('/tokens/bulk-delete', 'POST', { ids: idsToDelete });
+      toast(`${result.deleted} token(s) deleted${result.skipped ? ` (${result.skipped} skipped)` : ''}`);
+      setBulkDeleteOpen(false);
+      setSelectedRows(new Set());
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+  };
+
+  const toggleRowSelection = (id) => {
+    const newSelected = new Set(selectedRows);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const toggleAllSelection = () => {
+    if (selectedRows.size === paginatedTokens.length && paginatedTokens.every((t) => selectedRows.has(t.id))) {
+      setSelectedRows(new Set()); // Deselect all
+    } else {
+      setSelectedRows(new Set(paginatedTokens.map((t) => t.id))); // Select all on page
+    }
+  };
+
+  // Search filter
+  const filteredTokens = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return tokens;
+    return tokens.filter((t) =>
+      (t.name || '').toLowerCase().includes(q) ||
+      (t.token || '').toLowerCase().includes(q) ||
+      (t.subdomain || '').toLowerCase().includes(q) ||
+      (t.fixed_subdomain || '').toLowerCase().includes(q) ||
+      (t.custom_domain || '').toLowerCase().includes(q) ||
+      (t.id || '').toLowerCase().includes(q) ||
+      String(t.active_tunnels || '').includes(q) ||
+      String(t.total_requests || '').includes(q)
+    );
+  }, [tokens, search]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredTokens.length / rowsPerPage));
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  const paginatedTokens = filteredTokens.slice(startIndex, endIndex);
+
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
   const userDomains = Array.from(
     new Set(
       [
@@ -141,6 +203,11 @@ export default function ManageTokens() {
           <div className="page-subtitle">Create separate credentials for each tunnel or project.</div>
         </div>
         <div className="page-toolbar-actions">
+          {selectedRows.size > 0 && (
+            <button className="btn btn-danger" onClick={() => setBulkDeleteOpen(true)}>
+              🗑️ Delete {selectedRows.size} selected
+            </button>
+          )}
           <button className="btn" onClick={() => { setCreateName(''); setCreateDomain(''); setCreateSub(''); setCreateOpen(true); }}>+ Subdomain Token</button>
         </div>
       </div>
@@ -172,27 +239,44 @@ export default function ManageTokens() {
       )}
 
       <div className="card">
-        <div className="card-header">
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '.75rem' }}>
           <div>
             <div className="section-label">Credentials</div>
-            <h2 style={{ marginTop: '.15rem' }}>Your tokens <span className="token-meta">({tokens.length})</span></h2>
+            <h2 style={{ marginTop: '.15rem' }}>Your tokens <span className="token-meta">({filteredTokens.length})</span></h2>
           </div>
-          <button className="btn btn-sm btn-ghost" onClick={load}>🔄 Refresh</button>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); setSelectedRows(new Set()); }}
+            placeholder="Search name, token, subdomain, domain..."
+            style={{ minWidth: 220 }}
+          />
         </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
-          {tokens.length === 0 ? (
-            <p className="empty">No tokens yet. Click "Subdomain Token" to create one.</p>
+          {filteredTokens.length === 0 ? (
+            <p className="empty">{tokens.length === 0 ? 'No tokens yet. Click "Subdomain Token" to create one.' : 'No tokens match your search.'}</p>
           ) : (
             <table>
               <thead>
                 <tr>
+                  <th style={{ width: 40 }}>
+                    <input
+                      type="checkbox"
+                      checked={paginatedTokens.length > 0 && selectedRows.size === paginatedTokens.length}
+                      onChange={toggleAllSelection}
+                      title="Select all on this page"
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </th>
+                  <th style={{ width: 40 }}>#</th>
                   <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th>
                   <th>Requests</th><th>Data</th>
                   <th>Active</th><th>Created</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {tokens.map((t, i) => {
+                {paginatedTokens.map((t, idx) => {
+                  const rowIndex = startIndex + idx + 1;
                   const teamBadge = t.via_team
                     ? <span className="badge badge-blue" title={`Shared via team '${t.via_team.team_name}' (my role: ${t.via_team.my_role || 'member'})`}>👥 {t.via_team.team_name}</span>
                     : (t.team_id ? <span className="badge" title="Shared with a team">👥</span> : null);
@@ -203,6 +287,16 @@ export default function ManageTokens() {
                       style={{ cursor: 'pointer', transition: '.15s' }}
                       onClick={() => setSelected(selected?.id === t.id ? null : t)}
                     >
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.has(t.id)}
+                          onChange={() => toggleRowSelection(t.id)}
+                          title="Select row"
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </td>
+                      <td><span className="code dim" style={{ fontSize: '.72rem' }}>{rowIndex}</span></td>
                       <td><span className="code dim" style={{ fontSize: '.72rem' }}>{t.id.substring(0, 8)}…</span></td>
                       <td>
                         <span className="token-value">
@@ -231,6 +325,112 @@ export default function ManageTokens() {
             </table>
           )}
         </div>
+        {/* Pagination controls */}
+        {tokens.length > 0 && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            padding: '0.75rem 1rem',
+            borderTop: '1px solid var(--border)',
+            background: 'var(--bg-soft)',
+            borderRadius: '0 0 8px 8px',
+            flexWrap: 'wrap',
+            gap: '0.5rem'
+          }}>
+            <div style={{ 
+              fontSize: '.85rem', 
+              color: 'var(--text-dim)', 
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              height: '32px'
+            }}>
+              Showing {startIndex + 1}-{Math.min(endIndex, tokens.length)} of {tokens.length} tokens
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'nowrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '.8rem', color: 'var(--text-dim)' }}>Rows:</span>
+                <select
+                  value={rowsPerPage}
+                  onChange={(e) => { setRowsPerPage(parseInt(e.target.value)); setCurrentPage(1); }}
+                  style={{ 
+                    fontSize: '.8rem', 
+                    padding: '0.35rem 0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                    height: '32px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: '6px', overflow: 'hidden' }}>
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  style={{ 
+                    opacity: currentPage === 1 ? 0.5 : 1,
+                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                    padding: '0.4rem 0.75rem',
+                    height: '32px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    borderRadius: 0,
+                    border: 'none',
+                    borderRight: '1px solid var(--border)',
+                    background: 'transparent'
+                  }}
+                >
+                  ← Prev
+                </button>
+                <span style={{ 
+                  fontSize: '.85rem', 
+                  fontWeight: 600,
+                  padding: '0.4rem 0.75rem',
+                  height: '32px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  color: 'var(--text)',
+                  background: 'var(--bg)',
+                  borderRight: '1px solid var(--border)',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  style={{ 
+                    opacity: currentPage === totalPages ? 0.5 : 1,
+                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                    padding: '0.4rem 0.75rem',
+                    height: '32px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    borderRadius: 0,
+                    border: 'none',
+                    background: 'transparent'
+                  }}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Connection Guide panel */}
@@ -346,6 +546,22 @@ export default function ManageTokens() {
         <Modal title="Regenerate Token" confirmLabel="Regenerate" onConfirm={regen} onClose={() => setRegenOpen(null)}>
           <p className="dim" style={{ fontSize: '.875rem', lineHeight: 1.5 }}>
             Are you sure? The old token will stop working immediately. Any active tunnels using it will be disconnected.
+          </p>
+        </Modal>
+      )}
+
+      {/* Bulk delete modal */}
+      {bulkDeleteOpen && (
+        <Modal
+          title="Delete Selected Tokens"
+          confirmLabel="Delete"
+          onConfirm={bulkDelete}
+          onClose={() => setBulkDeleteOpen(false)}
+        >
+          <p className="dim" style={{ fontSize: '.875rem', lineHeight: 1.5 }}>
+            Are you sure you want to delete {Math.min(selectedRows.size, 100)} selected token(s)?
+            {selectedRows.size > 100 && <> Only the first 100 will be deleted. Please repeat for the rest.</>}
+            This action cannot be undone. All active tunnels using these tokens will be disconnected.
           </p>
         </Modal>
       )}

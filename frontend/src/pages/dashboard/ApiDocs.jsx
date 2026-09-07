@@ -40,6 +40,10 @@ export default function ApiDocs() {
     { method: 'POST',   path: '/domains',                 desc: 'Add a domain — {domain} — auto-attached to a token, no token_id needed' },
     { method: 'PUT',    path: '/domains/{domain}',        desc: 'Update a domain — {new_domain} — same tunnel, new address' },
     { method: 'DELETE', path: '/domains/{domain}',        desc: 'Remove a domain — only that one, others untouched' },
+    { method: 'GET',    path: '/subdomains',              desc: 'List all your subdomains under your domains' },
+    { method: 'POST',   path: '/subdomains',              desc: 'Create a subdomain under your domain — {subdomain, domain}' },
+    { method: 'PUT',    path: '/subdomains/{subdomain}',  desc: 'Update a subdomain — {new_subdomain, domain}' },
+    { method: 'DELETE', path: '/subdomains/{subdomain}',  desc: 'Remove a subdomain from your domain' },
     { method: 'GET',    path: '/manage/tunnels',          desc: 'Your live tunnels + recent history' },
     { method: 'POST',   path: '/manage/tunnels/{sub}/stop', desc: 'Stop one of your live tunnels' },
     { method: 'GET',    path: '/manage/devices',          desc: 'Your connected remote devices' },
@@ -73,6 +77,9 @@ export default function ApiDocs() {
     'POST/teams':   JSON.stringify({ name: 'My team' }, null, 2),
     'POST/domains': JSON.stringify({ domain: 'mycompany.com' }, null, 2),
     'PUT/domains/{domain}': JSON.stringify({ new_domain: 'mynewcompany.com' }, null, 2),
+    'POST/subdomains': JSON.stringify({ subdomain: 'api', domain: 'callingagents.in' }, null, 2),
+    'PUT/subdomains/{subdomain}': JSON.stringify({ new_subdomain: 'newapi', domain: 'bedrive.callingagents.in' }, null, 2),
+    'DELETE/subdomains/{subdomain}': JSON.stringify({ domain: 'bedrive.callingagents.in' }, null, 2),
     'PUT/tokens/{id}': JSON.stringify({ name: 'My token', fixed_subdomain: 'my-subdomain', tunnel_mode: 'http' }, null, 2),
     'POST/tokens/{id}/domains': JSON.stringify({ domain: 'app.mydomain.com' }, null, 2),
     'PUT/users/me/custom-domain': JSON.stringify({ custom_domain: 'mydomain.com', token_id: '' }, null, 2),
@@ -82,9 +89,10 @@ export default function ApiDocs() {
 
   // Path param hints — {param: description}
   const PATH_PARAMS = {
-    'POST/domains':                    { domain: 'Domain to add (e.g. mycompany.com)' },
-    'PUT/domains/{domain}':          { domain: 'Current domain to change (e.g. mycompany.com)', new_domain: 'New domain name (e.g. mynewcompany.com)' },
+    'PUT/domains/{domain}':          { domain: 'Current domain to change (e.g. mycompany.com)' },
     'DELETE/domains/{domain}':       { domain: 'Domain to remove (e.g. mycompany.com)' },
+    'PUT/subdomains/{subdomain}':    { subdomain: 'Current subdomain prefix (e.g. api)', new_subdomain: 'New subdomain prefix (e.g. newapi)', domain: 'Parent root domain you own (e.g. callingagents.in)' },
+    'DELETE/subdomains/{subdomain}': { subdomain: 'Subdomain prefix to remove (e.g. api)', domain: 'Parent root domain you own (e.g. callingagents.in)' },
     'POST/manage/tunnels/{sub}/stop': { sub: 'Subdomain of the live tunnel to stop' },
     'DELETE/tokens/{id}':             { id: 'Token ID (get it from GET /tokens)' },
     'PUT/tokens/{id}':                { id: 'Token ID (get it from GET /tokens)' },
@@ -127,6 +135,16 @@ export default function ApiDocs() {
     } catch (e) { setKeyVerified(false); }
   };
 
+  // Helpers
+  const sanitizeDomain = (v) => (v || '').toLowerCase().trim().replace(/[^a-z0-9._-]/g, '');
+  const sanitizeSubdomain = (v) => (v || '').toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
+  const isValidDomain = (d) => /^[a-z0-9._-]+\.[a-z]{2,}$/.test(d);
+
+  const fetchTokens = async () => {
+    const t = await fetch(`${base}/api/v1/tokens`, { headers: { 'X-Api-Key': apiKey.trim() } });
+    return await t.json().catch(() => []);
+  };
+
   const testEndpoint = async (ep) => {
     if (!apiKey.trim()) return toast('Enter your API key first', 'error');
     const key = ep.method + ep.path;
@@ -135,9 +153,10 @@ export default function ApiDocs() {
       // Build path — use user-entered path params if provided, else auto-fetch real ones
       let testPath = ep.path;
       const params = pathParams[key] || {};
+      const opts = { method: ep.method, headers: { 'X-Api-Key': apiKey.trim() } };
 
       // Generic path param replacement for user-entered values
-      ['sub', 'id', 'domain'].forEach((p) => {
+      ['sub', 'id', 'domain', 'subdomain'].forEach((p) => {
         if (params[p] && testPath.includes(`{${p}}`)) {
           testPath = testPath.replace(`{${p}}`, encodeURIComponent(params[p]));
         }
@@ -145,8 +164,7 @@ export default function ApiDocs() {
 
       // Auto-fetch real values for known endpoints if not user-provided
       if ((ep.path === '/manage/tunnels/{sub}/stop') && !params.sub) {
-        const t = await fetch(`${base}/api/v1/manage/tunnels`, { headers: { 'X-Api-Key': apiKey.trim() } });
-        const td = await t.json().catch(() => ({}));
+        const td = await fetchTokens();
         if (!td.live?.length) {
           setResults((prev) => ({ ...prev, [key]: { ok: false, status: '—', data: { detail: 'No live tunnels to stop. Start a tunnel first (see Quickstart), or enter a subdomain above.' }, testedAt: new Date().toLocaleTimeString() } }));
           setTestingEndpoint(null);
@@ -157,9 +175,7 @@ export default function ApiDocs() {
 
       // Domain endpoints — auto-fetch from /tokens
       if (ep.path === '/domains' && ep.method === 'GET') {
-        // GET /domains — fetch all tokens and extract domains
-        const t = await fetch(`${base}/api/v1/tokens`, { headers: { 'X-Api-Key': apiKey.trim() } });
-        const td = await t.json().catch(() => []);
+        const td = await fetchTokens();
         const domains = [];
         (td || []).forEach((tok) => {
           if (tok.custom_domain) domains.push({ domain: tok.custom_domain, token_id: tok.id, type: 'primary' });
@@ -171,7 +187,6 @@ export default function ApiDocs() {
       }
 
       if (ep.path === '/domains' && ep.method === 'POST') {
-        // POST /domains — auto-select first token, call POST /tokens/{id}/domains
         const rawBody = requestBodies[key] ?? SAMPLE_BODIES[key];
         let parsed;
         try { parsed = JSON.parse(rawBody); } catch {
@@ -179,25 +194,20 @@ export default function ApiDocs() {
           setTestingEndpoint(null);
           return;
         }
-        if (!parsed.domain) {
-          toast('Enter a domain in the request body', 'error');
+        const domain = sanitizeDomain(parsed.domain);
+        if (!domain || !isValidDomain(domain)) {
+          toast('Enter a valid domain in the request body (e.g. mycompany.com)', 'error');
           setTestingEndpoint(null);
           return;
         }
-        const t = await fetch(`${base}/api/v1/tokens`, { headers: { 'X-Api-Key': apiKey.trim() } });
-        const td = await t.json().catch(() => []);
-        if (!Array.isArray(td) || !td.length) {
-          setResults((prev) => ({ ...prev, [key]: { ok: false, status: '—', data: { detail: 'No tokens found. Create a token first.' }, testedAt: new Date().toLocaleTimeString() } }));
-          setTestingEndpoint(null);
-          return;
-        }
-        const targetToken = td[td.length - 1];
-        testPath = `/tokens/${targetToken.id}/domains`;
-        opts.body = JSON.stringify({ domain: parsed.domain });
+        // Create a dedicated root-domain token (matches /dashboard/domains behavior)
+        testPath = '/tokens';
+        opts.method = 'POST';
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify({ name: domain, custom_domain: domain });
       }
 
       if (ep.path === '/domains/{domain}' && ep.method === 'PUT') {
-        // PUT /domains/{domain} — find token, update custom_domain
         const rawBody = requestBodies[key] ?? SAMPLE_BODIES[key];
         let parsed;
         try { parsed = JSON.parse(rawBody); } catch {
@@ -205,54 +215,216 @@ export default function ApiDocs() {
           setTestingEndpoint(null);
           return;
         }
-        if (!parsed.new_domain) {
-          toast('Enter new_domain in the request body', 'error');
+        const newDomain = sanitizeDomain(parsed.new_domain);
+        if (!newDomain || !isValidDomain(newDomain)) {
+          toast('Enter a valid new_domain in the request body', 'error');
           setTestingEndpoint(null);
           return;
         }
-        const t = await fetch(`${base}/api/v1/tokens`, { headers: { 'X-Api-Key': apiKey.trim() } });
-        const td = await t.json().catch(() => []);
-        const domainToChange = params.domain;
+        const domainToChange = sanitizeDomain(params.domain);
+        if (!domainToChange) {
+          toast('Enter the current domain in the path field above', 'error');
+          setTestingEndpoint(null);
+          return;
+        }
+        const td = await fetchTokens();
         const targetToken = (td || []).find((tok) => tok.custom_domain === domainToChange || (tok.domains || []).includes(domainToChange));
         if (!targetToken) {
           setResults((prev) => ({ ...prev, [key]: { ok: false, status: '—', data: { detail: `Domain "${domainToChange}" not found on any token.` }, testedAt: new Date().toLocaleTimeString() } }));
           setTestingEndpoint(null);
           return;
         }
+        // Update the token's primary custom_domain (root domains are primary)
         testPath = `/tokens/${targetToken.id}`;
         opts.method = 'PUT';
-        opts.body = JSON.stringify({ custom_domain: parsed.new_domain });
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify({ custom_domain: newDomain });
       }
 
       if (ep.path === '/domains/{domain}' && ep.method === 'DELETE') {
-        // DELETE /domains/{domain} — find token and domain type, delete appropriately
-        const t = await fetch(`${base}/api/v1/tokens`, { headers: { 'X-Api-Key': apiKey.trim() } });
-        const td = await t.json().catch(() => []);
-        const domainToDelete = params.domain;
+        const domainToDelete = sanitizeDomain(params.domain);
+        if (!domainToDelete) {
+          toast('Enter the domain to remove in the path field above', 'error');
+          setTestingEndpoint(null);
+          return;
+        }
+        const td = await fetchTokens();
         const targetToken = (td || []).find((tok) => tok.custom_domain === domainToDelete || (tok.domains || []).includes(domainToDelete));
         if (!targetToken) {
           setResults((prev) => ({ ...prev, [key]: { ok: false, status: '—', data: { detail: `Domain "${domainToDelete}" not found on any token.` }, testedAt: new Date().toLocaleTimeString() } }));
           setTestingEndpoint(null);
           return;
         }
-        const isPrimary = targetToken.custom_domain === domainToDelete;
-        if (isPrimary) {
-          // Clear primary domain via PUT /users/me/custom-domain
-          testPath = '/users/me/custom-domain';
-          opts.method = 'PUT';
-          opts.body = JSON.stringify({ custom_domain: '', token_id: targetToken.id });
-        } else {
-          // Delete extra domain via DELETE /tokens/{id}/domains/{domain}
-          testPath = `/tokens/${targetToken.id}/domains/${encodeURIComponent(domainToDelete)}`;
-          opts.method = 'DELETE';
-          opts.body = undefined;
+        // Root domains are primary; clear the token's custom_domain
+        testPath = `/tokens/${targetToken.id}`;
+        opts.method = 'PUT';
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify({ custom_domain: '' });
+      }
+
+      // Subdomain endpoints — auto-fetch from /tokens
+      if (ep.path === '/subdomains' && ep.method === 'GET') {
+        const td = await fetchTokens();
+        const subdomains = [];
+        const seen = new Set();
+        const addSub = (full, type, tok) => {
+          if (!full || seen.has(full)) return;
+          seen.add(full);
+          const parts = full.split('.');
+          if (parts.length >= 3) {
+            subdomains.push({
+              subdomain: parts.slice(0, parts.length - 2).join('.'),
+              domain: parts.slice(parts.length - 2).join('.'),
+              token_id: tok.id,
+              full_address: full,
+              type
+            });
+          }
+        };
+        (td || []).forEach((tok) => {
+          const root = tok.custom_domain || 'iraglobaltech.com';
+          if (tok.fixed_subdomain) {
+            subdomains.push({
+              subdomain: tok.fixed_subdomain,
+              domain: root,
+              token_id: tok.id,
+              full_address: `${tok.fixed_subdomain}.${root}`,
+              type: 'fixed'
+            });
+          }
+          if (tok.custom_domain) addSub(tok.custom_domain, 'primary', tok);
+          (tok.domains || []).forEach((d) => addSub(d, 'extra', tok));
+        });
+        setResults((prev) => ({ ...prev, [key]: { ok: true, status: '200', data: subdomains, testedAt: new Date().toLocaleTimeString() } }));
+        setTestingEndpoint(null);
+        return;
+      }
+
+      if (ep.path === '/subdomains' && ep.method === 'POST') {
+        const rawBody = requestBodies[key] ?? SAMPLE_BODIES[key];
+        let parsed;
+        try { parsed = JSON.parse(rawBody); } catch {
+          toast('Invalid JSON in request body', 'error');
+          setTestingEndpoint(null);
+          return;
         }
+        const sub = sanitizeSubdomain(parsed.subdomain);
+        const domain = sanitizeDomain(parsed.domain);
+        if (!sub || !domain || !isValidDomain(domain)) {
+          toast('Enter valid subdomain and domain in the request body', 'error');
+          setTestingEndpoint(null);
+          return;
+        }
+        const td = await fetchTokens();
+        // Find a token whose primary custom_domain is the root domain
+        const rootDomain = domain.split('.').slice(-2).join('.');
+        const targetToken = (td || []).find((tok) => tok.custom_domain === domain || tok.custom_domain === rootDomain);
+        if (!targetToken) {
+          setResults((prev) => ({ ...prev, [key]: { ok: false, status: '—', data: { detail: `Root domain "${rootDomain}" not found. Add it via POST /domains first.` }, testedAt: new Date().toLocaleTimeString() } }));
+          setTestingEndpoint(null);
+          return;
+        }
+        const fullSubdomain = `${sub}.${domain}`;
+        // Security: prevent creating a subdomain that already exists on any token
+        const exists = (td || []).some((tok) =>
+          tok.fixed_subdomain === sub ||
+          (tok.domains || []).includes(fullSubdomain) ||
+          tok.custom_domain === fullSubdomain
+        );
+        if (exists) {
+          setResults((prev) => ({ ...prev, [key]: { ok: false, status: '—', data: { detail: `Subdomain "${fullSubdomain}" already exists.` }, testedAt: new Date().toLocaleTimeString() } }));
+          setTestingEndpoint(null);
+          return;
+        }
+        testPath = `/tokens/${targetToken.id}/domains`;
+        opts.method = 'POST';
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify({ domain: fullSubdomain });
+      }
+
+      if (ep.path === '/subdomains/{subdomain}' && ep.method === 'PUT') {
+        const rawBody = requestBodies[key] ?? SAMPLE_BODIES[key];
+        let parsed;
+        try { parsed = JSON.parse(rawBody); } catch {
+          toast('Invalid JSON in request body', 'error');
+          setTestingEndpoint(null);
+          return;
+        }
+        const newSub = sanitizeSubdomain(parsed.new_subdomain);
+        const domain = sanitizeDomain(parsed.domain);
+        const oldSub = sanitizeSubdomain(params.subdomain);
+        if (!newSub || !domain || !oldSub || !isValidDomain(domain)) {
+          toast('Enter valid new_subdomain, domain, and subdomain path param', 'error');
+          setTestingEndpoint(null);
+          return;
+        }
+        const td = await fetchTokens();
+        const fullOldSubdomain = `${oldSub}.${domain}`;
+        const fullNewSubdomain = `${newSub}.${domain}`;
+        const targetToken = (td || []).find((tok) => (tok.domains || []).includes(fullOldSubdomain));
+        if (!targetToken) {
+          setResults((prev) => ({ ...prev, [key]: { ok: false, status: '—', data: { detail: `Subdomain "${fullOldSubdomain}" not found.` }, testedAt: new Date().toLocaleTimeString() } }));
+          setTestingEndpoint(null);
+          return;
+        }
+        // Security: prevent collision with existing subdomain
+        const exists = (td || []).some((tok) =>
+          (tok.domains || []).includes(fullNewSubdomain) ||
+          tok.custom_domain === fullNewSubdomain ||
+          tok.fixed_subdomain === newSub
+        );
+        if (exists) {
+          setResults((prev) => ({ ...prev, [key]: { ok: false, status: '—', data: { detail: `Subdomain "${fullNewSubdomain}" already exists.` }, testedAt: new Date().toLocaleTimeString() } }));
+          setTestingEndpoint(null);
+          return;
+        }
+        // Add new subdomain then delete old one
+        const addResp = await fetch(`${base}/api/v1/tokens/${targetToken.id}/domains`, {
+          method: 'POST',
+          headers: { 'X-Api-Key': apiKey.trim(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: fullNewSubdomain })
+        });
+        if (!addResp.ok) {
+          const err = await addResp.json().catch(() => ({}));
+          setResults((prev) => ({ ...prev, [key]: { ok: false, status: addResp.status, data: err, testedAt: new Date().toLocaleTimeString() } }));
+          setTestingEndpoint(null);
+          return;
+        }
+        await fetch(`${base}/api/v1/tokens/${targetToken.id}/domains/${encodeURIComponent(fullOldSubdomain)}`, {
+          method: 'DELETE',
+          headers: { 'X-Api-Key': apiKey.trim() }
+        });
+        setResults((prev) => ({ ...prev, [key]: { ok: true, status: '200', data: { message: `Subdomain updated from ${fullOldSubdomain} to ${fullNewSubdomain}` }, testedAt: new Date().toLocaleTimeString() } }));
+        setTestingEndpoint(null);
+        return;
+      }
+
+      if (ep.path === '/subdomains/{subdomain}' && ep.method === 'DELETE') {
+        const rawBody = requestBodies[key] ?? SAMPLE_BODIES[key];
+        let parsed = {};
+        try { parsed = JSON.parse(rawBody); } catch { /* body optional if domain provided via path */ }
+        const domain = sanitizeDomain(parsed.domain);
+        const sub = sanitizeSubdomain(params.subdomain);
+        if (!sub || !domain || !isValidDomain(domain)) {
+          toast('Enter valid subdomain path param and domain in the request body', 'error');
+          setTestingEndpoint(null);
+          return;
+        }
+        const td = await fetchTokens();
+        const fullSubdomain = `${sub}.${domain}`;
+        const targetToken = (td || []).find((tok) => (tok.domains || []).includes(fullSubdomain));
+        if (!targetToken) {
+          setResults((prev) => ({ ...prev, [key]: { ok: false, status: '—', data: { detail: `Subdomain "${fullSubdomain}" not found.` }, testedAt: new Date().toLocaleTimeString() } }));
+          setTestingEndpoint(null);
+          return;
+        }
+        testPath = `/tokens/${targetToken.id}/domains/${encodeURIComponent(fullSubdomain)}`;
+        opts.method = 'DELETE';
       }
 
       const needsTokenId = ['/tokens/{id}', '/tokens/{id}/domains', '/tokens/{id}/regenerate'].some((p) => ep.path === p);
       if (needsTokenId && !params.id && testPath.includes('{id}')) {
-        const t = await fetch(`${base}/api/v1/tokens`, { headers: { 'X-Api-Key': apiKey.trim() } });
-        const td = await t.json().catch(() => []);
+        const td = await fetchTokens();
         if (!Array.isArray(td) || !td.length) {
           setResults((prev) => ({ ...prev, [key]: { ok: false, status: '—', data: { detail: 'No tokens found. Create one first, or enter a token ID above.' }, testedAt: new Date().toLocaleTimeString() } }));
           setTestingEndpoint(null);
@@ -269,11 +441,9 @@ export default function ApiDocs() {
         return;
       }
 
-      const opts = { method: ep.method, headers: { 'X-Api-Key': apiKey.trim() } };
-
       // PUT/POST with body — use the user's editable JSON body
       const bodyKey = ep.method + ep.path;
-      if ((ep.method === 'POST' || ep.method === 'PUT') && SAMPLE_BODIES[bodyKey]) {
+      if ((ep.method === 'POST' || ep.method === 'PUT') && SAMPLE_BODIES[bodyKey] && !opts.body) {
         const rawBody = requestBodies[bodyKey] ?? SAMPLE_BODIES[bodyKey];
         let parsed;
         try {
@@ -295,7 +465,7 @@ export default function ApiDocs() {
             return;
           }
           opts.body = undefined;
-          opts.headers['Content-Type'] = undefined;
+          delete opts.headers['Content-Type'];
           let queryUrl = `${base}/api/v1${ep.path}?custom_domain=${encodeURIComponent(d)}`;
           if (tid) queryUrl += `&token_id=${encodeURIComponent(tid)}`;
           const resp2 = await fetch(queryUrl, opts);
@@ -433,7 +603,17 @@ export default function ApiDocs() {
                             type="text"
                             value={pathParams[key]?.[param] || ''}
                             onChange={(e) => setPathParams((prev) => ({ ...prev, [key]: { ...prev[key], [param]: e.target.value } }))}
-                            placeholder={`Leave empty to auto-use your ${param === 'sub' ? 'first live tunnel' : 'last token'}`}
+                            placeholder={
+                              param === 'sub'
+                                ? 'Leave empty to auto-use your first live tunnel'
+                                : param === 'domain'
+                                ? 'Enter a domain you own'
+                                : param === 'subdomain'
+                                ? 'Enter subdomain prefix'
+                                : param === 'new_subdomain'
+                                ? 'Enter new subdomain prefix'
+                                : 'Leave empty to auto-use your last token'
+                            }
                           />
                         </div>
                       ))}

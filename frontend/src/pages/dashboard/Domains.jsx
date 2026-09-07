@@ -42,21 +42,16 @@ export default function Domains() {
       return toast('Please enter a root domain only (e.g. mycompany.com, not sub.mycompany.com)', 'error');
     }
     try {
-      // Find first available token to attach the domain
-      const tokens = await api('/tokens');
-      const myTokens = tokens.filter((t) => !t.via_team || t.via_team.owner);
-      if (!myTokens.length) {
-        return toast('No tokens available. Create a token first.', 'error');
-      }
       // Check if domain already exists
-      const existingDomain = (tokens || []).some((t) => 
+      const tokens = await api('/tokens');
+      const existingDomain = (tokens || []).some((t) =>
         t.custom_domain === domain || (t.domains || []).includes(domain)
       );
       if (existingDomain) {
         return toast('This domain is already added', 'error');
       }
-      // Add as extra domain to first available token
-      await api(`/tokens/${myTokens[0].id}/domains`, 'POST', JSON.stringify({ domain }));
+      // Create a dedicated root-domain token so subdomains can be created under it
+      await api('/tokens', 'POST', { name: domain, custom_domain: domain });
       toast(`${domain} added — point DNS A record to 13.140.131.204`);
       setAddDom('');
       load();

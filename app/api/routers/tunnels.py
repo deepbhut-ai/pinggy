@@ -37,22 +37,30 @@ async def tunnel_info(
 ):
     """Return SSH connection instructions for the current user.
     Available to any logged-in user (not just admin)."""
-    # Seat usage: only domain tokens count against seats
+    # Seat usage: only root custom domains count against seats.
+    # Subdomains under another domain or the tunnel domain count as subdomain tokens.
+    from app.api.routers.tokens import _is_root_custom_domain, _root_domain
     seats = int(user.get("seats") or 1)
     plan = user.get("plan") or "free"
     cur = await db.execute(
-        "SELECT COUNT(*) FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL",
+        "SELECT custom_domain FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL",
         (user["email"],),
     )
-    domain_tokens_used = int((await cur.fetchone())[0])
+    domain_rows = await cur.fetchall()
     await cur.close()
-    # Subdomain tokens in use = tokens with a fixed_subdomain set (no custom domain)
+    root_domains = {_root_domain(str(r[0])) for r in domain_rows if _is_root_custom_domain(str(r[0]), settings.TUNNEL_DOMAIN)}
+    domain_tokens_used = len(root_domains)
+    # Subdomain tokens in use = tokens with a fixed_subdomain set OR custom_domain that is a subdomain under another domain
     cur = await db.execute(
         "SELECT COUNT(*) FROM tokens WHERE user_email = %s AND custom_domain IS NULL AND fixed_subdomain IS NOT NULL",
         (user["email"],),
     )
-    subdomain_tokens_used = int((await cur.fetchone())[0])
+    fixed_sub_count = int((await cur.fetchone())[0])
     await cur.close()
+    subdomain_under_count = sum(
+        1 for r in domain_rows if not _is_root_custom_domain(str(r[0]), settings.TUNNEL_DOMAIN)
+    )
+    subdomain_tokens_used = fixed_sub_count + subdomain_under_count
     cur = await db.execute(
         "SELECT COUNT(*) FROM tokens WHERE user_email = %s",
         (user["email"],),

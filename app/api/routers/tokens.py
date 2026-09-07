@@ -93,8 +93,76 @@ def _validate_custom_domain(domain: str, user: dict) -> str:
     return cd
 
 
+def _root_domain(domain: str) -> str:
+    """Return the root domain (last two labels) for a hostname.
+
+    Examples:
+      serverira.com -> serverira.com
+      acelle.callingagents.in -> callingagents.in
+      abc.iraglobaltech.com -> iraglobaltech.com
+    """
+    d = domain.strip().lower().rstrip(".")
+    parts = d.split(".")
+    if len(parts) <= 2:
+        return d
+    return ".".join(parts[-2:])
+
+
+def _is_subdomain_under(domain: str, parent: str) -> bool:
+    """True if domain is a subdomain of parent (or equal to parent)."""
+    d = domain.strip().lower().rstrip(".")
+    p = parent.strip().lower().rstrip(".")
+    return d == p or d.endswith("." + p)
+
+
+def _is_root_custom_domain(domain: str, tunnel_domain: str) -> bool:
+    """True if this domain is a root domain the user owns, not a subdomain under another domain or the tunnel domain."""
+    d = domain.strip().lower().rstrip(".")
+    if not d:
+        return False
+    if _is_subdomain_under(d, tunnel_domain):
+        return False
+    return _root_domain(d) == d
+
+
+async def _user_owns_root_domain(db: AsyncConnection, user_email: str, domain: str, tunnel_domain: str) -> bool:
+    """Return True if the user has a token for the root domain of the given domain."""
+    rd = _root_domain(domain)
+    # Root domain itself always passes
+    if rd == domain.strip().lower().rstrip("."):
+        return True
+    # Tunnel-domain subdomains don't need root ownership
+    if _is_subdomain_under(domain, tunnel_domain):
+        return True
+    cur = await db.execute(
+        "SELECT 1 FROM tokens WHERE user_email = %s AND custom_domain = %s LIMIT 1",
+        (user_email, rd),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    return bool(row)
+
+
+async def _enforce_root_domain_ownership(db: AsyncConnection, user: dict, domain: str) -> None:
+    """Reject subdomain creation if the user hasn't registered the root domain first."""
+    from app.core.config import settings
+    d = domain.strip().lower().rstrip(".")
+    if not d:
+        return
+    # Root domains and tunnel-domain subdomains are exempt
+    rd = _root_domain(d)
+    if rd == d or _is_subdomain_under(d, settings.TUNNEL_DOMAIN):
+        return
+    if not await _user_owns_root_domain(db, user["email"], d, settings.TUNNEL_DOMAIN):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"You must register the root domain '{rd}' before creating subdomains under it.",
+        )
+
+
 async def _enforce_free_domain_limit(db: AsyncConnection, user_email: str, *, candidate_domain: str | None = None, ignore_token_id: str | None = None) -> None:
-    """Free plan: exactly one custom domain across all tokens for this user."""
+    """Free plan: exactly one root custom domain across all tokens for this user."""
+    from app.core.config import settings
     cur = await db.execute(
         "SELECT id, custom_domain FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL",
         (user_email,),
@@ -103,9 +171,11 @@ async def _enforce_free_domain_limit(db: AsyncConnection, user_email: str, *, ca
     await cur.close()
     if ignore_token_id:
         rows = [r for r in rows if str(r[0]) != str(ignore_token_id)]
-    if not rows:
-        return
-    if candidate_domain is None or any((str(r[1]) or '').lower() == candidate_domain.lower() for r in rows):
+    # Count only root custom domains (not subdomains under another domain or the tunnel domain)
+    root_domains = {_root_domain(str(r[1])) for r in rows if _is_root_custom_domain(str(r[1]), settings.TUNNEL_DOMAIN)}
+    if candidate_domain and _is_root_custom_domain(candidate_domain, settings.TUNNEL_DOMAIN):
+        root_domains.add(_root_domain(candidate_domain))
+    if len(root_domains) <= 1:
         return
     raise HTTPException(
         status.HTTP_402_PAYMENT_REQUIRED,
@@ -220,23 +290,27 @@ async def create_token(
     Subdomain-only tokens (no custom_domain) are unlimited for Pro users."""
     has_domain = bool(body.custom_domain and body.custom_domain.strip())
     if has_domain:
-        # Only tokens WITH a custom_domain count against the seat limit
+        # Only root custom domains count against the seat limit (subdomains under another domain don't)
+        from app.core.config import settings
         max_tokens = int(user.get("seats") or 1)
         cur = await db.execute(
-            "SELECT COUNT(*) FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL",
+            "SELECT custom_domain FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL",
             (user["email"],),
         )
-        row = await cur.fetchone()
+        rows = await cur.fetchall()
         await cur.close()
-        if row[0] >= max_tokens:
+        root_domains = {_root_domain(str(r[0])) for r in rows if _is_root_custom_domain(str(r[0]), settings.TUNNEL_DOMAIN)}
+        if _is_root_custom_domain(body.custom_domain, settings.TUNNEL_DOMAIN):
+            root_domains.add(_root_domain(body.custom_domain))
+        if len(root_domains) > max_tokens:
             if (user.get("plan") or "free") == "free":
                 raise HTTPException(
                     status.HTTP_402_PAYMENT_REQUIRED,
-                    f"Free plan allows only 1 custom-domain token. Upgrade to Pro for more.",
+                    f"Free plan allows only 1 custom domain. Upgrade to Pro for more.",
                 )
             raise HTTPException(
                 status.HTTP_402_PAYMENT_REQUIRED,
-                f"You've reached your limit of {max_tokens} domain tokens (seats). "
+                f"You've reached your limit of {max_tokens} custom domains (seats). "
                 "Buy more seats under Plan → Upgrade to create additional domain tokens.",
             )
 
@@ -244,6 +318,8 @@ async def create_token(
     custom_domain = None
     if body.custom_domain:
         cd = _validate_custom_domain(body.custom_domain, user)
+        # Enforce root-domain ownership for subdomains under custom domains
+        await _enforce_root_domain_ownership(db, user, cd)
         if (user.get("plan") or "free") != "pro":
             await _enforce_free_domain_limit(db, user["email"], candidate_domain=cd)
         if cd:
@@ -378,6 +454,8 @@ async def update_token(
         # Check if domain is already taken by another token
         if domain_value:
             domain_value = _validate_custom_domain(domain_value, user)
+            # Enforce root-domain ownership for subdomains under custom domains
+            await _enforce_root_domain_ownership(db, user, domain_value)
             if (user.get("plan") or "free") != "pro":
                 await _enforce_free_domain_limit(db, user["email"], candidate_domain=domain_value, ignore_token_id=token_id)
             cur = await db.execute(
@@ -508,9 +586,10 @@ async def add_token_domain(
     user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """Attach an extra subdomain/domain to a token (Pro: unlimited subdomains of your 1 domain)."""
+    """Attach an extra subdomain/domain to a token (Pro: unlimited subdomains of your root domains)."""
+    from app.core.config import settings
     cur = await db.execute(
-        "SELECT id, user_email FROM tokens WHERE id = %s", (token_id,)
+        "SELECT id, user_email, custom_domain FROM tokens WHERE id = %s", (token_id,)
     )
     t = await cur.fetchone()
     await cur.close()
@@ -520,6 +599,8 @@ async def add_token_domain(
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, "Multiple subdomains are a Pro feature.")
     domain = body.domain.strip().lower()
     domain = _validate_custom_domain(domain, user)
+    # Enforce root-domain ownership for subdomains under custom domains
+    await _enforce_root_domain_ownership(db, user, domain)
     # v1.8.0: cross-store check — cannot be an extra if it's someone's primary
     cur = await db.execute("SELECT user_email FROM tokens WHERE custom_domain = %s", (domain,))
     prim = await cur.fetchone()
@@ -563,6 +644,10 @@ async def remove_token_domain(
     return {"removed": domain}
 
 
+class BulkDeleteIn(BaseModel):
+    ids: list[str] = Field(..., max_length=100)
+
+
 @router.delete("/{token_id}", status_code=status.HTTP_200_OK)
 async def delete_token(
     token_id: str,
@@ -585,6 +670,36 @@ async def delete_token(
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
     return {"message": "Token deleted"}
+
+
+@router.post("/bulk-delete", status_code=status.HTTP_200_OK)
+async def bulk_delete_tokens(
+    body: BulkDeleteIn,
+    user: dict = Depends(get_api_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Delete up to 100 tokens in one request. Skips tokens the user cannot manage."""
+    if not body.ids:
+        return {"deleted": 0, "skipped": 0}
+    ids = list(dict.fromkeys(body.ids))[:100]  # dedupe + cap
+    deleted = 0
+    skipped = 0
+    for token_id in ids:
+        right = await _token_manage_role(db, token_id, user)
+        if right is None or right == "member":
+            skipped += 1
+            continue
+        cur = await db.execute(
+            "DELETE FROM tokens WHERE id = %s AND (user_email = %s OR team_id IS NOT NULL) RETURNING token",
+            (token_id, user["email"]),
+        )
+        row = await cur.fetchone()
+        await cur.close()
+        if row:
+            deleted += 1
+        else:
+            skipped += 1
+    return {"deleted": deleted, "skipped": skipped}
 
 
 @router.post("/{token_id}/regenerate", response_model=TokenOut)

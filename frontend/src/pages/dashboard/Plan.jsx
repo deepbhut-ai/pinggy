@@ -53,15 +53,12 @@ export default function Plan() {
   const totalBytes = myTunnels.reduce((s, t) => s + (t.bytes_transferred || 0), 0);
 
   const openCheckout = (plan) => {
-    if (plan.id.toLowerCase() === currentPlanName) {
-      toast('You are already on this plan');
-      return;
-    }
     if (plan.price_inr === 0 && plan.price_usd === 0) {
       toast('Free plan is active by default');
       return;
     }
     setCheckoutPlan(plan);
+    setSeats(Math.max(1, me?.seats || 1));
     setCheckoutOpen(true);
   };
 
@@ -71,7 +68,7 @@ export default function Plan() {
       const resp = await api('/payments/checkout', 'POST', JSON.stringify({
         method: payMethod,
         plan: (checkoutPlan?.id || 'pro').toLowerCase(),
-        seats: 1,
+        seats: Number(seats) || 1,
         cycle: cycle || 'monthly',
       }));
       if (resp.url) window.location.href = resp.url;
@@ -79,14 +76,14 @@ export default function Plan() {
     } catch (e) { toast(e.message, 'error'); }
   };
 
+  const baseInr = (checkoutPlan?.price_inr || 199);
+  const baseUsd = (checkoutPlan?.price_usd || 2.99);
   const inrTotal = cycle === 'yearly'
-    ? Math.round((checkoutPlan?.price_inr || 199) * 10)
-    : (checkoutPlan?.price_inr || 199);
+    ? Math.round(baseInr * seats * 10)
+    : Math.round(baseInr * seats);
   const usdTotal = cycle === 'yearly'
-    ? Math.round((checkoutPlan?.price_usd || 2.99) * 10)
-    : (checkoutPlan?.price_usd || 2.99);
-  const baseInr = checkoutPlan?.price_inr || 199;
-  const baseUsd = checkoutPlan?.price_usd || 2.99;
+    ? Math.round(baseUsd * seats * 10 * 100) / 100
+    : Math.round(baseUsd * seats * 100) / 100;
 
   return (
     <>
@@ -209,8 +206,12 @@ export default function Plan() {
                     Default Plan
                   </button>
                 ) : currentPlanName === 'pro' ? (
-                  <button className="btn btn-ghost" style={{ width: '100%' }} disabled>
-                    Already on Pro ✓
+                  <button
+                    className="btn btn-ghost"
+                    style={{ width: '100%' }}
+                    onClick={() => openCheckout(p)}
+                  >
+                    Add More Seats
                   </button>
                 ) : (
                   <button
@@ -255,6 +256,14 @@ export default function Plan() {
                 <span className="badge badge-blue">{cycle === 'yearly' ? 'Yearly' : 'Monthly'}</span>
               </div>
               <div className="order-row">
+                <span>Seats</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.5rem' }}>
+                  <button className="btn btn-ghost btn-sm" style={{ padding: '.15rem .5rem' }} onClick={() => setSeats(Math.max(1, seats - 1))} disabled={seats <= 1}>−</button>
+                  <strong>{seats}</strong>
+                  <button className="btn btn-ghost btn-sm" style={{ padding: '.15rem .5rem' }} onClick={() => setSeats(Math.min(100, seats + 1))}>+</button>
+                </span>
+              </div>
+              <div className="order-row">
                 <span>Billing cycle</span>
                 <span style={{ display: 'inline-flex', gap: '.25rem' }}>
                   <button className={`btn btn-sm ${cycle === 'monthly' ? '' : 'btn-ghost'}`} style={{ padding: '.15rem .5rem', fontSize: '.75rem' }} onClick={() => setCycle('monthly')}>Monthly</button>
@@ -263,7 +272,7 @@ export default function Plan() {
               </div>
               {cycle === 'yearly' && (
                 <div className="order-row" style={{ color: 'var(--green)' }}>
-                  <span>Savings</span><span>₹{baseInr * 2}</span>
+                  <span>Savings</span><span>₹{Math.round(baseInr * seats * 2)}</span>
                 </div>
               )}
               <div style={{ borderTop: '1px solid var(--border)', marginTop: '.5rem', paddingTop: '.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

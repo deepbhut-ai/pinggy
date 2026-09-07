@@ -127,6 +127,31 @@ async def list_tunnels() -> list[TunnelSession]:
     return list(_tunnels.values())
 
 
+async def reconcile_tunnels_with_db() -> dict[str, int]:
+    """On startup, mark any DB rows still 'active' as disconnected.
+
+    The in-memory registry is authoritative for live SSH sessions. After a
+    process restart all SSH connections are gone, so any rows left as 'active'
+    in the DB are stale and must be cleaned up before new tunnels connect.
+    Returns counts of rows updated and rows currently in memory.
+    """
+    updated = 0
+    try:
+        from app.core.db import get_conn
+        async with get_conn() as db:
+            cur = await db.execute(
+                "UPDATE tunnels SET status = 'disconnected', closed_at = now() "
+                "WHERE status = 'active' AND closed_at IS NULL"
+            )
+            updated = cur.rowcount
+            await cur.close()
+    except Exception as e:
+        logger = getattr(asyncio.get_event_loop(), '__logger', None)
+        if logger:
+            logger.warning("Failed to reconcile stale tunnel rows: %s", e)
+    return {"stale_rows_marked_disconnected": updated, "in_memory_tunnels": len(_tunnels)}
+
+
 async def increment_request_count(subdomain: str, bytes_count: int = 0, sent: int = 0, received: int = 0) -> None:
     """Increment traffic counters for a tunnel.
 
