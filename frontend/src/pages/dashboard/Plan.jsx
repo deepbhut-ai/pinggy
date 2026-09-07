@@ -195,23 +195,23 @@ export default function Plan() {
                 </div>
               )}
 
-              {/* CTA — hidden entirely when user is already on a paid plan */}
+              {/* CTA */}
               <div style={{ padding: '1rem' }}>
-                {isCurrent ? (
-                  <button className="btn btn-ghost" style={{ width: '100%' }} disabled>
-                    Current Plan ✓
-                  </button>
-                ) : isFreePlan ? (
+                {isFreePlan ? (
                   <button className="btn btn-ghost" style={{ width: '100%' }} onClick={() => toast('Free plan is the default — no action needed')}>
                     Default Plan
                   </button>
-                ) : currentPlanName === 'pro' ? (
+                ) : isCurrent && currentPlanName === 'pro' ? (
                   <button
                     className="btn btn-ghost"
                     style={{ width: '100%' }}
                     onClick={() => openCheckout(p)}
                   >
                     Add More Seats
+                  </button>
+                ) : isCurrent ? (
+                  <button className="btn btn-ghost" style={{ width: '100%' }} disabled>
+                    Current Plan ✓
                   </button>
                 ) : (
                   <button
