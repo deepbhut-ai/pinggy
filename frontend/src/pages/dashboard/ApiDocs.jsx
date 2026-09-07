@@ -35,38 +35,87 @@ export default function ApiDocs() {
 
   useEffect(() => { loadKeys(); }, [loadKeys]);
 
-  const endpoints = [
-    { method: 'GET',    path: '/domains',                 desc: 'List all your domains (primary + extra, with token info)' },
-    { method: 'POST',   path: '/domains',                 desc: 'Add a domain — {domain} — auto-attached to a token, no token_id needed' },
-    { method: 'PUT',    path: '/domains/{domain}',        desc: 'Update a domain — {new_domain} — same tunnel, new address' },
-    { method: 'DELETE', path: '/domains/{domain}',        desc: 'Remove a domain — only that one, others untouched' },
-    { method: 'GET',    path: '/subdomains',              desc: 'List all your subdomains under your domains' },
-    { method: 'POST',   path: '/subdomains',              desc: 'Create a subdomain under your domain — {subdomain, domain}' },
-    { method: 'PUT',    path: '/subdomains/{subdomain}',  desc: 'Update a subdomain — {new_subdomain, domain}' },
-    { method: 'DELETE', path: '/subdomains/{subdomain}',  desc: 'Remove a subdomain from your domain' },
-    { method: 'GET',    path: '/manage/tunnels',          desc: 'Your live tunnels + recent history' },
-    { method: 'POST',   path: '/manage/tunnels/{sub}/stop', desc: 'Stop one of your live tunnels' },
-    { method: 'GET',    path: '/manage/devices',          desc: 'Your connected remote devices' },
-    { method: 'GET',    path: '/tokens',                  desc: 'List your tunnel tokens' },
-    { method: 'POST',   path: '/tokens',                  desc: 'Create a new tunnel token' },
-    { method: 'PUT',    path: '/tokens/{id}',             desc: 'Update token — set name, subdomain (fixed_subdomain), tunnel type' },
-    { method: 'DELETE', path: '/tokens/{id}',             desc: 'Delete a tunnel token' },
-    { method: 'POST',   path: '/tokens/{id}/domains',     desc: 'Attach an extra custom domain to a token (Pro)' },
-    { method: 'DELETE', path: '/tokens/{id}/domains/{domain}', desc: 'Remove an extra domain from a token' },
-    { method: 'POST',   path: '/tokens/{id}/regenerate',  desc: 'Regenerate a token (old one stops working)' },
-    { method: 'PUT',    path: '/users/me/custom-domain',  desc: 'Set/clear your primary custom domain on a token' },
-    { method: 'GET',    path: '/users/me/verify-domain',   desc: 'Verify a domain\'s DNS points to our server' },
-    { method: 'GET',    path: '/apikeys',                 desc: 'List your API keys' },
-    { method: 'POST',   path: '/apikeys',                 desc: 'Create an API key' },
-    { method: 'GET',    path: '/invoices/my',            desc: 'Your invoices' },
-    { method: 'GET',    path: '/plans',                   desc: 'Available plans' },
-    { method: 'GET',    path: '/teams',                   desc: 'List your teams (with members + tokens)' },
-    { method: 'POST',   path: '/teams',                  desc: 'Create a new team' },
-    { method: 'POST',   path: '/teams/{team_id}/members', desc: 'Add a member to a team' },
-    { method: 'PATCH',  path: '/teams/{team_id}/members/{email}', desc: 'Change a member role (admin/member)' },
-    { method: 'DELETE', path: '/teams/{team_id}/members/{email}', desc: 'Remove a member from a team' },
-    { method: 'GET',    path: '/tickets/my',              desc: 'List your support tickets' },
-    { method: 'POST',   path: '/tickets',                 desc: 'Open a support ticket' },
+  const sections = [
+    {
+      id: 'setup',
+      title: '1. Setup — get your API key ready',
+      subtitle: 'Create an API key, then verify it here before calling other endpoints.',
+      endpoints: [
+        { method: 'POST', path: '/apikeys', desc: 'Create a new API key. Save the returned key — it is shown only once.' },
+        { method: 'GET',  path: '/apikeys', desc: 'List your existing API keys (secrets are masked).' },
+      ],
+    },
+    {
+      id: 'tokens',
+      title: '2. Tokens — create and manage tunnel tokens',
+      subtitle: 'A token is required to start a tunnel. Create one, then optionally set a fixed subdomain or custom domain.',
+      endpoints: [
+        { method: 'GET',    path: '/tokens',                  desc: 'Step 2a: List your existing tokens.' },
+        { method: 'POST',   path: '/tokens',                  desc: 'Step 2b: Create a new tunnel token. Copy the token value to use in the SSH command.' },
+        { method: 'PUT',    path: '/tokens/{id}',             desc: 'Step 2c (optional): Update token name, fixed subdomain, or tunnel mode.' },
+        { method: 'POST',   path: '/tokens/{id}/regenerate',  desc: 'Rotate a token. The old value stops working immediately.' },
+        { method: 'DELETE', path: '/tokens/{id}',             desc: 'Delete a token and release its resources.' },
+      ],
+    },
+    {
+      id: 'tunnel',
+      title: '3. Start and monitor tunnels',
+      subtitle: 'Use your token in the SSH command, then monitor or stop live tunnels via the API.',
+      endpoints: [
+        { method: 'GET',    path: '/manage/tunnels',          desc: 'Step 3a: List your currently live tunnels and recent history.' },
+        { method: 'POST',   path: '/manage/tunnels/{sub}/stop', desc: 'Step 3b: Stop a live tunnel by its subdomain.' },
+        { method: 'GET',    path: '/manage/devices',          desc: 'List remote devices connected to your account.' },
+      ],
+    },
+    {
+      id: 'domains',
+      title: '4. Domains — add root domains and subdomains',
+      subtitle: 'First add a root domain, then create subdomains under it. Each root domain gets its own token.',
+      endpoints: [
+        { method: 'GET',    path: '/domains',                 desc: 'Step 4a: List all your root domains and attached subdomains.' },
+        { method: 'POST',   path: '/domains',                 desc: 'Step 4b: Add a root domain. This creates a dedicated token with that domain as the primary address.' },
+        { method: 'PUT',    path: '/domains/{domain}',        desc: 'Step 4c: Rename a root domain to a new domain.' },
+        { method: 'DELETE', path: '/domains/{domain}',        desc: 'Step 4d: Remove a root domain and its token.' },
+        { method: 'GET',    path: '/subdomains',              desc: 'Step 4e: List all subdomains under your root domains.' },
+        { method: 'POST',   path: '/subdomains',              desc: 'Step 4f: Create a subdomain under one of your root domains.' },
+        { method: 'PUT',    path: '/subdomains/{subdomain}',  desc: 'Step 4g: Rename a subdomain.' },
+        { method: 'DELETE', path: '/subdomains/{subdomain}',  desc: 'Step 4h: Remove a subdomain.' },
+      ],
+    },
+    {
+      id: 'advanced',
+      title: '5. Advanced token domain options',
+      subtitle: 'Attach extra domains to an existing token, or manage your primary custom domain directly.',
+      endpoints: [
+        { method: 'POST',   path: '/tokens/{id}/domains',     desc: 'Attach an extra custom domain to an existing token (Pro).' },
+        { method: 'DELETE', path: '/tokens/{id}/domains/{domain}', desc: 'Remove an extra domain from a token.' },
+        { method: 'PUT',    path: '/users/me/custom-domain',  desc: 'Set or clear your primary custom domain on a token.' },
+        { method: 'GET',    path: '/users/me/verify-domain',   desc: 'Verify DNS for a domain points to our server.' },
+      ],
+    },
+    {
+      id: 'teams',
+      title: '6. Teams — share tokens with your team',
+      subtitle: 'Create a team, add members, and assign roles.',
+      endpoints: [
+        { method: 'GET',    path: '/teams',                   desc: 'Step 6a: List your teams and their members.' },
+        { method: 'POST',   path: '/teams',                  desc: 'Step 6b: Create a new team.' },
+        { method: 'POST',   path: '/teams/{team_id}/members', desc: 'Step 6c: Invite a member to a team.' },
+        { method: 'PATCH',  path: '/teams/{team_id}/members/{email}', desc: 'Step 6d: Change a member role (admin or member).' },
+        { method: 'DELETE', path: '/teams/{team_id}/members/{email}', desc: 'Step 6e: Remove a member from a team.' },
+      ],
+    },
+    {
+      id: 'billing',
+      title: '7. Billing and support',
+      subtitle: 'View plans, invoices, and open support tickets.',
+      endpoints: [
+        { method: 'GET', path: '/plans',      desc: 'List available subscription plans.' },
+        { method: 'GET', path: '/invoices/my', desc: 'List your invoices and payment status.' },
+        { method: 'GET', path: '/tickets/my', desc: 'List your support tickets.' },
+        { method: 'POST', path: '/tickets',    desc: 'Open a new support ticket.' },
+      ],
+    },
   ];
 
   // Sample request bodies — user can edit these before testing
@@ -569,99 +618,109 @@ export default function ApiDocs() {
         </div>
       </div>
 
-      {/* Endpoint cards — each is a rectangular box with editable data + Test button */}
-      <div className="apidocs-grid">
-        {endpoints.map((ep) => {
-          const key = ep.method + ep.path;
-          const result = results[key];
-          const isTesting = testingEndpoint === key;
-          const hasBody = !!SAMPLE_BODIES[key];
-          const hasParams = !!PATH_PARAMS[key];
-          const isExpanded = expandedCard === key;
-          return (
-            <div key={key} className="apidocs-card">
-              <div className="apidocs-card-header">
-                <span className={`badge ${ep.method === 'GET' ? 'badge-green' : ep.method === 'DELETE' ? 'badge-red' : ep.method === 'PATCH' ? 'badge-red' : 'badge-blue'}`}>{ep.method}</span>
-                <span className="code apidocs-path">{ep.path}</span>
-              </div>
-              <p className="dim apidocs-desc">{ep.desc}</p>
-
-              {/* Editable data section — expand/collapse */}
-              {(hasBody || hasParams) && (
-                <div className="apidocs-edit">
-                  <button className="btn btn-sm btn-ghost apidocs-edit-toggle" onClick={() => setExpandedCard(isExpanded ? null : key)}>
-                    {isExpanded ? '▾ Hide data' : '▸ Edit data'}
-                  </button>
-                  {isExpanded && (
-                    <div className="apidocs-edit-body">
-                      {hasParams && Object.entries(PATH_PARAMS[key]).map(([param, hint]) => (
-                        <div key={param} style={{ marginBottom: '.5rem' }}>
-                          <label className="dim" style={{ fontSize: '.72rem', fontWeight: 600, display: 'block', marginBottom: '.25rem' }}>
-                            {param} — <span style={{ fontWeight: 400 }}>{hint}</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={pathParams[key]?.[param] || ''}
-                            onChange={(e) => setPathParams((prev) => ({ ...prev, [key]: { ...prev[key], [param]: e.target.value } }))}
-                            placeholder={
-                              param === 'sub'
-                                ? 'Leave empty to auto-use your first live tunnel'
-                                : param === 'domain'
-                                ? 'Enter a domain you own'
-                                : param === 'subdomain'
-                                ? 'Enter subdomain prefix'
-                                : param === 'new_subdomain'
-                                ? 'Enter new subdomain prefix'
-                                : 'Leave empty to auto-use your last token'
-                            }
-                          />
-                        </div>
-                      ))}
-                      {hasBody && (
-                        <div>
-                          <label className="dim" style={{ fontSize: '.72rem', fontWeight: 600, display: 'block', marginBottom: '.25rem' }}>
-                            Request body (JSON) — edit and test
-                          </label>
-                          <textarea
-                            value={requestBodies[key] ?? SAMPLE_BODIES[key]}
-                            onChange={(e) => setRequestBodies((prev) => ({ ...prev, [key]: e.target.value }))}
-                            rows={5}
-                            spellCheck={false}
-                            className="apidocs-json-input"
-                          />
-                        </div>
-                      )}
-                      <p className="dim" style={{ fontSize: '.68rem', marginTop: '.3rem' }}>
-                        💡 Edit the data above, then click Test — your values will be sent.
-                      </p>
+      {/* Endpoint cards — grouped into workflow sections */}
+      {sections.map((section) => (
+        <div key={section.id} className="card" style={{ marginBottom: '1.5rem' }}>
+          <div className="card-header">
+            <h2>{section.title}</h2>
+            <p className="dim" style={{ fontSize: '.85rem', margin: 0 }}>{section.subtitle}</p>
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            <div className="apidocs-grid">
+              {section.endpoints.map((ep) => {
+                const key = ep.method + ep.path;
+                const result = results[key];
+                const isTesting = testingEndpoint === key;
+                const hasBody = !!SAMPLE_BODIES[key];
+                const hasParams = !!PATH_PARAMS[key];
+                const isExpanded = expandedCard === key;
+                return (
+                  <div key={key} className="apidocs-card">
+                    <div className="apidocs-card-header">
+                      <span className={`badge ${ep.method === 'GET' ? 'badge-green' : ep.method === 'DELETE' ? 'badge-red' : ep.method === 'PATCH' ? 'badge-red' : 'badge-blue'}`}>{ep.method}</span>
+                      <span className="code apidocs-path">{ep.path}</span>
                     </div>
-                  )}
-                </div>
-              )}
+                    <p className="dim apidocs-desc">{ep.desc}</p>
 
-              <div className="apidocs-card-actions">
-                <button
-                  className="btn btn-sm"
-                  onClick={() => testEndpoint(ep)}
-                  disabled={isTesting || !apiKey.trim()}
-                >
-                  {isTesting ? '🔄 Testing...' : '▶ Test'}
-                </button>
-                {result && (
-                  <span className={`apidocs-result ${result.ok ? 'ok' : 'fail'}`}>
-                    {result.ok ? '✅' : '❌'} HTTP {result.status} · {result.testedAt}
-                  </span>
-                )}
-              </div>
-              {result && (
-                <div className="apidocs-response">
-                  <pre>{JSON.stringify(result.data, null, 2).substring(0, 500)}</pre>
-                </div>
-              )}
+                    {/* Editable data section — expand/collapse */}
+                    {(hasBody || hasParams) && (
+                      <div className="apidocs-edit">
+                        <button className="btn btn-sm btn-ghost apidocs-edit-toggle" onClick={() => setExpandedCard(isExpanded ? null : key)}>
+                          {isExpanded ? '▾ Hide data' : '▸ Edit data'}
+                        </button>
+                        {isExpanded && (
+                          <div className="apidocs-edit-body">
+                            {hasParams && Object.entries(PATH_PARAMS[key]).map(([param, hint]) => (
+                              <div key={param} style={{ marginBottom: '.5rem' }}>
+                                <label className="dim" style={{ fontSize: '.72rem', fontWeight: 600, display: 'block', marginBottom: '.25rem' }}>
+                                  {param} — <span style={{ fontWeight: 400 }}>{hint}</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={pathParams[key]?.[param] || ''}
+                                  onChange={(e) => setPathParams((prev) => ({ ...prev, [key]: { ...prev[key], [param]: e.target.value } }))}
+                                  placeholder={
+                                    param === 'sub'
+                                      ? 'Leave empty to auto-use your first live tunnel'
+                                      : param === 'domain'
+                                      ? 'Enter a domain you own'
+                                      : param === 'subdomain'
+                                      ? 'Enter subdomain prefix'
+                                      : param === 'new_subdomain'
+                                      ? 'Enter new subdomain prefix'
+                                      : 'Leave empty to auto-use your last token'
+                                  }
+                                />
+                              </div>
+                            ))}
+                            {hasBody && (
+                              <div>
+                                <label className="dim" style={{ fontSize: '.72rem', fontWeight: 600, display: 'block', marginBottom: '.25rem' }}>
+                                  Request body (JSON) — edit and test
+                                </label>
+                                <textarea
+                                  value={requestBodies[key] ?? SAMPLE_BODIES[key]}
+                                  onChange={(e) => setRequestBodies((prev) => ({ ...prev, [key]: e.target.value }))}
+                                  rows={5}
+                                  spellCheck={false}
+                                  className="apidocs-json-input"
+                                />
+                              </div>
+                            )}
+                            <p className="dim" style={{ fontSize: '.68rem', marginTop: '.3rem' }}>
+                              💡 Edit the data above, then click Test — your values will be sent.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="apidocs-card-actions">
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => testEndpoint(ep)}
+                        disabled={isTesting || !apiKey.trim()}
+                      >
+                        {isTesting ? '🔄 Testing...' : '▶ Test'}
+                      </button>
+                      {result && (
+                        <span className={`apidocs-result ${result.ok ? 'ok' : 'fail'}`}>
+                          {result.ok ? '✅' : '❌'} HTTP {result.status} · {result.testedAt}
+                        </span>
+                      )}
+                    </div>
+                    {result && (
+                      <div className="apidocs-response">
+                        <pre>{JSON.stringify(result.data, null, 2).substring(0, 500)}</pre>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        </div>
+      ))}
     </>
   );
 }
