@@ -58,7 +58,8 @@ export default function Plan() {
       return;
     }
     setCheckoutPlan(plan);
-    setSeats(Math.max(1, me?.seats || 1));
+    // For seat upgrades, default to 1 additional seat, not current total
+    setSeats(1);
     setCheckoutOpen(true);
   };
 
@@ -256,13 +257,18 @@ export default function Plan() {
                 <span className="badge badge-blue">{cycle === 'yearly' ? 'Yearly' : 'Monthly'}</span>
               </div>
               <div className="order-row">
-                <span>Seats</span>
+                <span>Additional seats</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.5rem' }}>
                   <button className="btn btn-ghost btn-sm" style={{ padding: '.15rem .5rem' }} onClick={() => setSeats(Math.max(1, seats - 1))} disabled={seats <= 1}>−</button>
                   <strong>{seats}</strong>
                   <button className="btn btn-ghost btn-sm" style={{ padding: '.15rem .5rem' }} onClick={() => setSeats(Math.min(100, seats + 1))}>+</button>
                 </span>
               </div>
+              {currentPlanName === 'pro' && (
+                <div className="order-row" style={{ color: 'var(--text-dim)', fontSize: '.8rem' }}>
+                  <span>Current seats</span><span>{me?.seats || 1} → {Number(me?.seats || 1) + Number(seats)}</span>
+                </div>
+              )}
               <div className="order-row">
                 <span>Billing cycle</span>
                 <span style={{ display: 'inline-flex', gap: '.25rem' }}>
