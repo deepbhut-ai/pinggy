@@ -1595,53 +1595,43 @@ function applyConfig() {
   navigate('quickstart', document.querySelector('[data-page=quickstart]'));
 }
 
-// ---- Domains (Page 3 — unified view, v1.8.0) ----
+// ---- Domains (Page 3 — custom domains only, v1.14.0) ----
 async function loadDomains() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
   try {
     const tokens = await api('/tokens');
-    const suffix = '.iraglobaltech.com';
-    const myOwn = tokens.filter(t => !t.via_team || t.via_team.owner);  // own tokens (even team-shared ones)
-    const nSub = myOwn.filter(t => t.fixed_subdomain).length;
-    const nPrim = myOwn.filter(t => t.custom_domain).length;
-    const nExtra = myOwn.reduce((n, t) => n + (t.domains?.length || 0), 0);
+    const myOwn = tokens.filter(t => !t.via_team || t.via_team.owner);
+
+    // Build a flat list of all domains across all tokens
+    const allDomains = [];
+    myOwn.forEach(t => {
+      if (t.custom_domain) allDomains.push({ domain: t.custom_domain, type: 'Primary', tokenId: t.id, tokenName: t.name || 'Token' });
+      (t.domains || []).forEach(d => allDomains.push({ domain: d, type: 'Extra', tokenId: t.id, tokenName: t.name || 'Token' }));
+    });
 
     const tokenCard = t => {
       const rows = [];
-      // subdomain row (always present)
-      rows.push(`
-        <tr>
-          <td><span class="badge">Subdomain</span></td>
-          <td class="code" style="display:flex;align-items:center;gap:.4rem">https://${t.subdomain}${suffix}
-            <button class="icon-btn" title="Copy" onclick="copyToClipboard('https://${t.subdomain}${suffix}')">📋</button></td>
-          <td style="color:var(--text-dim);font-size:.78rem">${t.fixed_subdomain ? '📌 fixed — same address every connect' : 'random — new address each connect'}</td>
-          <td>${t.fixed_subdomain
-            ? `<button class="btn btn-sm btn-ghost" onclick="changeSubdomain('${t.id}','${t.fixed_subdomain}')">Change</button>`
-            : `<button class="btn btn-sm" onclick="changeSubdomain('${t.id}','')">Set fixed</button>`}</td>
-        </tr>`);
       if (t.custom_domain) rows.push(`
         <tr>
-          <td><span class="badge badge-blue">Primary domain</span></td>
+          <td><span class="badge badge-blue">Primary</span></td>
           <td class="code" style="display:flex;align-items:center;gap:.4rem">https://${t.custom_domain}
             <button class="icon-btn" title="Copy" onclick="copyToClipboard('https://${t.custom_domain}')">📋</button></td>
-          <td style="color:var(--text-dim);font-size:.78rem">your own domain, routes to this token</td>
           <td><button class="btn btn-sm btn-danger" onclick="removePrimaryDomain('${t.custom_domain}')">Remove</button></td>
         </tr>`);
       (t.domains || []).forEach(d => rows.push(`
         <tr>
-          <td><span class="badge badge-green">Extra domain</span></td>
+          <td><span class="badge badge-green">Extra</span></td>
           <td class="code" style="display:flex;align-items:center;gap:.4rem">https://${d}
             <button class="icon-btn" title="Copy" onclick="copyToClipboard('https://${d}')">📋</button></td>
-          <td style="color:var(--text-dim);font-size:.78rem">same tunnel, own DNS record</td>
           <td><button class="btn btn-sm btn-danger" onclick="removeExtraDomain('${d}','${t.id}')">Remove</button></td>
         </tr>`));
+      if (!rows.length) return '';
       return `
       <div class="card" style="margin-top:1rem">
-        <div class="card-header"><h2>🔑 ${t.name || 'Token'} <span class="code" style="font-size:.75rem;color:var(--text-dim)">— https://${t.subdomain}${suffix}</span>${t.team_id ? ' <span class="badge" title="shared with a team">👥</span>' : ''}</h2></div>
         <div class="card-body" style="padding:0;overflow-x:auto">
           <table class="table" style="font-size:.85rem">
-            <thead><tr><th>Type</th><th>Address</th><th>Note</th><th style="width:130px"></th></tr></thead>
+            <thead><tr><th style="width:100px">Type</th><th>Domain</th><th style="width:100px"></th></tr></thead>
             <tbody>${rows.join('')}</tbody>
           </table>
         </div>
@@ -1650,17 +1640,7 @@ async function loadDomains() {
 
     c.innerHTML = `
     <h2 style="margin-bottom:.4rem">Domains</h2>
-    <p style="color:var(--text-dim);margin-bottom:1.2rem;font-size:.9rem">Every address your tunnels answer on — all in one place. Remove a domain here and it's gone from the whole system.</p>
-
-    <div class="card" style="display:flex;gap:1.5rem;align-items:center;padding:.9rem 1.2rem;flex-wrap:wrap">
-      <div><div style="font-size:1.4rem;font-weight:800">${myOwn.length}</div><div style="font-size:.75rem;color:var(--text-dim)">tokens</div></div>
-      <div style="width:1px;height:2rem;background:var(--border)"></div>
-      <div><div style="font-size:1.4rem;font-weight:800">${nSub}</div><div style="font-size:.75rem;color:var(--text-dim)">fixed subdomains</div></div>
-      <div style="width:1px;height:2rem;background:var(--border)"></div>
-      <div><div style="font-size:1.4rem;font-weight:800">${nPrim}</div><div style="font-size:.75rem;color:var(--text-dim)">primary domains</div></div>
-      <div style="width:1px;height:2rem;background:var(--border)"></div>
-      <div><div style="font-size:1.4rem;font-weight:800">${nExtra}</div><div style="font-size:.75rem;color:var(--text-dim)">extra domains</div></div>
-    </div>
+    <p style="color:var(--text-dim);margin-bottom:1.2rem;font-size:.9rem">Manage your custom domains. Point DNS A record to 13.140.131.204.</p>
 
     <div class="card" style="margin-top:1rem">
       <div class="card-header"><h2>➕ Add a domain</h2></div>
@@ -1669,28 +1649,29 @@ async function loadDomains() {
         <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
           <input type="text" id="addDomInput" placeholder="e.g. api.mycompany.com" style="flex:1;min-width:200px">
           <select id="addDomToken" class="form-control" style="width:auto;max-width:220px">
-            ${myOwn.map(t => `<option value="${t.id}">${t.name || t.token.slice(0, 12)} (${t.subdomain})</option>`).join('')}
+            ${myOwn.map(t => `<option value="${t.id}">${t.name || t.token.slice(0, 12)}</option>`).join('')}
           </select>
           <select id="addDomType" class="form-control" style="width:auto">
-            <option value="extra">Extra domain — same tunnel, own address</option>
-            <option value="primary">Primary domain — the token's main address</option>
+            <option value="primary">Primary domain</option>
+            <option value="extra">Extra domain</option>
           </select>
           <button class="btn btn-sm" onclick="addDomainAny()">Add</button>
         </div>
         <details style="margin-top:.8rem">
-          <summary style="font-size:.8rem;color:var(--brand);cursor:pointer;font-weight:600">📋 DNS setup (once per domain)</summary>
+          <summary style="font-size:.8rem;color:var(--brand);cursor:pointer;font-weight:600">📋 DNS setup</summary>
           <div style="margin-top:.5rem;padding:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;color:var(--text-dim);line-height:1.7">
-            <p><strong>Step 1:</strong> Add the domain to Cloudflare → Add Site (change nameservers at your registrar)</p>
+            <p><strong>Step 1:</strong> Add the domain to Cloudflare → Add Site</p>
             <p><strong>Step 2:</strong> DNS A Record: Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied</p>
             <p><strong>Step 3:</strong> SSL/TLS mode → Flexible</p>
-            <p><strong>Step 4:</strong> Add it above — it appears under the token instantly (reconnect a live tunnel to see it in the SSH banner)</p>
+            <p><strong>Step 4:</strong> Add it above</p>
           </div>
         </details>` : `
-        <p class="empty">No tokens yet — <a href="#" onclick="navigate('tokens',document.querySelector('[data-page=tokens]'));return false" style="color:var(--brand);font-weight:600">create one in Manage Tokens</a> first.</p>`}
+        <p class="empty">No tokens yet — create one in Manage Tokens first.</p>`}
       </div>
     </div>
 
-    ${myOwn.map(tokenCard).join('')}`;
+    <h3 style="margin-top:1.5rem;margin-bottom:.5rem">Your domains (${allDomains.length})</h3>
+    ${allDomains.length ? myOwn.filter(t => t.custom_domain || (t.domains?.length || 0) > 0).map(tokenCard).join('') : '<div class="card"><div class="card-body"><p class="empty">No domains added yet.</p></div></div>'}`;
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
 }
 

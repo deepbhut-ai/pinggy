@@ -3,7 +3,9 @@ import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import { formatBytes } from '../../utils';
 
-// Active Tunnels — /tunnels/my with rate tracking + per-row debug
+// Active Tunnels — /tunnels/my with rate tracking + per-row debug + pagination
+const PAGE_SIZES = [10, 20, 50, 100];
+
 export default function ActiveTunnels() {
   const toast = useToast();
   const [tunnels, setTunnels] = useState([]);
@@ -12,18 +14,26 @@ export default function ActiveTunnels() {
   const [captures, setCaptures] = useState({ entries: [], count: 0 });
   const rateRef = useRef({});
   const pollRef = useRef(null);
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  // History pagination (separate)
+  const [histPage, setHistPage] = useState(1);
+  const [histPageSize, setHistPageSize] = useState(10);
 
   const load = useCallback(async () => {
     try {
       const t = await api('/tunnels/my');
+      // Only live running tunnels — hide disconnected/dead ones
+      const live = t.filter((tn) => tn.status === 'active');
       const now = Date.now();
       const next = {};
-      t.forEach((tn) => {
+      live.forEach((tn) => {
         const id = tn.tunnel_id || tn.subdomain;
         next[id] = { lastBytes: tn.bytes_transferred || 0, lastTime: now, prev: rateRef.current[id] };
       });
       rateRef.current = next;
-      setTunnels(t);
+      setTunnels(live);
     } catch (e) { /* silent poll */ }
   }, []);
 
@@ -33,6 +43,17 @@ export default function ActiveTunnels() {
     pollRef.current = setInterval(load, 3000);
     return () => clearInterval(pollRef.current);
   }, [load]);
+
+  const totalPages = Math.max(1, Math.ceil(tunnels.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paged = tunnels.slice((safePage - 1) * pageSize, safePage * pageSize);
+  // keep the current page valid when the live list shrinks (tunnels disconnect)
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  // History pagination
+  const histTotalPages = Math.max(1, Math.ceil(history.length / histPageSize));
+  const safeHistPage = Math.min(histPage, histTotalPages);
+  const pagedHistory = history.slice((safeHistPage - 1) * histPageSize, safeHistPage * histPageSize);
+  useEffect(() => { if (histPage > histTotalPages) setHistPage(histTotalPages); }, [histPage, histTotalPages]);
 
   const openDebug = async (sub) => {
     setDebugOpen(sub);
@@ -54,13 +75,14 @@ export default function ActiveTunnels() {
   return (
     <>
       <h2 style={{ marginBottom: '.4rem' }}>Active Tunnels</h2>
-      <p className="dim" style={{ marginBottom: '1.5rem', fontSize: '.9rem' }}>{tunnels.length} active session{tunnels.length !== 1 ? 's' : ''}</p>
+      <p className="dim" style={{ marginBottom: '1.5rem', fontSize: '.9rem' }}>{tunnels.length} live tunnel{tunnels.length !== 1 ? 's' : ''} running</p>
 
       <div className="card">
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {tunnels.length === 0 ? (
-            <p className="empty">No active tunnels. Start a tunnel from the Quickstart page.</p>
+            <p className="empty">No live tunnels running right now. Start a tunnel from the Quickstart page.</p>
           ) : (
+            <>
             <table>
               <thead>
                 <tr>
@@ -70,9 +92,9 @@ export default function ActiveTunnels() {
                 </tr>
               </thead>
               <tbody>
-                {tunnels.map((t, i) => (
+                {paged.map((t, i) => (
                   <tr key={t.tunnel_id || t.subdomain}>
-                    <td>{i + 1}</td>
+                    <td>{(safePage - 1) * pageSize + i + 1}</td>
                     <td>
                       <a href={t.url} target="_blank" rel="noreferrer" style={{ color: 'var(--brand)', fontWeight: 600 }}>{t.url}</a>
                       {t.custom_url && (
@@ -94,6 +116,24 @@ export default function ActiveTunnels() {
                 ))}
               </tbody>
             </table>
+            {/* Pagination */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '.5rem', padding: '.7rem 1rem', borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.8rem' }} className="dim">
+                Rows per page
+                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} style={{ width: 'auto', padding: '.25rem .4rem' }}>
+                  {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <span>· showing {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, tunnels.length)} of {tunnels.length}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.35rem' }}>
+                <button className="btn btn-sm btn-ghost" disabled={safePage === 1} onClick={() => setPage(1)}>«</button>
+                <button className="btn btn-sm btn-ghost" disabled={safePage === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
+                <span className="dim" style={{ fontSize: '.8rem', padding: '0 .4rem' }}>Page {safePage} / {totalPages}</span>
+                <button className="btn btn-sm btn-ghost" disabled={safePage === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</button>
+                <button className="btn btn-sm btn-ghost" disabled={safePage === totalPages} onClick={() => setPage(totalPages)}>»</button>
+              </div>
+            </div>
+            </>
           )}
         </div>
       </div>
@@ -105,10 +145,11 @@ export default function ActiveTunnels() {
           {history.length === 0 ? (
             <p className="empty">No tunnel history yet.</p>
           ) : (
+            <>
             <table>
               <thead><tr><th>Subdomain</th><th>Remote port</th><th>Status</th><th>Requests</th><th>Bytes</th><th>Created</th></tr></thead>
               <tbody>
-                {history.map((t) => (
+                {pagedHistory.map((t) => (
                   <tr key={t.tunnel_id || t.subdomain}>
                     <td className="code">{t.subdomain}</td>
                     <td>{t.remote_port}</td>
@@ -120,6 +161,24 @@ export default function ActiveTunnels() {
                 ))}
               </tbody>
             </table>
+            {/* History pagination */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '.5rem', padding: '.7rem 1rem', borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.8rem' }} className="dim">
+                Rows per page
+                <select value={histPageSize} onChange={(e) => { setHistPageSize(Number(e.target.value)); setHistPage(1); }} style={{ width: 'auto', padding: '.25rem .4rem' }}>
+                  {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <span>· showing {(safeHistPage - 1) * histPageSize + 1}–{Math.min(safeHistPage * histPageSize, history.length)} of {history.length}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.35rem' }}>
+                <button className="btn btn-sm btn-ghost" disabled={safeHistPage === 1} onClick={() => setHistPage(1)}>«</button>
+                <button className="btn btn-sm btn-ghost" disabled={safeHistPage === 1} onClick={() => setHistPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
+                <span className="dim" style={{ fontSize: '.8rem', padding: '0 .4rem' }}>Page {safeHistPage} / {histTotalPages}</span>
+                <button className="btn btn-sm btn-ghost" disabled={safeHistPage === histTotalPages} onClick={() => setHistPage((p) => Math.min(histTotalPages, p + 1))}>Next ›</button>
+                <button className="btn btn-sm btn-ghost" disabled={safeHistPage === histTotalPages} onClick={() => setHistPage(histTotalPages)}>»</button>
+              </div>
+            </div>
+            </>
           )}
         </div>
       </div>

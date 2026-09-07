@@ -6,49 +6,87 @@ import { copyToClipboard } from '../../utils';
 
 export default function Domains() {
   const toast = useToast();
-  const [tokens, setTokens] = useState([]);
+  const [domains, setDomains] = useState([]); // [{domain}]
   const [addDom, setAddDom] = useState('');
-  const [addTok, setAddTok] = useState('');
-  const [addType, setAddType] = useState('extra');
-  const [removeModal, setRemoveModal] = useState(null); // domain
 
-  const load = useCallback(() => api('/tokens').then(setTokens).catch(() => {}), []);
+  // Extract root domain from any host: e.g. bedrive.callingagents.in → callingagents.in
+  const rootDomain = (host) => {
+    if (!host) return '';
+    const parts = host.replace(/^https?:\/\//, '').split('.').filter(Boolean);
+    if (parts.length <= 2) return parts.join('.');
+    // Handle two-part TLDs like .co.uk, .com.br
+    const twoPartTld = /^(com|co|net|org|gov|edu|ac)\.[a-z]{2}$/i.test(parts.slice(-2).join('.'));
+    return twoPartTld ? parts.slice(-3).join('.') : parts.slice(-2).join('.');
+  };
+
+  const load = useCallback(() => {
+    api('/tokens').then((tokens) => {
+      const allDomains = [];
+      (tokens || []).forEach((t) => {
+        if (t.custom_domain) allDomains.push({ domain: t.custom_domain, token_id: t.id, type: 'primary' });
+        (t.domains || []).forEach((d) => allDomains.push({ domain: d, token_id: t.id, type: 'extra' }));
+      });
+      // Extract unique root domains only (filter out subdomains)
+      const rootDomains = [...new Set(allDomains.map((d) => rootDomain(d.domain)).filter(Boolean))];
+      setDomains(rootDomains.map((r) => ({ domain: r })));
+    }).catch(() => {});
+  }, []);
   useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    if (!addTok && tokens.length) setAddTok(tokens[0].id);
-  }, [tokens, addTok]);
-
-  const myOwn = tokens.filter((t) => !t.via_team || t.via_team.owner);
 
   const addDomain = async () => {
     const domain = addDom.trim().toLowerCase();
     if (!domain) return toast('Enter a domain first', 'error');
+    // Validate it's a root domain (not a subdomain)
+    const root = rootDomain(domain);
+    if (root !== domain) {
+      return toast('Please enter a root domain only (e.g. mycompany.com, not sub.mycompany.com)', 'error');
+    }
     try {
-      if (addType === 'primary') {
-        await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}&token_id=${encodeURIComponent(addTok)}`, 'PUT');
-        toast(`${domain} is now the primary domain — point its A record at 13.140.131.204`);
-      } else {
-        await api(`/tokens/${addTok}/domains`, 'POST', JSON.stringify({ domain }));
-        toast(`${domain} attached — point its A record at 13.140.131.204`);
+      // Find first available token to attach the domain
+      const tokens = await api('/tokens');
+      const myTokens = tokens.filter((t) => !t.via_team || t.via_team.owner);
+      if (!myTokens.length) {
+        return toast('No tokens available. Create a token first.', 'error');
       }
+      // Check if domain already exists
+      const existingDomain = (tokens || []).some((t) => 
+        t.custom_domain === domain || (t.domains || []).includes(domain)
+      );
+      if (existingDomain) {
+        return toast('This domain is already added', 'error');
+      }
+      // Add as extra domain to first available token
+      await api(`/tokens/${myTokens[0].id}/domains`, 'POST', JSON.stringify({ domain }));
+      toast(`${domain} added — point DNS A record to 13.140.131.204`);
+      setAddDom('');
       load();
     } catch (e) { toast(e.message, 'error'); }
   };
 
-  const removePrimary = async () => {
+  const removeDomain = async (rootDomainToRemove) => {
     try {
-      await api(`/users/me/custom-domain?custom_domain=&token_id=`, 'PUT');
-      toast(`${removeModal} removed from the system`);
-      setRemoveModal(null);
-      load();
-    } catch (e) { toast(e.message, 'error'); }
-  };
-
-  const removeExtra = async (domain, tokenId) => {
-    try {
-      await api(`/tokens/${tokenId}/domains/${domain}`, 'DELETE');
-      toast(`${domain} removed from the system`);
+      const tokens = await api('/tokens');
+      // Find all domains (primary + extra) that match this root domain
+      const domainsToRemove = [];
+      (tokens || []).forEach((t) => {
+        if (t.custom_domain && rootDomain(t.custom_domain) === rootDomainToRemove) {
+          domainsToRemove.push({ domain: t.custom_domain, tokenId: t.id, type: 'primary' });
+        }
+        (t.domains || []).forEach((d) => {
+          if (rootDomain(d) === rootDomainToRemove) {
+            domainsToRemove.push({ domain: d, tokenId: t.id, type: 'extra' });
+          }
+        });
+      });
+      // Remove all matching domains
+      for (const d of domainsToRemove) {
+        if (d.type === 'primary') {
+          await api(`/users/me/custom-domain?custom_domain=&token_id=${encodeURIComponent(d.tokenId)}`, 'PUT');
+        } else {
+          await api(`/tokens/${d.tokenId}/domains/${encodeURIComponent(d.domain)}`, 'DELETE');
+        }
+      }
+      toast(`${rootDomainToRemove} removed`);
       load();
     } catch (e) { toast(e.message, 'error'); }
   };
@@ -56,85 +94,61 @@ export default function Domains() {
   return (
     <>
       <h2 style={{ marginBottom: '.4rem' }}>Domains</h2>
+      <p className="dim" style={{ marginBottom: '1.2rem', fontSize: '.9rem' }}>Manage your root domains. Point DNS A record to 13.140.131.204.</p>
 
       {/* Add domain */}
       <div className="card" style={{ marginTop: '1rem' }}>
         <div className="card-header"><h2>➕ Add a domain</h2></div>
         <div className="card-body">
-          {myOwn.length ? (
-            <>
-              <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <input
-                  type="text"
-                  value={addDom}
-                  onChange={(e) => setAddDom(e.target.value)}
-                  placeholder="e.g. api.mycompany.com"
-                  style={{ flex: 1, minWidth: 200 }}
-                />
-                <select value={addTok} onChange={(e) => setAddTok(e.target.value)} style={{ width: 'auto', maxWidth: 220 }}>
-                  {myOwn.map((t) => <option key={t.id} value={t.id}>{t.name || t.token.slice(0, 12)}</option>)}
-                </select>
-                <select value={addType} onChange={(e) => setAddType(e.target.value)} style={{ width: 'auto' }}>
-                  <option value="extra">Subdomain — e.g. api.yourdomain.com (unlimited on Pro)</option>
-                  <option value="primary">Primary domain — your 1 main domain (Pro)</option>
-                </select>
-                <button className="btn btn-sm" onClick={addDomain}>Add</button>
-              </div>
-              <details style={{ marginTop: '.8rem' }}>
-                <summary style={{ fontSize: '.8rem', cursor: 'pointer', fontWeight: 600 }}>📋 DNS setup (once per domain)</summary>
-                <div className="dns-help" style={{ marginTop: '.5rem' }}>
-                  <p><strong>Step 1:</strong> Add the domain to Cloudflare → Add Site (change nameservers at your registrar)</p>
-                  <p><strong>Step 2:</strong> DNS A Record: Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied</p>
-                  <p><strong>Step 3:</strong> SSL/TLS mode → Flexible</p>
-                  <p><strong>Step 4:</strong> Add it above — it appears in the domain entries instantly</p>
-                </div>
-              </details>
-            </>
-          ) : (
-            <p className="empty">No tokens yet — create one in Manage Tokens first.</p>
-          )}
+          <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              value={addDom}
+              onChange={(e) => setAddDom(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') addDomain(); }}
+              placeholder="e.g. mycompany.com"
+              style={{ flex: 1, minWidth: 200 }}
+            />
+            <button className="btn btn-sm" onClick={addDomain}>Add</button>
+          </div>
+          <details style={{ marginTop: '.8rem' }}>
+            <summary style={{ fontSize: '.8rem', cursor: 'pointer', fontWeight: 600 }}>📋 DNS setup (once per domain)</summary>
+            <div className="dns-help" style={{ marginTop: '.5rem' }}>
+              <p><strong>Step 1:</strong> Add the domain to Cloudflare → Add Site (change nameservers at your registrar)</p>
+              <p><strong>Step 2:</strong> DNS A Record: Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied</p>
+              <p><strong>Step 3:</strong> SSL/TLS mode → Flexible</p>
+              <p><strong>Step 4:</strong> Add it above — it appears in the list instantly</p>
+            </div>
+          </details>
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: '1rem' }}>
-        <div className="card-header"><h2>Domain entries</h2></div>
-        <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
-          <table style={{ fontSize: '.85rem' }}>
-            <thead><tr><th>Type</th><th>Domain</th><th style={{ width: 130 }}></th></tr></thead>
-            <tbody>
-              {myOwn.flatMap((t) => [
-                ...(t.custom_domain ? [{ domain: t.custom_domain, type: 'Primary domain', badge: 'badge-blue', remove: () => setRemoveModal(t.custom_domain) }] : []),
-                ...(t.domains || []).map((domain) => ({ domain, type: 'Extra domain', badge: 'badge-green', remove: () => removeExtra(domain, t.id) })),
-              ]).map((entry) => (
-                <tr key={entry.domain}>
-                  <td><span className={`badge ${entry.badge}`}>{entry.type}</span></td>
-                  <td className="code" style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
-                    https://{entry.domain}
-                    <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${entry.domain}`); toast('Copied'); }}>📋</button>
-                  </td>
-                  <td><button className="btn btn-sm btn-danger" onClick={entry.remove}>Remove</button></td>
-                </tr>
-              ))}
-              {!myOwn.some((t) => t.custom_domain || (t.domains || []).length) && (
-                <tr><td colSpan="3" className="empty">No domains added yet.</td></tr>
-              )}
-            </tbody>
-          </table>
+      <h3 style={{ marginTop: '1.5rem', marginBottom: '.5rem' }}>Your domains ({domains.length})</h3>
+      {domains.length ? (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
+            <table style={{ fontSize: '.85rem' }}>
+              <thead><tr><th>Domain</th><th style={{ width: 100 }}></th></tr></thead>
+              <tbody>
+                {domains.map((d) => (
+                  <tr key={d.domain}>
+                    <td className="code" style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+                      https://{d.domain}
+                      <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${d.domain}`); toast('Copied'); }}>📋</button>
+                    </td>
+                    <td><button className="btn btn-sm btn-danger" onClick={() => removeDomain(d.domain)}>Remove</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-
-      {/* Remove primary domain modal */}
-      {removeModal && (
-        <Modal
-          title={`Remove ${removeModal}?`}
-          confirmLabel="Remove"
-          onConfirm={removePrimary}
-          onClose={() => setRemoveModal(null)}
-        >
-          <p className="dim" style={{ fontSize: '.85rem' }}>
-            The domain is removed from this token <strong>and your whole account</strong>. Your DNS record at the registrar stays until you remove it there.
-          </p>
-        </Modal>
+      ) : (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div className="card-body">
+            <p className="empty">No domains added yet.</p>
+          </div>
+        </div>
       )}
     </>
   );
