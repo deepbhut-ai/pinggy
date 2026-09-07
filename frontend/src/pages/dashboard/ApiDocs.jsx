@@ -192,6 +192,78 @@ export default function ApiDocs() {
       const params = pathParams[key] || {};
       const opts = { method: ep.method, headers: { 'X-Api-Key': apiKey.trim() } };
 
+      // Flow dependency checks — tell the user what to do first
+      if (ep.path === '/subdomains' && ep.method === 'POST') {
+        const td = await fetchTokens();
+        const hasRootDomain = (td || []).some((tok) => tok.custom_domain);
+        if (!hasRootDomain) {
+          setResults((prev) => ({
+            ...prev,
+            [key]: {
+              ok: false,
+              status: '—',
+              data: { detail: 'Flow break: No root domain found. First add a root domain using POST /domains (Step 2b), then create a subdomain under it.' },
+              testedAt: new Date().toLocaleTimeString(),
+            },
+          }));
+          setTestingEndpoint(null);
+          return;
+        }
+      }
+
+      if (ep.path === '/manage/tunnels/{sub}/stop' && ep.method === 'POST') {
+        const td = await fetch(`${base}/api/v1/manage/tunnels`, { headers: { 'X-Api-Key': apiKey.trim() } });
+        const tunnels = await td.json().catch(() => ({}));
+        if (!tunnels.live?.length) {
+          setResults((prev) => ({
+            ...prev,
+            [key]: {
+              ok: false,
+              status: '—',
+              data: { detail: 'Flow break: No live tunnels to stop. First start a tunnel using your token and the SSH command from Quickstart, then test this endpoint.' },
+              testedAt: new Date().toLocaleTimeString(),
+            },
+          }));
+          setTestingEndpoint(null);
+          return;
+        }
+      }
+
+      if (['/tokens/{id}/domains', '/tokens/{id}/regenerate'].some((p) => ep.path === p)) {
+        const td = await fetchTokens();
+        if (!Array.isArray(td) || !td.length) {
+          setResults((prev) => ({
+            ...prev,
+            [key]: {
+              ok: false,
+              status: '—',
+              data: { detail: 'Flow break: No tokens found. First create a token, or add a root domain via POST /domains which creates a token automatically.' },
+              testedAt: new Date().toLocaleTimeString(),
+            },
+          }));
+          setTestingEndpoint(null);
+          return;
+        }
+      }
+
+      if (ep.path.startsWith('/teams/') && ep.path.includes('/members')) {
+        const teamsResp = await fetch(`${base}/api/v1/teams`, { headers: { 'X-Api-Key': apiKey.trim() } });
+        const teams = await teamsResp.json().catch(() => []);
+        if (!Array.isArray(teams) || !teams.length) {
+          setResults((prev) => ({
+            ...prev,
+            [key]: {
+              ok: false,
+              status: '—',
+              data: { detail: 'Flow break: No teams found. First create a team using POST /teams (Step 5b), then manage its members.' },
+              testedAt: new Date().toLocaleTimeString(),
+            },
+          }));
+          setTestingEndpoint(null);
+          return;
+        }
+      }
+
       // Generic path param replacement for user-entered values
       ['sub', 'id', 'domain', 'subdomain'].forEach((p) => {
         if (params[p] && testPath.includes(`{${p}}`)) {
