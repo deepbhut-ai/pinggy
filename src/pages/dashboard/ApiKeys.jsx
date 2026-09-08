@@ -164,7 +164,16 @@ export default function ApiKeys() {
                   return (
                     <tr key={k.id}>
                       <td>{k.name}</td>
-                      <td className="code">{k.prefix}…</td>
+                      <td>
+                        <span className="code">{k.prefix}…</span>{' '}
+                        {k.key && (
+                          <button
+                            className="icon-btn"
+                            title="Copy API key"
+                            onClick={() => { copyToClipboard(k.key); toast('API key copied'); }}
+                          >📋</button>
+                        )}
+                      </td>
                       <td><span className="badge badge-green">{(domainCountByKey[k.id] || {domains: 0}).domains}</span></td>
                       <td><span className="badge badge-blue">{(domainCountByKey[k.id] || {subdomains: 0}).subdomains}</span></td>
                       <td>{k.created_at ? k.created_at.substring(0, 10) : '—'}</td>
