@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
@@ -173,7 +173,15 @@ export default function ManageTokens() {
 
   const availableDomains = userDomains;
 
-  const table = useTableData(tokens, { searchKeys: ['name', 'subdomain', 'fixed_subdomain', 'custom_domain', 'token', 'id'], pageSize: 10 });
+  // Dropdown filter by token name
+  const [tokenFilter, setTokenFilter] = useState('');
+  const tokenNames = useMemo(() => [...new Set(tokens.map((t) => t.name || 'Unnamed'))].sort(), [tokens]);
+  const filteredTokensForTable = useMemo(() => {
+    if (!tokenFilter) return tokens;
+    return tokens.filter((t) => (t.name || 'Unnamed') === tokenFilter);
+  }, [tokens, tokenFilter]);
+
+  const table = useTableData(filteredTokensForTable, { searchKeys: ['name', 'subdomain', 'fixed_subdomain', 'custom_domain', 'token', 'id'], pageSize: 10 });
 
   return (
     <>
@@ -220,6 +228,10 @@ export default function ManageTokens() {
             <h2 style={{ marginTop: '.15rem' }}>Your tokens <span className="token-meta">({tokens.length})</span></h2>
           </div>
           <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select value={tokenFilter} onChange={(e) => { setTokenFilter(e.target.value); table.setPage(1); }} style={{ width: 'auto', maxWidth: 180, fontSize: '.82rem' }}>
+              <option value="">All Tokens</option>
+              {tokenNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
             <SearchBar value={table.search} onChange={(v) => { table.setSearch(v); table.setPage(1); }} placeholder="Search name, subdomain…" style={{ maxWidth: 240 }} />
             <button className="btn btn-sm btn-ghost" onClick={load}>🔄 Refresh</button>
           </div>
