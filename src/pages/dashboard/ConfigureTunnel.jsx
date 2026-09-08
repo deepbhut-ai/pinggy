@@ -1,8 +1,7 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { api, getToken } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import { copyToClipboard } from '../../utils';
-import { SearchBar } from '../../components/TableControls';
 
 const APP_PRESETS = [
   { n: 'Custom / manual', p: 8080 },
@@ -20,53 +19,6 @@ const PLATFORM_HINTS = {
   linux: 'Open terminal and paste the following command:',
   mac: 'Open Terminal and paste the following command:',
 };
-
-// Check if a domain is a root domain (e.g. callingagents.in) vs a subdomain (e.g. code.callingagents.in)
-function isRootDomain(domain) {
-  if (!domain) return false;
-  const labels = domain.replace(/^https?:\/\//, '').split('.').filter(Boolean);
-  if (labels.length <= 2) return true;
-  return false;
-}
-
-// Build the display addresses for a token.
-// For multiport: includes ALL addresses across the user's entire account
-// (every token's custom_domain + subdomains + extra domains) so one SSH
-// command can tunnel 1, 10, or 100 addresses from a single connection.
-function tokenAddresses(t, allTokens = [], includeAll = false) {
-  const addrs = [];
-  const hasRootDomain = t.custom_domain && isRootDomain(t.custom_domain);
-  // Only show the *.iraglobaltech.com subdomain if there's no root custom domain
-  // Prefer the user's fixed_subdomain (set in Manage Tokens) over the auto-generated hash
-  if (t.subdomain && !hasRootDomain) {
-    addrs.push({ addr: `${t.fixed_subdomain || t.subdomain}.iraglobaltech.com`, label: t.fixed_subdomain ? '📌 Subdomain' : '🌐 Subdomain' });
-  }
-  if (t.custom_domain) {
-    addrs.push({ addr: t.custom_domain, label: isRootDomain(t.custom_domain) ? '🌐 Domain' : '🔗 Subdomain' });
-  }
-  (t.domains || []).forEach((d) => addrs.push({ addr: d, label: '➕ Extra domain' }));
-
-  if (includeAll) {
-    // Include ALL addresses from ALL other tokens (entire account)
-    allTokens.forEach((other) => {
-      if (other.id === t.id) return;
-      if (other.custom_domain && !addrs.some((a) => a.addr === other.custom_domain)) {
-        addrs.push({ addr: other.custom_domain, label: isRootDomain(other.custom_domain) ? '🌐 Domain' : '🔗 Subdomain' });
-      }
-      const otherHasRoot = other.custom_domain && isRootDomain(other.custom_domain);
-      const otherSub = other.fixed_subdomain || other.subdomain;
-      if (otherSub && !otherHasRoot && !addrs.some((a) => a.addr === `${otherSub}.iraglobaltech.com`)) {
-        addrs.push({ addr: `${otherSub}.iraglobaltech.com`, label: other.fixed_subdomain ? '📌 Subdomain' : '🌐 Subdomain' });
-      }
-      (other.domains || []).forEach((d) => {
-        if (!addrs.some((a) => a.addr === d)) {
-          addrs.push({ addr: d, label: '➕ Extra domain' });
-        }
-      });
-    });
-  }
-  return addrs;
-}
 
 export default function ConfigureTunnel() {
   const toast = useToast();
@@ -87,7 +39,6 @@ export default function ConfigureTunnel() {
   const [strictHost, setStrictHost] = useState(false);
   const [verbose, setVerbose] = useState(false);
   const [qr, setQr] = useState(null);
-  const [tokenSearch, setTokenSearch] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -118,23 +69,14 @@ export default function ConfigureTunnel() {
   const selToken = tokens.find((t) => t.token === tokenSel);
   const port = localAddr.split(':').pop() || '8080';
 
-  const filteredTokens = useMemo(() => {
-    if (!tokenSearch.trim()) return tokens;
-    const q = tokenSearch.trim().toLowerCase();
-    return tokens.filter((t) =>
-      String(t.name || '').toLowerCase().includes(q) ||
-      String(t.subdomain || '').toLowerCase().includes(q) ||
-      String(t.token || '').toLowerCase().includes(q) ||
-      String(t.custom_domain || '').toLowerCase().includes(q)
-    );
-  }, [tokens, tokenSearch]);
-
-  // multi-port rows: ALL addresses across the user's entire account
+  // multi-port rows: subdomain → primary → extras
   useEffect(() => {
     if (!multiPort || !selToken) return;
-    const addrs = tokenAddresses(selToken, tokens, true).map((a) => ({ ...a, port: '' }));
-    setMultiPorts(addrs);
-  }, [multiPort, tokenSel, selToken, tokens]);
+    const addrs = [`${selToken.subdomain}.iraglobaltech.com`];
+    if (selToken.custom_domain) addrs.push(selToken.custom_domain);
+    (selToken.domains || []).forEach((d) => addrs.push(d));
+    setMultiPorts(addrs.map((a) => ({ addr: a, port: '' })));
+  }, [multiPort, tokenSel]);
 
   const portList = multiPort ? multiPorts.map((m) => m.port.trim()).filter(Boolean) : null;
   const sshPort = info?.ssh_port || 2222;
@@ -164,15 +106,11 @@ export default function ConfigureTunnel() {
 
   // TCP mode (Pro): the public port is the token's persistent TCP port
   const isTcp = tunnelType === 'tcp';
-  const multiAddrs = multiPort && portList?.length
-    ? multiPorts.filter((m) => m.port.trim()).map((m) => `https://${m.addr}`)
-    : [];
-  const primaryAddr = selToken
+  const previewUrl = selToken
     ? (isTcp
         ? `tcp://iraglobaltech.com:${selToken.tcp_port || '— (set in Manage Tokens)'}`
         : `https://${selToken.fixed_subdomain || selToken.subdomain}.iraglobaltech.com`)
     : 'https://—.iraglobaltech.com';
-  const previewUrl = multiAddrs.length > 1 ? multiAddrs.join('  ·  ') : primaryAddr;
 
   const download = (kind) => {
     const cmd = buildCmd();
@@ -323,23 +261,14 @@ export default function ConfigureTunnel() {
             </div>
             <div className="form-group" style={{ flex: 1 }}>
               <label>Access token</label>
-              <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-                <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)} style={{ flex: 1 }}>
-                  {filteredTokens.map((t) => {
-                    const addrs = tokenAddresses(t, tokens).map((a) => a.addr);
-                    const label = addrs.length ? addrs.join(', ') : (t.name || 'Unnamed');
-                    return (
-                      <option key={t.id} value={t.token}>
-                        {label} — {t.token.substring(0, 8)}...
-                      </option>
-                    );
-                  })}
-                  {filteredTokens.length === 0 && <option value="">No tokens match</option>}
-                </select>
-                {tokens.length > 3 && (
-                  <SearchBar value={tokenSearch} onChange={setTokenSearch} placeholder="Filter…" style={{ maxWidth: 140 }} />
-                )}
-              </div>
+              <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)}>
+                {tokens.map((t) => (
+                  <option key={t.id} value={t.token}>
+                    {t.name || 'Unnamed'} — {t.token.substring(0, 8)}... (→ {t.subdomain}.iraglobaltech.com)
+                  </option>
+                ))}
+                {tokens.length === 0 && <option value="">No tokens — create one in Manage Tokens</option>}
+              </select>
             </div>
           </div>
           <div className="form-row">
@@ -351,14 +280,11 @@ export default function ConfigureTunnel() {
           {multiPort && selToken && (
             <div className="multiport-box">
               <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.5rem' }}>
-                All domains and subdomains on your account — one SSH command, one tunnel, all addresses. Enter a local port for each:
+                One local port per address — order matters (subdomain → primary → extras):
               </p>
               {multiPorts.map((m, i) => (
                 <div key={m.addr} style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem' }}>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '.1rem' }}>
-                    <span className="code" style={{ fontSize: '.8rem' }}>{m.addr}</span>
-                    <span className="dim" style={{ fontSize: '.68rem' }}>{m.label}</span>
-                  </div>
+                  <span className="code" style={{ flex: 1, fontSize: '.8rem' }}>{m.addr}</span>
                   <input
                     type="number"
                     min="1"
@@ -374,7 +300,7 @@ export default function ConfigureTunnel() {
                   />
                 </div>
               ))}
-              <p className="dim" style={{ fontSize: '.72rem' }}>Pro feature — all your domains and subdomains from one SSH connection. No load on your PC — one tunnel handles everything.</p>
+              <p className="dim" style={{ fontSize: '.72rem' }}>Pro feature — one SSH connection, each address routes to its own local project.</p>
             </div>
           )}
         </div>
