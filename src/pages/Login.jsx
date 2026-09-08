@@ -23,11 +23,10 @@ export default function Login() {
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // /dashboard is inside the React SPA (client-side navigate is fine);
-  // /admin is the LEGACY panel served by the backend — needs a full page load,
-  // React Router navigate() can't leave the SPA (that's why admins stuck on /login).
+  // Admins land on the React admin panel (inside the SPA — client-side navigate);
+  // regular users go to their dashboard.
   const go = (user) => {
-    if (user.role === 'admin') window.location.replace('/admin');
+    if (user.role === 'admin') navigate('/dashboard/admin', { replace: true });
     else navigate('/dashboard', { replace: true });
   };
 

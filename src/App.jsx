@@ -20,6 +20,21 @@ import Support from './pages/dashboard/Support';
 import Billing from './pages/dashboard/Billing';
 import Plan from './pages/dashboard/Plan';
 import Security from './pages/dashboard/Security';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminAddUser from './pages/admin/AdminAddUser';
+import AdminTokens from './pages/admin/AdminTokens';
+import AdminTunnels from './pages/admin/AdminTunnels';
+import AdminPayments from './pages/admin/AdminPayments';
+import AdminInvoices from './pages/admin/AdminInvoices';
+import AdminPlans from './pages/admin/AdminPlans';
+import AdminIpMonitor from './pages/admin/AdminIpMonitor';
+import AdminAudit from './pages/admin/AdminAudit';
+import AdminTickets from './pages/admin/AdminTickets';
+import AdminSettings from './pages/admin/AdminSettings';
+import AdminCoupons from './pages/admin/AdminCoupons';
+import AdminAnnouncements from './pages/admin/AdminAnnouncements';
 
 // Route guard — replaces all the legacy token/bfcache checks
 function RequireAuth({ children }) {
@@ -60,6 +75,29 @@ export default function App() {
         <Route path="security" element={<Security />} />
         <Route path="plan" element={<Plan />} />
         <Route path="subscription" element={<Billing />} />
+      </Route>
+      <Route
+        path="/dashboard/admin"
+        element={
+          <RequireAuth>
+            <AdminLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="add-user" element={<AdminAddUser />} />
+        <Route path="tokens" element={<AdminTokens />} />
+        <Route path="tunnels" element={<AdminTunnels />} />
+        <Route path="payments" element={<AdminPayments />} />
+        <Route path="invoices" element={<AdminInvoices />} />
+        <Route path="plans" element={<AdminPlans />} />
+        <Route path="ipmonitor" element={<AdminIpMonitor />} />
+        <Route path="audit" element={<AdminAudit />} />
+        <Route path="tickets" element={<AdminTickets />} />
+        <Route path="settings" element={<AdminSettings />} />
+        <Route path="coupons" element={<AdminCoupons />} />
+        <Route path="announcements" element={<AdminAnnouncements />} />
       </Route>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
