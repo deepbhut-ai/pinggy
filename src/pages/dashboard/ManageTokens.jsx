@@ -507,9 +507,23 @@ export default function ManageTokens() {
 
 // ---- Connection Guide panel (legacy selectToken) ----
 function TokenGuide({ token: t, sshPort, onClose, toast }) {
-  const [os, setOs] = useState('windows');
+  const [os, setOs] = useState(() => {
+    const ua = navigator.userAgent;
+    if (/Mac|iPhone|iPad|iPod/i.test(ua)) return 'mac';
+    if (/Win/i.test(ua)) return 'windows';
+    return 'linux';
+  });
   const [autoReconnect, setAutoReconnect] = useState(false);
-  const [port, setPort] = useState(8080);
+  const [port, setPort] = useState(() => {
+    // Restore saved port from localStorage for this token
+    const saved = localStorage.getItem(`token-port-${t.id}`);
+    return saved ? parseInt(saved) : 8080;
+  });
+
+  const savePort = (newPort) => {
+    setPort(newPort);
+    if (newPort) localStorage.setItem(`token-port-${t.id}`, String(newPort));
+  };
 
   const tunnelUrl = t.custom_domain ? `https://${t.custom_domain}` : `https://${t.subdomain}.iraglobaltech.com`;
   const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${t.token}@ssh.iraglobaltech.com`;
@@ -575,8 +589,8 @@ function TokenGuide({ token: t, sshPort, onClose, toast }) {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '.875rem', fontWeight: 600, marginBottom: '.5rem' }}>Enter your local port</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', flexWrap: 'wrap' }}>
-              <input type="number" value={port} min="1" max="65535" onChange={(e) => setPort(parseInt(e.target.value) || 8080)} style={{ width: 100 }} />
-              <span className="dim" style={{ fontSize: '.8rem' }}>The port your local service runs on (e.g. 8080, 3000, 8000)</span>
+              <input type="number" value={port} min="1" max="65535" onChange={(e) => savePort(parseInt(e.target.value) || 8080)} style={{ width: 100 }} />
+              <span className="dim" style={{ fontSize: '.8rem' }}>The port your local service runs on (e.g. 8080, 3000, 8000). Saved for this token and reflected in Configure Tunnel.</span>
             </div>
           </div>
         </div>

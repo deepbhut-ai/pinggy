@@ -113,7 +113,21 @@ export default function ConfigureTunnel() {
 
   useEffect(() => {
     if (!multiPort || !selToken) return;
-    const addrs = tokenAddresses(selToken, tokens, true).map((a) => ({ ...a, port: '' }));
+    const addrs = tokenAddresses(selToken, tokens, true).map((a, i) => {
+      // Try to load saved port from the token guide for this address
+      const allTokens = [selToken, ...tokens.filter((t) => t.id !== selToken.id)];
+      const matchingToken = allTokens.find((t) =>
+        t.custom_domain === a.addr ||
+        (t.subdomain && `${t.subdomain}.iraglobaltech.com` === a.addr) ||
+        (t.domains || []).includes(a.addr)
+      );
+      let port = '';
+      if (matchingToken) {
+        const saved = localStorage.getItem(`token-port-${matchingToken.id}`);
+        if (saved) port = saved;
+      }
+      return { ...a, port };
+    });
     setMultiPorts(addrs);
   }, [multiPort, tokenSel, selToken, tokens]);
 
