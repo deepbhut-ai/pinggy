@@ -339,6 +339,7 @@ export default function ManageTokens() {
       {/* Connection Guide panel */}
       {selected && (
         <TokenGuide
+          key={selected.id}
           token={selected}
           sshPort={sshPort}
           onClose={() => setSelected(null)}
