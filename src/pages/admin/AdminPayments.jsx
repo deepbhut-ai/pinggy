@@ -15,11 +15,13 @@ export default function AdminPayments() {
 
   const load = useCallback(async () => {
     try {
-      const [all, st] = await Promise.all([
+      const [allResp, st] = await Promise.all([
         api('/payments/admin/all'),
         api('/payments/admin/stats').catch(() => null),
       ]);
-      setPayments(all); setStats(st);
+      // API returns { total, payments: [...] } — accept both shapes
+      const list = Array.isArray(allResp) ? allResp : (allResp?.payments || []);
+      setPayments(list); setStats(st);
     } catch (e) { toast(e.message, 'error'); }
   }, [toast]);
 

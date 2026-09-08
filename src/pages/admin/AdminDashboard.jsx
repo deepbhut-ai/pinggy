@@ -60,7 +60,7 @@ export default function AdminDashboard() {
         {revenueEntries.map(([cur, amt]) => (
           <div className="stat-card" key={cur}><div className="label">Revenue ({cur})</div><div className="value">{Number(amt).toLocaleString()}</div></div>
         ))}
-        <div className="stat-card"><div className="label">Total Payments</div><div className="value">{payStats?.total ?? '—'}</div></div>
+        <div className="stat-card"><div className="label">Total Payments</div><div className="value">{payStats?.total_payments ?? '—'}</div></div>
       </div>
 
       {/* Insights */}
