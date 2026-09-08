@@ -242,12 +242,11 @@ export default function ManageTokens() {
                 {table.paged.map((t) => {
                   const teamRole = String(t.via_team?.my_role || '').toLowerCase();
                   const canDelete = !t.via_team || ['owner', 'admin', 'team_owner', 'team_admin'].includes(teamRole);
-                  const hasRootDomain = t.custom_domain && isRootDomain(t.custom_domain);
-                  // Skip the auto-generated hash subdomain when a root custom domain exists
-                  const subAddr = (t.subdomain && !hasRootDomain) ? `${t.subdomain}.iraglobaltech.com` : '';
+                  // Hide hash subdomain when ANY custom domain is set
+                  const subAddr = (t.subdomain && !t.custom_domain && (t.domains || []).length === 0) ? `${t.subdomain}.iraglobaltech.com` : '';
                   const domainAddr = t.custom_domain || '';
                   // Include subdomains from other tokens sharing the same root domain
-                  const root = hasRootDomain ? t.custom_domain : (t.custom_domain ? t.custom_domain.split('.').slice(-2).join('.') : null);
+                  const root = t.custom_domain ? (isRootDomain(t.custom_domain) ? t.custom_domain : t.custom_domain.split('.').slice(-2).join('.')) : null;
                   const siblingSubs = root ? tokens.filter((o) => o.id !== t.id && o.custom_domain && o.custom_domain !== t.custom_domain && o.custom_domain.endsWith('.' + root)).map((o) => o.custom_domain) : [];
                   const allAddrs = [subAddr, domainAddr, ...(t.domains || []), ...siblingSubs].filter(Boolean);
                   const teamBadge = t.via_team
