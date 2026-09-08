@@ -19,50 +19,57 @@ _SERVER_IP = "13.140.131.204"
 
 
 async def _verify_domain_dns(domain: str) -> dict:
-    """Verify a custom domain by making an actual HTTP request to it.
+    """Verify a custom domain by checking DNS resolution + HTTP health check.
 
-    If the domain is correctly configured (DNS → Cloudflare → our server),
-    the request will reach our FastAPI app and we can check the response.
+    Passes if:
+    - A record points directly to our server IP, OR
+    - /health endpoint returns {"status":"ok"} through the public URL
     """
+    import socket
     import httpx
 
+    SERVER_IP = "13.140.131.204"
+
     try:
-        # Make an actual HTTP request to the domain — if DNS + Cloudflare + nginx
-        # are all set up correctly, this request reaches our server.
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-            try:
-                resp = await client.get(f"http://{domain}/health")
-                # If we get a response from our server, the domain is configured
-                if resp.status_code == 200:
+        # 1) Check DNS resolution
+        try:
+            resolved_ips = socket.getaddrinfo(domain, None)
+            resolved_ip = resolved_ips[0][4][0] if resolved_ips else None
+        except socket.gaierror:
+            return {"dns_resolves": False, "pointed_ip": None, "status": "no_dns",
+                    "message": f"⚠️ {domain} has no DNS record. Add an A record pointing to {SERVER_IP}"}
+
+        points_to_us = resolved_ip == SERVER_IP
+
+        # 2) Try HTTP health check
+        health_ok = False
+        try:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+                for scheme in ("https", "http"):
                     try:
-                        body = resp.json()
-                        if body.get("status") == "ok":
-                            return {"dns_resolves": True, "pointed_ip": domain, "status": "ok",
-                                    "message": f"✅ Domain verified — {domain} is correctly configured and reaching this server"}
+                        resp = await client.get(f"{scheme}://{domain}/health")
+                        if resp.status_code == 200:
+                            try:
+                                body = resp.json()
+                                if body.get("status") == "ok":
+                                    health_ok = True
+                                    break
+                            except Exception:
+                                pass
                     except Exception:
-                        pass
-                return {"dns_resolves": True, "pointed_ip": domain, "status": "error",
-                        "message": f"⚠️ {domain} responded with HTTP {resp.status_code}, but its health check is not healthy"}
-            except httpx.ConnectError:
-                return {"dns_resolves": False, "pointed_ip": None, "status": "no_dns",
-                        "message": f"⚠️ {domain} is not configured — no DNS record found. Add an A record pointing to 13.140.131.204 (or proxy via Cloudflare)"}
-            except httpx.ConnectTimeout:
-                return {"dns_resolves": False, "pointed_ip": None, "status": "timeout",
-                        "message": f"⚠️ {domain} DNS resolves but connection timed out — check Cloudflare proxy settings (SSL mode: Flexible)"}
-            except httpx.HTTPStatusError as e:
-                return {"dns_resolves": True, "pointed_ip": domain, "status": "ok",
-                        "message": f"✅ Domain verified — {domain} reached the server (HTTP {e.response.status_code})"}
-            except Exception as e:
-                # Check if it's a DNS resolution failure
-                err_str = str(e).lower()
-                if "name or service not known" in err_str or "nodename nor servname" in err_str or "getaddrinfo" in err_str:
-                    return {"dns_resolves": False, "pointed_ip": None, "status": "no_dns",
-                            "message": f"⚠️ {domain} is not configured — no DNS record found. Add an A record pointing to 13.140.131.204 (or proxy via Cloudflare)"}
-                if "timed out" in err_str or "timeout" in err_str:
-                    return {"dns_resolves": False, "pointed_ip": None, "status": "timeout",
-                            "message": f"⚠️ {domain} DNS resolves but connection timed out — check Cloudflare proxy settings (SSL mode: Flexible)"}
-                return {"dns_resolves": False, "pointed_ip": None, "status": "error",
-                        "message": f"⚠️ Could not verify {domain}: {e}"}
+                        continue
+        except Exception:
+            pass
+
+        # 3) Return result
+        if health_ok:
+            return {"dns_resolves": True, "pointed_ip": resolved_ip, "status": "ok",
+                    "message": f"✅ {domain} is verified and reaching this server"}
+        if points_to_us:
+            return {"dns_resolves": True, "pointed_ip": resolved_ip, "status": "ok",
+                    "message": f"✅ {domain} A record points to {SERVER_IP}"}
+        return {"dns_resolves": True, "pointed_ip": resolved_ip, "status": "error",
+                "message": f"⚠️ {domain} resolves to {resolved_ip}, not {SERVER_IP}. Update the A record."}
     except Exception as e:
         return {"dns_resolves": False, "pointed_ip": None, "status": "error",
                 "message": f"Could not verify DNS: {e}"}

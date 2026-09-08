@@ -11,6 +11,8 @@ export default function Domains() {
   const [addTok, setAddTok] = useState('');
   const [addType, setAddType] = useState('extra');
   const [removeModal, setRemoveModal] = useState(null); // domain
+  const [verifying, setVerifying] = useState(null); // domain being verified
+  const [verifyResults, setVerifyResults] = useState({}); // { domain: { status, message } }
 
   const load = useCallback(() => api('/tokens').then(setTokens).catch(() => {}), []);
   useEffect(() => { load(); }, [load]);
@@ -51,6 +53,20 @@ export default function Domains() {
       toast(`${domain} removed from the system`);
       load();
     } catch (e) { toast(e.message, 'error'); }
+  };
+
+  const verifyDomain = async (domain) => {
+    setVerifying(domain);
+    try {
+      const res = await api(`/users/me/verify-domain?domain=${encodeURIComponent(domain)}`);
+      setVerifyResults((prev) => ({ ...prev, [domain]: { status: res.status, message: res.message } }));
+      if (res.status === 'ok') toast(res.message);
+    } catch (e) {
+      setVerifyResults((prev) => ({ ...prev, [domain]: { status: 'error', message: e.message } }));
+      toast(e.message, 'error');
+    } finally {
+      setVerifying(null);
+    }
   };
 
   return (
@@ -100,23 +116,39 @@ export default function Domains() {
         <div className="card-header"><h2>Domain entries</h2></div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           <table style={{ fontSize: '.85rem' }}>
-            <thead><tr><th>Type</th><th>Domain</th><th style={{ width: 130 }}></th></tr></thead>
+            <thead><tr><th>Type</th><th>Domain</th><th>Status</th><th style={{ width: 130 }}></th></tr></thead>
             <tbody>
               {myOwn.flatMap((t) => [
                 ...(t.custom_domain ? [{ domain: t.custom_domain, type: 'Primary domain', badge: 'badge-blue', remove: () => setRemoveModal(t.custom_domain) }] : []),
                 ...(t.domains || []).map((domain) => ({ domain, type: 'Extra domain', badge: 'badge-green', remove: () => removeExtra(domain, t.id) })),
-              ]).map((entry) => (
-                <tr key={entry.domain}>
-                  <td><span className={`badge ${entry.badge}`}>{entry.type}</span></td>
-                  <td className="code" style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
-                    https://{entry.domain}
-                    <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${entry.domain}`); toast('Copied'); }}>📋</button>
-                  </td>
-                  <td><button className="btn btn-sm btn-danger" onClick={entry.remove}>Remove</button></td>
-                </tr>
-              ))}
+              ]).map((entry) => {
+                const vr = verifyResults[entry.domain];
+                return (
+                  <tr key={entry.domain}>
+                    <td><span className={`badge ${entry.badge}`}>{entry.type}</span></td>
+                    <td className="code" style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+                      https://{entry.domain}
+                      <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${entry.domain}`); toast('Copied'); }}>📋</button>
+                    </td>
+                    <td style={{ minWidth: 120 }}>
+                      {verifying === entry.domain ? (
+                        <span className="dim" style={{ fontSize: '.78rem' }}>Checking…</span>
+                      ) : vr ? (
+                        <span style={{ fontSize: '.78rem', color: vr.status === 'ok' ? 'var(--green)' : 'var(--red)' }} title={vr.message}>
+                          {vr.status === 'ok' ? '✅ Verified' : '⚠️ Not verified'}
+                        </span>
+                      ) : (
+                        <button className="btn btn-ghost btn-sm" style={{ fontSize: '.75rem', padding: '.2rem .5rem' }} onClick={() => verifyDomain(entry.domain)}>
+                          Verify
+                        </button>
+                      )}
+                    </td>
+                    <td><button className="btn btn-sm btn-danger" onClick={entry.remove}>Remove</button></td>
+                  </tr>
+                );
+              })}
               {!myOwn.some((t) => t.custom_domain || (t.domains || []).length) && (
-                <tr><td colSpan="3" className="empty">No domains added yet.</td></tr>
+                <tr><td colSpan="4" className="empty">No domains added yet.</td></tr>
               )}
             </tbody>
           </table>
