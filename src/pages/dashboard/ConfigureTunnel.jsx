@@ -24,7 +24,6 @@ export default function ConfigureTunnel() {
   const toast = useToast();
   const [info, setInfo] = useState(null);
   const [tokens, setTokens] = useState([]);
-  const [configs, setConfigs] = useState([]);
 
   const [preset, setPreset] = useState('preset-0');
   const [localAddr, setLocalAddr] = useState('127.0.0.1:8080');
@@ -42,14 +41,12 @@ export default function ConfigureTunnel() {
 
   const load = useCallback(async () => {
     try {
-      const [infoD, tokensD, configsD] = await Promise.all([
+      const [infoD, tokensD] = await Promise.all([
         api('/tunnels/info'),
         api('/tokens'),
-        api('/configs').catch(() => []),
       ]);
       setInfo(infoD);
       setTokens(tokensD);
-      setConfigs(configsD);
       // pick the first token on initial load (or keep the current selection valid)
       setTokenSel((cur) => {
         if (cur && tokensD.some((t) => t.token === cur)) return cur;
@@ -146,56 +143,6 @@ export default function ConfigureTunnel() {
     } catch (e) { toast(e.message, 'error'); }
   };
 
-  const saveConfig = async () => {
-    const name = window.prompt('Name this configuration:', 'My tunnel');
-    if (!name) return;
-    try {
-      await api('/configs', 'POST', {
-        name,
-        config: {
-          preset,
-          local_addr: localAddr,
-          platform,
-          token: tokenSel,
-          keep_alive: keepAlive,
-          auto_reconnect: autoReconnect,
-          strict_host: strictHost,
-          verbose,
-        },
-      });
-      toast('Configuration saved');
-      load();
-    } catch (e) { toast(e.message, 'error'); }
-  };
-
-  const loadConfig = (id) => {
-    const cfg = configs.find((c) => String(c.id) === String(id));
-    if (!cfg) return;
-    const c = cfg.config || {};
-    if (c.local_addr) setLocalAddr(c.local_addr);
-    if (c.preset && APP_PRESETS.some((a) => a.key === c.preset)) setPreset(c.preset);
-    if (c.platform) setPlatform(c.platform);
-    if (c.token && tokens.some((t) => t.token === c.token)) setTokenSel(c.token);
-    if (c.keep_alive !== undefined) setKeepAlive(c.keep_alive);
-    if (c.auto_reconnect !== undefined) setAutoReconnect(c.auto_reconnect);
-    if (c.strict_host !== undefined) setStrictHost(c.strict_host);
-    if (c.verbose !== undefined) setVerbose(c.verbose);
-    toast('Configuration loaded');
-  };
-
-  const reset = () => {
-    setLocalAddr('127.0.0.1:8080');
-    setPreset('preset-0');
-    setMultiPort(false);
-    setKeepAlive(true);
-    setAutoReconnect(false);
-    setStrictHost(false);
-    setVerbose(false);
-    setCmdTab('ssh');
-    setQr(null);
-    toast('Configuration reset');
-  };
-
   return (
     <>
       <div className="page-title">Configure Tunnel</div>
@@ -204,14 +151,6 @@ export default function ConfigureTunnel() {
       <div className="card">
         <div className="card-header">
           <h2>⚙️ Tunnel Settings</h2>
-          <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-            <button className="btn btn-sm" onClick={saveConfig}>💾 Save</button>
-            <select value="" onChange={(e) => loadConfig(e.target.value)} style={{ maxWidth: 150 }}>
-              <option value="">📂 Load saved…</option>
-              {configs.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <button className="btn btn-sm btn-ghost" onClick={reset}>Reset</button>
-          </div>
         </div>
         <div className="card-body">
           <div className="cfg-row">
