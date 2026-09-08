@@ -242,13 +242,10 @@ export default function ManageTokens() {
                 {table.paged.map((t) => {
                   const teamRole = String(t.via_team?.my_role || '').toLowerCase();
                   const canDelete = !t.via_team || ['owner', 'admin', 'team_owner', 'team_admin'].includes(teamRole);
-                  // Hide hash subdomain when ANY custom domain is set
+                  // Hide hash subdomain when ANY custom domain is set — show only what the user configured for THIS token
                   const subAddr = (t.subdomain && !t.custom_domain && (t.domains || []).length === 0) ? `${t.subdomain}.iraglobaltech.com` : '';
                   const domainAddr = t.custom_domain || '';
-                  // Include subdomains from other tokens sharing the same root domain
-                  const root = t.custom_domain ? (isRootDomain(t.custom_domain) ? t.custom_domain : t.custom_domain.split('.').slice(-2).join('.')) : null;
-                  const siblingSubs = root ? tokens.filter((o) => o.id !== t.id && o.custom_domain && o.custom_domain !== t.custom_domain && o.custom_domain.endsWith('.' + root)).map((o) => o.custom_domain) : [];
-                  const allAddrs = [subAddr, domainAddr, ...(t.domains || []), ...siblingSubs].filter(Boolean);
+                  const allAddrs = [subAddr, domainAddr, ...(t.domains || [])].filter(Boolean);
                   const teamBadge = t.via_team
                     ? <span className="badge badge-blue" title={`Shared via team '${t.via_team.team_name}' (my role: ${t.via_team.my_role || 'member'})`}>👥 {t.via_team.team_name}</span>
                     : (t.team_id ? <span className="badge" title="Shared with a team">👥</span> : null);
