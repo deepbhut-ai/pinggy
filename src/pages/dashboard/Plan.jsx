@@ -64,14 +64,12 @@ export default function Plan() {
   }, [plans, planSearch]);
 
   const openCheckout = (plan) => {
-    if (plan.id.toLowerCase() === currentPlanName) {
-      toast('You are already on this plan');
-      return;
-    }
+    // Free plan is active by default — nothing to buy
     if (plan.price_inr === 0 && plan.price_usd === 0) {
-      toast('Free plan is active by default');
+      toast('Free plan is the default — no action needed');
       return;
     }
+    // Pro users CAN open checkout on their own plan card — that's how they buy more seats
     setCheckoutPlan(plan);
     // For seat upgrades, default to 1 additional seat, not current total
     setSeats(1);
