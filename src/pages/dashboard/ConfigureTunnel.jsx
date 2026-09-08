@@ -140,7 +140,7 @@ export default function ConfigureTunnel() {
     setMultiPorts(addrs);
   }, [multiPort, tokenSel, selToken, tokens]);
 
-  const portList = multiPort ? multiPorts.map((m) => m.port.trim()).filter(Boolean) : null;
+  const portList = multiPort ? multiPorts.filter((m) => m.enabled !== false && m.port.trim()).map((m) => m.port.trim()) : null;
   const sshPort = info?.ssh_port || 2222;
 
   const buildDocker = () => {
@@ -169,7 +169,7 @@ export default function ConfigureTunnel() {
   // TCP mode (Pro): the public port is the token's persistent TCP port
   const isTcp = tunnelType === 'tcp';
   const multiAddrs = multiPort && portList?.length
-    ? multiPorts.filter((m) => m.port.trim()).map((m) => `https://${m.addr}`)
+    ? multiPorts.filter((m) => m.enabled !== false && m.port.trim()).map((m) => `https://${m.addr}`)
     : [];
   const primaryAddr = selToken
     ? (isTcp
@@ -302,8 +302,21 @@ export default function ConfigureTunnel() {
               <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.6rem' }}>
                 All domains and subdomains on your account — one SSH command, one tunnel, all addresses. Enter a local port for each:
               </p>
-              {multiPorts.map((m, i) => (
-                <div key={m.addr} className="multiport-row" style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem' }}>
+              {multiPorts.map((m, i) => {
+                const enabled = m.enabled !== false;
+                return (
+                <div key={m.addr} className="multiport-row" style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem', opacity: enabled ? 1 : 0.5 }}>
+                  <input
+                    type="checkbox"
+                    checked={enabled}
+                    title={enabled ? 'Enabled — included in tunnel' : 'Disabled — excluded from tunnel'}
+                    onChange={(e) => {
+                      const next = [...multiPorts];
+                      next[i] = { ...m, enabled: e.target.checked };
+                      setMultiPorts(next);
+                    }}
+                    style={{ flex: '0 0 auto' }}
+                  />
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '.1rem' }}>
                     <span className="code" style={{ fontSize: '.8rem' }}>{m.addr}</span>
                     <span className="dim" style={{ fontSize: '.68rem' }}>{m.label}</span>
@@ -315,6 +328,7 @@ export default function ConfigureTunnel() {
                     placeholder={`e.g. ${3000 + i * 1000}`}
                     style={{ width: 130 }}
                     value={m.port}
+                    disabled={!enabled}
                     onChange={(e) => {
                       const next = [...multiPorts];
                       next[i] = { ...m, port: e.target.value };
@@ -322,7 +336,8 @@ export default function ConfigureTunnel() {
                     }}
                   />
                 </div>
-              ))}
+                );
+              })}
               <p className="dim" style={{ fontSize: '.72rem', marginTop: '.6rem' }}>Pro feature — all your domains and subdomains from one SSH connection. No load on your PC — one tunnel handles everything.</p>
             </div>
           )}
