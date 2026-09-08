@@ -232,3 +232,16 @@
 - **In progress / half-done:** nothing half-done — rebase complete and verified.
 - **Next:** user may want to rebuild frontend (cd frontend && npm install && npm run build) to deploy the React app changes, or restart the production server to pick up backend changes.
 - **Watch out:** stashed uncommitted changes were discarded (they reverted committed features — older experiments). Untracked junk files in repo root from terminal output (e.g. `e`, `:')`, `ycopg`) should be cleaned up. Old backup branch backup-before-pull-2026-09-01 still exists.
+
+## 2026-09-08 — v2.3.0 (Domain verify-before-save flow + frontend cleanup)
+- **Done:** v2.3.0 — (1) Add→DNS instructions→Verify→save-on-success flow on both
+  legacy dashboard.html and React SPA Domains page; (2) fixed _verify_domain_dns
+  to check ALL resolved IPs (IPv4+IPv6, not just first — Cloudflare returns IPv6
+  first causing false errors); (3) removed duplicate frontend/ directory (was
+  exact copy of root src/). Rebuilt dist/ + reloaded nginx. Both pages tested
+  with callingagents.in (PASS) and google.com (correctly fails).
+- **In progress:** nothing.
+- **Next:** await user. Push to origin when ready.
+- **Watch out:** getaddrinfo returns IPv6 first for Cloudflare-proxied domains;
+  must check all IPs against SERVER_IP, not just the first. Indentation in
+  _verify_domain_dns broke the service on first restart (extra indent on try block).

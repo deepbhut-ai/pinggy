@@ -31,16 +31,16 @@ async def _verify_domain_dns(domain: str) -> dict:
     SERVER_IP = "13.140.131.204"
 
     try:
-        # 1) Check DNS resolution
+        # 1) Check DNS resolution — collect ALL resolved IPs (IPv4 + IPv6)
         try:
-            resolved_ips = socket.getaddrinfo(domain, None)
-            resolved_ip = resolved_ips[0][4][0] if resolved_ips else None
+            resolved_infos = socket.getaddrinfo(domain, None)
+            all_ips = [info[4][0] for info in resolved_infos]
+            resolved_ip = all_ips[0] if all_ips else None
         except socket.gaierror:
             return {"dns_resolves": False, "pointed_ip": None, "status": "no_dns",
                     "message": f"⚠️ {domain} has no DNS record. Add an A record pointing to {SERVER_IP}"}
 
-        points_to_us = resolved_ip == SERVER_IP
-
+        points_to_us = SERVER_IP in all_ips
         # 2) Try HTTP health check
         health_ok = False
         try:

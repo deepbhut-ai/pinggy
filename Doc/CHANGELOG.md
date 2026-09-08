@@ -1,5 +1,20 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.3.0 — 2026-09-08 — Domain verify-before-save flow + duplicate frontend cleanup
+
+### Added
+- New "Add → DNS instructions → Verify → save-on-success" flow on the Domains page (both legacy `dashboard.html` and React SPA). User enters a domain → DNS setup panel with A record instructions appears → user clicks "Verify & Save" → backend checks DNS + health → only if verification passes, domain is saved and shows 🎉 Done; on failure, error message shows and user can fix DNS and retry.
+- `pendingDomain` state in legacy `addDomainAny()` / `verifyAndSaveDomain()` functions; DNS setup panel with A record table (Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied, SSL=Flexible).
+- Same flow in React `frontend/src/pages/dashboard/Domains.jsx` with `pending`/`verifying`/`verifyResult` state.
+
+### Changed
+- `app/api/routers/users.py` `_verify_domain_dns()`: now checks ALL resolved IPs (IPv4 + IPv6) from `getaddrinfo` instead of only the first — Cloudflare-proxied domains return IPv6 first, causing false "not pointing to us" errors even when the A record is correct.
+- `app/static/dashboard.html` Domains section: rewritten `loadDomains()` to include a hidden DNS setup panel that shows on Add; `addDomainAny()` no longer saves immediately — it stores a `pendingDomain` and shows instructions; new `verifyAndSaveDomain()` calls `GET /users/me/verify-domain` then saves on `status: "ok"`.
+- `frontend/src/pages/dashboard/Domains.jsx`: rewritten `addDomain()` to set pending state instead of saving; new `verifyAndSave()` function verifies then saves.
+
+### Removed
+- Duplicate `frontend/` directory (`frontend/src/`, `frontend/package.json`, `frontend/vite.config.js`, `frontend/index.html`, `frontend/package-lock.json`, `frontend/dist/`, `frontend/node_modules/`) — exact duplicate of root `src/` + root configs; eliminated to fix single-source-of-truth. Root `src/` + root `package.json` + root `vite.config.js` + root `index.html` are the canonical build inputs (`npm run build` → `dist/`).
+
 ## v2.2.0 — 2026-09-03 — Rebase local commits onto origin/main (40 remote commits merged)
 
 ### Added

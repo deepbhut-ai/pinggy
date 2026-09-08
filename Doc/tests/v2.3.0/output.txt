@@ -1,0 +1,30 @@
+=== v2.3.0 Domain Verify-Before-Save Test ===
+
+=== Backend verify-domain API (callingagents.in — should pass) ===
+{
+    "domain": "callingagents.in",
+    "dns_resolves": true,
+    "pointed_ip": "2600:3c15::f03c:95ff:feb3:a643",
+    "status": "ok",
+    "message": "\u2705 callingagents.in is verified and reaching this server"
+}
+
+=== Backend verify-domain API (google.com — should fail) ===
+{
+    "domain": "google.com",
+    "dns_resolves": true,
+    "pointed_ip": "2a00:1450:4001:c15::8a",
+    "status": "error",
+    "message": "\u26a0\ufe0f google.com resolves to 2a00:1450:4001:c15::8a, not 13.140.131.204. Update the A record."
+}
+
+=== Health check ===
+{"status":"ok","app":"IRAGT","env":"production"}
+
+=== Legacy dashboard.html (http://127.0.0.1:8000/dashboard) ===
+Flow: Enter callingagents.in -> Add -> DNS setup panel shows -> Verify & Save -> saved -> Domain appears in list -> Remove -> clean
+Status: PASS
+
+=== React SPA (https://iraglobaltech.com/dashboard/domains) ===
+Flow: Enter callingagents.in -> Add -> DNS setup panel with A record table -> Verify & Save -> Verifying... -> saved -> appears under Your domains (1) -> Remove -> clean
+Status: PASS

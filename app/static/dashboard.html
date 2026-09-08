@@ -1595,7 +1595,9 @@ function applyConfig() {
   navigate('quickstart', document.querySelector('[data-page=quickstart]'));
 }
 
-// ---- Domains (Page 3 — custom domains only, v1.14.0) ----
+// ---- Domains (Page 3 — custom domains, verify-before-save v2.3.0) ----
+let pendingDomain = null; // {domain, tid, type} — entered but not yet verified
+
 async function loadDomains() {
   const c = document.getElementById('pageContent');
   c.innerHTML = '<div class="card"><div class="card-body"><p class="empty">Loading...</p></div></div>';
@@ -1657,13 +1659,30 @@ async function loadDomains() {
           </select>
           <button class="btn btn-sm" onclick="addDomainAny()">Add</button>
         </div>
+        <div id="dnsSetupPanel" style="display:none;margin-top:1rem;padding:1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.85rem;line-height:1.7">
+          <p style="font-weight:700;color:var(--text);margin-bottom:.6rem">🌐 Configure DNS for <span id="dnsDomName" class="code"></span></p>
+          <p style="margin-bottom:.4rem">Add a DNS <strong>A record</strong> in your domain provider (Cloudflare, GoDaddy, etc.):</p>
+          <table class="table" style="font-size:.8rem;margin-bottom:.6rem">
+            <tr><td><strong>Type</strong></td><td>A</td></tr>
+            <tr><td><strong>Name</strong></td><td>@</td></tr>
+            <tr><td><strong>Content / Target IP</strong></td><td class="code">13.140.131.204</td></tr>
+            <tr><td><strong>Proxy</strong></td><td>Proxied (if Cloudflare)</td></tr>
+            <tr><td><strong>SSL/TLS</strong></td><td>Flexible</td></tr>
+          </table>
+          <p style="margin-bottom:.8rem;color:var(--text-dim)">DNS propagation usually takes 1–5 minutes. Once done, click Verify below.</p>
+          <div id="dnsVerifyResult" style="margin-bottom:.6rem"></div>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-sm" id="verifyDomBtn" onclick="verifyAndSaveDomain()">Verify & Save</button>
+            <button class="btn btn-sm btn-ghost" onclick="cancelPendingDomain()">Cancel</button>
+          </div>
+        </div>
         <details style="margin-top:.8rem">
           <summary style="font-size:.8rem;color:var(--brand);cursor:pointer;font-weight:600">📋 DNS setup</summary>
           <div style="margin-top:.5rem;padding:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;color:var(--text-dim);line-height:1.7">
             <p><strong>Step 1:</strong> Add the domain to Cloudflare → Add Site</p>
             <p><strong>Step 2:</strong> DNS A Record: Type=A, Name=@, Content=13.140.131.204, Proxy=Proxied</p>
             <p><strong>Step 3:</strong> SSL/TLS mode → Flexible</p>
-            <p><strong>Step 4:</strong> Add it above</p>
+            <p><strong>Step 4:</strong> Enter domain above and click Add</p>
           </div>
         </details>` : `
         <p class="empty">No tokens yet — create one in Manage Tokens first.</p>`}
@@ -1672,7 +1691,24 @@ async function loadDomains() {
 
     <h3 style="margin-top:1.5rem;margin-bottom:.5rem">Your domains (${allDomains.length})</h3>
     ${allDomains.length ? myOwn.filter(t => t.custom_domain || (t.domains?.length || 0) > 0).map(tokenCard).join('') : '<div class="card"><div class="card-body"><p class="empty">No domains added yet.</p></div></div>'}`;
+    // Restore pending domain panel if user is mid-flow
+    if (pendingDomain) showDnsSetupPanel();
   } catch (e) { c.innerHTML = `<div class="card"><div class="card-body"><p style="color:var(--red)">${e.message}</p></div></div>`; }
+}
+
+function showDnsSetupPanel() {
+  const panel = document.getElementById('dnsSetupPanel');
+  if (!panel || !pendingDomain) return;
+  panel.style.display = 'block';
+  document.getElementById('dnsDomName').textContent = pendingDomain.domain;
+  document.getElementById('dnsVerifyResult').innerHTML = '';
+}
+
+function cancelPendingDomain() {
+  pendingDomain = null;
+  const panel = document.getElementById('dnsSetupPanel');
+  if (panel) panel.style.display = 'none';
+  document.getElementById('addDomInput').value = '';
 }
 
 async function addDomainAny() {
@@ -1680,16 +1716,39 @@ async function addDomainAny() {
   const tid = document.getElementById('addDomToken').value;
   const type = document.getElementById('addDomType').value;
   if (!domain) return toast('Enter a domain first', 'error');
+  pendingDomain = { domain, tid, type };
+  showDnsSetupPanel();
+  toast(`${domain} entered — configure DNS, then click Verify & Save`);
+}
+
+async function verifyAndSaveDomain() {
+  if (!pendingDomain) return;
+  const { domain, tid, type } = pendingDomain;
+  const btn = document.getElementById('verifyDomBtn');
+  const resultDiv = document.getElementById('dnsVerifyResult');
+  btn.disabled = true; btn.textContent = 'Verifying...';
+  resultDiv.innerHTML = '';
   try {
-    if (type === 'primary') {
-      await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}&token_id=${encodeURIComponent(tid)}`, 'PUT');
-      toast(`${domain} is now the primary domain — point its A record at 13.140.131.204`);
+    const res = await api(`/users/me/verify-domain?domain=${encodeURIComponent(domain)}`);
+    if (res.status === 'ok') {
+      // DNS verified — save the domain
+      if (type === 'primary') {
+        await api(`/users/me/custom-domain?custom_domain=${encodeURIComponent(domain)}&token_id=${encodeURIComponent(tid)}`, 'PUT');
+      } else {
+        await api(`/tokens/${tid}/domains`, 'POST', JSON.stringify({ domain }));
+      }
+      resultDiv.innerHTML = `<p style="color:var(--green);font-weight:600">🎉 ${res.message}</p>`;
+      toast(`🎉 ${domain} verified and saved!`);
+      pendingDomain = null;
+      setTimeout(() => loadDomains(), 1500);
     } else {
-      await api(`/tokens/${tid}/domains`, 'POST', JSON.stringify({ domain }));
-      toast(`${domain} attached — point its A record at 13.140.131.204`);
+      resultDiv.innerHTML = `<p style="color:var(--red);font-weight:600">${res.message || 'Verification failed'}</p>`;
+      btn.disabled = false; btn.textContent = 'Verify & Save';
     }
-    loadDomains();
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) {
+    resultDiv.innerHTML = `<p style="color:var(--red);font-weight:600">${e.message}</p>`;
+    btn.disabled = false; btn.textContent = 'Verify & Save';
+  }
 }
 
 function changeSubdomain(tokenId, current) {
