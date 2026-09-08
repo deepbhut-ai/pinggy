@@ -396,10 +396,21 @@ export default function ConfigureTunnel() {
           <div className="cmd-box"><pre>{buildCmd()}</pre></div>
           <div className="tunnel-preview">
             <div style={{ flex: 1, minWidth: 200 }}>
-              <strong>Your tunnel URL will be:</strong><br />
-              <span className="url">{previewUrl}</span>
+              <strong>{multiAddrs.length > 1 ? 'Your tunnel URLs will be:' : 'Your tunnel URL will be:'}</strong><br />
+              {multiAddrs.length > 1 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.25rem', marginTop: '.3rem' }}>
+                  {multiAddrs.map((url, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+                      <span className="url" style={{ fontSize: '.85rem' }}>{url}</span>
+                      <button className="icon-btn" title="Copy URL" style={{ fontSize: '.7rem', padding: '.1rem .3rem' }} onClick={() => { copyToClipboard(url); toast('URL copied'); }}>📋</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="url">{previewUrl}</span>
+              )}
             </div>
-            <button className="btn btn-sm" onClick={showQr}>📱 QR Code</button>
+            {multiAddrs.length <= 1 && <button className="btn btn-sm" onClick={showQr}>📱 QR Code</button>}
           </div>
           {qr && (
             <div className="qr-panel">
