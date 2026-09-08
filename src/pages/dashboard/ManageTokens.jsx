@@ -293,11 +293,15 @@ export default function ManageTokens() {
                           </div>
                         )) : <span className="dim">—</span>}
                       </td>
-                      <td>
+                      <td style={{ fontSize: '.72rem', lineHeight: 1.5 }}>
                         {apiKeyFilter ? (
-                          <span className="code" style={{ fontSize: '.72rem' }}>{apiKeys.filter((k) => k.name === apiKeyFilter).map((k) => k.prefix).join(', ')}</span>
+                          apiKeys.filter((k) => k.name === apiKeyFilter).map((k) => (
+                            <div key={k.id}><span className="code">{k.prefix}</span> <span className="dim">{k.name}</span></div>
+                          ))
                         ) : (
-                          <span className="dim" style={{ fontSize: '.72rem' }}>All keys</span>
+                          apiKeys.map((k) => (
+                            <div key={k.id}><span className="code">{k.prefix}</span> <span className="dim">{k.name}</span></div>
+                          ))
                         )}
                       </td>
                       <td>{t.total_requests || 0}</td>
