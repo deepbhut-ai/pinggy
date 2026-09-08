@@ -33,6 +33,7 @@ class TokenOut(BaseModel):
     team_id: str | None = None        # v1.7.0 — token assigned to this team
     via_team: dict | None = None      # v1.7.0 — set when listing a team-shared token I don't own
     security: dict | None = None  # masked security view (never returns basic_auth_pass / full bearer when set)
+    created_by_api_key: str | None = None  # v2.6.4 — which API key created this token (None = dashboard)
 
 
 async def _token_traffic(db: AsyncConnection, token: str) -> tuple[int, int, int]:
@@ -190,7 +191,7 @@ async def list_tokens(
 ):
     """List all tokens for the current user (own + tokens shared via teams, v1.7.0)."""
     cur = await db.execute(
-        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only, fixed_subdomain, tunnel_mode, tcp_port, team_id, user_email FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
+        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only, fixed_subdomain, tunnel_mode, tcp_port, team_id, user_email, created_by_api_key FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
         (user["email"],),
     )
     rows = await cur.fetchall()
@@ -244,6 +245,7 @@ async def list_tokens(
                 "bearer_key": "***set***" if r[7] else None,
                 "https_only": r[8],
             },
+            created_by_api_key=str(r[14]) if r[14] else None,
         ))
     # shared team tokens — read-only view for plain members; admins/owner get manage rights via guards
     for r in shared:
@@ -348,11 +350,12 @@ async def create_token(
         await cur.close()
 
     token = _generate_token()
+    api_key_id = user.get("api_key_id")
     cur = await db.execute(
-        "INSERT INTO tokens (user_email, token, name, custom_domain, fixed_subdomain) "
-        "VALUES (%s, %s, %s, %s, %s) "
+        "INSERT INTO tokens (user_email, token, name, custom_domain, fixed_subdomain, created_by_api_key) "
+        "VALUES (%s, %s, %s, %s, %s, %s) "
         "RETURNING id, token, name, custom_domain, fixed_subdomain, created_at",
-        (user["email"], token, body.name, custom_domain, fixed_sub),
+        (user["email"], token, body.name, custom_domain, fixed_sub, api_key_id),
     )
     row = await cur.fetchone()
     await cur.close()

@@ -77,6 +77,24 @@ async def get_api_user(
         email = await resolve_api_key(db, raw)
         if not email:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid API key")
+        # Resolve the API key ID for tracking which key created resources
+        cur = await db.execute(
+            "SELECT id FROM api_keys WHERE key_hash = "
+            "(SELECT key_hash FROM api_keys WHERE is_active = true LIMIT 1) "
+            "AND is_active = true LIMIT 1",
+            (),
+        )
+        # Simpler: look up the key by the raw value via resolve_api_key's logic
+        await cur.close()
+        from app.api.routers.apikeys import _hash_key
+        key_hash = _hash_key(raw)
+        cur = await db.execute(
+            "SELECT id FROM api_keys WHERE key_hash = %s AND is_active = true",
+            (key_hash,),
+        )
+        key_row = await cur.fetchone()
+        api_key_id = str(key_row[0]) if key_row else None
+        await cur.close()
         cur = await db.execute(
             "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, seats, plan_expires_at, is_active "
             "FROM users WHERE email = %s",
@@ -90,6 +108,7 @@ async def get_api_user(
             "id": str(row[0]), "email": row[1], "full_name": row[2], "role": row[3],
             "tunnel_token": row[4], "custom_domain": row[5], "plan": row[6] or "free",
             "seats": int(row[7] or 1), "plan_expires_at": row[8].isoformat() if row[8] else None, "is_active": row[9],
+            "api_key_id": api_key_id,
         }
     # No API key — fall back to JWT Bearer
     creds = bearer_scheme  # HTTPBearer dependency resolves via FastAPI; call directly:
