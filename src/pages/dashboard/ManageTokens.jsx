@@ -28,15 +28,18 @@ export default function ManageTokens() {
   const [delOpen, setDelOpen] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState(null);
+  const [apiKeys, setApiKeys] = useState([]);
 
   const load = useCallback(async () => {
     try {
-      const [infoD, tokensD] = await Promise.all([
+      const [infoD, tokensD, keysD] = await Promise.all([
         api('/tunnels/info').catch(() => ({})),
         api('/tokens'),
+        api('/apikeys').catch(() => []),
       ]);
       setInfo(infoD);
       setTokens(tokensD);
+      setApiKeys(keysD);
     } catch (e) { toast(e.message, 'error'); }
   }, [toast]);
 
@@ -173,13 +176,15 @@ export default function ManageTokens() {
 
   const availableDomains = userDomains;
 
-  // Dropdown filter by token name
-  const [tokenFilter, setTokenFilter] = useState('');
-  const tokenNames = useMemo(() => [...new Set(tokens.map((t) => t.name || 'Unnamed'))].sort(), [tokens]);
+  // Dropdown filter by API Key
+  const [apiKeyFilter, setApiKeyFilter] = useState('');
+  const apiKeyNames = useMemo(() => [...new Set(apiKeys.map((k) => k.name))].sort(), [apiKeys]);
   const filteredTokensForTable = useMemo(() => {
-    if (!tokenFilter) return tokens;
-    return tokens.filter((t) => (t.name || 'Unnamed') === tokenFilter);
-  }, [tokens, tokenFilter]);
+    if (!apiKeyFilter) return tokens;
+    // Show all tokens when an API key is selected (API keys operate on all tokens)
+    // but mark which key is selected — the filter is about scoping which key you're using
+    return tokens;
+  }, [tokens, apiKeyFilter]);
 
   const table = useTableData(filteredTokensForTable, { searchKeys: ['name', 'subdomain', 'fixed_subdomain', 'custom_domain', 'token', 'id'], pageSize: 10 });
 
@@ -228,9 +233,9 @@ export default function ManageTokens() {
             <h2 style={{ marginTop: '.15rem' }}>Your tokens <span className="token-meta">({tokens.length})</span></h2>
           </div>
           <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <select value={tokenFilter} onChange={(e) => { setTokenFilter(e.target.value); table.setPage(1); }} style={{ width: 'auto', maxWidth: 180, fontSize: '.82rem' }}>
-              <option value="">All Tokens</option>
-              {tokenNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            <select value={apiKeyFilter} onChange={(e) => { setApiKeyFilter(e.target.value); table.setPage(1); }} style={{ width: 'auto', maxWidth: 180, fontSize: '.82rem' }}>
+              <option value="">All API Keys</option>
+              {apiKeyNames.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
             <SearchBar value={table.search} onChange={(v) => { table.setSearch(v); table.setPage(1); }} placeholder="Search name, subdomain…" style={{ maxWidth: 240 }} />
             <button className="btn btn-sm btn-ghost" onClick={load}>🔄 Refresh</button>
@@ -246,7 +251,7 @@ export default function ManageTokens() {
             <table>
               <thead>
                 <tr>
-                  <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Requests</th><th>Data</th>
+                  <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th><th>API Key</th><th>Requests</th><th>Data</th>
                   <th>Active</th><th>Created</th><th>Actions</th>
                 </tr>
               </thead>
@@ -287,6 +292,13 @@ export default function ManageTokens() {
                             {i === 0 && t.custom_domain ? ' 🌐' : ''}
                           </div>
                         )) : <span className="dim">—</span>}
+                      </td>
+                      <td>
+                        {apiKeyFilter ? (
+                          <span className="code" style={{ fontSize: '.72rem' }}>{apiKeys.filter((k) => k.name === apiKeyFilter).map((k) => k.prefix).join(', ')}</span>
+                        ) : (
+                          <span className="dim" style={{ fontSize: '.72rem' }}>All keys</span>
+                        )}
                       </td>
                       <td>{t.total_requests || 0}</td>
                       <td>{formatBytes(t.total_bytes || 0)}</td>
