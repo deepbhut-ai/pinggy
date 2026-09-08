@@ -100,6 +100,15 @@ export default function ConfigureTunnel() {
   const port = localAddr.split(':').pop() || '8080';
   const [tokenSearch, setTokenSearch] = useState('');
 
+  // Update local address when token changes — load saved port from Connection Guide
+  useEffect(() => {
+    if (!selToken) return;
+    const savedPort = localStorage.getItem(`token-port-${selToken.id}`);
+    if (savedPort) {
+      setLocalAddr(`127.0.0.1:${savedPort}`);
+    }
+  }, [tokenSel, selToken]);
+
   const filteredTokens = useMemo(() => {
     if (!tokenSearch.trim()) return tokens;
     const q = tokenSearch.trim().toLowerCase();
