@@ -1,24 +1,63 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
 import { copyToClipboard } from '../../utils';
 import { useTableData, SearchBar, Pagination } from '../../components/TableControls';
+import { Link } from 'react-router-dom';
+
+function isRootDomain(domain) {
+  if (!domain) return false;
+  const labels = domain.replace(/^https?:\/\//, '').split('.').filter(Boolean);
+  return labels.length <= 2;
+}
 
 export default function ApiKeys() {
   const { user } = useAuth();
   const toast = useToast();
   const [keys, setKeys] = useState([]);
+  const [tokens, setTokens] = useState([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('CI pipeline');
   const [expiry, setExpiry] = useState('');
   const [createdKey, setCreatedKey] = useState(null);
+  const [keyFilter, setKeyFilter] = useState(''); // dropdown filter by API key name
 
-  const load = useCallback(() => api('/apikeys').then(setKeys).catch(() => {}), []);
+  const load = useCallback(() => {
+    api('/apikeys').then(setKeys).catch(() => {});
+    api('/tokens').then(setTokens).catch(() => {});
+  }, []);
   useEffect(() => { load(); }, [load]);
 
-  const table = useTableData(keys, { searchKeys: ['name', 'prefix'], pageSize: 10 });
+  // Count domains vs subdomains from the user's tokens
+  const domainCount = useMemo(() => {
+    let domains = 0, subdomains = 0;
+    tokens.forEach((t) => {
+      if (t.custom_domain) {
+        if (isRootDomain(t.custom_domain)) domains++;
+        else subdomains++;
+      }
+      (t.domains || []).forEach((d) => {
+        if (isRootDomain(d)) domains++;
+        else subdomains++;
+      });
+    });
+    return { domains, subdomains };
+  }, [tokens]);
+
+  // Unique API key names for the dropdown filter
+  const keyNames = useMemo(() => {
+    const names = [...new Set(keys.map((k) => k.name))];
+    return names.sort();
+  }, [keys]);
+
+  const filteredKeys = useMemo(() => {
+    if (!keyFilter) return keys;
+    return keys.filter((k) => k.name === keyFilter);
+  }, [keys, keyFilter]);
+
+  const table = useTableData(filteredKeys, { searchKeys: ['name', 'prefix'], pageSize: 10 });
 
   const limit = user?.plan === 'pro' ? 10 : 5;
   const atCap = keys.length >= limit;
@@ -99,7 +138,13 @@ export default function ApiKeys() {
       <div className="card">
         <div className="card-header" style={{ flexWrap: 'wrap', gap: '.5rem' }}>
           <h2>API Keys</h2>
-          <SearchBar value={table.search} onChange={(v) => { table.setSearch(v); table.setPage(1); }} placeholder="Search name, key…" style={{ maxWidth: 280 }} />
+          <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select value={keyFilter} onChange={(e) => { setKeyFilter(e.target.value); table.setPage(1); }} style={{ width: 'auto', maxWidth: 180, fontSize: '.82rem' }}>
+              <option value="">All API Keys</option>
+              {keyNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <SearchBar value={table.search} onChange={(v) => { table.setSearch(v); table.setPage(1); }} placeholder="Search name, key…" style={{ maxWidth: 280 }} />
+          </div>
         </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {keys.length === 0 ? (
@@ -109,7 +154,7 @@ export default function ApiKeys() {
           ) : (
             <>
             <table>
-              <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Expires</th><th>Last used</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Key</th><th>Domains</th><th>Subdomains</th><th>Created</th><th>Expires</th><th>Last used</th><th>Actions</th></tr></thead>
               <tbody>
                 {table.paged.map((k) => {
                   const expired = k.expires_at && new Date(k.expires_at) < new Date();
@@ -117,6 +162,8 @@ export default function ApiKeys() {
                     <tr key={k.id}>
                       <td>{k.name}</td>
                       <td className="code">{k.prefix}…</td>
+                      <td><span className="badge badge-green">{domainCount.domains}</span></td>
+                      <td><span className="badge badge-blue">{domainCount.subdomains}</span></td>
                       <td>{k.created_at ? k.created_at.substring(0, 10) : '—'}</td>
                       <td>
                         {!k.expires_at
@@ -126,7 +173,12 @@ export default function ApiKeys() {
                             : <span className="dim">{k.expires_at.substring(0, 10)}</span>}
                       </td>
                       <td>{k.last_used_at ? k.last_used_at.replace('T', ' ').substring(0, 16) : 'never'}</td>
-                      <td><button className="btn btn-sm btn-danger" onClick={() => revoke(k)}>Revoke</button></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '.3rem' }}>
+                          <Link to="/dashboard/tokens" title="View tokens" style={{ display: 'inline-flex', alignItems: 'center', padding: '.2rem .4rem', borderRadius: 'var(--radius)', background: 'var(--surface-1)', color: 'var(--brand)', textDecoration: 'none', fontSize: '.85rem' }}>👁️</Link>
+                          <button className="btn btn-sm btn-danger" onClick={() => revoke(k)}>Revoke</button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
