@@ -281,6 +281,12 @@ async function showApp() {
   } catch {
     logout(); return;
   }
+  // Admin panel is admin-only — send everyone else back to their dashboard.
+  // Keep their session token (it's valid for the user dashboard, just not here).
+  if (currentUser.role !== 'admin') {
+    window.location.replace('/dashboard');
+    return;
+  }
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('loginView').style.display = 'none';
   document.getElementById('appView').style.display = 'block';
