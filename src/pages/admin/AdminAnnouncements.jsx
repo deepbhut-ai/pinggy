@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
+import { Pagination } from '../../components/TableControls';
 import { formatBytes } from '../../utils';
 
 // Admin: Announcements — site-wide banners + email campaigns + email logs.
@@ -17,6 +18,7 @@ export default function AdminAnnouncements() {
   const [confirm, setConfirm] = useState(null);
   const [campaign, setCampaign] = useState(null); // { subject, body, audience }
   const [form, setForm] = useState({ title: '', body: '', level: 'info' });
+  const [logPage, setLogPage] = useState(1);
 
   const load = useCallback(async () => {
     try {
@@ -153,7 +155,7 @@ export default function AdminAnnouncements() {
           <table>
             <thead><tr><th>To</th><th>Subject</th><th>Kind</th><th>Status</th><th>Error</th><th>Created</th></tr></thead>
             <tbody>
-              {logs.slice(0, 50).map((l, i) => (
+              {logs.slice((logPage - 1) * 15, logPage * 15).map((l, i) => (
                 <tr key={i}>
                   <td>{l.to_email}</td>
                   <td className="dim">{l.subject}</td>
@@ -167,6 +169,11 @@ export default function AdminAnnouncements() {
             </tbody>
           </table>
         </div>
+        {logs.length > 15 && (
+          <div className="card-body" style={{ paddingTop: '.5rem' }}>
+            <Pagination page={logPage} totalPages={Math.max(1, Math.ceil(logs.length / 15))} setPage={setLogPage} total={logs.length} pageSize={15} />
+          </div>
+        )}
       </div>
 
       {campaign && (

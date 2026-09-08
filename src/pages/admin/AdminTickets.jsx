@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
-import { SearchBar } from '../../components/TableControls';
+import { SearchBar, Pagination } from '../../components/TableControls';
 
 // Admin: Tickets — support tickets from all users.
 // APIs: GET /tickets/admin/all[?status=], GET /tickets/{id},
@@ -15,6 +15,7 @@ export default function AdminTickets() {
   const [tickets, setTickets] = useState([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [detail, setDetail] = useState(null);   // { ticket, reply }
   const [confirm, setConfirm] = useState(null);
 
@@ -57,6 +58,9 @@ export default function AdminTickets() {
   const filtered = q ? tickets.filter((t) =>
     (t.user_email || '').toLowerCase().includes(q) || (t.subject || '').toLowerCase().includes(q)
   ) : tickets;
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <>
@@ -67,9 +71,9 @@ export default function AdminTickets() {
         </div>
         <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           {['all', 'open', 'answered', 'closed'].map((f) => (
-            <button key={f} className={`btn btn-sm ${filter === f ? '' : 'btn-ghost'}`} onClick={() => setFilter(f)}>{f}</button>
+            <button key={f} className={`btn btn-sm ${filter === f ? '' : 'btn-ghost'}`} onClick={() => { setFilter(f); setPage(1); }}>{f}</button>
           ))}
-          <SearchBar value={search} onChange={setSearch} placeholder="Search…" style={{ maxWidth: 160 }} />
+          <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search…" style={{ maxWidth: 160 }} />
           <button className="btn btn-sm btn-ghost" onClick={() => { load(); toast('Refreshed'); }}>🔄</button>
         </div>
       </div>
@@ -79,7 +83,7 @@ export default function AdminTickets() {
           <table>
             <thead><tr><th>User</th><th>Subject</th><th>Status</th><th>Updated</th></tr></thead>
             <tbody>
-              {filtered.map((t) => (
+              {paged.map((t) => (
                 <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => open(t.id)}>
                   <td>{t.user_email}</td>
                   <td style={{ fontWeight: 600 }}>{t.subject}</td>
@@ -90,6 +94,9 @@ export default function AdminTickets() {
               {!filtered.length && <tr><td colSpan="4" className="empty">No tickets.</td></tr>}
             </tbody>
           </table>
+        </div>
+        <div className="card-body" style={{ paddingTop: '.5rem' }}>
+          <Pagination page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} pageSize={pageSize} />
         </div>
       </div>
 

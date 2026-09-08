@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
-import { SearchBar } from '../../components/TableControls';
+import { SearchBar, Pagination } from '../../components/TableControls';
 
 // Admin: IP Monitor — live visitors, blocked IPs, countries, auto-block config.
 // APIs: GET /ip-monitor/stats, /ip-monitor/config, /ip-monitor/blocked,
@@ -23,6 +23,7 @@ export default function AdminIpMonitor() {
   const [blocked, setBlocked] = useState([]);
   const [limit, setLimit] = useState(100);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [detail, setDetail] = useState(null);
   const [blockModal, setBlockModal] = useState(null); // { ip, reason, duration }
   const [confirm, setConfirm] = useState(null);
@@ -62,6 +63,9 @@ export default function AdminIpMonitor() {
 
   const q = search.trim().toLowerCase();
   const filteredIps = q ? ips.filter((i) => (i.ip || '').includes(q) || (i.country || '').toLowerCase().includes(q)) : ips;
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredIps.length / pageSize));
+  const pagedIps = filteredIps.slice((page - 1) * pageSize, page * pageSize);
 
   const viewIp = async (ip) => {
     try { setDetail(await api(`/ip-monitor/ips/${encodeURIComponent(ip)}`)); }
@@ -138,7 +142,7 @@ export default function AdminIpMonitor() {
           <div className="card-header">
             <h2>Live IPs ({ips.length})</h2>
             <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-              <SearchBar value={search} onChange={setSearch} placeholder="Search IP…" style={{ maxWidth: 160 }} />
+              <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search IP…" style={{ maxWidth: 160 }} />
               <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} style={{ width: 'auto' }}>
                 {[50, 100, 200, 500].map((n) => <option key={n} value={n}>last {n}</option>)}
               </select>
@@ -148,7 +152,7 @@ export default function AdminIpMonitor() {
             <table>
               <thead><tr><th>IP</th><th>Country</th><th>City</th><th>ISP</th><th>Requests</th><th>Window</th><th>Tunnels</th><th>Last seen</th><th>Status</th><th></th></tr></thead>
               <tbody>
-                {filteredIps.map((i, idx) => {
+                {pagedIps.map((i, idx) => {
                   const isBlocked = blocked.some((b) => b.ip === i.ip);
                   const hot = (i.window_count || 0) > 100;
                   return (
@@ -176,6 +180,9 @@ export default function AdminIpMonitor() {
                 {!filteredIps.length && <tr><td colSpan="10" className="empty">No tracked IPs.</td></tr>}
               </tbody>
             </table>
+          </div>
+          <div className="card-body" style={{ paddingTop: '.5rem' }}>
+            <Pagination page={page} totalPages={totalPages} setPage={setPage} total={filteredIps.length} pageSize={pageSize} />
           </div>
         </div>
       )}
