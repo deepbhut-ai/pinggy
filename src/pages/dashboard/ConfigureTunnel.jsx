@@ -30,19 +30,34 @@ function isRootDomain(domain) {
 }
 
 // Build the display addresses for a token — skips the auto-generated hash subdomain
-// when the token has a root custom domain (the custom domain IS the main address)
-function tokenAddresses(t) {
+// when the token has a root custom domain (the custom domain IS the main address).
+// Also includes addresses from OTHER tokens that share the same root domain,
+// so multiport can tunnel all subdomains under one root domain in one command.
+function tokenAddresses(t, allTokens = []) {
   const addrs = [];
   const hasRootDomain = t.custom_domain && isRootDomain(t.custom_domain);
   // Only show the *.iraglobaltech.com subdomain if there's no root custom domain
-  // (if there IS a root domain, the subdomain is just a random hash — noise)
   if (t.subdomain && !hasRootDomain) {
     addrs.push({ addr: `${t.subdomain}.iraglobaltech.com`, label: '🌐 Subdomain' });
   }
   if (t.custom_domain) {
-    addrs.push({ addr: t.custom_domain, label: isRootDomain(t.custom_domain) ? '🌐 Domain' : '🔗 Custom domain' });
+    addrs.push({ addr: t.custom_domain, label: isRootDomain(t.custom_domain) ? '🌐 Domain' : '🔗 Subdomain' });
   }
   (t.domains || []).forEach((d) => addrs.push({ addr: d, label: '➕ Extra domain' }));
+  // Include addresses from other tokens that share the same root domain
+  if (t.custom_domain) {
+    const root = isRootDomain(t.custom_domain) ? t.custom_domain : t.custom_domain.split('.').slice(-2).join('.');
+    allTokens.forEach((other) => {
+      if (other.id === t.id) return; // skip self
+      // Check if the other token's custom_domain is a subdomain under our root
+      if (other.custom_domain && other.custom_domain !== t.custom_domain && other.custom_domain.endsWith('.' + root)) {
+        // Don't add duplicates
+        if (!addrs.some((a) => a.addr === other.custom_domain)) {
+          addrs.push({ addr: other.custom_domain, label: '🔗 Subdomain' });
+        }
+      }
+    });
+  }
   return addrs;
 }
 
@@ -107,12 +122,12 @@ export default function ConfigureTunnel() {
     );
   }, [tokens, tokenSearch]);
 
-  // multi-port rows: build addresses for this token
+  // multi-port rows: build addresses for this token (includes subdomains from other tokens sharing the same root)
   useEffect(() => {
     if (!multiPort || !selToken) return;
-    const addrs = tokenAddresses(selToken).map((a) => ({ ...a, port: '' }));
+    const addrs = tokenAddresses(selToken, tokens).map((a) => ({ ...a, port: '' }));
     setMultiPorts(addrs);
-  }, [multiPort, tokenSel, selToken]);
+  }, [multiPort, tokenSel, selToken, tokens]);
 
   const portList = multiPort ? multiPorts.map((m) => m.port.trim()).filter(Boolean) : null;
   const sshPort = info?.ssh_port || 2222;
@@ -149,7 +164,7 @@ export default function ConfigureTunnel() {
     ? (isTcp
         ? `tcp://iraglobaltech.com:${selToken.tcp_port || '— (set in Manage Tokens)'}`
         : (() => {
-            const addrs = tokenAddresses(selToken);
+            const addrs = tokenAddresses(selToken, tokens);
             const first = addrs[0];
             return first ? `https://${first.addr}` : 'https://—.iraglobaltech.com';
           })())
@@ -308,7 +323,7 @@ export default function ConfigureTunnel() {
               <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
                 <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)} style={{ flex: 1 }}>
                   {filteredTokens.map((t) => {
-                    const addrs = tokenAddresses(t).map((a) => a.addr);
+                    const addrs = tokenAddresses(t, tokens).map((a) => a.addr);
                     const label = addrs.length ? addrs.join(', ') : (t.name || 'Unnamed');
                     return (
                       <option key={t.id} value={t.token}>

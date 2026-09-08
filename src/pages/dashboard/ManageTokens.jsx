@@ -246,7 +246,10 @@ export default function ManageTokens() {
                   // Skip the auto-generated hash subdomain when a root custom domain exists
                   const subAddr = (t.subdomain && !hasRootDomain) ? `${t.subdomain}.iraglobaltech.com` : '';
                   const domainAddr = t.custom_domain || '';
-                  const allAddrs = [subAddr, domainAddr, ...(t.domains || [])].filter(Boolean);
+                  // Include subdomains from other tokens sharing the same root domain
+                  const root = hasRootDomain ? t.custom_domain : (t.custom_domain ? t.custom_domain.split('.').slice(-2).join('.') : null);
+                  const siblingSubs = root ? tokens.filter((o) => o.id !== t.id && o.custom_domain && o.custom_domain !== t.custom_domain && o.custom_domain.endsWith('.' + root)).map((o) => o.custom_domain) : [];
+                  const allAddrs = [subAddr, domainAddr, ...(t.domains || []), ...siblingSubs].filter(Boolean);
                   const teamBadge = t.via_team
                     ? <span className="badge badge-blue" title={`Shared via team '${t.via_team.team_name}' (my role: ${t.via_team.my_role || 'member'})`}>👥 {t.via_team.team_name}</span>
                     : (t.team_id ? <span className="badge" title="Shared with a team">👥</span> : null);
