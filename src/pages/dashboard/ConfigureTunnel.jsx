@@ -276,11 +276,19 @@ export default function ConfigureTunnel() {
               <label>Access token</label>
               <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
                 <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)} style={{ flex: 1 }}>
-                  {filteredTokens.map((t) => (
-                    <option key={t.id} value={t.token}>
-                      {t.name || 'Unnamed'} — {t.token.substring(0, 8)}... (→ {t.subdomain}.iraglobaltech.com)
-                    </option>
-                  ))}
+                  {filteredTokens.map((t) => {
+                    const labelParts = [t.name || 'Unnamed', '—', t.token.substring(0, 8) + '...'];
+                    const addrs = [];
+                    if (t.subdomain) addrs.push(`${t.subdomain}.iraglobaltech.com`);
+                    if (t.custom_domain) addrs.push(t.custom_domain);
+                    (t.domains || []).forEach((d) => addrs.push(d));
+                    labelParts.push(`(→ ${addrs.join(', ')})`);
+                    return (
+                      <option key={t.id} value={t.token}>
+                        {labelParts.join(' ')}
+                      </option>
+                    );
+                  })}
                   {filteredTokens.length === 0 && <option value="">No tokens match</option>}
                 </select>
                 {tokens.length > 3 && (

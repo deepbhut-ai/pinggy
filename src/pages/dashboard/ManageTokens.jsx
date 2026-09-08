@@ -242,9 +242,12 @@ export default function ManageTokens() {
                 {table.paged.map((t) => {
                   const teamRole = String(t.via_team?.my_role || '').toLowerCase();
                   const canDelete = !t.via_team || ['owner', 'admin', 'team_owner', 'team_admin'].includes(teamRole);
-                  const displayedSubdomain = t.custom_domain
-                    ? (isRootDomain(t.custom_domain) ? '' : t.custom_domain)
-                    : (t.fixed_subdomain || t.subdomain || '');
+                  const subAddr = t.subdomain ? `${t.subdomain}.iraglobaltech.com` : '';
+                  const domainAddr = t.custom_domain
+                    ? (isRootDomain(t.custom_domain) ? t.custom_domain : t.custom_domain)
+                    : '';
+                  const extraDomains = (t.domains || []).join(', ');
+                  const allAddrs = [subAddr, domainAddr, ...(t.domains || [])].filter(Boolean);
                   const teamBadge = t.via_team
                     ? <span className="badge badge-blue" title={`Shared via team '${t.via_team.team_name}' (my role: ${t.via_team.my_role || 'member'})`}>👥 {t.via_team.team_name}</span>
                     : (t.team_id ? <span className="badge" title="Shared with a team">👥</span> : null);
@@ -267,9 +270,13 @@ export default function ManageTokens() {
                         </span>
                       </td>
                       <td>{t.name || '—'} {teamBadge}</td>
-                      <td className="code">
-                        {displayedSubdomain || <span className="dim">—</span>}
-                        {displayedSubdomain && t.fixed_subdomain ? ' 📌' : ''}
+                      <td className="code" style={{ fontSize: '.78rem', lineHeight: 1.5 }}>
+                        {allAddrs.length ? allAddrs.map((a, i) => (
+                          <div key={i}>
+                            {i === 0 && t.fixed_subdomain ? '📌 ' : ''}{a}
+                            {i === 0 && t.custom_domain ? ' 🌐' : ''}
+                          </div>
+                        )) : <span className="dim">—</span>}
                       </td>
                       <td>{t.total_requests || 0}</td>
                       <td>{formatBytes(t.total_bytes || 0)}</td>
