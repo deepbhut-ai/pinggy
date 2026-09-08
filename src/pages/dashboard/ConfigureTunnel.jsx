@@ -37,8 +37,9 @@ function tokenAddresses(t, allTokens = [], includeAll = false) {
   const addrs = [];
   const hasRootDomain = t.custom_domain && isRootDomain(t.custom_domain);
   // Only show the *.iraglobaltech.com subdomain if there's no root custom domain
+  // Prefer the user's fixed_subdomain (set in Manage Tokens) over the auto-generated hash
   if (t.subdomain && !hasRootDomain) {
-    addrs.push({ addr: `${t.subdomain}.iraglobaltech.com`, label: '🌐 Subdomain' });
+    addrs.push({ addr: `${t.fixed_subdomain || t.subdomain}.iraglobaltech.com`, label: t.fixed_subdomain ? '📌 Subdomain' : '🌐 Subdomain' });
   }
   if (t.custom_domain) {
     addrs.push({ addr: t.custom_domain, label: isRootDomain(t.custom_domain) ? '🌐 Domain' : '🔗 Subdomain' });
@@ -53,8 +54,9 @@ function tokenAddresses(t, allTokens = [], includeAll = false) {
         addrs.push({ addr: other.custom_domain, label: isRootDomain(other.custom_domain) ? '🌐 Domain' : '🔗 Subdomain' });
       }
       const otherHasRoot = other.custom_domain && isRootDomain(other.custom_domain);
-      if (other.subdomain && !otherHasRoot && !addrs.some((a) => a.addr === `${other.subdomain}.iraglobaltech.com`)) {
-        addrs.push({ addr: `${other.subdomain}.iraglobaltech.com`, label: '🌐 Subdomain' });
+      const otherSub = other.fixed_subdomain || other.subdomain;
+      if (otherSub && !otherHasRoot && !addrs.some((a) => a.addr === `${otherSub}.iraglobaltech.com`)) {
+        addrs.push({ addr: `${otherSub}.iraglobaltech.com`, label: other.fixed_subdomain ? '📌 Subdomain' : '🌐 Subdomain' });
       }
       (other.domains || []).forEach((d) => {
         if (!addrs.some((a) => a.addr === d)) {
