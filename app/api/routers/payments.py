@@ -55,21 +55,28 @@ async def _method_enabled(db: AsyncConnection, method: str) -> bool:
 
 async def _create_payment_row(
     db: AsyncConnection, email: str, method: str, plan: str, amount: float, currency: str, ref: str,
-    coupon_code: str | None = None,
+    coupon_code: str | None = None, seats: int = 1,
 ) -> str:
     try:
         cur = await db.execute(
-            """INSERT INTO payments (user_email, method, plan, amount, currency, status, provider_ref, coupon_code)
-               VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s) RETURNING id""",
-            (email, method, plan, amount, currency, ref, coupon_code or None),
+            """INSERT INTO payments (user_email, method, plan, amount, currency, status, provider_ref, coupon_code, seats)
+               VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s, %s) RETURNING id""",
+            (email, method, plan, amount, currency, ref, coupon_code or None, max(1, int(seats))),
         )
     except Exception:
-        # coupon_code column may not exist yet (pre-0013 migration) — insert without it
-        cur = await db.execute(
-            """INSERT INTO payments (user_email, method, plan, amount, currency, status, provider_ref)
-               VALUES (%s, %s, %s, %s, %s, 'pending', %s) RETURNING id""",
-            (email, method, plan, amount, currency, ref),
-        )
+        # seats/coupon_code column may not exist yet (pre-migration) — insert without them
+        try:
+            cur = await db.execute(
+                """INSERT INTO payments (user_email, method, plan, amount, currency, status, provider_ref, coupon_code)
+                   VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s) RETURNING id""",
+                (email, method, plan, amount, currency, ref, coupon_code or None),
+            )
+        except Exception:
+            cur = await db.execute(
+                """INSERT INTO payments (user_email, method, plan, amount, currency, status, provider_ref)
+                   VALUES (%s, %s, %s, %s, %s, 'pending', %s) RETURNING id""",
+                (email, method, plan, amount, currency, ref),
+            )
     row = await cur.fetchone()
     await cur.close()
     return str(row[0])
@@ -78,7 +85,7 @@ async def _create_payment_row(
 async def _mark_paid_and_upgrade(db: AsyncConnection, provider_ref: str, payload: dict | None, seats: int = 1) -> bool:
     """Mark payment paid, upgrade user to pro, redeem any coupon tied to the row. True on success."""
     cur = await db.execute(
-        "SELECT id, user_email, status FROM payments WHERE provider_ref = %s",
+        "SELECT id, user_email, status, seats FROM payments WHERE provider_ref = %s",
         (provider_ref,),
     )
     pay = await cur.fetchone()
@@ -86,6 +93,12 @@ async def _mark_paid_and_upgrade(db: AsyncConnection, provider_ref: str, payload
     if not pay:
         return False
     payment_id, email, cur_status = pay[0], pay[1], pay[2]
+    # Seats actually purchased with THIS payment (row was created at checkout with the chosen seat count).
+    # Fall back to the argument only for legacy rows created before the seats column existed.
+    try:
+        purchased_seats = int(pay[3] or 1)
+    except (IndexError, TypeError):
+        purchased_seats = max(1, int(seats))
     if cur_status == "paid":
         return True  # already processed (webhook retries)
 
@@ -95,19 +108,20 @@ async def _mark_paid_and_upgrade(db: AsyncConnection, provider_ref: str, payload
     )
     await cur.close()
 
-    # Extend from current expiry or from now; increase seats (max of current/new)
+    # Extend from current expiry or from now; ADD the purchased seats on top of current seats
+    # (first upgrade: 1 current + purchased-1 extra = purchased total; later seat buys accumulate)
     cur = await db.execute(
         """UPDATE users
            SET plan = 'pro',
-               seats = GREATEST(seats, %s),
+               seats = seats + GREATEST(%s - 1, 0),
                plan_expires_at = GREATEST(COALESCE(plan_expires_at, now()), now()) + interval '1 month',
                updated_at = now()
            WHERE email = %s RETURNING plan_expires_at""",
-        (seats, email),
+        (purchased_seats, email),
     )
     row = await cur.fetchone()
     await cur.close()
-    print(f"[payments] {email} upgraded to pro (seats={seats}, ref={provider_ref}, expires={row[0]})")
+    print(f"[payments] {email} upgraded to pro (+{purchased_seats} seat(s), ref={provider_ref}, expires={row[0]})")
     # Redeem coupon if one was recorded on the payment row (coupon_code column, Phase E-safe: ignore if absent)
     try:
         cur = await db.execute("SELECT coupon_code FROM payments WHERE id = %s", (payment_id,))
@@ -203,7 +217,8 @@ async def validate_coupon_endpoint(
     }
 
 
-# Pending seats per payment ref: provider_ref -> seats (used when webhook upgrades)
+# Pending seats per payment ref: provider_ref -> seats (legacy fallback; the
+# payments.seats column is the primary source since migration 0027)
 _PENDING_SEATS_MAP: dict = {}
 
 
@@ -240,7 +255,7 @@ async def _stripe_checkout(email: str, plan: str, db: AsyncConnection, seats: in
     if r.status_code >= 300:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Stripe error: {r.text[:300]}")
     session = r.json()
-    await _create_payment_row(db, email, "stripe", plan, inr_amount, "INR", session["id"], coupon_code=coupon)
+    await _create_payment_row(db, email, "stripe", plan, inr_amount, "INR", session["id"], coupon_code=coupon, seats=seats)
     return {"method": "stripe", "url": session["url"], "ref": session["id"]}
 
 
@@ -332,7 +347,7 @@ async def _paypal_checkout(email: str, plan: str, db: AsyncConnection, seats: in
     approve = next((l["href"] for l in data.get("links", []) if l.get("rel") == "approve"), None)
     if not approve:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "PayPal: no approve link")
-    await _create_payment_row(db, email, "paypal", plan, usd_amount, "USD", data["id"], coupon_code=coupon)
+    await _create_payment_row(db, email, "paypal", plan, usd_amount, "USD", data["id"], coupon_code=coupon, seats=seats)
     return {"method": "paypal", "url": approve, "ref": data["id"]}
 
 
@@ -398,7 +413,7 @@ async def _nowpayments_checkout(email: str, plan: str, db: AsyncConnection, seat
     if r.status_code >= 300:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"NowPayments error: {r.text[:300]}")
     data = r.json()
-    await _create_payment_row(db, email, "nowpayments", plan, usd_amount, "USD", data["id"], coupon_code=coupon)
+    await _create_payment_row(db, email, "nowpayments", plan, usd_amount, "USD", data["id"], coupon_code=coupon, seats=seats)
     return {"method": "nowpayments", "url": data["invoice_url"], "ref": data["id"]}
 
 
