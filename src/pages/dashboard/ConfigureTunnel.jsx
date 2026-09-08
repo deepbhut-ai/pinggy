@@ -306,17 +306,42 @@ export default function ConfigureTunnel() {
                 const enabled = m.enabled !== false;
                 return (
                 <div key={m.addr} className="multiport-row" style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem', opacity: enabled ? 1 : 0.5 }}>
-                  <input
-                    type="checkbox"
-                    checked={enabled}
+                  <button
+                    type="button"
+                    className="toggle-switch"
+                    role="switch"
+                    aria-checked={enabled}
                     title={enabled ? 'Enabled — included in tunnel' : 'Disabled — excluded from tunnel'}
-                    onChange={(e) => {
+                    onClick={() => {
                       const next = [...multiPorts];
-                      next[i] = { ...m, enabled: e.target.checked };
+                      next[i] = { ...m, enabled: !enabled };
                       setMultiPorts(next);
                     }}
-                    style={{ flex: '0 0 auto' }}
-                  />
+                    style={{
+                      flex: '0 0 auto',
+                      width: 36,
+                      height: 20,
+                      borderRadius: 10,
+                      border: 'none',
+                      background: enabled ? 'var(--green)' : 'var(--surface-2)',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'background .2s',
+                      padding: 0,
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute',
+                      top: 2,
+                      left: enabled ? 18 : 2,
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      background: '#fff',
+                      transition: 'left .2s',
+                      boxShadow: '0 1px 3px rgba(0,0,0,.3)',
+                    }} />
+                  </button>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '.1rem' }}>
                     <span className="code" style={{ fontSize: '.8rem' }}>{m.addr}</span>
                     <span className="dim" style={{ fontSize: '.68rem' }}>{m.label}</span>
