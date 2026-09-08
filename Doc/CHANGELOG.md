@@ -1,5 +1,19 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.5.0 — 2026-09-08 — Subdomain verify-before-create on Manage Tokens
+
+### Added
+- DNS verification flow on the Manage Tokens "Subdomain Token" create modal: when a custom domain is selected, a DNS setup panel appears with A record instructions (Type=A, Name=subdomain or @, Content=13.140.131.204, Proxy=Proxied). The button changes from "Create" to "Verify & Create" — clicking it calls `GET /users/me/verify-domain` first; only if DNS verification passes does the token get created. On failure, the error message shows and the user can fix DNS and retry.
+- `verifying` and `verifyResult` state in ManageTokens component; verify result cleared on any input change so the user can retry after fixing DNS.
+- DNS panel auto-updates the Name field to show the subdomain prefix (or @ for root domains).
+
+### Changed
+- `create()` function in `src/pages/dashboard/ManageTokens.jsx`: now verifies DNS via `GET /users/me/verify-domain` before creating the token when a custom domain is involved; `*.iraglobaltech.com` subdomains (no custom domain selected) skip verification and create directly.
+- Create modal button label: "Create" → "Verify & Create" (or "Verifying…" during check).
+
+### Removed
+- none
+
 ## v2.4.0 — 2026-09-08 — Search + pagination on all dashboard pages
 
 ### Added

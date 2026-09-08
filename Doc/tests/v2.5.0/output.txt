@@ -1,0 +1,17 @@
+=== v2.5.0 Subdomain Verify-Before-Create Test ===
+
+=== Backend verify-domain API (test.callingagents.in — should pass) ===
+{
+    "domain": "test.callingagents.in",
+    "dns_resolves": true,
+    "pointed_ip": "13.140.131.204",
+    "status": "ok",
+    "message": "\u2705 test.callingagents.in is verified and reaching this server"
+}
+
+=== Health check ===
+{"status":"ok","app":"IRAGT","env":"production"}
+
+=== Browser test (Manage Tokens modal) ===
+Flow: + Subdomain Token -> select callingagents.in -> type 'test' subdomain -> DNS panel shows A record instructions -> Verify & Create -> DNS verified -> token created -> appears as 3rd token -> deleted -> back to 2 tokens
+Status: PASS

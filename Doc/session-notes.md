@@ -256,3 +256,14 @@
 - **Watch out:** Missing useState() call in useTableData (was `= 1` instead of
   `useState(1)`) caused 'TypeError: 1 is not iterable' — always double-check
   hook calls survived file edits; minifier silently drops bare `= 1` destructuring.
+
+## 2026-09-08 — v2.5.0 (Subdomain verify-before-create on Manage Tokens)
+- **Done:** v2.5.0 — Manage Tokens "Subdomain Token" modal now verifies DNS
+  before creating tokens when a custom domain is selected. DNS setup panel
+  shows A record instructions; button says "Verify & Create"; on pass creates
+  token, on fail shows error for retry. Tested with test.callingagents.in.
+- **In progress:** nothing.
+- **Next:** await user.
+- **Watch out:** callingagents.in has wildcard DNS on Cloudflare so all
+  subdomains resolve — good for testing but means verification always passes
+  for that domain.

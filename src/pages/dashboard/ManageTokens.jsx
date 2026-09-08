@@ -26,6 +26,8 @@ export default function ManageTokens() {
   const [editState, setEditState] = useState({});
   const [regenOpen, setRegenOpen] = useState(null);
   const [delOpen, setDelOpen] = useState(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -49,6 +51,30 @@ export default function ManageTokens() {
     if (sub && !/^[a-z0-9]+$/.test(sub)) {
       return toast('Subdomain can only contain letters and numbers', 'error');
     }
+
+    // Build the full domain that will be used
+    const fullDomain = d ? (sub ? `${sub}.${d}` : d) : (sub ? `${sub}.iraglobaltech.com` : '');
+
+    // If a custom domain is involved, verify DNS before creating
+    if (fullDomain && d) {
+      setVerifying(true);
+      setVerifyResult(null);
+      try {
+        const res = await api(`/users/me/verify-domain?domain=${encodeURIComponent(fullDomain)}`);
+        if (res.status !== 'ok') {
+          setVerifyResult({ status: 'error', message: res.message || 'Verification failed' });
+          setVerifying(false);
+          return;
+        }
+        setVerifyResult({ status: 'ok', message: res.message });
+      } catch (e) {
+        setVerifyResult({ status: 'error', message: e.message });
+        setVerifying(false);
+        return;
+      }
+      setVerifying(false);
+    }
+
     try {
       const payload = { name };
       if (d) payload.custom_domain = sub ? `${sub}.${d}` : d;
@@ -57,6 +83,7 @@ export default function ManageTokens() {
       const address = d ? (sub ? `${sub}.${d}` : d) : (sub ? `${sub}.iraglobaltech.com` : '');
       toast('Token created: ' + result.token + (address ? ` · address: ${address}` : ''));
       setCreateOpen(false);
+      setVerifyResult(null);
       load();
     } catch (e) {
       if (e.message.toLowerCase().includes('free plan') || e.message.toLowerCase().includes('upgrade')) {
@@ -278,11 +305,11 @@ export default function ManageTokens() {
 
       {/* Create modal */}
       {createOpen && (
-        <Modal title="Subdomain Token" confirmLabel="Create" onConfirm={create} onClose={() => setCreateOpen(false)}>
+        <Modal title="Subdomain Token" confirmLabel={verifying ? 'Verifying…' : 'Verify & Create'} onConfirm={create} onClose={() => { setCreateOpen(false); setVerifyResult(null); }}>
           {/* Token name */}
           <div className="form-group">
             <label>Token name</label>
-            <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. My Website" />
+            <input type="text" value={createName} onChange={(e) => { setCreateName(e.target.value); setVerifyResult(null); }} placeholder="e.g. My Website" />
           </div>
 
           {/* Domain */}
@@ -290,7 +317,7 @@ export default function ManageTokens() {
             <label>Domain</label>
             <select
               value={createDomain}
-              onChange={(e) => setCreateDomain(e.target.value)}
+              onChange={(e) => { setCreateDomain(e.target.value); setVerifyResult(null); }}
             >
               <option value="">-- Select a domain (optional) --</option>
               {availableDomains.map((dom) => (
@@ -313,7 +340,7 @@ export default function ManageTokens() {
               <input
                 type="text"
                 value={createSub}
-                onChange={(e) => setCreateSub(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
+                onChange={(e) => { setCreateSub(e.target.value.replace(/[^a-zA-Z0-9]/g, '')); setVerifyResult(null); }}
                 placeholder="subdomain name"
                 style={{ flex: 1 }}
               />
@@ -327,6 +354,29 @@ export default function ManageTokens() {
               </div>
             )}
           </div>
+
+          {/* DNS instructions panel (shown when a custom domain is selected) */}
+          {createDomain && (
+            <div style={{ marginTop: '.5rem', padding: '.8rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '.8rem', lineHeight: 1.6 }}>
+              <p style={{ fontWeight: 700, marginBottom: '.4rem' }}>🌐 DNS setup for <code>{createSub.trim() ? `${createSub.trim().toLowerCase()}.` : ''}{createDomain}</code></p>
+              <p style={{ marginBottom: '.3rem' }}>Add a DNS <strong>A record</strong> in your domain provider:</p>
+              <table className="table" style={{ fontSize: '.75rem', marginBottom: '.4rem' }}>
+                <tbody>
+                  <tr><td><strong>Type</strong></td><td>A</td></tr>
+                  <tr><td><strong>Name</strong></td><td>{createSub.trim() ? createSub.trim().toLowerCase() : '@'}</td></tr>
+                  <tr><td><strong>Content / IP</strong></td><td><code>13.140.131.204</code></td></tr>
+                  <tr><td><strong>Proxy</strong></td><td>Proxied (if Cloudflare)</td></tr>
+                </tbody>
+              </table>
+              <p style={{ color: 'var(--text-dim)', marginBottom: '.4rem' }}>DNS propagation takes 1–5 min. Click "Verify & Create" to check and create the token.</p>
+              {verifyResult && (
+                <p style={{ fontWeight: 600, color: verifyResult.status === 'ok' ? 'var(--green)' : 'var(--red)' }}>
+                  {verifyResult.status === 'ok' ? '🎉 ' : '⚠️ '}{verifyResult.message}
+                </p>
+              )}
+            </div>
+          )}
+
           <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>
             A subdomain is optional. Select a domain by itself, add a subdomain before it, or leave Domain empty to use iraglobaltech.com.
           </p>
