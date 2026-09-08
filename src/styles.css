@@ -129,6 +129,37 @@ tr:hover td { background: var(--surface-1); }
   font-size: .72rem; font-weight: 600; background: var(--surface-2); color: var(--text-muted);
 }
 .badge-green { background: rgba(41,169,127,.15); color: var(--green); }
+.badge-blue { background: var(--brand-light); color: var(--brand); }
+
+/* ---- Configure Tunnel polish ---- */
+/* Card headers: action row aligned with the title, gap between title and actions */
+.card-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.card-header h2 { display: flex; align-items: center; gap: .45rem; }
+/* Settings rows: aligned field labels above inputs, consistent widths */
+.cfg-row { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: .9rem; }
+.cfg-row .form-group { margin-bottom: 0; }
+.cfg-field { flex: 1; min-width: 160px; }
+/* Preview highlight: the "Your tunnel URL will be" block */
+.tunnel-preview {
+  display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  margin-top: .75rem; padding: .9rem 1.1rem;
+  background: linear-gradient(135deg, rgba(106,166,240,.10), rgba(106,166,240,.03));
+  border: 1px solid rgba(106,166,240,.25); border-radius: var(--radius);
+}
+.tunnel-preview .url {
+  font-family: var(--mono); font-size: .95rem; font-weight: 600; color: var(--brand);
+  word-break: break-all;
+}
+/* QR panel */
+.qr-panel { margin-top: .75rem; text-align: center; padding: 1rem .75rem; background: #fff; border-radius: var(--radius); display: inline-flex; flex-direction: column; align-items: center; }
+.qr-panel img { height: 180px; width: 180px; }
+.qr-panel .caption { font-size: .75rem; color: #475569; margin-top: .35rem; }
+/* Multi-port box: header row + port inputs aligned */
+.multiport-box { padding: 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); margin-top: .3rem; }
+.multiport-row { display: flex; gap: .75rem; align-items: center; padding: .45rem .5rem; border-radius: var(--radius); }
+.multiport-row:hover { background: var(--surface-1); }
+.multiport-row .addr { flex: 1; font-family: var(--mono); font-size: .8rem; }
+.multiport-row input { width: 130px; }
 
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }

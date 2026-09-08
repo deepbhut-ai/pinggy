@@ -203,18 +203,18 @@ export default function ConfigureTunnel() {
 
       <div className="card">
         <div className="card-header">
-          <h2>Tunnel Settings</h2>
+          <h2>⚙️ Tunnel Settings</h2>
           <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
             <button className="btn btn-sm" onClick={saveConfig}>💾 Save</button>
             <select value="" onChange={(e) => loadConfig(e.target.value)} style={{ maxWidth: 150 }}>
               <option value="">📂 Load saved…</option>
               {configs.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <button className="btn btn-sm" onClick={reset}>Reset</button>
+            <button className="btn btn-sm btn-ghost" onClick={reset}>Reset</button>
           </div>
         </div>
         <div className="card-body">
-          <div className="form-row">
+          <div className="cfg-row">
             <div className="form-group" style={{ maxWidth: 240 }}>
               <label>App / Service preset</label>
               <select
@@ -245,12 +245,12 @@ export default function ConfigureTunnel() {
                 </div>
               </div>
             )}
-            <div className="form-group" style={{ flex: 1 }}>
+            <div className="form-group cfg-field">
               <label>Local address — what you want to share</label>
               <input type="text" value={localAddr} onChange={(e) => setLocalAddr(e.target.value)} placeholder="127.0.0.1:8080" />
             </div>
           </div>
-          <div className="form-row">
+          <div className="cfg-row">
             <div className="form-group" style={{ maxWidth: 180 }}>
               <label>Platform</label>
               <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
@@ -259,7 +259,7 @@ export default function ConfigureTunnel() {
                 <option value="mac">Mac</option>
               </select>
             </div>
-            <div className="form-group" style={{ flex: 1 }}>
+            <div className="form-group cfg-field">
               <label>Access token</label>
               <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)}>
                 {tokens.map((t) => (
@@ -279,18 +279,17 @@ export default function ConfigureTunnel() {
           </div>
           {multiPort && selToken && (
             <div className="multiport-box">
-              <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.5rem' }}>
+              <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.6rem' }}>
                 One local port per address — order matters (subdomain → primary → extras):
               </p>
               {multiPorts.map((m, i) => (
-                <div key={m.addr} style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem' }}>
-                  <span className="code" style={{ flex: 1, fontSize: '.8rem' }}>{m.addr}</span>
+                <div key={m.addr} className="multiport-row">
+                  <span className="addr">{m.addr}</span>
                   <input
                     type="number"
                     min="1"
                     max="65535"
                     placeholder={`e.g. ${3000 + i * 1000}`}
-                    style={{ width: 130 }}
                     value={m.port}
                     onChange={(e) => {
                       const next = [...multiPorts];
@@ -300,7 +299,7 @@ export default function ConfigureTunnel() {
                   />
                 </div>
               ))}
-              <p className="dim" style={{ fontSize: '.72rem' }}>Pro feature — one SSH connection, each address routes to its own local project.</p>
+              <p className="dim" style={{ fontSize: '.72rem', marginTop: '.6rem' }}>Pro feature — one SSH connection, each address routes to its own local project.</p>
             </div>
           )}
         </div>
@@ -308,7 +307,7 @@ export default function ConfigureTunnel() {
 
       <div className="card">
         <div className="card-header">
-          <h2>Generated Command</h2>
+          <h2>⚡ Generated Command</h2>
           <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
             <button className="btn btn-sm" onClick={() => { copyToClipboard(buildCmd()); toast('Command copied'); }}>📋 Copy</button>
             <button className="btn btn-sm" onClick={() => download('sh')} title="Download macOS/Linux script">⬇️ .sh</button>
@@ -323,24 +322,24 @@ export default function ConfigureTunnel() {
           </div>
           <p className="dim" style={{ marginBottom: '.5rem' }}>{PLATFORM_HINTS[platform]}</p>
           <div className="cmd-box"><pre>{buildCmd()}</pre></div>
-          <div className="inline-note" style={{ marginTop: '.75rem' }}>
+          <div className="tunnel-preview">
             <div style={{ flex: 1, minWidth: 200 }}>
               <strong>Your tunnel URL will be:</strong><br />
-              <span style={{ color: 'var(--brand)' }} className="code">{previewUrl}</span>
+              <span className="url">{previewUrl}</span>
             </div>
             <button className="btn btn-sm" onClick={showQr}>📱 QR Code</button>
           </div>
           {qr && (
-            <div style={{ marginTop: '.75rem', textAlign: 'center', padding: '.75rem', background: '#fff', borderRadius: 'var(--radius)' }}>
-              <img src={qr} alt="Tunnel QR" style={{ height: 180, width: 180 }} />
-              <div style={{ fontSize: '.75rem', color: '#475569', marginTop: '.35rem' }}>Scan to open this tunnel URL on your phone</div>
+            <div className="qr-panel">
+              <img src={qr} alt="Tunnel QR" />
+              <div className="caption">Scan to open this tunnel URL on your phone</div>
             </div>
           )}
         </div>
       </div>
 
       <div className="card">
-        <div className="card-header"><h2>Advanced Options</h2></div>
+        <div className="card-header"><h2>🛠️ Advanced Options</h2></div>
         <div className="card-body">
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
             <label className="checkbox-label">
