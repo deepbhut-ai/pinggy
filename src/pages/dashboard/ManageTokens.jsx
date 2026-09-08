@@ -22,6 +22,7 @@ export default function ManageTokens() {
   const [createName, setCreateName] = useState('');
   const [createDomain, setCreateDomain] = useState('');
   const [createSub, setCreateSub] = useState('');
+  const [createPort, setCreatePort] = useState('');
   const [editOpen, setEditOpen] = useState(null); // token
   const [editState, setEditState] = useState({});
   const [regenOpen, setRegenOpen] = useState(null);
@@ -85,9 +86,14 @@ export default function ManageTokens() {
       else if (sub) payload.fixed_subdomain = sub;
       const result = await api('/tokens', 'POST', payload);
       const address = d ? (sub ? `${sub}.${d}` : d) : (sub ? `${sub}.iraglobaltech.com` : '');
+      // Save port to localStorage for this token (used by Connection Guide and Configure Tunnel)
+      if (createPort && result.id) {
+        localStorage.setItem(`token-port-${result.id}`, String(createPort));
+      }
       toast('Token created: ' + result.token + (address ? ` · address: ${address}` : ''));
       setCreateOpen(false);
       setVerifyResult(null);
+      setCreatePort('');
       load();
     } catch (e) {
       if (e.message.toLowerCase().includes('free plan') || e.message.toLowerCase().includes('upgrade')) {
@@ -397,6 +403,22 @@ export default function ManageTokens() {
                 <span>🔗 <span className="code" style={{ color: 'var(--brand)', fontWeight: 600 }}>{createSub.trim().toLowerCase()}.{createDomain || 'iraglobaltech.com'}</span></span>
               </div>
             )}
+          </div>
+
+          {/* Port */}
+          <div className="form-group">
+            <label>Port</label>
+            <input
+              type="number"
+              min="1"
+              max="65535"
+              value={createPort}
+              onChange={(e) => { setCreatePort(e.target.value); setVerifyResult(null); }}
+              placeholder="e.g. 3000"
+            />
+            <div className="dim" style={{ fontSize: '.75rem', marginTop: '.3rem' }}>
+              The local port your service runs on. Saved and reflected in Configure Tunnel automatically.
+            </div>
           </div>
 
           {/* DNS instructions panel (shown when a custom domain is selected) */}
