@@ -277,15 +277,14 @@ export default function ConfigureTunnel() {
               <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
                 <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)} style={{ flex: 1 }}>
                   {filteredTokens.map((t) => {
-                    const labelParts = [t.name || 'Unnamed', '—', t.token.substring(0, 8) + '...'];
                     const addrs = [];
                     if (t.subdomain) addrs.push(`${t.subdomain}.iraglobaltech.com`);
                     if (t.custom_domain) addrs.push(t.custom_domain);
                     (t.domains || []).forEach((d) => addrs.push(d));
-                    labelParts.push(`(→ ${addrs.join(', ')})`);
+                    const label = addrs.length ? addrs.join(', ') : (t.name || 'Unnamed');
                     return (
                       <option key={t.id} value={t.token}>
-                        {labelParts.join(' ')}
+                        {label} — {t.token.substring(0, 8)}...
                       </option>
                     );
                   })}
