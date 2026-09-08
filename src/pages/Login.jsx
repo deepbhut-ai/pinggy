@@ -23,7 +23,13 @@ export default function Login() {
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const dest = (user) => (user.role === 'admin' ? '/admin' : '/dashboard');
+  // /dashboard is inside the React SPA (client-side navigate is fine);
+  // /admin is the LEGACY panel served by the backend — needs a full page load,
+  // React Router navigate() can't leave the SPA (that's why admins stuck on /login).
+  const go = (user) => {
+    if (user.role === 'admin') window.location.replace('/admin');
+    else navigate('/dashboard', { replace: true });
+  };
 
   // ---- Login (with 2FA step) ----
   const handleLogin = async (e) => {
@@ -35,7 +41,7 @@ export default function Login() {
       setBusy(true);
       try {
         const data = await verifyOtp(otpChallenge, otpCode);
-        navigate(dest(data.user), { replace: true });
+        go(data.user);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -51,7 +57,7 @@ export default function Login() {
         setSuccess('We sent a 6-digit code to your email (expires in 5 min).');
         return;
       }
-      navigate(dest(data.user), { replace: true });
+      go(data.user);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -77,7 +83,7 @@ export default function Login() {
         setSuccess('Account created! Enter the code from your email.');
         return;
       }
-      navigate('/dashboard', { replace: true });
+      go(data.user);
     } catch (err) {
       setError(err.message);
     } finally {
