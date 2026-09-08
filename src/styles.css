@@ -58,6 +58,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--brand); box-shad
 .btn:hover { background: var(--brand-hover); transform: translateY(-1px); }
 .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-danger { background: var(--red); }
+.btn-danger:hover { background: #c94f3d; }
 .btn-sm { padding: .3rem .75rem; font-size: .8rem; }
 
 /* ---- App shell ---- */

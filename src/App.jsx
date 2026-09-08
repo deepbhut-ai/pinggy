@@ -19,6 +19,7 @@ import Teams from './pages/dashboard/Teams';
 import Support from './pages/dashboard/Support';
 import Billing from './pages/dashboard/Billing';
 import Plan from './pages/dashboard/Plan';
+import Security from './pages/dashboard/Security';
 
 // Route guard — replaces all the legacy token/bfcache checks
 function RequireAuth({ children }) {
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="announcements" element={<Announcements />} />
         <Route path="teams" element={<Teams />} />
         <Route path="support" element={<Support />} />
+        <Route path="security" element={<Security />} />
         <Route path="plan" element={<Plan />} />
         <Route path="subscription" element={<Billing />} />
       </Route>

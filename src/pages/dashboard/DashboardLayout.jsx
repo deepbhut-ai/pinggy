@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: 'announcements', label: 'Announcements', icon: 'M3 11l18-5v12L3 13z' },
   { to: 'teams', label: 'Teams', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 110 8 4 4 0 010-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75' },
   { to: 'support', label: 'Support', icon: 'M12 22a10 10 0 100-20 10 10 0 000 20zM9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01' },
+  { to: 'security', label: 'Security', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
   { to: 'plan', label: 'Plan', icon: 'M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 14.4 7.2 16.9l.9-5.4L4.2 7.7l5.4-.8L12 2z' },
   { sep: true },
   { to: 'subscription', label: 'Billing & Invoices', icon: 'M1 4h22v16H1zM1 10h22' },
