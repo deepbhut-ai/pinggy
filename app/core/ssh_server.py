@@ -405,13 +405,50 @@ class MySSHServer(asyncssh.SSHServer):
                 return
             # multi-port: first listener creates the tunnel, the rest map to
             # the remaining addresses in canonical order
+            # v2.7.7: also include addresses from ALL the user's tokens so
+            # one tunnel can serve all domains/subdomains across the account
+            all_user_addresses = []
+            if self._tunnel:
+                all_user_addresses = list(self._tunnel.all_addresses())
+            # Fetch additional addresses from the user's other tokens
+            logger.info("Multi-port setup: tunnel=%s, ports=%s, addresses=%s, username=%s, port_map=%s",
+                        bool(self._tunnel), ports, all_user_addresses, self._username, self._port_map)
+            if multi and self._username and len(all_user_addresses) < len(ports):
+                try:
+                    import psycopg
+                    from app.core.config import settings
+                    conn2 = psycopg.connect(settings.async_dsn, autocommit=True)
+                    cur2 = conn2.execute(
+                        "SELECT custom_domain FROM tokens WHERE user_email = %s AND token != %s AND custom_domain IS NOT NULL",
+                        (self._username, self._token),
+                    )
+                    for r in cur2.fetchall():
+                        addr = r[0]
+                        if addr and addr not in all_user_addresses:
+                            all_user_addresses.append(addr)
+                    cur2.close()
+                    # Also fetch extra domains from token_domains for all user tokens
+                    cur2 = conn2.execute(
+                        "SELECT td.domain FROM token_domains td "
+                        "JOIN tokens t ON t.id = td.token_id "
+                        "WHERE t.user_email = %s AND t.token != %s",
+                        (self._username, self._token),
+                    )
+                    for r in cur2.fetchall():
+                        addr = r[0]
+                        if addr and addr not in all_user_addresses:
+                            all_user_addresses.append(addr)
+                    cur2.close()
+                    conn2.close()
+                except Exception as e:
+                    logger.warning("Could not load cross-token addresses: %s", e)
+
             for i, port in enumerate(ports):
                 if not self._tunnel:
                     await self._setup_tunnel(port)
                     continue
-                addresses = self._tunnel.all_addresses()
-                if i < len(addresses):
-                    addr = addresses[i]
+                if i < len(all_user_addresses):
+                    addr = all_user_addresses[i]
                     self._tunnel.endpoints[addr] = port
                     if i < len(self._port_map):
                         self._tunnel.local_ports[addr] = self._port_map[i]

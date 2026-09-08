@@ -113,6 +113,10 @@ async def get_tunnel_by_custom_domain(custom_domain: str) -> TunnelSession | Non
         for d in getattr(tunnel, "custom_domains", []) or []:
             if str(d).strip().lower() == normalized_domain:
                 return tunnel
+        # v2.7.7: match cross-token addresses added via multiport endpoints
+        for addr in getattr(tunnel, "endpoints", {}) or {}:
+            if str(addr).strip().lower() == normalized_domain:
+                return tunnel
     return None
 
 
