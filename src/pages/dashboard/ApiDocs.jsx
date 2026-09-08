@@ -1,8 +1,11 @@
+import { useState, useMemo } from 'react';
 import { api } from '../../api/client';
+import { SearchBar } from '../../components/TableControls';
 
 // API Docs — endpoint reference (static content, mirrors legacy loadApiDocs)
 export default function ApiDocs() {
   const base = window.location.origin;
+  const [search, setSearch] = useState('');
   const endpoints = [
     ['GET', '/manage/tunnels', 'Your live tunnels + recent history'],
     ['POST', '/manage/tunnels/{sub}/stop', 'Stop one of your live tunnels'],
@@ -17,6 +20,14 @@ export default function ApiDocs() {
     ['GET', '/teams', 'Your teams'],
     ['POST', '/tickets', 'Open a support ticket'],
   ];
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return endpoints;
+    const q = search.trim().toLowerCase();
+    return endpoints.filter(([method, path, desc]) =>
+      method.toLowerCase().includes(q) || path.toLowerCase().includes(q) || desc.toLowerCase().includes(q)
+    );
+  }, [search, endpoints]);
 
   return (
     <>
@@ -33,12 +44,18 @@ export default function ApiDocs() {
       </div>
 
       <div className="card" style={{ marginBottom: '1rem' }}>
-        <div className="card-header"><h2>Endpoints</h2></div>
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: '.5rem' }}>
+          <h2>Endpoints</h2>
+          <SearchBar value={search} onChange={setSearch} placeholder="Search method, path, description…" style={{ maxWidth: 320 }} />
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
+          {filtered.length === 0 ? (
+            <p className="empty">No endpoints match your search.</p>
+          ) : (
           <table>
             <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
             <tbody>
-              {endpoints.map(([method, path, desc]) => (
+              {filtered.map(([method, path, desc]) => (
                 <tr key={method + path}>
                   <td><span className={`badge ${method === 'GET' ? 'badge-green' : ''}`}>{method}</span></td>
                   <td className="code">{path}</td>
@@ -47,6 +64,7 @@ export default function ApiDocs() {
               ))}
             </tbody>
           </table>
+          )}
         </div>
       </div>
     </>

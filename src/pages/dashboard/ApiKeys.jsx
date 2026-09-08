@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
 import { copyToClipboard } from '../../utils';
+import { useTableData, SearchBar, Pagination } from '../../components/TableControls';
 
 export default function ApiKeys() {
   const { user } = useAuth();
@@ -16,6 +17,8 @@ export default function ApiKeys() {
 
   const load = useCallback(() => api('/apikeys').then(setKeys).catch(() => {}), []);
   useEffect(() => { load(); }, [load]);
+
+  const table = useTableData(keys, { searchKeys: ['name', 'prefix'], pageSize: 10 });
 
   const limit = user?.plan === 'pro' ? 10 : 5;
   const atCap = keys.length >= limit;
@@ -94,14 +97,21 @@ export default function ApiKeys() {
 
       {/* Keys table */}
       <div className="card">
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: '.5rem' }}>
+          <h2>API Keys</h2>
+          <SearchBar value={table.search} onChange={(v) => { table.setSearch(v); table.setPage(1); }} placeholder="Search name, key…" style={{ maxWidth: 280 }} />
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {keys.length === 0 ? (
             <p className="empty">No API keys yet</p>
+          ) : table.filtered.length === 0 ? (
+            <p className="empty">No keys match your search.</p>
           ) : (
+            <>
             <table>
               <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Expires</th><th>Last used</th><th>Actions</th></tr></thead>
               <tbody>
-                {keys.map((k) => {
+                {table.paged.map((k) => {
                   const expired = k.expires_at && new Date(k.expires_at) < new Date();
                   return (
                     <tr key={k.id}>
@@ -122,6 +132,8 @@ export default function ApiKeys() {
                 })}
               </tbody>
             </table>
+            <Pagination page={table.page} totalPages={table.totalPages} setPage={table.setPage} total={table.total} pageSize={table.pageSize} />
+            </>
           )}
         </div>
       </div>

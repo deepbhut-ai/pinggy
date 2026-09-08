@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
 import { copyToClipboard, formatBytes } from '../../utils';
+import { useTableData, SearchBar, Pagination } from '../../components/TableControls';
 
 const COMMON_SECOND_LEVEL_SUFFIXES = new Set(['ac', 'co', 'com', 'edu', 'gov', 'net', 'org']);
 
@@ -145,6 +146,8 @@ export default function ManageTokens() {
 
   const availableDomains = userDomains;
 
+  const table = useTableData(tokens, { searchKeys: ['name', 'subdomain', 'fixed_subdomain', 'custom_domain', 'token', 'id'], pageSize: 10 });
+
   return (
     <>
       <div className="page-toolbar">
@@ -189,12 +192,18 @@ export default function ManageTokens() {
             <div className="section-label">Credentials</div>
             <h2 style={{ marginTop: '.15rem' }}>Your tokens <span className="token-meta">({tokens.length})</span></h2>
           </div>
-          <button className="btn btn-sm btn-ghost" onClick={load}>🔄 Refresh</button>
+          <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <SearchBar value={table.search} onChange={(v) => { table.setSearch(v); table.setPage(1); }} placeholder="Search name, subdomain…" style={{ maxWidth: 240 }} />
+            <button className="btn btn-sm btn-ghost" onClick={load}>🔄 Refresh</button>
+          </div>
         </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {tokens.length === 0 ? (
             <p className="empty">No tokens yet. Click "Subdomain Token" to create one.</p>
+          ) : table.filtered.length === 0 ? (
+            <p className="empty">No tokens match your search.</p>
           ) : (
+            <>
             <table>
               <thead>
                 <tr>
@@ -203,7 +212,7 @@ export default function ManageTokens() {
                 </tr>
               </thead>
               <tbody>
-                {tokens.map((t) => {
+                {table.paged.map((t) => {
                   const teamRole = String(t.via_team?.my_role || '').toLowerCase();
                   const canDelete = !t.via_team || ['owner', 'admin', 'team_owner', 'team_admin'].includes(teamRole);
                   const displayedSubdomain = t.custom_domain
@@ -251,6 +260,8 @@ export default function ManageTokens() {
                 })}
               </tbody>
             </table>
+            <Pagination page={table.page} totalPages={table.totalPages} setPage={table.setPage} total={table.total} pageSize={table.pageSize} />
+            </>
           )}
         </div>
       </div>

@@ -1,5 +1,29 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.4.0 — 2026-09-08 — Search + pagination on all dashboard pages
+
+### Added
+- New shared `useTableData` hook, `SearchBar` component, and `Pagination` component in `src/components/TableControls.jsx` — reusable across all table pages.
+- CSS for search bar (with clear button) and pagination bar (prev/next, page numbers, "showing X–Y of Z") in `src/styles.css`.
+- Search + pagination on **Active Tunnels** (live sessions table + recent history table) — search by subdomain, URL.
+- Search + pagination on **Remote Devices** — search by device IP.
+- Search + pagination on **Inspector** — search captured requests by path, method, status; 20 per page.
+- Search + pagination on **Manage Tokens** — search by name, subdomain, fixed_subdomain, custom_domain, token, id; 10 per page.
+- Search + pagination on **API Keys** — search by name, key prefix; 10 per page.
+- Search on **API Docs** — filter endpoints by method, path, or description (static list, no pagination needed).
+- Search + pagination on **Support** — search tickets by subject, status; 10 per page.
+- Search on **Plan** — filter plans by name, tagline, or feature text (grid layout, no pagination).
+- Search + pagination on **Billing & Invoices** — search payment history (date, method, plan, status) and invoices (invoice #, plan, status, coupon); 10 per page each.
+- Search on **Configure Tunnel** — filter token dropdown when more than 3 tokens exist.
+
+### Changed
+- All 10 dashboard pages now use the shared `useTableData` hook for consistent search/pagination behavior.
+- Table card headers now include a `SearchBar` in the header row alongside existing buttons.
+- `Pagination` component shows "Showing X–Y of Z" + prev/next/page number buttons; auto-hidden when total results fit one page.
+
+### Removed
+- none
+
 ## v2.3.0 — 2026-09-08 — Domain verify-before-save flow + duplicate frontend cleanup
 
 ### Added

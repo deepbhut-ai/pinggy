@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
+import { useTableData, SearchBar, Pagination } from '../../components/TableControls';
 
 export default function Support() {
   const toast = useToast();
@@ -27,6 +28,8 @@ export default function Support() {
       setEmail(user.email);
     }
   }, [load, user]);
+
+  const ticketTable = useTableData(tickets, { searchKeys: ['subject', 'status'], pageSize: 10 });
 
   const badge = (s) =>
     s === 'open' ? (
@@ -215,12 +218,18 @@ export default function Support() {
             <div className="section-label">Support History</div>
             <h2>🎫 My Tickets <span className="token-meta">({tickets.length})</span></h2>
           </div>
-          <button className="btn btn-sm btn-ghost" onClick={load}>🔄 Refresh</button>
+          <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <SearchBar value={ticketTable.search} onChange={(v) => { ticketTable.setSearch(v); ticketTable.setPage(1); }} placeholder="Search subject, status…" style={{ maxWidth: 240 }} />
+            <button className="btn btn-sm btn-ghost" onClick={load}>🔄 Refresh</button>
+          </div>
         </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {tickets.length === 0 ? (
             <p className="empty">No tickets yet. Submit a request above if you need assistance.</p>
+          ) : ticketTable.filtered.length === 0 ? (
+            <p className="empty">No tickets match your search.</p>
           ) : (
+            <>
             <table style={{ fontSize: '.85rem' }}>
               <thead>
                 <tr>
@@ -231,7 +240,7 @@ export default function Support() {
                 </tr>
               </thead>
               <tbody>
-                {tickets.map((t) => (
+                {ticketTable.paged.map((t) => (
                   <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => openTicketModal(t.id)}>
                     <td style={{ fontWeight: 600 }}>{t.subject}</td>
                     <td>{badge(t.status)}</td>
@@ -251,6 +260,8 @@ export default function Support() {
                 ))}
               </tbody>
             </table>
+            <Pagination page={ticketTable.page} totalPages={ticketTable.totalPages} setPage={ticketTable.setPage} total={ticketTable.total} pageSize={ticketTable.pageSize} />
+            </>
           )}
         </div>
       </div>

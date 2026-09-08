@@ -1,0 +1,23 @@
+=== v2.4.0 Pagination + Search Test ===
+
+=== Page-by-page verification ===
+/dashboard/tunnels    | search=YES | pagination=YES | PASS
+/dashboard/devices    | search=YES | pagination=YES | PASS
+/dashboard/inspector   | search=YES (conditional on tunnel select) | pagination=YES | PASS
+/dashboard/tokens     | search=YES | pagination=YES | PASS (search tested: 'code' -> 1 result, clear -> 2 results)
+/dashboard/apikeys    | search=YES | pagination=YES | PASS
+/dashboard/apidocs     | search=YES | pagination=N/A (static list) | PASS
+/dashboard/support    | search=YES | pagination=YES | PASS
+/dashboard/plan       | search=YES | pagination=N/A (grid layout) | PASS
+/dashboard/subscription| search=YES | pagination=YES | PASS (payment history + invoices)
+/dashboard/configure  | search=YES (conditional >3 tokens) | pagination=N/A | PASS
+
+=== Health check ===
+{"status":"ok","app":"IRAGT","env":"production"}
+
+=== Build output ===
+total 364
+drwxr-xr-x 2 root root    4096 Sep  8 10:10 .
+drwxr-xr-x 3  501 staff   4096 Sep  8 10:10 ..
+-rw-r--r-- 1 root root   31789 Sep  8 10:10 index-C4tk6-F1.css
+-rw-r--r-- 1 root root  328809 Sep  8 10:10 index-SEcZEZuj.js

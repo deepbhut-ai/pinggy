@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { api, getToken } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import { copyToClipboard } from '../../utils';
+import { SearchBar } from '../../components/TableControls';
 
 const APP_PRESETS = [
   { n: 'Custom / manual', p: 8080 },
@@ -39,6 +40,7 @@ export default function ConfigureTunnel() {
   const [strictHost, setStrictHost] = useState(false);
   const [verbose, setVerbose] = useState(false);
   const [qr, setQr] = useState(null);
+  const [tokenSearch, setTokenSearch] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -68,6 +70,17 @@ export default function ConfigureTunnel() {
 
   const selToken = tokens.find((t) => t.token === tokenSel);
   const port = localAddr.split(':').pop() || '8080';
+
+  const filteredTokens = useMemo(() => {
+    if (!tokenSearch.trim()) return tokens;
+    const q = tokenSearch.trim().toLowerCase();
+    return tokens.filter((t) =>
+      String(t.name || '').toLowerCase().includes(q) ||
+      String(t.subdomain || '').toLowerCase().includes(q) ||
+      String(t.token || '').toLowerCase().includes(q) ||
+      String(t.custom_domain || '').toLowerCase().includes(q)
+    );
+  }, [tokens, tokenSearch]);
 
   // multi-port rows: subdomain → primary → extras
   useEffect(() => {
@@ -261,14 +274,19 @@ export default function ConfigureTunnel() {
             </div>
             <div className="form-group" style={{ flex: 1 }}>
               <label>Access token</label>
-              <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)}>
-                {tokens.map((t) => (
-                  <option key={t.id} value={t.token}>
-                    {t.name || 'Unnamed'} — {t.token.substring(0, 8)}... (→ {t.subdomain}.iraglobaltech.com)
-                  </option>
-                ))}
-                {tokens.length === 0 && <option value="">No tokens — create one in Manage Tokens</option>}
-              </select>
+              <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+                <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)} style={{ flex: 1 }}>
+                  {filteredTokens.map((t) => (
+                    <option key={t.id} value={t.token}>
+                      {t.name || 'Unnamed'} — {t.token.substring(0, 8)}... (→ {t.subdomain}.iraglobaltech.com)
+                    </option>
+                  ))}
+                  {filteredTokens.length === 0 && <option value="">No tokens match</option>}
+                </select>
+                {tokens.length > 3 && (
+                  <SearchBar value={tokenSearch} onChange={setTokenSearch} placeholder="Filter…" style={{ maxWidth: 140 }} />
+                )}
+              </div>
             </div>
           </div>
           <div className="form-row">

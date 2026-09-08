@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
 import { formatBytes } from '../../utils';
+import { SearchBar } from '../../components/TableControls';
 
 // Plan page — current plan with facilities + all available plans side by side.
 // Shows ALL plans (including the current one) so users can compare.
@@ -19,6 +20,7 @@ export default function Plan() {
   const [payMethod, setPayMethod] = useState('stripe');
   const [seats, setSeats] = useState(1);
   const [cycle, setCycle] = useState('monthly');
+  const [planSearch, setPlanSearch] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -51,6 +53,16 @@ export default function Plan() {
 
   const totalRequests = myTunnels.reduce((s, t) => s + (t.request_count || 0), 0);
   const totalBytes = myTunnels.reduce((s, t) => s + (t.bytes_transferred || 0), 0);
+
+  const filteredPlans = useMemo(() => {
+    if (!planSearch.trim()) return plans;
+    const q = planSearch.trim().toLowerCase();
+    return plans.filter((p) =>
+      String(p.name || '').toLowerCase().includes(q) ||
+      String(p.tagline || '').toLowerCase().includes(q) ||
+      (p.features || []).some((f) => String(f).toLowerCase().includes(q))
+    );
+  }, [plans, planSearch]);
 
   const openCheckout = (plan) => {
     if (plan.id.toLowerCase() === currentPlanName) {
@@ -133,8 +145,12 @@ export default function Plan() {
         Compare all plans and their facilities. Upgrade anytime — takes effect immediately after payment.
       </p>
 
+      <div style={{ marginBottom: '1rem' }}>
+        <SearchBar value={planSearch} onChange={setPlanSearch} placeholder="Search plans, features…" style={{ maxWidth: 320 }} />
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', alignItems: 'stretch', marginBottom: '1.5rem' }}>
-        {plans.map((p) => {
+        {filteredPlans.map((p) => {
           const isCurrent = p.id.toLowerCase() === currentPlanName || p.name.toLowerCase() === currentPlanName;
           const isFreePlan = p.price_inr === 0 && p.price_usd === 0;
           return (

@@ -176,8 +176,21 @@ tr:hover td { background: var(--surface-1); }
 .announcement-body { font-size: .875rem; color: var(--text-dim); margin-top: .4rem; white-space: pre-line; }
 
 /* ---- Page toolbar ---- */
-.page-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: .75rem; flex-wrap: wrap; position: sticky; top: -1.5rem; z-index: 20; background: var(--bg); padding-top: .5rem; margin-top: -.5rem; }
+.page-toolbar { display: flex; align: flex-start; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: .75rem; flex-wrap: wrap; position: sticky; top: -1.5rem; z-index: 20; background: var(--bg); padding-top: .5rem; margin-top: -.5rem; }
 .page-toolbar-actions { display: flex; gap: .5rem; align-items: center; }
+
+/* ---- Search bar + Pagination (v2.4.0) ---- */
+.search-bar { display: flex; align-items: center; gap: .4rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .3rem .6rem; flex: 1; min-width: 180px; max-width: 320px; }
+.search-bar:focus-within { border-color: var(--brand); }
+.search-icon { font-size: .8rem; opacity: .6; flex-shrink: 0; }
+.search-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: .85rem; font-family: var(--font); }
+.search-input::placeholder { color: var(--text-dim); }
+.search-clear { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: .75rem; padding: 0 .2rem; flex-shrink: 0; }
+.search-clear:hover { color: var(--text); }
+.pagination-bar { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; gap: .5rem; flex-wrap: wrap; }
+.pagination-info { font-size: .78rem; color: var(--text-dim); }
+.pagination-btns { display: flex; align-items: center; gap: .25rem; flex-wrap: wrap; }
+.pagination-ellipsis { color: var(--text-dim); padding: 0 .2rem; font-size: .8rem; }
 
 /* ---- Workspace strip (Quickstart) ---- */
 .workspace-strip { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1.2rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1.25rem; flex-wrap: wrap; }

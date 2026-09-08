@@ -3,6 +3,7 @@ import { api, getToken } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
 import { formatBytes } from '../../utils';
+import { useTableData, SearchBar, Pagination } from '../../components/TableControls';
 
 // Billing & Invoices — payments, subscriptions, and invoice history.
 // (Plan comparison lives on the Plan page — this page is billing only.)
@@ -17,6 +18,9 @@ export default function Billing() {
   const [seats, setSeats] = useState(1);
   const [cycle, setCycle] = useState('monthly');
   const [downgradeOpen, setDowngradeOpen] = useState(false);
+
+  const payTable = useTableData(pay?.history || [], { searchKeys: ['method', 'plan', 'status', 'created_at'], pageSize: 10 });
+  const invTable = useTableData(invoices, { searchKeys: ['invoice_no', 'plan', 'status', 'coupon_code'], pageSize: 10 });
 
   const load = useCallback(async () => {
     try {
@@ -179,15 +183,21 @@ export default function Billing() {
 
       {/* Payment history */}
       <div className="card" style={{ marginTop: '1rem' }}>
-        <div className="card-header"><h2>Payment History</h2></div>
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: '.5rem' }}>
+          <h2>Payment History</h2>
+          <SearchBar value={payTable.search} onChange={(v) => { payTable.setSearch(v); payTable.setPage(1); }} placeholder="Search date, method, plan, status…" style={{ maxWidth: 300 }} />
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {(pay?.history || []).length === 0 ? (
             <p className="empty">No payments yet</p>
+          ) : payTable.filtered.length === 0 ? (
+            <p className="empty">No payments match your search.</p>
           ) : (
+            <>
             <table>
               <thead><tr><th>Date</th><th>Method</th><th>Plan</th><th>Amount</th><th>Status</th></tr></thead>
               <tbody>
-                {(pay.history || []).map((p, i) => {
+                {payTable.paged.map((p, i) => {
                   const statusClass = p.status === 'paid' ? 'badge-green'
                     : (p.status === 'failed' || p.status === 'expired') ? 'badge-red' : 'badge-amber';
                   return (
@@ -202,21 +212,29 @@ export default function Billing() {
                 })}
               </tbody>
             </table>
+            <Pagination page={payTable.page} totalPages={payTable.totalPages} setPage={payTable.setPage} total={payTable.total} pageSize={payTable.pageSize} />
+            </>
           )}
         </div>
       </div>
 
       {/* Invoices */}
       <div className="card" style={{ marginTop: '1rem' }}>
-        <div className="card-header"><h2>🧾 My Invoices</h2></div>
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: '.5rem' }}>
+          <h2>🧾 My Invoices</h2>
+          <SearchBar value={invTable.search} onChange={(v) => { invTable.setSearch(v); invTable.setPage(1); }} placeholder="Search invoice #, plan, status…" style={{ maxWidth: 300 }} />
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {invoices.length === 0 ? (
             <p className="empty">No invoices yet — they appear here after a successful payment.</p>
+          ) : invTable.filtered.length === 0 ? (
+            <p className="empty">No invoices match your search.</p>
           ) : (
+            <>
             <table>
               <thead><tr><th>Invoice #</th><th>Plan</th><th>Coupon</th><th>Amount</th><th>Status</th><th>Issued</th><th>Actions</th></tr></thead>
               <tbody>
-                {invoices.map((i) => (
+                {invTable.paged.map((i) => (
                   <tr key={i.id}>
                     <td className="code">{i.invoice_no}</td>
                     <td>{i.plan}</td>
@@ -231,6 +249,8 @@ export default function Billing() {
                 ))}
               </tbody>
             </table>
+            <Pagination page={invTable.page} totalPages={invTable.totalPages} setPage={invTable.setPage} total={invTable.total} pageSize={invTable.pageSize} />
+            </>
           )}
         </div>
       </div>

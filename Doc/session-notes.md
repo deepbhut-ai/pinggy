@@ -245,3 +245,14 @@
 - **Watch out:** getaddrinfo returns IPv6 first for Cloudflare-proxied domains;
   must check all IPs against SERVER_IP, not just the first. Indentation in
   _verify_domain_dns broke the service on first restart (extra indent on try block).
+
+## 2026-09-08 — v2.4.0 (Search + pagination on all dashboard pages)
+- **Done:** v2.4.0 — Added search + pagination to all 10 dashboard pages
+  (ActiveTunnels, RemoteDevices, Inspector, ManageTokens, ApiKeys, ApiDocs,
+  Support, Plan, Billing, ConfigureTunnel). New shared useTableData hook +
+  SearchBar + Pagination components. All verified in browser. Committed + tagged.
+- **In progress:** nothing.
+- **Next:** await user. Push to origin when ready.
+- **Watch out:** Missing useState() call in useTableData (was `= 1` instead of
+  `useState(1)`) caused 'TypeError: 1 is not iterable' — always double-check
+  hook calls survived file edits; minifier silently drops bare `= 1` destructuring.

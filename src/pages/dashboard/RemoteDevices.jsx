@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import { copyToClipboard } from '../../utils';
+import { useTableData, SearchBar, Pagination } from '../../components/TableControls';
 
 // Remote Devices — SDK supervisor snippet + devices table
 export default function RemoteDevices() {
@@ -11,6 +12,8 @@ export default function RemoteDevices() {
   useEffect(() => {
     api('/manage/devices').then(setDevices).catch(() => {});
   }, []);
+
+  const table = useTableData(devices, { searchKeys: ['peer'], pageSize: 10 });
 
   return (
     <>
@@ -33,14 +36,21 @@ client.watch("YOUR_TOKEN", ports=[3000, 8000])   # auto-reconnects forever`}</pr
         </div>
       </div>
       <div className="card">
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: '.5rem' }}>
+          <h2>Connected Devices</h2>
+          <SearchBar value={table.search} onChange={(v) => { table.setSearch(v); table.setPage(1); }} placeholder="Search device IP…" style={{ maxWidth: 280 }} />
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {devices.length === 0 ? (
             <p className="empty">No devices yet — connect a tunnel from any machine and it appears here.</p>
+          ) : table.filtered.length === 0 ? (
+            <p className="empty">No devices match your search.</p>
           ) : (
+            <>
             <table style={{ fontSize: '.85rem' }}>
               <thead><tr><th>Device IP</th><th>Status</th><th>Tunnels</th><th>Requests</th><th>Last seen</th><th></th></tr></thead>
               <tbody>
-                {devices.map((d) => (
+                {table.paged.map((d) => (
                   <tr key={d.peer}>
                     <td><span className="code">{d.peer}</span></td>
                     <td>{d.online ? <span className="badge badge-green">● online</span> : <span className="badge">○ offline</span>}</td>
@@ -56,6 +66,8 @@ client.watch("YOUR_TOKEN", ports=[3000, 8000])   # auto-reconnects forever`}</pr
                 ))}
               </tbody>
             </table>
+            <Pagination page={table.page} totalPages={table.totalPages} setPage={table.setPage} total={table.total} pageSize={table.pageSize} />
+            </>
           )}
         </div>
       </div>

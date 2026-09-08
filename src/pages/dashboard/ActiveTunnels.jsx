@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import { formatBytes } from '../../utils';
+import { useTableData, SearchBar, Pagination } from '../../components/TableControls';
 
 // Active Tunnels — /tunnels/my with rate tracking + per-row debug
 export default function ActiveTunnels() {
@@ -34,6 +35,9 @@ export default function ActiveTunnels() {
     return () => clearInterval(pollRef.current);
   }, [load]);
 
+  const tunnelTable = useTableData(tunnels, { searchKeys: ['subdomain', 'url', 'custom_url'], pageSize: 10 });
+  const historyTable = useTableData(history, { searchKeys: ['subdomain'], pageSize: 10 });
+
   const openDebug = async (sub) => {
     setDebugOpen(sub);
     try {
@@ -57,10 +61,17 @@ export default function ActiveTunnels() {
       <p className="dim" style={{ marginBottom: '1.5rem', fontSize: '.9rem' }}>{tunnels.length} active session{tunnels.length !== 1 ? 's' : ''}</p>
 
       <div className="card">
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: '.5rem' }}>
+          <h2>Live Sessions</h2>
+          <SearchBar value={tunnelTable.search} onChange={(v) => { tunnelTable.setSearch(v); tunnelTable.setPage(1); }} placeholder="Search subdomain, URL…" style={{ maxWidth: 280 }} />
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {tunnels.length === 0 ? (
             <p className="empty">No active tunnels. Start a tunnel from the Quickstart page.</p>
+          ) : tunnelTable.filtered.length === 0 ? (
+            <p className="empty">No tunnels match your search.</p>
           ) : (
+            <>
             <table>
               <thead>
                 <tr>
@@ -70,9 +81,9 @@ export default function ActiveTunnels() {
                 </tr>
               </thead>
               <tbody>
-                {tunnels.map((t, i) => (
+                {tunnelTable.paged.map((t, i) => (
                   <tr key={t.tunnel_id || t.subdomain}>
-                    <td>{i + 1}</td>
+                    <td>{(tunnelTable.page - 1) * tunnelTable.pageSize + i + 1}</td>
                     <td>
                       <a href={t.url} target="_blank" rel="noreferrer" style={{ color: 'var(--brand)', fontWeight: 600 }}>{t.url}</a>
                       {t.custom_url && (
@@ -94,21 +105,29 @@ export default function ActiveTunnels() {
                 ))}
               </tbody>
             </table>
+            <Pagination page={tunnelTable.page} totalPages={tunnelTable.totalPages} setPage={tunnelTable.setPage} total={tunnelTable.total} pageSize={tunnelTable.pageSize} />
+            </>
           )}
         </div>
       </div>
 
       {/* Recent history */}
       <div className="card" style={{ marginTop: '1rem' }}>
-        <div className="card-header"><h2>Recent history</h2></div>
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: '.5rem' }}>
+          <h2>Recent history</h2>
+          <SearchBar value={historyTable.search} onChange={(v) => { historyTable.setSearch(v); historyTable.setPage(1); }} placeholder="Search subdomain…" style={{ maxWidth: 280 }} />
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
           {history.length === 0 ? (
             <p className="empty">No tunnel history yet.</p>
+          ) : historyTable.filtered.length === 0 ? (
+            <p className="empty">No history matches your search.</p>
           ) : (
+            <>
             <table>
               <thead><tr><th>Subdomain</th><th>Remote port</th><th>Status</th><th>Requests</th><th>Bytes</th><th>Created</th></tr></thead>
               <tbody>
-                {history.map((t) => (
+                {historyTable.paged.map((t) => (
                   <tr key={t.tunnel_id || t.subdomain}>
                     <td className="code">{t.subdomain}</td>
                     <td>{t.remote_port}</td>
@@ -120,6 +139,8 @@ export default function ActiveTunnels() {
                 ))}
               </tbody>
             </table>
+            <Pagination page={historyTable.page} totalPages={historyTable.totalPages} setPage={historyTable.setPage} total={historyTable.total} pageSize={historyTable.pageSize} />
+            </>
           )}
         </div>
       </div>
