@@ -34,7 +34,6 @@ export default function Plan() {
       setMe(meD);
       setPay(payD);
       setMyTunnels(tunnelsD);
-      if (meD?.seats) setSeats(meD.seats);
     } catch (e) { toast(e.message, 'error'); }
   }, [toast]);
 
@@ -74,6 +73,8 @@ export default function Plan() {
       return;
     }
     setCheckoutPlan(plan);
+    // For seat upgrades, default to 1 additional seat, not current total
+    setSeats(1);
     setCheckoutOpen(true);
   };
 
@@ -216,13 +217,21 @@ export default function Plan() {
 
               {/* CTA */}
               <div style={{ padding: '1rem' }}>
-                {isCurrent ? (
-                  <button className="btn btn-ghost" style={{ width: '100%' }} disabled>
-                    Current Plan ✓
-                  </button>
-                ) : isFreePlan ? (
+                {isFreePlan ? (
                   <button className="btn btn-ghost" style={{ width: '100%' }} onClick={() => toast('Free plan is the default — no action needed')}>
                     Default Plan
+                  </button>
+                ) : isCurrent && currentPlanName === 'pro' ? (
+                  <button
+                    className="btn btn-ghost"
+                    style={{ width: '100%' }}
+                    onClick={() => openCheckout(p)}
+                  >
+                    Add More Seats
+                  </button>
+                ) : isCurrent ? (
+                  <button className="btn btn-ghost" style={{ width: '100%' }} disabled>
+                    Current Plan ✓
                   </button>
                 ) : (
                   <button
@@ -267,13 +276,18 @@ export default function Plan() {
                 <span className="badge badge-blue">{cycle === 'yearly' ? 'Yearly' : 'Monthly'}</span>
               </div>
               <div className="order-row">
-                <span>Seats</span>
+                <span>Additional seats</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}>
                   <button className="icon-btn" style={{ width: 24, height: 24, fontSize: '.85rem', padding: 0 }} onClick={() => setSeats(Math.max(1, seats - 1))}>−</button>
                   <strong>{seats}</strong>
                   <button className="icon-btn" style={{ width: 24, height: 24, fontSize: '.85rem', padding: 0 }} onClick={() => setSeats(Math.min(10, seats + 1))}>+</button>
                 </span>
               </div>
+              {currentPlanName === 'pro' && (
+                <div className="order-row" style={{ color: 'var(--text-dim)', fontSize: '.8rem' }}>
+                  <span>Current seats</span><span>{me?.seats || 1} → {Number(me?.seats || 1) + Number(seats)}</span>
+                </div>
+              )}
               <div className="order-row">
                 <span>Billing cycle</span>
                 <span style={{ display: 'inline-flex', gap: '.25rem' }}>
