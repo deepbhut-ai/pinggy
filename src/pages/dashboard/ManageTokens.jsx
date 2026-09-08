@@ -242,11 +242,10 @@ export default function ManageTokens() {
                 {table.paged.map((t) => {
                   const teamRole = String(t.via_team?.my_role || '').toLowerCase();
                   const canDelete = !t.via_team || ['owner', 'admin', 'team_owner', 'team_admin'].includes(teamRole);
-                  const subAddr = t.subdomain ? `${t.subdomain}.iraglobaltech.com` : '';
-                  const domainAddr = t.custom_domain
-                    ? (isRootDomain(t.custom_domain) ? t.custom_domain : t.custom_domain)
-                    : '';
-                  const extraDomains = (t.domains || []).join(', ');
+                  const hasRootDomain = t.custom_domain && isRootDomain(t.custom_domain);
+                  // Skip the auto-generated hash subdomain when a root custom domain exists
+                  const subAddr = (t.subdomain && !hasRootDomain) ? `${t.subdomain}.iraglobaltech.com` : '';
+                  const domainAddr = t.custom_domain || '';
                   const allAddrs = [subAddr, domainAddr, ...(t.domains || [])].filter(Boolean);
                   const teamBadge = t.via_team
                     ? <span className="badge badge-blue" title={`Shared via team '${t.via_team.team_name}' (my role: ${t.via_team.my_role || 'member'})`}>👥 {t.via_team.team_name}</span>

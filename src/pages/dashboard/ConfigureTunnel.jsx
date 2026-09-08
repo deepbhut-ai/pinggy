@@ -21,6 +21,31 @@ const PLATFORM_HINTS = {
   mac: 'Open Terminal and paste the following command:',
 };
 
+// Check if a domain is a root domain (e.g. callingagents.in) vs a subdomain (e.g. code.callingagents.in)
+function isRootDomain(domain) {
+  if (!domain) return false;
+  const labels = domain.replace(/^https?:\/\//, '').split('.').filter(Boolean);
+  if (labels.length <= 2) return true;
+  return false;
+}
+
+// Build the display addresses for a token — skips the auto-generated hash subdomain
+// when the token has a root custom domain (the custom domain IS the main address)
+function tokenAddresses(t) {
+  const addrs = [];
+  const hasRootDomain = t.custom_domain && isRootDomain(t.custom_domain);
+  // Only show the *.iraglobaltech.com subdomain if there's no root custom domain
+  // (if there IS a root domain, the subdomain is just a random hash — noise)
+  if (t.subdomain && !hasRootDomain) {
+    addrs.push({ addr: `${t.subdomain}.iraglobaltech.com`, label: '🌐 Subdomain' });
+  }
+  if (t.custom_domain) {
+    addrs.push({ addr: t.custom_domain, label: isRootDomain(t.custom_domain) ? '🌐 Domain' : '🔗 Custom domain' });
+  }
+  (t.domains || []).forEach((d) => addrs.push({ addr: d, label: '➕ Extra domain' }));
+  return addrs;
+}
+
 export default function ConfigureTunnel() {
   const toast = useToast();
   const [info, setInfo] = useState(null);
@@ -82,13 +107,10 @@ export default function ConfigureTunnel() {
     );
   }, [tokens, tokenSearch]);
 
-  // multi-port rows: subdomain → primary → extras
+  // multi-port rows: build addresses for this token
   useEffect(() => {
     if (!multiPort || !selToken) return;
-    const addrs = [];
-    if (selToken.subdomain) addrs.push({ addr: `${selToken.subdomain}.iraglobaltech.com`, label: '🌐 Subdomain', port: '' });
-    if (selToken.custom_domain) addrs.push({ addr: selToken.custom_domain, label: '🔗 Custom domain', port: '' });
-    (selToken.domains || []).forEach((d) => addrs.push({ addr: d, label: '➕ Extra domain', port: '' }));
+    const addrs = tokenAddresses(selToken).map((a) => ({ ...a, port: '' }));
     setMultiPorts(addrs);
   }, [multiPort, tokenSel, selToken]);
 
@@ -123,13 +145,16 @@ export default function ConfigureTunnel() {
   const multiAddrs = multiPort && portList?.length
     ? multiPorts.filter((m) => m.port.trim()).map((m) => `https://${m.addr}`)
     : [];
-  const previewUrl = selToken
+  const primaryAddr = selToken
     ? (isTcp
         ? `tcp://iraglobaltech.com:${selToken.tcp_port || '— (set in Manage Tokens)'}`
-        : multiAddrs.length > 1
-          ? multiAddrs.join('  ·  ')
-          : `https://${selToken.fixed_subdomain || selToken.subdomain}.iraglobaltech.com`)
+        : (() => {
+            const addrs = tokenAddresses(selToken);
+            const first = addrs[0];
+            return first ? `https://${first.addr}` : 'https://—.iraglobaltech.com';
+          })())
     : 'https://—.iraglobaltech.com';
+  const previewUrl = multiAddrs.length > 1 ? multiAddrs.join('  ·  ') : primaryAddr;
 
   const download = (kind) => {
     const cmd = buildCmd();
@@ -283,10 +308,7 @@ export default function ConfigureTunnel() {
               <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
                 <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)} style={{ flex: 1 }}>
                   {filteredTokens.map((t) => {
-                    const addrs = [];
-                    if (t.subdomain) addrs.push(`${t.subdomain}.iraglobaltech.com`);
-                    if (t.custom_domain) addrs.push(t.custom_domain);
-                    (t.domains || []).forEach((d) => addrs.push(d));
+                    const addrs = tokenAddresses(t).map((a) => a.addr);
                     const label = addrs.length ? addrs.join(', ') : (t.name || 'Unnamed');
                     return (
                       <option key={t.id} value={t.token}>
