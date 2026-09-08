@@ -154,16 +154,24 @@ export default function ConfigureTunnel() {
     if (!info || !tokenSel) return 'Create a token first in Manage Tokens →';
     if (cmdTab === 'docker') return buildDocker();
     const multi = multiPort && portList?.length;
-    let cmd = 'ssh';
-    if (verbose) cmd += ' -v';
-    cmd += ` -p ${sshPort}`;
-    if (multi) portList.forEach((p) => { cmd += ` -R0:127.0.0.1:${p}`; });
-    else cmd += ` -R0:127.0.0.1:${port}`;
-    if (keepAlive) cmd += ' -o ServerAliveInterval=30';
-    if (!strictHost) cmd += ' -o StrictHostKeyChecking=no';
+    let ssh = 'ssh';
+    if (verbose) ssh += ' -v';
+    ssh += ` -p ${sshPort}`;
+    if (multi) portList.forEach((p) => { ssh += ` -R0:127.0.0.1:${p}`; });
+    else ssh += ` -R0:127.0.0.1:${port}`;
+    if (keepAlive) ssh += ' -o ServerAliveInterval=30';
+    if (!strictHost) ssh += ' -o StrictHostKeyChecking=no';
     const user = multi ? `${tokenSel}--${portList.join(',')}` : tokenSel;
-    cmd += ` ${user}@ssh.iraglobaltech.com`;
-    return cmd;
+    ssh += ` ${user}@ssh.iraglobaltech.com`;
+
+    // Wrap in auto-reconnect loop if enabled — works when copy-pasted directly
+    if (autoReconnect) {
+      if (platform === 'windows') {
+        return `while ($true) { ${ssh}; Write-Host "Disconnected. Reconnecting in 3s..."; Start-Sleep -Seconds 3 }`;
+      }
+      return `while true; do\n  ${ssh}\n  echo "Disconnected. Reconnecting in 3s..."\n  sleep 3\ndone`;
+    }
+    return ssh;
   };
 
   // TCP mode (Pro): the public port is the token's persistent TCP port
