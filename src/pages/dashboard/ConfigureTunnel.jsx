@@ -85,11 +85,12 @@ export default function ConfigureTunnel() {
   // multi-port rows: subdomain → primary → extras
   useEffect(() => {
     if (!multiPort || !selToken) return;
-    const addrs = [`${selToken.subdomain}.iraglobaltech.com`];
-    if (selToken.custom_domain) addrs.push(selToken.custom_domain);
-    (selToken.domains || []).forEach((d) => addrs.push(d));
-    setMultiPorts(addrs.map((a) => ({ addr: a, port: '' })));
-  }, [multiPort, tokenSel]);
+    const addrs = [];
+    if (selToken.subdomain) addrs.push({ addr: `${selToken.subdomain}.iraglobaltech.com`, label: '🌐 Subdomain', port: '' });
+    if (selToken.custom_domain) addrs.push({ addr: selToken.custom_domain, label: '🔗 Custom domain', port: '' });
+    (selToken.domains || []).forEach((d) => addrs.push({ addr: d, label: '➕ Extra domain', port: '' }));
+    setMultiPorts(addrs);
+  }, [multiPort, tokenSel, selToken]);
 
   const portList = multiPort ? multiPorts.map((m) => m.port.trim()).filter(Boolean) : null;
   const sshPort = info?.ssh_port || 2222;
@@ -119,10 +120,15 @@ export default function ConfigureTunnel() {
 
   // TCP mode (Pro): the public port is the token's persistent TCP port
   const isTcp = tunnelType === 'tcp';
+  const multiAddrs = multiPort && portList?.length
+    ? multiPorts.filter((m) => m.port.trim()).map((m) => `https://${m.addr}`)
+    : [];
   const previewUrl = selToken
     ? (isTcp
         ? `tcp://iraglobaltech.com:${selToken.tcp_port || '— (set in Manage Tokens)'}`
-        : `https://${selToken.fixed_subdomain || selToken.subdomain}.iraglobaltech.com`)
+        : multiAddrs.length > 1
+          ? multiAddrs.join('  ·  ')
+          : `https://${selToken.fixed_subdomain || selToken.subdomain}.iraglobaltech.com`)
     : 'https://—.iraglobaltech.com';
 
   const download = (kind) => {
@@ -305,11 +311,14 @@ export default function ConfigureTunnel() {
           {multiPort && selToken && (
             <div className="multiport-box">
               <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.5rem' }}>
-                One local port per address — order matters (subdomain → primary → extras):
+                Enter the local port for each address — each address routes to its own local project:
               </p>
               {multiPorts.map((m, i) => (
                 <div key={m.addr} style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem' }}>
-                  <span className="code" style={{ flex: 1, fontSize: '.8rem' }}>{m.addr}</span>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '.1rem' }}>
+                    <span className="code" style={{ fontSize: '.8rem' }}>{m.addr}</span>
+                    <span className="dim" style={{ fontSize: '.68rem' }}>{m.label}</span>
+                  </div>
                   <input
                     type="number"
                     min="1"
