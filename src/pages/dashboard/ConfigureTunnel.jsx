@@ -170,11 +170,7 @@ export default function ConfigureTunnel() {
   const primaryAddr = selToken
     ? (isTcp
         ? `tcp://iraglobaltech.com:${selToken.tcp_port || '— (set in Manage Tokens)'}`
-        : (() => {
-            const addrs = tokenAddresses(selToken, tokens);
-            const first = addrs[0];
-            return first ? `https://${first.addr}` : 'https://—.iraglobaltech.com';
-          })())
+        : `https://${selToken.fixed_subdomain || selToken.subdomain}.iraglobaltech.com`)
     : 'https://—.iraglobaltech.com';
   const previewUrl = multiAddrs.length > 1 ? multiAddrs.join('  ·  ') : primaryAddr;
 
