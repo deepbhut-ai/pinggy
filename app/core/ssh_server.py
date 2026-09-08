@@ -325,6 +325,21 @@ class MySSHServer(asyncssh.SSHServer):
                         cur.close()
                     except Exception:
                         pass  # table missing pre-migration — fine
+                    # v2.7.8: multiport — load ALL the user's tokens' custom domains
+                    # so one tunnel can serve every domain/subdomain on the account
+                    if self._port_map:
+                        try:
+                            cur = conn.execute(
+                                "SELECT custom_domain FROM tokens "
+                                "WHERE user_email = %s AND token != %s AND custom_domain IS NOT NULL",
+                                (self._username, base_token),
+                            )
+                            for r in cur.fetchall():
+                                if r[0] and r[0] not in self._custom_domains and r[0] != self._custom_domain:
+                                    self._custom_domains.append(r[0])
+                            cur.close()
+                        except Exception:
+                            pass
                     conn.close()
                     return True
             except psycopg.errors.UndefinedColumn:
