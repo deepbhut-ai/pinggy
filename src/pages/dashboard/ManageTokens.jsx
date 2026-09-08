@@ -430,7 +430,7 @@ export default function ManageTokens() {
                 <tbody>
                   <tr><td><strong>Type</strong></td><td>A</td></tr>
                   <tr><td><strong>Name</strong></td><td>{createSub.trim() ? createSub.trim().toLowerCase() : '@'}</td></tr>
-                  <tr><td><strong>Content / IP</strong></td><td><code>13.140.131.204</code></td></tr>
+                  <tr><td><strong>Content / IP</strong></td><td><code>13.140.131.204</code> <button className="icon-btn" title="Copy IP" style={{ fontSize: '.7rem', padding: '.1rem .3rem' }} onClick={() => { copyToClipboard('13.140.131.204'); toast('IP copied'); }}>📋</button></td></tr>
                   <tr><td><strong>Proxy</strong></td><td>Proxied (if Cloudflare)</td></tr>
                 </tbody>
               </table>
