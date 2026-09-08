@@ -63,11 +63,11 @@ export default function ConfigureTunnel() {
   const [tunnelType, setTunnelType] = useState('http');
   const [platform, setPlatform] = useState('windows');
   const [tokenSel, setTokenSel] = useState('');
-  const [multiPort, setMultiPort] = useState(false);
+  const [multiPort, setMultiPort] = useState(true);
   const [multiPorts, setMultiPorts] = useState([]);
   const [cmdTab, setCmdTab] = useState('ssh');
   const [keepAlive, setKeepAlive] = useState(true);
-  const [autoReconnect, setAutoReconnect] = useState(false);
+  const [autoReconnect, setAutoReconnect] = useState(true);
   const [strictHost, setStrictHost] = useState(false);
   const [verbose, setVerbose] = useState(false);
   const [qr, setQr] = useState(null);
