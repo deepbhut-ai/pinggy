@@ -30,20 +30,23 @@ export default function ApiKeys() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  // Count domains vs subdomains from the user's tokens
-  const domainCount = useMemo(() => {
-    let domains = 0, subdomains = 0;
+  // Count domains vs subdomains per API key (only tokens created by that key)
+  const domainCountByKey = useMemo(() => {
+    const counts = {}; // { apiKeyId: { domains, subdomains } }
     tokens.forEach((t) => {
+      if (!t.created_by_api_key) return; // skip tokens not created via API key
+      if (!counts[t.created_by_api_key]) counts[t.created_by_api_key] = { domains: 0, subdomains: 0 };
+      const c = counts[t.created_by_api_key];
       if (t.custom_domain) {
-        if (isRootDomain(t.custom_domain)) domains++;
-        else subdomains++;
+        if (isRootDomain(t.custom_domain)) c.domains++;
+        else c.subdomains++;
       }
       (t.domains || []).forEach((d) => {
-        if (isRootDomain(d)) domains++;
-        else subdomains++;
+        if (isRootDomain(d)) c.domains++;
+        else c.subdomains++;
       });
     });
-    return { domains, subdomains };
+    return counts;
   }, [tokens]);
 
   // Unique API key names for the dropdown filter
@@ -162,8 +165,8 @@ export default function ApiKeys() {
                     <tr key={k.id}>
                       <td>{k.name}</td>
                       <td className="code">{k.prefix}…</td>
-                      <td><span className="badge badge-green">{domainCount.domains}</span></td>
-                      <td><span className="badge badge-blue">{domainCount.subdomains}</span></td>
+                      <td><span className="badge badge-green">{(domainCountByKey[k.id] || {domains: 0}).domains}</span></td>
+                      <td><span className="badge badge-blue">{(domainCountByKey[k.id] || {subdomains: 0}).subdomains}</span></td>
                       <td>{k.created_at ? k.created_at.substring(0, 10) : '—'}</td>
                       <td>
                         {!k.expires_at
