@@ -29,11 +29,11 @@ function isRootDomain(domain) {
   return false;
 }
 
-// Build the display addresses for a token — skips the auto-generated hash subdomain
-// when the token has a root custom domain (the custom domain IS the main address).
-// Also includes addresses from OTHER tokens that share the same root domain,
-// so multiport can tunnel all subdomains under one root domain in one command.
-function tokenAddresses(t, allTokens = []) {
+// Build the display addresses for a token.
+// For multiport: includes ALL addresses across the user's entire account
+// (every token's custom_domain + subdomains + extra domains) so one SSH
+// command can tunnel 1, 10, or 100 addresses from a single connection.
+function tokenAddresses(t, allTokens = [], includeAll = false) {
   const addrs = [];
   const hasRootDomain = t.custom_domain && isRootDomain(t.custom_domain);
   // Only show the *.iraglobaltech.com subdomain if there's no root custom domain
@@ -44,18 +44,23 @@ function tokenAddresses(t, allTokens = []) {
     addrs.push({ addr: t.custom_domain, label: isRootDomain(t.custom_domain) ? '🌐 Domain' : '🔗 Subdomain' });
   }
   (t.domains || []).forEach((d) => addrs.push({ addr: d, label: '➕ Extra domain' }));
-  // Include addresses from other tokens that share the same root domain
-  if (t.custom_domain) {
-    const root = isRootDomain(t.custom_domain) ? t.custom_domain : t.custom_domain.split('.').slice(-2).join('.');
+
+  if (includeAll) {
+    // Include ALL addresses from ALL other tokens (entire account)
     allTokens.forEach((other) => {
-      if (other.id === t.id) return; // skip self
-      // Check if the other token's custom_domain is a subdomain under our root
-      if (other.custom_domain && other.custom_domain !== t.custom_domain && other.custom_domain.endsWith('.' + root)) {
-        // Don't add duplicates
-        if (!addrs.some((a) => a.addr === other.custom_domain)) {
-          addrs.push({ addr: other.custom_domain, label: '🔗 Subdomain' });
-        }
+      if (other.id === t.id) return;
+      if (other.custom_domain && !addrs.some((a) => a.addr === other.custom_domain)) {
+        addrs.push({ addr: other.custom_domain, label: isRootDomain(other.custom_domain) ? '🌐 Domain' : '🔗 Subdomain' });
       }
+      const otherHasRoot = other.custom_domain && isRootDomain(other.custom_domain);
+      if (other.subdomain && !otherHasRoot && !addrs.some((a) => a.addr === `${other.subdomain}.iraglobaltech.com`)) {
+        addrs.push({ addr: `${other.subdomain}.iraglobaltech.com`, label: '🌐 Subdomain' });
+      }
+      (other.domains || []).forEach((d) => {
+        if (!addrs.some((a) => a.addr === d)) {
+          addrs.push({ addr: d, label: '➕ Extra domain' });
+        }
+      });
     });
   }
   return addrs;
@@ -122,10 +127,10 @@ export default function ConfigureTunnel() {
     );
   }, [tokens, tokenSearch]);
 
-  // multi-port rows: build addresses for this token (includes subdomains from other tokens sharing the same root)
+  // multi-port rows: ALL addresses across the user's entire account
   useEffect(() => {
     if (!multiPort || !selToken) return;
-    const addrs = tokenAddresses(selToken, tokens).map((a) => ({ ...a, port: '' }));
+    const addrs = tokenAddresses(selToken, tokens, true).map((a) => ({ ...a, port: '' }));
     setMultiPorts(addrs);
   }, [multiPort, tokenSel, selToken, tokens]);
 
@@ -348,7 +353,7 @@ export default function ConfigureTunnel() {
           {multiPort && selToken && (
             <div className="multiport-box">
               <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.5rem' }}>
-                Enter the local port for each address — each address routes to its own local project:
+                All domains and subdomains on your account — one SSH command, one tunnel, all addresses. Enter a local port for each:
               </p>
               {multiPorts.map((m, i) => (
                 <div key={m.addr} style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem' }}>
@@ -371,7 +376,7 @@ export default function ConfigureTunnel() {
                   />
                 </div>
               ))}
-              <p className="dim" style={{ fontSize: '.72rem' }}>Pro feature — one SSH connection, each address routes to its own local project.</p>
+              <p className="dim" style={{ fontSize: '.72rem' }}>Pro feature — all your domains and subdomains from one SSH connection. No load on your PC — one tunnel handles everything.</p>
             </div>
           )}
         </div>
