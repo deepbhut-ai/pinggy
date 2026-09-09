@@ -22,19 +22,7 @@ async def landing_page():
     return HTMLResponse(content=_LANDING_HTML_PATH.read_text(encoding="utf-8"), headers=_NO_STORE)
 
 
-@router.get("/login", response_class=RedirectResponse)
-async def login_page():
-    """Old login page → React SPA login."""
-    return RedirectResponse(url="/login", status_code=307)
-
-
 @router.get("/admin", response_class=RedirectResponse)
 async def admin_panel():
     """Old admin panel → React admin panel (admin-only route)."""
     return RedirectResponse(url="/dashboard/admin", status_code=307)
-
-
-@router.get("/dashboard", response_class=RedirectResponse)
-async def user_dashboard():
-    """Old dashboard URL → React SPA dashboard (nginx already serves it)."""
-    return RedirectResponse(url="/dashboard", status_code=307)

@@ -33,6 +33,12 @@ SETTING_DEFS: list[tuple[str, bool, str, str]] = [
     ("smtp_password", True, "", "SMTP Password"),
     ("smtp_from", False, "", "SMTP From address"),
     ("smtp_enabled", False, "", "SMTP Enabled"),
+    ("email_logo_url", False, "", "Email Logo URL"),
+    ("email_brand_color", False, "", "Email Brand Color"),
+    ("email_company_name", False, "", "Email Company Name"),
+    ("email_footer_text", False, "", "Email Footer Text"),
+    ("email_support_email", False, "", "Email Support Email"),
+    ("email_from_name", False, "", "Email From Name"),
 ]
 
 

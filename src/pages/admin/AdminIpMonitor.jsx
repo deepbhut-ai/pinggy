@@ -39,8 +39,8 @@ export default function AdminIpMonitor() {
       ]);
       if (st) setStats(st);
       if (cfg) setConfig(cfg);
-      api('/ip-monitor/blocked').then(setBlocked).catch(() => {});
-      api(`/ip-monitor/ips?limit=${limit}`).then(setIps).catch(() => {});
+      api('/ip-monitor/blocked').then((d) => setBlocked(d.blocked || d)).catch(() => {});
+      api(`/ip-monitor/ips?limit=${limit}`).then((d) => setIps(d.ips || d)).catch(() => {});
     } catch (e) { toast(e.message, 'error'); }
   }, [toast, limit]);
 
@@ -54,7 +54,7 @@ export default function AdminIpMonitor() {
         if (st) setStats(st);
         if (tabRef.current === 'live') {
           const l = await api(`/ip-monitor/ips?limit=${limit}`).catch(() => null);
-          if (l) setIps(l);
+          if (l) setIps(l.ips || l);
         }
       } catch {}
     }, 5000);

@@ -24,7 +24,9 @@ const ADMIN_NAV = [
   { sep: true },
   { to: 'settings', label: '⚙️ Settings' },
   { to: 'coupons', label: '🎟️ Coupons' },
+  { sep: true },
   { to: 'announcements', label: '📣 Announcements' },
+  { to: 'email-templates', label: '✉️ Email Templates' },
 ];
 
 export default function AdminLayout() {
