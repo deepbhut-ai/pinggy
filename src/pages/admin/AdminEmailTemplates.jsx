@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Editor } from '@tinymce/tinymce-react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import { useTableData, SearchBar, Pagination } from '../../components/TableControls';
@@ -23,7 +24,7 @@ export default function AdminEmailTemplates() {
   const [testModal, setTestModal] = useState(null);
   const [testEmail, setTestEmail] = useState('');
   const [confirm, setConfirm] = useState(null);
-  const [editMode, setEditMode] = useState('code'); // 'code' | 'preview'
+  const [editMode, setEditMode] = useState('visual'); // 'visual' | 'code' | 'preview'
 
   // ---- SMTP config state ----
   const [smtp, setSmtp] = useState({ smtp_host: '', smtp_port: '587', smtp_user: '', smtp_password: '', smtp_from: '', smtp_enabled: false, configured: false, email_logo_url: '', email_brand_color: '#6aa6f0', email_company_name: 'IRAGT', email_footer_text: '', email_support_email: '', email_from_name: '' });
@@ -603,25 +604,34 @@ export default function AdminEmailTemplates() {
             </div>
             <div className="form-group">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.5rem' }}>
-                <label style={{ marginBottom: 0 }}>Body <span className="dim" style={{ fontSize: '.75rem' }}>(supports HTML — paste full HTML email or write simple content)</span></label>
+                <label style={{ marginBottom: 0 }}>Body</label>
                 <div style={{ display: 'flex', gap: '.25rem' }}>
+                  <button type="button" className={`btn btn-sm ${editMode === 'visual' ? '' : 'btn-ghost'}`} onClick={() => setEditMode('visual')} style={{ fontSize: '.75rem', padding: '.25rem .6rem' }}>Visual</button>
                   <button type="button" className={`btn btn-sm ${editMode === 'code' ? '' : 'btn-ghost'}`} onClick={() => setEditMode('code')} style={{ fontSize: '.75rem', padding: '.25rem .6rem' }}>Code</button>
                   <button type="button" className={`btn btn-sm ${editMode === 'preview' ? '' : 'btn-ghost'}`} onClick={() => setEditMode('preview')} style={{ fontSize: '.75rem', padding: '.25rem .6rem' }}>Preview</button>
                 </div>
               </div>
+              {editMode === 'visual' && (
+                <Editor
+                  tinymceScriptSrc="https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js"
+                  licenseKey="gpl"
+                  value={editForm.body}
+                  onEditorChange={(content) => setEditForm({ ...editForm, body: content })}
+                  init={{
+                    height: 400,
+                    menubar: false,
+                    plugins: 'lists link image table code fullscreen charmap hr anchor pagebreak',
+                    toolbar: 'undo redo | blocks | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | link image table hr | removeformat code fullscreen',
+                    content_style: 'body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; padding: 16px; }',
+                    placeholder: 'Type your email content here. Use {placeholders} like {name}, {code} for dynamic values.',
+                    branding: false,
+                    promotion: false,
+                    skin: 'oxide-dark',
+                  }}
+                />
+              )}
               {editMode === 'code' && (
-                <>
-                  <div style={{ display: 'flex', gap: '.25rem', marginBottom: '.5rem', flexWrap: 'wrap' }}>
-                    <button type="button" className="icon-btn" style={{ fontSize: '.75rem' }} onClick={() => setEditForm({ ...editForm, body: editForm.body + '\n<b>Bold text</b>' })}>Bold</button>
-                    <button type="button" className="icon-btn" style={{ fontSize: '.75rem' }} onClick={() => setEditForm({ ...editForm, body: editForm.body + '\n<a href="https://example.com">Link text</a>' })}>Link</button>
-                    <button type="button" className="icon-btn" style={{ fontSize: '.75rem' }} onClick={() => setEditForm({ ...editForm, body: editForm.body + '\n<img src="https://example.com/image.png" alt="Image" style="max-width:100%;border-radius:8px;">' })}>Image</button>
-                    <button type="button" className="icon-btn" style={{ fontSize: '.75rem' }} onClick={() => setEditForm({ ...editForm, body: editForm.body + '\n<div style="margin:1rem 0;text-align:center;"><a href="https://example.com" style="display:inline-block;background:#6aa6f0;color:#fff;padding:.6rem 1.5rem;border-radius:6px;text-decoration:none;font-weight:600;">Button Text →</a></div>' })}>Button</button>
-                    <button type="button" className="icon-btn" style={{ fontSize: '.75rem' }} onClick={() => setEditForm({ ...editForm, body: editForm.body + '\n<hr style="border:none;border-top:1px solid #eee;margin:1rem 0;">' })}>Divider</button>
-                    <button type="button" className="icon-btn" style={{ fontSize: '.75rem' }} onClick={() => setEditForm({ ...editForm, body: editForm.body + '\n<h3 style="color:#1a1a2e;">Heading</h3>' })}>Heading</button>
-                    <button type="button" className="icon-btn" style={{ fontSize: '.75rem' }} onClick={() => setEditForm({ ...editForm, body: editForm.body + '\n<div style="background:#f4f5f7;border-radius:8px;padding:1rem;font-family:monospace;font-size:.85rem;">code block</div>' })}>Code Block</button>
-                  </div>
-                  <textarea value={editForm.body} onChange={e => setEditForm({ ...editForm, body: e.target.value })} rows={14} style={{ fontFamily: 'var(--mono)', fontSize: '.82rem', resize: 'vertical' }} placeholder="Email body — use {placeholder} syntax. HTML tags supported. Paste a full HTML email to send as-is." />
-                </>
+                <textarea value={editForm.body} onChange={e => setEditForm({ ...editForm, body: e.target.value })} rows={14} style={{ fontFamily: 'var(--mono)', fontSize: '.82rem', resize: 'vertical' }} placeholder="HTML code — edit raw HTML here" />
               )}
               {editMode === 'preview' && (
                 <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden', background: '#fff' }}>
@@ -673,7 +683,23 @@ export default function AdminEmailTemplates() {
             </div>
             <div className="form-group">
               <label>Body</label>
-              <textarea value={newForm.body} onChange={e => setNewForm({ ...newForm, body: e.target.value })} rows={8} style={{ fontFamily: 'var(--mono)', fontSize: '.82rem', resize: 'vertical' }} placeholder="Email body — use {placeholder} syntax" />
+              <Editor
+                tinymceScriptSrc="https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js"
+                licenseKey="gpl"
+                value={newForm.body}
+                onEditorChange={(content) => setNewForm({ ...newForm, body: content })}
+                init={{
+                  height: 300,
+                  menubar: false,
+                  plugins: 'lists link image table code fullscreen hr anchor',
+                  toolbar: 'undo redo | blocks | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | link image table hr | removeformat code fullscreen',
+                  content_style: 'body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; padding: 16px; }',
+                  placeholder: 'Type your email content here. Use {placeholders} like {name}, {code} for dynamic values.',
+                  branding: false,
+                  promotion: false,
+                  skin: 'oxide-dark',
+                }}
+              />
             </div>
             <div className="form-group">
               <label>Placeholders (comma-separated)</label>
