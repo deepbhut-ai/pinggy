@@ -63,14 +63,22 @@ export default function Domains() {
     if (!pending) return;
     const { domain } = pending;
     setVerifying(true);
-    setVerifyResult(null);
+    setVerifyResult({ status: 'info', message: '1/3 Verifying DNS A record...' });
     try {
-      const res = await api(`/users/me/verify-domain?domain=${encodeURIComponent(domain)}`);
+      // Step 1: DNS check
+      const dns = await api(`/domains/verify-dns?domain=${encodeURIComponent(domain)}`);
+      if (dns.status !== 'ok') {
+        setVerifyResult({ status: 'error', message: dns.message || 'DNS verification failed' });
+        setVerifying(false);
+        return;
+      }
+
+      // Step 2 & 3: Provision SSL & Save
+      setVerifyResult({ status: 'info', message: '2/3 Issuing Let\'s Encrypt SSL certificate & configuring Nginx...' });
+      const res = await api('/domains/verify-and-save', 'POST', { domain });
       if (res.status === 'ok') {
-        // DNS verified — create the root-domain token
-        await api('/tokens', 'POST', { name: domain, custom_domain: domain });
-        setVerifyResult({ status: 'ok', message: res.message });
-        toast(`🎉 ${domain} verified and saved!`);
+        setVerifyResult({ status: 'ok', message: res.message || `🎉 ${domain} verified and SSL active!` });
+        toast(`🎉 ${domain} verified with HTTPS active!`);
         setPending(null);
         setAddDom('');
         setTimeout(() => load(), 1500);
@@ -91,29 +99,34 @@ export default function Domains() {
   };
 
   const removeDomain = async (rootDomainToRemove) => {
+    if (!confirm(`Are you sure you want to remove ${rootDomainToRemove} and delete its SSL configuration?`)) return;
     try {
-      const tokens = await api('/tokens');
-      // Find all domains (primary + extra) that match this root domain
-      const domainsToRemove = [];
-      (tokens || []).forEach((t) => {
-        if (t.custom_domain && rootDomain(t.custom_domain) === rootDomainToRemove) {
-          domainsToRemove.push({ domain: t.custom_domain, tokenId: t.id, type: 'primary' });
-        }
-        (t.domains || []).forEach((d) => {
-          if (rootDomain(d) === rootDomainToRemove) {
-            domainsToRemove.push({ domain: d, tokenId: t.id, type: 'extra' });
+      // First try dedicated domains endpoint
+      try {
+        await api(`/domains/${encodeURIComponent(rootDomainToRemove)}`, 'DELETE');
+      } catch (err) {
+        // Fallback to token lookup
+        const tokens = await api('/tokens');
+        const domainsToRemove = [];
+        (tokens || []).forEach((t) => {
+          if (t.custom_domain && rootDomain(t.custom_domain) === rootDomainToRemove) {
+            domainsToRemove.push({ domain: t.custom_domain, tokenId: t.id, type: 'primary' });
           }
+          (t.domains || []).forEach((d) => {
+            if (rootDomain(d) === rootDomainToRemove) {
+              domainsToRemove.push({ domain: d, tokenId: t.id, type: 'extra' });
+            }
+          });
         });
-      });
-      // Remove all matching domains
-      for (const d of domainsToRemove) {
-        if (d.type === 'primary') {
-          await api(`/users/me/custom-domain?custom_domain=&token_id=${encodeURIComponent(d.tokenId)}`, 'PUT');
-        } else {
-          await api(`/tokens/${d.tokenId}/domains/${encodeURIComponent(d.domain)}`, 'DELETE');
+        for (const d of domainsToRemove) {
+          if (d.type === 'primary') {
+            await api(`/users/me/custom-domain?custom_domain=&token_id=${encodeURIComponent(d.tokenId)}`, 'PUT');
+          } else {
+            await api(`/tokens/${d.tokenId}/domains/${encodeURIComponent(d.domain)}`, 'DELETE');
+          }
         }
       }
-      toast(`${rootDomainToRemove} removed`);
+      toast(`${rootDomainToRemove} removed and SSL configuration cleaned up`);
       load();
     } catch (e) { toast(e.message, 'error'); }
   };
@@ -185,13 +198,20 @@ export default function Domains() {
         <div className="card" style={{ marginTop: '1rem' }}>
           <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
             <table style={{ fontSize: '.85rem' }}>
-              <thead><tr><th>Domain</th><th style={{ width: 100 }}></th></tr></thead>
+              <thead><tr><th>Domain</th><th>SSL Security</th><th style={{ width: 100 }}></th></tr></thead>
               <tbody>
                 {domains.map((d) => (
                   <tr key={d.domain}>
                     <td className="code" style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
-                      https://{d.domain}
+                      <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+                        https://{d.domain}
+                      </a>
                       <button className="icon-btn" title="Copy" onClick={() => { copyToClipboard(`https://${d.domain}`); toast('Copied'); }}>📋</button>
+                    </td>
+                    <td>
+                      <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '.2rem .5rem', borderRadius: '4px', fontSize: '.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+                        🔒 SSL / HTTPS Active
+                      </span>
                     </td>
                     <td><button className="btn btn-sm btn-danger" onClick={() => removeDomain(d.domain)}>Remove</button></td>
                   </tr>

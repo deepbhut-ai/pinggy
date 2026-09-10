@@ -1,13 +1,14 @@
 """Router aggregator."""
 from fastapi import APIRouter
 
-from app.api.routers import admin, analytics, announcements, apikeys, audit, auth, configs, debugger, email_templates, invoices, ip_monitor, manage, payments, plans, settings as settings_router, teams, tickets, tokens, tunnels, users
+from app.api.routers import admin, analytics, announcements, apikeys, audit, auth, configs, debugger, domains, email_templates, invoices, ip_monitor, manage, payments, plans, settings as settings_router, teams, tickets, tokens, tunnels, users
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
 api_router.include_router(users.router)
 api_router.include_router(tunnels.router)
 api_router.include_router(tokens.router)
+api_router.include_router(domains.router)
 api_router.include_router(payments.router)
 api_router.include_router(ip_monitor.router)
 api_router.include_router(audit.router)

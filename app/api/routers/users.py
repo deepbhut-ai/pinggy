@@ -18,61 +18,10 @@ router = APIRouter(prefix="/users", tags=["users"])
 _SERVER_IP = "13.140.131.204"
 
 
-async def _verify_domain_dns(domain: str) -> dict:
-    """Verify a custom domain by checking DNS resolution + HTTP health check.
-
-    Passes if:
-    - A record points directly to our server IP, OR
-    - /health endpoint returns {"status":"ok"} through the public URL
-    """
-    import socket
-    import httpx
-
-    SERVER_IP = "13.140.131.204"
-
-    try:
-        # 1) Check DNS resolution — collect ALL resolved IPs (IPv4 + IPv6)
-        try:
-            resolved_infos = socket.getaddrinfo(domain, None)
-            all_ips = [info[4][0] for info in resolved_infos]
-            resolved_ip = all_ips[0] if all_ips else None
-        except socket.gaierror:
-            return {"dns_resolves": False, "pointed_ip": None, "status": "no_dns",
-                    "message": f"⚠️ {domain} has no DNS record. Add an A record pointing to {SERVER_IP}"}
-
-        points_to_us = SERVER_IP in all_ips
-        # 2) Try HTTP health check
-        health_ok = False
-        try:
-            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-                for scheme in ("https", "http"):
-                    try:
-                        resp = await client.get(f"{scheme}://{domain}/health")
-                        if resp.status_code == 200:
-                            try:
-                                body = resp.json()
-                                if body.get("status") == "ok":
-                                    health_ok = True
-                                    break
-                            except Exception:
-                                pass
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-
-        # 3) Return result
-        if health_ok:
-            return {"dns_resolves": True, "pointed_ip": resolved_ip, "status": "ok",
-                    "message": f"✅ {domain} is verified and reaching this server"}
-        if points_to_us:
-            return {"dns_resolves": True, "pointed_ip": resolved_ip, "status": "ok",
-                    "message": f"✅ {domain} A record points to {SERVER_IP}"}
-        return {"dns_resolves": True, "pointed_ip": resolved_ip, "status": "error",
-                "message": f"⚠️ {domain} resolves to {resolved_ip}, not {SERVER_IP}. Update the A record."}
-    except Exception as e:
-        return {"dns_resolves": False, "pointed_ip": None, "status": "error",
-                "message": f"Could not verify DNS: {e}"}
+from app.core.ssl_manager import (
+    verify_domain_dns as _verify_domain_dns,
+    deprovision_ssl_for_domain,
+)
 
 
 @router.get("", response_model=list[UserOut])

@@ -73,7 +73,15 @@ Migrations 0001–0025 auto-apply on first boot (auto_setup).
    ```
 
 7. **nginx**: configs in nginx/ (rate-limit presets in pinggy-rate-limits.conf);
-   enable SSL via nginx/setup-ssl.sh.
+   enable wildcard SSL for main app via nginx/setup-ssl.sh.
+
+8. **Automatic Custom Domains SSL (Let's Encrypt Webroot)**:
+   - Run one-time setup on server:
+     ```bash
+     sudo bash scripts/setup_ssl_system.sh
+     ```
+   - This creates `/var/www/certbot/.well-known/acme-challenge/`, verifies certbot, and configures the daily auto-renewal cron job.
+   - When users add domains in Dashboard, the backend issues certificates and creates `/etc/nginx/sites-available/custom-<domain>` with zero downtime (`nginx -s reload`).
 
 ## Rollback
 ```bash

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from app.core.audit import log_audit
 from app.core.db import get_db
 from app.core.deps import get_admin_user, get_api_user
+from app.core.ssl_manager import deprovision_ssl_for_domain
 
 router = APIRouter(prefix="/tokens", tags=["tokens"])
 
@@ -644,6 +645,11 @@ async def remove_token_domain(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Domain not attached to this token")
     await cur.close()
     await log_audit(db, user["email"], "token.domain_remove", domain, f"token {token_id[:8]}")
+    try:
+        import asyncio
+        asyncio.create_task(deprovision_ssl_for_domain(domain.lower()))
+    except Exception:
+        pass
     return {"removed": domain}
 
 
@@ -664,6 +670,16 @@ async def delete_token(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
     if right == "member":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Read-only: this token is shared with your team — ask a team admin or the owner to delete it")
+
+    # Fetch any domains attached to clean up SSL
+    cur = await db.execute("SELECT custom_domain FROM tokens WHERE id = %s", (token_id,))
+    cd_row = await cur.fetchone()
+    await cur.close()
+
+    cur = await db.execute("SELECT domain FROM token_domains WHERE token_id = %s", (token_id,))
+    td_rows = await cur.fetchall()
+    await cur.close()
+
     cur = await db.execute(
         "DELETE FROM tokens WHERE id = %s AND (user_email = %s OR team_id IS NOT NULL) RETURNING token",
         (token_id, user["email"]),
@@ -672,6 +688,20 @@ async def delete_token(
     await cur.close()
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
+
+    import asyncio
+    domains_to_clean = []
+    if cd_row and cd_row[0]:
+        domains_to_clean.append(str(cd_row[0]))
+    for r in td_rows:
+        if r[0]:
+            domains_to_clean.append(str(r[0]))
+    for d in domains_to_clean:
+        try:
+            asyncio.create_task(deprovision_ssl_for_domain(d))
+        except Exception:
+            pass
+
     return {"message": "Token deleted"}
 
 

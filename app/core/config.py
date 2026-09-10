@@ -81,6 +81,15 @@ class Settings(BaseSettings):
     IP_GEO_API_URL: str = "http://ip-api.com/json/"  # free geo API
     IP_GEO_ENABLED: bool = True       # enable geo lookups
 
+    # ---- SSL & Custom Domains ----
+    SERVER_IP: str = "13.140.131.204"
+    SSL_WEBROOT_PATH: str = "/var/www/certbot"
+    SSL_CERT_DIR: str = "/etc/letsencrypt/live"
+    NGINX_SITES_AVAILABLE: str = "/etc/nginx/sites-available"
+    NGINX_SITES_ENABLED: str = "/etc/nginx/sites-enabled"
+    SSL_ADMIN_EMAIL: str = "support@callingagents.in"
+    SSL_ENABLED: bool = True
+
     @property
     def async_dsn(self) -> str:
         """psycopg3 async connection string (no +psycopg scheme)."""
