@@ -120,25 +120,42 @@ export default function ConfigureTunnel() {
     );
   }, [tokens, tokenSearch]);
 
+  // Load saved multi-port config from backend
+  const loadMultiPortConfig = useCallback(async (token) => {
+    if (!token) return { multi_port_enabled: true, ports: {} };
+    try {
+      return await api(`/configs/multiport/${encodeURIComponent(token)}`);
+    } catch { return { multi_port_enabled: true, ports: {} }; }
+  }, []);
+
+  // Save multi-port config to backend (debounced)
+  const saveMultiPortConfig = useCallback(async (token, mpEnabled, ports) => {
+    if (!token) return;
+    try {
+      const portsMap = {};
+      ports.forEach((p) => {
+        portsMap[p.addr] = { enabled: p.enabled !== false, port: p.port || '' };
+      });
+      await api('/configs/multiport', 'PUT', {
+        token,
+        multi_port_enabled: mpEnabled,
+        ports: portsMap,
+      });
+    } catch { /* silent */ }
+  }, []);
+
   useEffect(() => {
-    if (!multiPort || !selToken) return;
-    const addrs = tokenAddresses(selToken, tokens, true).map((a, i) => {
-      // Try to load saved port from the token guide for this address
-      const allTokens = [selToken, ...tokens.filter((t) => t.id !== selToken.id)];
-      const matchingToken = allTokens.find((t) =>
-        t.custom_domain === a.addr ||
-        (t.subdomain && `${t.subdomain}.iraglobaltech.com` === a.addr) ||
-        (t.domains || []).includes(a.addr)
-      );
-      let port = '';
-      if (matchingToken) {
-        const saved = localStorage.getItem(`token-port-${matchingToken.id}`);
-        if (saved) port = saved;
-      }
-      return { ...a, port };
-    });
-    setMultiPorts(addrs);
-  }, [multiPort, tokenSel, selToken, tokens]);
+    if (!selToken) return;
+    (async () => {
+      const saved = await loadMultiPortConfig(tokenSel);
+      setMultiPort(saved.multi_port_enabled !== false);
+      const addrs = tokenAddresses(selToken, tokens, true).map((a, i) => {
+        const savedEntry = saved.ports?.[a.addr] || {};
+        return { ...a, port: savedEntry.port || '', enabled: savedEntry.enabled !== false };
+      });
+      setMultiPorts(addrs);
+    })();
+  }, [tokenSel, selToken, tokens, loadMultiPortConfig]);
 
   const portList = multiPort ? multiPorts.filter((m) => m.enabled !== false && m.port.trim()).map((m) => m.port.trim()) : null;
   const sshPort = info?.ssh_port || 2222;
@@ -301,7 +318,7 @@ export default function ConfigureTunnel() {
           </div>
           <div className="form-row">
             <label className="checkbox-label" style={{ flex: '0 0 auto' }}>
-              <input type="checkbox" checked={multiPort} onChange={(e) => setMultiPort(e.target.checked)} />
+              <input type="checkbox" checked={multiPort} onChange={(e) => { setMultiPort(e.target.checked); saveMultiPortConfig(tokenSel, e.target.checked, multiPorts); }} />
               Multi-port <span className="badge" style={{ marginLeft: '.2rem' }}>Pro</span> — each address → its own local port, one command
             </label>
           </div>
@@ -324,6 +341,7 @@ export default function ConfigureTunnel() {
                       const next = [...multiPorts];
                       next[i] = { ...m, enabled: !enabled };
                       setMultiPorts(next);
+                      saveMultiPortConfig(tokenSel, multiPort, next);
                     }}
                     style={{
                       flex: '0 0 auto',
@@ -366,6 +384,7 @@ export default function ConfigureTunnel() {
                       const next = [...multiPorts];
                       next[i] = { ...m, port: e.target.value };
                       setMultiPorts(next);
+                      saveMultiPortConfig(tokenSel, multiPort, next);
                     }}
                   />
                 </div>

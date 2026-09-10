@@ -325,7 +325,6 @@ export default function ManageTokens() {
                       <td><span className={`badge ${t.active_tunnels > 0 ? 'badge-green' : ''}`}>{t.active_tunnels || 0}</span></td>
                       <td>{t.created_at ? t.created_at.substring(0, 10) : '—'}</td>
                       <td onClick={(e) => e.stopPropagation()}>
-                        <button className="btn btn-sm btn-ghost" title="Edit" onClick={() => openEdit(t)}>✏️</button>{' '}
                         <button className="btn btn-sm btn-ghost" title="Regenerate" onClick={() => setRegenOpen(t)}>🔄</button>{' '}
                         {canDelete && (
                           <button className="btn btn-sm btn-danger" title="Delete token" aria-label={`Delete ${t.name || 'token'}`} onClick={() => setDelOpen(t)}>🗑️</button>
@@ -446,57 +445,6 @@ export default function ManageTokens() {
           <p className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>
             A subdomain is optional. Select a domain by itself, add a subdomain before it, or leave Domain empty to use iraglobaltech.com.
           </p>
-        </Modal>
-      )}
-
-      {/* Edit modal */}
-      {editOpen && (
-        <Modal title="Edit Token" confirmLabel="Save" onConfirm={saveEdit} onClose={() => setEditOpen(null)}>
-          <div className="form-group">
-            <label>Token name</label>
-            <input type="text" value={editState.name} onChange={(e) => setEditState({ ...editState, name: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label>Custom domain (leave empty for none)</label>
-            <input type="text" value={editState.domain} onChange={(e) => setEditState({ ...editState, domain: e.target.value })} placeholder="e.g. serverira.com" />
-          </div>
-          <div className="form-group">
-            <label>Fixed subdomain — your permanent URL (empty = random each connect)</label>
-            <input type="text" value={editState.fixedSub} onChange={(e) => setEditState({ ...editState, fixedSub: e.target.value })} placeholder="myapi" />
-          </div>
-          <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '.6rem' }}>
-            <div className="form-group">
-              <label>Tunnel type</label>
-              <select value={editState.tunnelMode} onChange={(e) => setEditState({ ...editState, tunnelMode: e.target.value })}>
-                <option value="http">HTTP</option>
-                <option value="tcp">TCP (Pro)</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Persistent TCP port (Pro — the public port stays yours)</label>
-              <input type="number" min="1024" max="65535" value={editState.tcpPort} onChange={(e) => setEditState({ ...editState, tcpPort: e.target.value })} placeholder="e.g. 15000" />
-            </div>
-          </div>
-          <div style={{ borderTop: '1px solid var(--border)', margin: '.75rem 0', paddingTop: '.75rem' }}>
-            <strong style={{ fontSize: '.85rem' }}>🔒 Security</strong>
-            <div className="form-group" style={{ marginTop: '.5rem' }}>
-              <label>Basic auth — username:password (empty = off)</label>
-              <input type="text" value={editState.basicUser} onChange={(e) => setEditState({ ...editState, basicUser: e.target.value })} placeholder="admin" style={{ marginBottom: '.3rem' }} />
-              <input type="password" value={editState.basicPass} onChange={(e) => setEditState({ ...editState, basicPass: e.target.value })} placeholder={editState.basicUser ? '(unchanged — type to change)' : 'password'} />
-            </div>
-            <div className="form-group">
-              <label>IP whitelist (comma-separated IPs/CIDRs, empty = allow all)</label>
-              <input type="text" value={editState.ipWhitelist} onChange={(e) => setEditState({ ...editState, ipWhitelist: e.target.value })} placeholder="203.0.113.5, 10.0.0.0/8" />
-            </div>
-            <div className="form-group">
-              <label>API key required on requests (empty = off, "auto" = generate)</label>
-              <input type="text" value={editState.bearerKey} onChange={(e) => setEditState({ ...editState, bearerKey: e.target.value })} placeholder={editOpen.security?.bearer_key ? '(key set — hidden)' : 'auto'} />
-            </div>
-            <label className="checkbox-label">
-              <input type="checkbox" checked={editState.httpsOnly} onChange={(e) => setEditState({ ...editState, httpsOnly: e.target.checked })} />
-              HTTPS only (reject plain HTTP requests)
-            </label>
-          </div>
         </Modal>
       )}
 

@@ -46,6 +46,14 @@ export default function ActiveTunnels() {
     } catch (e) { toast(e.message, 'error'); }
   };
 
+  const stopTunnel = async (subdomain) => {
+    try {
+      await api(`/tunnels/${subdomain}/stop`, 'POST');
+      toast(`Tunnel ${subdomain} stopped`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
+  };
+
   const kbpsOf = (t) => {
     const id = t.tunnel_id || t.subdomain;
     const cur = rateRef.current[id];
@@ -77,7 +85,7 @@ export default function ActiveTunnels() {
                 <tr>
                   <th>#</th><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th>
                   <th>↓ Received</th><th>↑ Sent</th><th>Transfer Rate</th>
-                  <th>Status</th><th>Created</th><th>Inspector</th>
+                  <th>Status</th><th>Created</th><th>Inspector</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -101,6 +109,7 @@ export default function ActiveTunnels() {
                     <td><span className="badge badge-green">{t.status}</span></td>
                     <td>{(t.created_at || '').replace('T', ' ').substring(0, 19)}</td>
                     <td><button className="btn btn-sm btn-ghost" onClick={() => openDebug(t.subdomain)} title="Inspect captured requests">🔍 Debug</button></td>
+                    <td><button className="btn btn-sm btn-danger" onClick={() => { if (window.confirm(`Stop tunnel ${t.subdomain}?`)) stopTunnel(t.subdomain); }}>Stop</button></td>
                   </tr>
                 ))}
               </tbody>

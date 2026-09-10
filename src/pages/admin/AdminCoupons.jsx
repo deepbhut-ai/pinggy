@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
+import { SearchBar, Pagination } from '../../components/TableControls';
 
 // Admin: Coupons — promo codes.
 // APIs: GET /settings/coupons, POST /settings/coupons,
@@ -12,6 +13,9 @@ export default function AdminCoupons() {
   const [coupons, setCoupons] = useState([]);
   const [confirm, setConfirm] = useState(null);
   const [form, setForm] = useState({ code: '', percent_off: 10, max_redemptions: 0, expires_at: '' });
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const load = useCallback(async () => {
     try {
@@ -83,12 +87,23 @@ export default function AdminCoupons() {
       </div>
 
       <div className="card">
-        <div className="card-header"><h2>Coupons ({coupons.length})</h2></div>
+        <div className="card-header">
+          <h2>Coupons ({coupons.length})</h2>
+          <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search code…" />
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
+          {(() => {
+            const q = search.trim().toLowerCase();
+            const filtered = q ? coupons.filter((c) => (c.code || '').toLowerCase().includes(q)) : coupons;
+            const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+            const safePage = Math.min(page, totalPages);
+            const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+            return (
+            <>
           <table>
             <thead><tr><th>Code</th><th>Discount</th><th>Max uses</th><th>Redeemed</th><th>Status</th><th>Expires</th><th></th></tr></thead>
             <tbody>
-              {coupons.map((c) => (
+              {paged.map((c) => (
                 <tr key={c.id}>
                   <td className="code">{c.code}</td>
                   <td>{c.percent_off}%</td>
@@ -104,9 +119,13 @@ export default function AdminCoupons() {
                   </td>
                 </tr>
               ))}
-              {!coupons.length && <tr><td colSpan="7" className="empty">No coupons yet.</td></tr>}
+              {!paged.length && <tr><td colSpan="7" className="empty">No coupons found.</td></tr>}
             </tbody>
           </table>
+          <Pagination page={safePage} totalPages={totalPages} setPage={setPage} total={filtered.length} pageSize={pageSize} />
+            </>
+            );
+          })()}
         </div>
       </div>
 

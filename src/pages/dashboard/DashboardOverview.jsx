@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../components/Toast';
 import { copyToClipboard, formatBytes } from '../../utils';
 
 // Dashboard overview — the "home" page of the dashboard.
@@ -8,6 +9,7 @@ import { copyToClipboard, formatBytes } from '../../utils';
 // (Tunnel setup steps live on the Quickstart page.)
 export default function DashboardOverview() {
   const { user } = useAuth();
+  const toast = useToast();
   const [info, setInfo] = useState(null);
   const [tunnels, setTunnels] = useState([]);
   const [tokens, setTokens] = useState([]);
@@ -66,6 +68,14 @@ export default function DashboardOverview() {
     const dt = Date.now() - cur.prev.lastTime;
     if (dt <= 0) return '—';
     return (((t.bytes_transferred - cur.prev.lastBytes) / 1024) / (dt / 1000)).toFixed(2);
+  };
+
+  const stopTunnel = async (subdomain) => {
+    try {
+      await api(`/tunnels/${subdomain}/stop`, 'POST');
+      toast(`Tunnel ${subdomain} stopped`);
+      load();
+    } catch (e) { toast(e.message, 'error'); }
   };
 
   return (
@@ -248,7 +258,7 @@ export default function DashboardOverview() {
           ) : (
             <table>
               <thead>
-                <tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Transfer Rate</th><th>Status</th><th>Created</th></tr>
+                <tr><th>Tunnel URL</th><th>Subdomain</th><th>Requests</th><th>Data</th><th>Transfer Rate</th><th>Status</th><th>Created</th><th></th></tr>
               </thead>
               <tbody>
                 {tunnels.map((t) => (
@@ -268,6 +278,7 @@ export default function DashboardOverview() {
                     <td>{kbpsOf(t)} KB/s</td>
                     <td><span className="badge badge-green">{t.status}</span></td>
                     <td>{(t.created_at || '').replace('T', ' ').substring(0, 19)}</td>
+                    <td><button className="btn btn-sm btn-danger" onClick={() => { if (window.confirm(`Stop tunnel ${t.subdomain}?`)) stopTunnel(t.subdomain); }}>Stop</button></td>
                   </tr>
                 ))}
               </tbody>

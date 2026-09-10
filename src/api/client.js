@@ -4,9 +4,13 @@
 const API_BASE = '/api/v1';
 const TOKEN_KEY = 'pinggy_token';
 
-export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const getToken = () => sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
 export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
-export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+export const clearToken = () => {
+  sessionStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem('pinggy_impersonate');
+};
 
 export class ApiError extends Error {
   constructor(message, status) {

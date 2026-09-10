@@ -21,6 +21,61 @@ class ConfigIn(BaseModel):
     config: dict
 
 
+# ================================================================
+# Multi-port tunnel configuration — persist toggle + port per address
+# MUST be before /{config_id} routes to avoid path-param conflict
+# ================================================================
+
+class MultiPortConfig(BaseModel):
+    token: str
+    multi_port_enabled: bool = True
+    ports: dict = Field(default_factory=dict)  # {"address.com": {"enabled": true, "port": "3000"}}
+
+
+@router.put("/multiport")
+async def save_multiport_config(
+    body: MultiPortConfig,
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Save multi-port toggle + per-address port settings for a token."""
+    import json as _json
+    cur = await db.execute(
+        """INSERT INTO tunnel_configs (user_email, name, config)
+           VALUES (%s, %s, %s)
+           ON CONFLICT (user_email, name) DO UPDATE
+           SET config = EXCLUDED.config
+           RETURNING id""",
+        (user["email"], f"multiport:{body.token}", _json.dumps({
+            "multi_port_enabled": body.multi_port_enabled,
+            "ports": body.ports,
+        })),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    return {"saved": True, "id": str(row[0])}
+
+
+@router.get("/multiport/{token}")
+async def get_multiport_config(
+    token: str,
+    user: dict = Depends(get_current_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Load saved multi-port config for a token. Returns empty if not saved yet."""
+    import json as _json
+    cur = await db.execute(
+        "SELECT config FROM tunnel_configs WHERE user_email = %s AND name = %s",
+        (user["email"], f"multiport:{token}"),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    if not row:
+        return {"multi_port_enabled": True, "ports": {}}
+    cfg = _json.loads(row[0]) if isinstance(row[0], str) else row[0]
+    return cfg
+
+
 @router.get("", response_model=list[ConfigOut])
 async def list_configs(
     user: dict = Depends(get_current_user),

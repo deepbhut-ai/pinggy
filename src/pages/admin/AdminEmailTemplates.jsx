@@ -584,7 +584,7 @@ export default function AdminEmailTemplates() {
       {/* ---- Edit modal ---- */}
       {editing && (
         <div className="modal-overlay" onClick={() => setEditing(null)}>
-          <div className="modal-box" style={{ maxWidth: '700px' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth: '900px' }} onClick={e => e.stopPropagation()}>
             <h3 className="modal-title">Edit Template — {editing}</h3>
             {(() => {
               const t = templates.find(t => t.key === editing);
@@ -661,7 +661,7 @@ export default function AdminEmailTemplates() {
       {/* ---- Create template modal ---- */}
       {creating && (
         <div className="modal-overlay" onClick={() => setCreating(false)}>
-          <div className="modal-box" style={{ maxWidth: '700px' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth: '900px' }} onClick={e => e.stopPropagation()}>
             <h3 className="modal-title">New Custom Template</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
               <div className="form-group">
@@ -704,6 +704,29 @@ export default function AdminEmailTemplates() {
             <div className="form-group">
               <label>Placeholders (comma-separated)</label>
               <input type="text" placeholder="name, email, token" value={newForm.placeholders} onChange={e => setNewForm({ ...newForm, placeholders: e.target.value })} />
+              <div style={{ marginTop: '.5rem', padding: '.6rem .8rem', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '.82rem' }}>
+                <strong style={{ color: 'var(--text-dim)' }}>All available placeholders:</strong>
+                <div style={{ marginTop: '.4rem', display: 'flex', flexWrap: 'wrap', gap: '.3rem' }}>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{name}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'name' }))}>{`{name}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{email}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'email' }))}>{`{email}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{code}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'code' }))}>{`{code}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{token}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'token' }))}>{`{token}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{minutes}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'minutes' }))}>{`{minutes}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{base_url}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'base_url' }))}>{`{base_url}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{subdomain}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'subdomain' }))}>{`{subdomain}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{ssh_port}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'ssh_port' }))}>{`{ssh_port}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{ssh_host}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'ssh_host' }))}>{`{ssh_host}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{key_name}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'key_name' }))}>{`{key_name}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{key_prefix}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'key_prefix' }))}>{`{key_prefix}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{ticket_id}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'ticket_id' }))}>{`{ticket_id}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{message}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'message' }))}>{`{message}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{requests}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'requests' }))}>{`{requests}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{data_gb}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'data_gb' }))}>{`{data_gb}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{tunnels}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'tunnels' }))}>{`{tunnels}`}</span>
+                  <span className="badge badge-blue" style={{ fontSize: '.72rem', cursor: 'pointer' }} onClick={() => setNewForm(f => ({ ...f, body: f.body + '{tokens}', placeholders: (f.placeholders ? f.placeholders + ', ' : '') + 'tokens' }))}>{`{tokens}`}</span>
+                </div>
+                <div style={{ marginTop: '.4rem', color: 'var(--text-dim)', fontSize: '.75rem' }}>Click any placeholder to insert it into the body and add it to the list.</div>
+              </div>
             </div>
             <div className="modal-actions">
               <button className="btn btn-ghost btn-sm" onClick={() => setCreating(false)}>Cancel</button>

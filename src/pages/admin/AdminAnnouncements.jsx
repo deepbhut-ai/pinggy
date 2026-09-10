@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
-import { Pagination } from '../../components/TableControls';
+import { Pagination, SearchBar } from '../../components/TableControls';
 import { formatBytes } from '../../utils';
 
 // Admin: Announcements — site-wide banners + email campaigns + email logs.
@@ -19,6 +19,9 @@ export default function AdminAnnouncements() {
   const [campaign, setCampaign] = useState(null); // { subject, body, audience }
   const [form, setForm] = useState({ title: '', body: '', level: 'info' });
   const [logPage, setLogPage] = useState(1);
+  const [annSearch, setAnnSearch] = useState('');
+  const [annPage, setAnnPage] = useState(1);
+  const annPageSize = 10;
 
   const load = useCallback(async () => {
     try {
@@ -125,12 +128,23 @@ export default function AdminAnnouncements() {
       </div>
 
       <div className="card">
-        <div className="card-header"><h2>Announcements ({anns.length})</h2></div>
+        <div className="card-header">
+          <h2>Announcements ({anns.length})</h2>
+          <SearchBar value={annSearch} onChange={(v) => { setAnnSearch(v); setAnnPage(1); }} placeholder="Search title, body…" />
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
+          {(() => {
+            const q = annSearch.trim().toLowerCase();
+            const filtered = q ? anns.filter((a) => (a.title || '').toLowerCase().includes(q) || (a.body || '').toLowerCase().includes(q)) : anns;
+            const totalPages = Math.max(1, Math.ceil(filtered.length / annPageSize));
+            const safePage = Math.min(annPage, totalPages);
+            const paged = filtered.slice((safePage - 1) * annPageSize, safePage * annPageSize);
+            return (
+          <>
           <table>
             <thead><tr><th>Title</th><th>Level</th><th>Body</th><th>Status</th><th>Created</th><th></th></tr></thead>
             <tbody>
-              {anns.map((a) => (
+              {paged.map((a) => (
                 <tr key={a.id}>
                   <td style={{ fontWeight: 600 }}>{a.title}</td>
                   <td><span className="badge">{a.level}</span></td>
@@ -143,9 +157,13 @@ export default function AdminAnnouncements() {
                   </td>
                 </tr>
               ))}
-              {!anns.length && <tr><td colSpan="6" className="empty">No announcements.</td></tr>}
+              {!paged.length && <tr><td colSpan="6" className="empty">No announcements found.</td></tr>}
             </tbody>
           </table>
+          <Pagination page={safePage} totalPages={totalPages} setPage={setAnnPage} total={filtered.length} pageSize={annPageSize} />
+          </>
+            );
+          })()}
         </div>
       </div>
 

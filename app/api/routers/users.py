@@ -9,8 +9,8 @@ from psycopg import AsyncConnection
 from app.core.audit import log_audit
 from app.core.db import get_db
 from app.core.deps import get_admin_user, get_api_user
-from app.core.security import hash_password
-from app.schemas.auth import UserOut
+from app.core.security import hash_password, create_access_token
+from app.schemas.auth import UserOut, Token
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -440,3 +440,38 @@ async def get_user_tunnels(
         }
         for r in rows
     ]
+
+
+@router.post("/{user_id}/login-as")
+async def login_as_user(
+    user_id: str,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Admin impersonation — generate a JWT for the target user so the admin
+    can see the dashboard exactly as that user sees it. Logged for audit."""
+    cur = await db.execute(
+        "SELECT id, email, full_name, role, tunnel_token, is_active, "
+        "custom_domain, plan, seats, plan_expires_at "
+        "FROM users WHERE id = %s",
+        (user_id,),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if not row[5]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "User account is disabled")
+
+    user = UserOut(
+        id=str(row[0]), email=row[1], full_name=row[2], role=row[3],
+        tunnel_token=row[4], is_active=row[5], custom_domain=row[6],
+        plan=row[7] or "free", seats=int(row[8] or 1),
+        plan_expires_at=row[9].isoformat() if row[9] else None,
+    )
+    token = create_access_token(
+        subject=user.id,
+        extra={"email": user.email, "role": user.role, "impersonated_by": admin["email"]},
+    )
+    await log_audit(db, admin["email"], "user.login_as", user.email, f"admin impersonated user")
+    return Token(access_token=token, user=user, tunnel_token=row[4])

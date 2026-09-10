@@ -16,6 +16,8 @@ export default function AdminUsers() {
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState(null);      // selected user (view)
   const [editModal, setEditModal] = useState(null); // { user, form }
+  const [detailSearch, setDetailSearch] = useState('');
+  const [detailTunPage, setDetailTunPage] = useState(1);
   const [confirm, setConfirm] = useState(null);     // { title, body, action }
 
   const load = useCallback(async () => {
@@ -122,6 +124,22 @@ export default function AdminUsers() {
     } catch (e) { toast(e.message, 'error'); }
   };
 
+  const loginAs = async (u) => {
+    try {
+      const r = await api(`/users/${u.id}/login-as`, 'POST');
+      // Open new window with the token stored, logging in as that user
+      const w = window.open('/login', '_blank');
+      if (w) {
+        w.sessionStorage.setItem('pinggy_token', r.access_token);
+        w.sessionStorage.setItem('pinggy_impersonate', '1');
+        w.location.href = '/dashboard';
+        toast(`Opened dashboard as ${u.email}`);
+      } else {
+        toast('Popup blocked — allow popups for this site', 'error');
+      }
+    } catch (e) { toast(e.message, 'error'); }
+  };
+
   // ---- Detail view ----
   if (detail) {
     const u = users.find((x) => x.id === detail) || detail;
@@ -139,10 +157,39 @@ export default function AdminUsers() {
 
         <div className="stat-grid">
           <div className="stat-card"><div className="label">Total Tunnels</div><div className="value">{st.total}</div></div>
-          <div className="stat-card"><div className="label">Active Now</div><div className="value">{st.active}</div></div>
+          <div className="stat-card"><div className="label">Active Now</div><div className="value" style={{ color: st.active > 0 ? 'var(--green)' : 'var(--text-dim)' }}>{st.active}</div></div>
           <div className="stat-card"><div className="label">Total Requests</div><div className="value">{st.requests.toLocaleString()}</div></div>
           <div className="stat-card"><div className="label">Total Data</div><div className="value">{formatBytes(st.data)}</div></div>
         </div>
+
+        {/* Active tunnels — shown only when there are connected tunnels */}
+        {myTunnels.filter((t) => t.status === 'connected').length > 0 && (
+          <div className="card" style={{ borderColor: 'rgba(41,169,127,.3)' }}>
+            <div className="card-header">
+              <h2>🟢 Active Tunnels ({myTunnels.filter((t) => t.status === 'connected').length})</h2>
+            </div>
+            <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
+              <table>
+                <thead><tr><th>Subdomain</th><th>URL</th><th>Port</th><th>Requests</th><th>Data</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  {myTunnels.filter((t) => t.status === 'connected').map((t, i) => (
+                    <tr key={i} style={{ background: 'rgba(41,169,127,.05)' }}>
+                      <td className="code">{t.subdomain}</td>
+                      <td><a href={`https://${t.subdomain}.iraglobaltech.com`} target="_blank" rel="noreferrer" className="code">https://{t.subdomain}.iraglobaltech.com</a></td>
+                      <td>{t.remote_port}</td>
+                      <td>{t.request_count}</td>
+                      <td>{formatBytes(t.bytes_transferred)}</td>
+                      <td><span className="badge badge-green">Connected</span></td>
+                      <td>
+                        <button className="btn btn-sm btn-danger" onClick={() => userAction(`Stop tunnel ${t.subdomain}`, () => stopTunnel(t.subdomain))}>Stop</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         <div className="card">
           <div className="card-header"><h2>👤 Account</h2></div>
@@ -194,14 +241,25 @@ export default function AdminUsers() {
         </div>
 
         <div className="card">
-          <div className="card-header"><h2>🔗 Their tunnels ({myTunnels.length})</h2></div>
+          <div className="card-header">
+            <h2>🔗 Their tunnels ({myTunnels.length})</h2>
+            <SearchBar value={detailSearch} onChange={setDetailSearch} placeholder="Search subdomain, status…" />
+          </div>
           <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
+            {(() => {
+              const dq = detailSearch.trim().toLowerCase();
+              const dFiltered = dq ? myTunnels.filter((t) => (t.subdomain || '').toLowerCase().includes(dq) || (t.status || '').toLowerCase().includes(dq)) : myTunnels;
+              const dTotalPages = Math.max(1, Math.ceil(dFiltered.length / 10));
+              const dSafePage = Math.min(detailTunPage, dTotalPages);
+              const dPaged = dFiltered.slice((dSafePage - 1) * 10, dSafePage * 10);
+              return (
+            <>
             <table>
               <thead><tr><th>#</th><th>Subdomain</th><th>Port</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th><th></th></tr></thead>
               <tbody>
-                {myTunnels.map((t, i) => (
+                {dPaged.map((t, i) => (
                   <tr key={i}>
-                    <td>{i + 1}</td>
+                    <td>{(dSafePage - 1) * 10 + i + 1}</td>
                     <td className="code">{t.subdomain}</td>
                     <td>{t.remote_port}</td>
                     <td>{t.request_count}</td>
@@ -215,9 +273,13 @@ export default function AdminUsers() {
                     </td>
                   </tr>
                 ))}
-                {!myTunnels.length && <tr><td colSpan="8" className="empty">No tunnels.</td></tr>}
+                {!dPaged.length && <tr><td colSpan="8" className="empty">No tunnels found.</td></tr>}
               </tbody>
             </table>
+            <Pagination page={dSafePage} totalPages={dTotalPages} setPage={setDetailTunPage} total={dFiltered.length} pageSize={10} />
+            </>
+              );
+            })()}
           </div>
         </div>
 
@@ -282,6 +344,7 @@ export default function AdminUsers() {
                     <td>{formatBytes(st.data)}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <button className="icon-btn" title="Edit" onClick={() => setEditModal({ user: u, form: {} })}>✏️</button>{' '}
+                      <button className="icon-btn" title="Login as user" onClick={() => loginAs(u)}>👁️</button>{' '}
                       {u.is_active
                         ? <button className="icon-btn" title="Disable" onClick={() => userAction(`Disable ${u.email}?`, () => setActive(u, false))}>🚫</button>
                         : <button className="icon-btn" title="Enable" onClick={() => setActive(u, true)}>✅</button>}{' '}
