@@ -50,9 +50,15 @@ async def lifespan(app: FastAPI):
     digest_task = start_digest_task()
     print(f"[{settings.APP_NAME}] Weekly digest scheduler started")
 
+    # Automatic SSL certificate renewal scheduler (Doc/ssl.md)
+    from app.core.ssl_manager import start_ssl_renewal_task
+    ssl_renewal_task = start_ssl_renewal_task()
+    print(f"[{settings.APP_NAME}] SSL auto-renewal scheduler started (every 12h)")
+
     yield
 
     # Shutdown
+    ssl_renewal_task.cancel()
     digest_task.cancel()
     ssh_server.close()
     await ssh_server.wait_closed()

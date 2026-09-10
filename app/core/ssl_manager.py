@@ -394,3 +394,67 @@ async def get_ssl_status(domain: str) -> dict[str, Any]:
         "status": "active" if (has_cert and has_nginx) else "inactive",
         "expires_at": expiry_str,
     }
+
+
+async def run_certbot_renewal() -> dict[str, Any]:
+    """Execute a Let's Encrypt certificate renewal check for all domains on the server.
+
+    Certbot automatically checks all certificates:
+    - If certificate expiration is > 30 days away, it skips without changes.
+    - If certificate is within 30 days of expiry, it renews and triggers the post-hook.
+    """
+    if not _is_production_environment():
+        logger.debug("Non-production environment: skipping certbot renewal pass.")
+        return {"status": "skipped", "message": "Non-production environment"}
+
+    logger.info("Running automatic SSL certificate renewal check...")
+    cmd = [
+        "certbot",
+        "renew",
+        "--quiet",
+        "--webroot",
+        "-w",
+        str(settings.SSL_WEBROOT_PATH),
+        "--post-hook",
+        "nginx -t && (nginx -s reload || systemctl reload nginx)",
+    ]
+    code, stdout, stderr = await _run_command(cmd)
+    if code == 0:
+        logger.info("SSL certificate renewal check completed successfully.")
+        return {"status": "ok", "message": "SSL certificate renewal check completed."}
+    else:
+        logger.warning("SSL renewal check returned exit code %d: %s %s", code, stdout, stderr)
+        return {"status": "error", "message": stderr or stdout}
+
+
+async def ssl_renewal_scheduler(check_interval_seconds: int = 43200) -> None:
+    """Continuous background worker that periodically checks and renews SSL certificates.
+
+    Default check interval: 43200 seconds (every 12 hours), the official Let's Encrypt recommended interval.
+    """
+    # Wait 60s on boot before the first check
+    try:
+        await asyncio.sleep(60)
+    except asyncio.CancelledError:
+        return
+
+    while True:
+        try:
+            await run_certbot_renewal()
+        except asyncio.CancelledError:
+            logger.info("SSL renewal scheduler received cancellation signal — stopping.")
+            break
+        except Exception as e:
+            logger.error("Error during scheduled SSL renewal check: %s", e)
+
+        try:
+            await asyncio.sleep(check_interval_seconds)
+        except asyncio.CancelledError:
+            logger.info("SSL renewal scheduler cancelled during sleep.")
+            break
+
+
+def start_ssl_renewal_task() -> asyncio.Task:
+    """Start the periodic SSL renewal background task."""
+    return asyncio.create_task(ssl_renewal_scheduler())
+

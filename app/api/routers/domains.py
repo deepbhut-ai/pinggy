@@ -15,6 +15,7 @@ from app.core.ssl_manager import (
     deprovision_ssl_for_domain,
     get_ssl_status,
     provision_ssl_for_domain,
+    run_certbot_renewal,
     verify_domain_dns,
 )
 
@@ -68,6 +69,15 @@ async def provision_domain_ssl(
             detail=res.get("message", "SSL provisioning failed"),
         )
     return res
+
+
+@router.post("/renew-all-ssl")
+async def trigger_ssl_renew_all(
+    user: dict = Depends(get_api_user),
+) -> dict[str, Any]:
+    """Trigger an immediate SSL certificate renewal pass for all certificates."""
+    return await run_certbot_renewal()
+
 
 
 @router.post("/verify-and-save")
