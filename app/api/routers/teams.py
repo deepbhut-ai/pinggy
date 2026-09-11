@@ -34,12 +34,45 @@ def _team_out(r) -> dict:
             "created_at": r[3].isoformat() if r[3] else None}
 
 
+async def _get_owner_seat_stats(db: AsyncConnection, owner_email: str) -> dict:
+    """Calculate seat quota and usage across all teams owned by this user."""
+    cur = await db.execute("SELECT seats, plan, plan_expires_at FROM users WHERE email = %s", (owner_email,))
+    urow = await cur.fetchone()
+    await cur.close()
+    total_seats = int(urow[0] or 1) if urow else 1
+    owner_plan = urow[1] if urow else "free"
+
+    # Count unique teammates occupying a seat across all teams owned by this owner
+    cur = await db.execute(
+        """
+        SELECT COUNT(DISTINCT tm.user_email)
+        FROM team_members tm
+        JOIN teams t ON t.id = tm.team_id
+        WHERE t.owner_email = %s 
+          AND tm.has_seat = TRUE 
+          AND tm.user_email != %s
+        """,
+        (owner_email, owner_email),
+    )
+    allocated = (await cur.fetchone())[0]
+    await cur.close()
+
+    # Owner uses 1 seat; remaining are available for team allocation
+    available = max(0, total_seats - 1 - allocated)
+    return {
+        "total": total_seats,
+        "allocated": allocated,
+        "available": available,
+        "owner_plan": owner_plan,
+    }
+
+
 @router.get("")
 async def my_teams(
     user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """Teams I own + teams I'm a member of (with member counts)."""
+    """Teams I own + teams I'm a member of (with member counts and seat metrics)."""
     cur = await db.execute(
         """
         SELECT DISTINCT t.id, t.name, t.owner_email, t.created_at
@@ -55,14 +88,29 @@ async def my_teams(
     for r in rows:
         team = _team_out(r)
         cur = await db.execute(
-            "SELECT user_email, role FROM team_members WHERE team_id = %s ORDER BY added_at",
+            """
+            SELECT user_email, role, COALESCE(has_seat, FALSE), seat_assigned_at 
+            FROM team_members 
+            WHERE team_id = %s 
+            ORDER BY added_at
+            """,
             (r[0],),
         )
-        members = [{"email": m[0], "role": m[1]} for m in await cur.fetchall()]
+        members = [
+            {
+                "email": m[0],
+                "role": m[1],
+                "has_seat": bool(m[2]),
+                "seat_assigned_at": m[3].isoformat() if m[3] else None,
+            }
+            for m in await cur.fetchall()
+        ]
         await cur.close()
         team["members"] = members
         team["i_own"] = r[2] == user["email"]
         team["my_role"] = await get_team_role(db, r[0], user["email"])
+        team["seats"] = await _get_owner_seat_stats(db, r[2])
+
         # v1.7.0: tokens assigned to this team (visible to ALL members)
         cur = await db.execute(
             "SELECT id, name, fixed_subdomain, user_email FROM tokens WHERE team_id = %s ORDER BY created_at",
@@ -218,6 +266,163 @@ async def remove_member(
     await cur.close()
     await log_audit(db, user["email"], "team.remove_member", email, "")
     return {"removed": email}
+
+
+class SeatActionIn(BaseModel):
+    email: str = Field(..., max_length=255)
+
+
+@router.get("/{team_id}/seats")
+async def get_team_seats(
+    team_id: str,
+    user: dict = Depends(get_api_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Retrieve seat allocation details and member seat status for a team."""
+    role = await get_team_role(db, team_id, user["email"])
+    if role is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Team not found")
+
+    cur = await db.execute("SELECT owner_email FROM teams WHERE id = %s", (team_id,))
+    t = await cur.fetchone()
+    await cur.close()
+    if not t:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Team not found")
+
+    owner_email = t[0]
+    seat_stats = await _get_owner_seat_stats(db, owner_email)
+
+    cur = await db.execute(
+        """
+        SELECT user_email, role, COALESCE(has_seat, FALSE), seat_assigned_at 
+        FROM team_members 
+        WHERE team_id = %s 
+        ORDER BY added_at
+        """,
+        (team_id,),
+    )
+    members = [
+        {
+            "email": m[0],
+            "role": m[1],
+            "has_seat": bool(m[2]),
+            "seat_assigned_at": m[3].isoformat() if m[3] else None,
+        }
+        for m in await cur.fetchall()
+    ]
+    await cur.close()
+
+    return {
+        "team_id": team_id,
+        "owner_email": owner_email,
+        "stats": seat_stats,
+        "members": members,
+    }
+
+
+@router.post("/{team_id}/seats/assign")
+async def assign_team_seat(
+    team_id: str,
+    body: SeatActionIn,
+    user: dict = Depends(get_api_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Assign 1 Pro subscription seat to an existing team member."""
+    caller_role = await get_team_role(db, team_id, user["email"])
+    if caller_role not in ("owner", "admin"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only team owners and admins can assign seats")
+
+    cur = await db.execute("SELECT owner_email FROM teams WHERE id = %s", (team_id,))
+    t = await cur.fetchone()
+    await cur.close()
+    if not t:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Team not found")
+
+    owner_email = t[0]
+    target_email = body.email.strip().lower()
+
+    if target_email == owner_email:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "The team owner already holds the primary account seat.")
+
+    # Verify target is a member of this team
+    cur = await db.execute(
+        "SELECT id, COALESCE(has_seat, FALSE) FROM team_members WHERE team_id = %s AND user_email = %s",
+        (team_id, target_email),
+    )
+    member_row = await cur.fetchone()
+    await cur.close()
+    if not member_row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{target_email} is not a member of this team.")
+
+    if member_row[1]:
+        return {"status": "ok", "email": target_email, "has_seat": True, "message": f"{target_email} already has an active Pro seat."}
+
+    # Check available seat quota from owner
+    stats = await _get_owner_seat_stats(db, owner_email)
+    if stats["available"] <= 0:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"All {stats['total']} seats are currently allocated ({stats['allocated']} assigned to teammates, 1 for owner). Purchase additional seats under Plan to assign more.",
+        )
+
+    # Assign seat
+    cur = await db.execute(
+        """
+        UPDATE team_members 
+        SET has_seat = TRUE, seat_assigned_at = now() 
+        WHERE team_id = %s AND user_email = %s 
+        RETURNING id
+        """,
+        (team_id, target_email),
+    )
+    await cur.fetchone()
+    await cur.close()
+
+    await log_audit(db, user["email"], "team.seat_assign", target_email, f"team_id={team_id}")
+    return {
+        "status": "ok",
+        "email": target_email,
+        "has_seat": True,
+        "message": f"⭐ Pro seat successfully assigned to {target_email}",
+    }
+
+
+@router.post("/{team_id}/seats/unassign")
+async def unassign_team_seat(
+    team_id: str,
+    body: SeatActionIn,
+    user: dict = Depends(get_api_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Revoke a Pro seat from a member and return it to the owner's pool."""
+    target_email = body.email.strip().lower()
+    caller_role = await get_team_role(db, team_id, user["email"])
+
+    # Owner, Admin, or the member themselves can unassign
+    if caller_role not in ("owner", "admin") and user["email"] != target_email:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Permission denied")
+
+    cur = await db.execute(
+        """
+        UPDATE team_members 
+        SET has_seat = FALSE, seat_assigned_at = NULL 
+        WHERE team_id = %s AND user_email = %s 
+        RETURNING id
+        """,
+        (team_id, target_email),
+    )
+    r = await cur.fetchone()
+    await cur.close()
+    if not r:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Member not found on this team.")
+
+    await log_audit(db, user["email"], "team.seat_unassign", target_email, f"team_id={team_id}")
+    return {
+        "status": "ok",
+        "email": target_email,
+        "has_seat": False,
+        "message": f"Pro seat unassigned for {target_email}. Seat returned to pool.",
+    }
 
 
 @router.get("/{team_id}/activity")

@@ -19,6 +19,34 @@ async def get_current_user_id(
     return str(user_id)
 
 
+async def _resolve_seat_plan(db: AsyncConnection, email: str, base_plan: str) -> tuple[str, str | None]:
+    """If user's own plan is 'free', check if they hold an active seat on a Pro team."""
+    if base_plan == "pro":
+        return "pro", None
+    try:
+        cur = await db.execute(
+            """
+            SELECT t.name, u.email 
+            FROM team_members tm
+            JOIN teams t ON t.id = tm.team_id
+            JOIN users u ON u.email = t.owner_email
+            WHERE tm.user_email = %s 
+              AND tm.has_seat = TRUE 
+              AND u.plan = 'pro'
+              AND (u.plan_expires_at IS NULL OR u.plan_expires_at > now())
+            LIMIT 1
+            """,
+            (email,),
+        )
+        row = await cur.fetchone()
+        await cur.close()
+        if row:
+            return "pro", f"{row[0]} ({row[1]})"
+    except Exception:
+        pass
+    return base_plan, None
+
+
 async def get_current_user(
     creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncConnection = Depends(get_db),
@@ -39,6 +67,8 @@ async def get_current_user(
     if not row[9]:
         # Account disabled by an admin — existing tokens stop working immediately
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
+    
+    plan, sponsored_by = await _resolve_seat_plan(db, row[1], row[6] or "free")
     return {
         "id": str(row[0]),
         "email": row[1],
@@ -46,10 +76,11 @@ async def get_current_user(
         "role": row[3],
         "tunnel_token": row[4],
         "custom_domain": row[5],
-        "plan": row[6] or "free",
+        "plan": plan,
         "seats": int(row[7] or 1),
         "plan_expires_at": row[8].isoformat() if row[8] else None,
         "is_active": row[9],
+        "sponsored_by": sponsored_by,
     }
 
 
@@ -104,11 +135,13 @@ async def get_api_user(
         await cur.close()
         if not row or not row[9]:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
+        plan, sponsored_by = await _resolve_seat_plan(db, row[1], row[6] or "free")
         return {
             "id": str(row[0]), "email": row[1], "full_name": row[2], "role": row[3],
-            "tunnel_token": row[4], "custom_domain": row[5], "plan": row[6] or "free",
+            "tunnel_token": row[4], "custom_domain": row[5], "plan": plan,
             "seats": int(row[7] or 1), "plan_expires_at": row[8].isoformat() if row[8] else None, "is_active": row[9],
             "api_key_id": api_key_id,
+            "sponsored_by": sponsored_by,
         }
     # No API key — fall back to JWT Bearer
     creds = bearer_scheme  # HTTPBearer dependency resolves via FastAPI; call directly:
@@ -134,10 +167,12 @@ async def get_api_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
     if not row[9]:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account disabled")
+    plan, sponsored_by = await _resolve_seat_plan(db, row[1], row[6] or "free")
     return {
         "id": str(row[0]), "email": row[1], "full_name": row[2], "role": row[3],
-        "tunnel_token": row[4], "custom_domain": row[5], "plan": row[6] or "free",
+        "tunnel_token": row[4], "custom_domain": row[5], "plan": plan,
         "seats": int(row[7] or 1), "plan_expires_at": row[8].isoformat() if row[8] else None, "is_active": row[9],
+        "sponsored_by": sponsored_by,
     }
 
 
