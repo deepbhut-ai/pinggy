@@ -1,5 +1,19 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.8.6 — 2026-09-14 — Enforce seat/domain limits on API key token creation (manage.py)
+
+### Added
+- `enforce_seat_domain_limit()` shared helper in `app/api/routers/tokens.py` — single source of truth for seat/domain enforcement, used by both dashboard (`tokens.py create_token`) and API key (`manage.py manage_create_token`) paths.
+- Domain validation (`_validate_custom_domain`, `_enforce_root_domain_ownership`, uniqueness check) now applied to API key token creation — was completely missing before.
+- Test evidence: `Doc/tests/v2.8.6/output.txt` — 5 tests all passed (subdomain unlimited, second root domain 402, subdomain under owned root unlimited, plain token unlimited, duplicate domain 409).
+
+### Changed
+- `app/api/routers/manage.py` `manage_create_token()`: now calls `enforce_seat_domain_limit()` + `_validate_custom_domain()` + `_enforce_root_domain_ownership()` + uniqueness check before inserting. Previously inserted tokens with zero validation — API key users could create unlimited root domain tokens bypassing seats.
+- `app/api/routers/tokens.py` `create_token()`: replaced inline seat-check logic (20 lines) with call to shared `enforce_seat_domain_limit()` helper.
+
+### Removed
+- Inline seat-check code in `tokens.py create_token()` (replaced by shared helper call — same behavior, less duplication).
+
 ## v2.8.5 — 2026-09-14 — API key security audit fixes (auth crash, plaintext storage, soft-delete, rate limiting)
 
 ### Added

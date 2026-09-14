@@ -188,6 +188,58 @@ async def _enforce_free_domain_limit(db: AsyncConnection, user_email: str, *, ca
     )
 
 
+async def enforce_seat_domain_limit(db: AsyncConnection, user: dict, custom_domain: str | None) -> None:
+    """Shared seat/domain enforcement — used by both dashboard (tokens.py) and API key (manage.py) paths.
+
+    Rules:
+    - No custom_domain (subdomain-only token) → unlimited, always allowed.
+    - custom_domain is a subdomain under an existing root domain the user owns → unlimited (free).
+    - custom_domain is a root domain → counts against the user's seat limit.
+      Free plan: max 1 root domain. Pro plan: max = seats purchased.
+    """
+    if not custom_domain or not custom_domain.strip():
+        return  # subdomain-only token — unlimited
+
+    from app.core.config import settings
+    cd = custom_domain.strip().lower()
+
+    # Subdomains under the tunnel domain (e.g. abc.iraglobaltech.com) don't count
+    if _is_subdomain_under(cd, settings.TUNNEL_DOMAIN):
+        return
+
+    # Subdomains under a root domain the user already owns don't count
+    if not _is_root_custom_domain(cd, settings.TUNNEL_DOMAIN):
+        # It's a subdomain — check if user owns the root
+        rd = _root_domain(cd)
+        if await _user_owns_root_domain(db, user["email"], cd, settings.TUNNEL_DOMAIN):
+            return  # subdomain under owned root — free
+        # Subdomain under a root the user doesn't own — will be caught by _enforce_root_domain_ownership
+        return
+
+    # It's a root custom domain — count against seats
+    max_tokens = int(user.get("seats") or 1)
+    cur = await db.execute(
+        "SELECT custom_domain FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL",
+        (user["email"],),
+    )
+    rows = await cur.fetchall()
+    await cur.close()
+    root_domains = {_root_domain(str(r[0])) for r in rows if _is_root_custom_domain(str(r[0]), settings.TUNNEL_DOMAIN)}
+    # Add the candidate domain to the set (it's a root domain — we checked above)
+    root_domains.add(_root_domain(cd))
+    if len(root_domains) > max_tokens:
+        if (user.get("plan") or "free") == "free":
+            raise HTTPException(
+                status.HTTP_402_PAYMENT_REQUIRED,
+                "Free plan allows only 1 custom domain. Upgrade to Pro for more.",
+            )
+        raise HTTPException(
+            status.HTTP_402_PAYMENT_REQUIRED,
+            f"You've reached your limit of {max_tokens} custom domains (seats). "
+            "Buy more seats under Plan → Upgrade to create additional domain tokens.",
+        )
+
+
 @router.get("", response_model=list[TokenOut])
 async def list_tokens(
     user: dict = Depends(get_api_user),
@@ -296,31 +348,8 @@ async def create_token(
     """Create a new token for the current user.
     Domain-token limit = seats (Free = 1, Pro = seats purchased).
     Subdomain-only tokens (no custom_domain) are unlimited for Pro users."""
-    has_domain = bool(body.custom_domain and body.custom_domain.strip())
-    if has_domain:
-        # Only root custom domains count against the seat limit (subdomains under another domain don't)
-        from app.core.config import settings
-        max_tokens = int(user.get("seats") or 1)
-        cur = await db.execute(
-            "SELECT custom_domain FROM tokens WHERE user_email = %s AND custom_domain IS NOT NULL",
-            (user["email"],),
-        )
-        rows = await cur.fetchall()
-        await cur.close()
-        root_domains = {_root_domain(str(r[0])) for r in rows if _is_root_custom_domain(str(r[0]), settings.TUNNEL_DOMAIN)}
-        if _is_root_custom_domain(body.custom_domain, settings.TUNNEL_DOMAIN):
-            root_domains.add(_root_domain(body.custom_domain))
-        if len(root_domains) > max_tokens:
-            if (user.get("plan") or "free") == "free":
-                raise HTTPException(
-                    status.HTTP_402_PAYMENT_REQUIRED,
-                    f"Free plan allows only 1 custom domain. Upgrade to Pro for more.",
-                )
-            raise HTTPException(
-                status.HTTP_402_PAYMENT_REQUIRED,
-                f"You've reached your limit of {max_tokens} custom domains (seats). "
-                "Buy more seats under Plan → Upgrade to create additional domain tokens.",
-            )
+    # v2.8.6: use shared seat/domain enforcement (same logic used by API key path in manage.py)
+    await enforce_seat_domain_limit(db, user, body.custom_domain)
 
     # Validate custom_domain uniqueness if provided
     custom_domain = None
