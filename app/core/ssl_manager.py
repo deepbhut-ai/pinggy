@@ -57,6 +57,12 @@ async def verify_domain_dns(domain: str) -> dict[str, Any]:
 
     points_to_us = target_ip in all_ips
 
+    # Detect extra A/AAAA records that point to OTHER servers — these cause
+    # Let's Encrypt HTTP-01 challenge failures because LE may hit a different
+    # IP that doesn't serve the ACME challenge file.
+    extra_ips = sorted({ip for ip in all_ips if ip != target_ip})
+    has_extra_ips = len(extra_ips) > 0
+
     # 2. HTTP health check test
     health_ok = False
     try:
@@ -75,12 +81,26 @@ async def verify_domain_dns(domain: str) -> dict[str, Any]:
     except Exception:
         pass
 
-    if health_ok:
+    if health_ok and not has_extra_ips:
         return {
             "dns_resolves": True,
             "pointed_ip": primary_ip,
             "status": "ok",
             "message": f"✅ {domain} is verified and reaching this server",
+        }
+
+    if points_to_us and has_extra_ips:
+        # Our IP is present but there are extra records → certbot will fail
+        ip_list = ", ".join(extra_ips)
+        return {
+            "dns_resolves": True,
+            "pointed_ip": primary_ip,
+            "status": "error",
+            "message": (
+                f"⚠️ {domain} has DNS records pointing to multiple IPs: {target_ip} (our server) "
+                f"AND {ip_list}. Let's Encrypt will fail if it hits the wrong IP. "
+                f"Remove all A/AAAA records for {domain} except the one pointing to {target_ip}."
+            ),
         }
 
     if points_to_us:

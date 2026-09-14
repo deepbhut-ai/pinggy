@@ -1,5 +1,18 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.8.1 — 2026-09-14 — Fix: Pro users blocked from domains + DNS multi-IP detection
+
+### Added
+- DNS multi-IP detection in `ssl_manager.py` `verify_domain_dns()`: when a domain resolves to our server IP AND extra IPs (other A/AAAA records), returns `status: error` with an actionable message telling the user to remove the extra records. This prevents the cryptic "Certbot SSL issuance failed: Some challenges have failed" error that users see when Let's Encrypt hits the wrong IP.
+- Test evidence: `Doc/tests/v2.8.1/output.txt` — verifies free user still gets 402, pro user passes plan check, zettalgor.com gets multi-IP warning, webifly.callingagents.in passes clean.
+
+### Changed
+- `app/api/routers/domains.py` line 116: added plan check `if (user.get("plan") or "free") != "pro":` before calling `_enforce_free_domain_limit` in `verify_and_save_domain()`. Previously the free-domain limit was enforced unconditionally for ALL users — Pro users with 20 seats got "Free plan allows only 1 custom domain" when adding a 2nd root domain via the Domains page.
+- `app/core/ssl_manager.py` `verify_domain_dns()`: now detects when a domain has A/AAAA records pointing to multiple servers (our IP + others). Returns error status with specific IP list and instructions to remove extra records, instead of returning "ok" and letting certbot fail with a cryptic message. Also deduplicates resolved IPs (getaddrinfo returns multiple entries per IP).
+
+### Removed
+- none
+
 ## v2.8.0 — 2026-09-14 — HTTPS/SSL for fleet subdomains + origin server 443
 
 ### Added

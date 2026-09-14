@@ -287,3 +287,14 @@
 - **Watch out:** psql pager wedges the VS Code terminal (alternate buffer) —
   use Python psycopg or redirect psql output to files. CF API POST 403s without
   a valid token — use the script or CF dashboard UI.
+
+## 2026-09-14 — v2.8.1 (Fix: Pro users blocked from adding domains on Domains page)
+- **Done:** v2.8.1 — Fixed bug where Pro users (support@iraglobaltech.com, plan=pro,
+  seats=20) got "Free plan allows only 1 custom domain" error on the Domains page.
+  Root cause: `domains.py` `verify_and_save_domain()` called `_enforce_free_domain_limit`
+  unconditionally without checking if user is Pro. The tokens router had the guard
+  at all 5 call sites; domains.py was missing it. Added `if (user.get("plan") or "free") != "pro":`
+  guard. Verified: free user still gets 402, pro user passes plan check. Service restarted.
+- **In progress:** nothing.
+- **Next:** await user. QA audit found no other missing plan guards.
+- **Watch out:** `domains.py` was the ONLY file missing the plan guard.

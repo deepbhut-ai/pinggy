@@ -113,7 +113,9 @@ async def verify_and_save_domain(
     if existing_extra:
         raise HTTPException(status.HTTP_409_CONFLICT, "Domain is already attached as a secondary domain.")
 
-    await _enforce_free_domain_limit(db, user["email"], candidate_domain=domain)
+    # Only enforce the 1-root-domain limit for Free users; Pro users (seats >= 2) can have multiple
+    if (user.get("plan") or "free") != "pro":
+        await _enforce_free_domain_limit(db, user["email"], candidate_domain=domain)
 
     # 2. Verify DNS
     dns_res = await verify_domain_dns(domain)
