@@ -564,8 +564,9 @@ function TokenGuide({ token: t, sshPort, onClose, toast }) {
           <div className="step-num">2</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '.875rem', fontWeight: 600, marginBottom: '.5rem' }}>Enter your local port</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', flexWrap: 'wrap' }}>
-              <input type="number" value={port} min="1" max="65535" onChange={(e) => savePort(parseInt(e.target.value) || 8080)} style={{ width: 100 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
+              <input type="number" value={port} min="1" max="65535" onChange={(e) => setPort(parseInt(e.target.value) || 8080)} style={{ width: 100 }} />
+              <button className="btn btn-sm" onClick={() => savePort(port)}>💾 Save</button>
               <span className="dim" style={{ fontSize: '.8rem' }}>The port your local service runs on (e.g. 8080, 3000, 8000). Saved for this token and reflected in Configure Tunnel.</span>
             </div>
           </div>
