@@ -1,5 +1,26 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.8.2 — 2026-09-14 — Persist local_port in DB (visible in Manage Tokens table)
+
+### Added
+- DB migration `0032_add_local_port_to_tokens.py` — adds `local_port INTEGER` column to `tokens` table (nullable).
+- `local_port` field in `TokenOut`, `TokenCreate`, and `TokenUpdate` Pydantic models (`app/api/routers/tokens.py`).
+- `local_port` in all token list SQL queries (own + shared team tokens) and create/update endpoints.
+- **Port column** in the Manage Tokens table — shows each token's local service port (between Subdomain and API Key columns).
+- Configure Tunnel page now reads the token's `local_port` from the DB (via API) instead of only from browser `localStorage`.
+- Token Guide now reads `local_port` from the token object (DB) and saves port changes via `PUT /tokens/{id}` API call (persists to DB).
+- Test evidence: `Doc/tests/v2.8.2/output.txt`.
+
+### Changed
+- `ManageTokens.jsx`: token creation now sends `local_port` in the POST payload (saved to DB) instead of only `localStorage`.
+- `ManageTokens.jsx` `TokenGuide`: `savePort()` now calls `api('/tokens/{id}', 'PUT', { local_port })` to persist to DB.
+- `ConfigureTunnel.jsx`: local address field uses `selToken.local_port` (from API) as primary source, localStorage as fallback.
+- `ConfigureTunnel.jsx`: multiport addresses use `selToken.local_port` as the default for the token's own address.
+- Backfilled all existing tokens: `apimarketing=8036`, `marketing=3002`, all others `8080`.
+
+### Removed
+- none (localStorage fallback kept for backward compatibility)
+
 ## v2.8.1 — 2026-09-14 — Fix: Pro users blocked from domains + DNS multi-IP detection
 
 ### Added

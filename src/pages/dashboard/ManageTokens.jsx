@@ -84,12 +84,9 @@ export default function ManageTokens() {
       const payload = { name };
       if (d) payload.custom_domain = sub ? `${sub}.${d}` : d;
       else if (sub) payload.fixed_subdomain = sub;
+      if (createPort) payload.local_port = parseInt(createPort);
       const result = await api('/tokens', 'POST', payload);
       const address = d ? (sub ? `${sub}.${d}` : d) : (sub ? `${sub}.iraglobaltech.com` : '');
-      // Save port to localStorage for this token (used by Connection Guide and Configure Tunnel)
-      if (createPort && result.id) {
-        localStorage.setItem(`token-port-${result.id}`, String(createPort));
-      }
       toast('Token created: ' + result.token + (address ? ` · address: ${address}` : ''));
       setCreateOpen(false);
       setVerifyResult(null);
@@ -271,7 +268,7 @@ export default function ManageTokens() {
             <table>
               <thead>
                 <tr>
-                  <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th><th>API Key</th><th>Requests</th><th>Data</th>
+                  <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Port</th><th>API Key</th><th>Requests</th><th>Data</th>
                   <th>Active</th><th>Created</th><th>Actions</th>
                 </tr>
               </thead>
@@ -312,6 +309,9 @@ export default function ManageTokens() {
                             {i === 0 && t.custom_domain ? ' 🌐' : ''}
                           </div>
                         )) : <span className="dim">—</span>}
+                      </td>
+                      <td className="code" style={{ fontSize: '.78rem' }}>
+                        {t.local_port ? <strong>{t.local_port}</strong> : <span className="dim">—</span>}
                       </td>
                       <td style={{ fontSize: '.75rem' }}>
                         {t.created_by_api_key && apiKeyMap[t.created_by_api_key] ? (
@@ -486,13 +486,18 @@ function TokenGuide({ token: t, sshPort, onClose, toast }) {
   });
   const [autoReconnect, setAutoReconnect] = useState(false);
   const [port, setPort] = useState(() => {
-    // Restore saved port from localStorage for this token
+    // Read from token's local_port (DB), fall back to localStorage, then 8080
+    if (t.local_port) return t.local_port;
     const saved = localStorage.getItem(`token-port-${t.id}`);
     return saved ? parseInt(saved) : 8080;
   });
 
-  const savePort = (newPort) => {
+  const savePort = async (newPort) => {
     setPort(newPort);
+    // Persist to DB via API
+    try {
+      await api(`/tokens/${t.id}`, 'PUT', { local_port: newPort });
+    } catch { /* silent */ }
     if (newPort) localStorage.setItem(`token-port-${t.id}`, String(newPort));
   };
 

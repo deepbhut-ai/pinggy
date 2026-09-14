@@ -30,6 +30,7 @@ class TokenOut(BaseModel):
     fixed_subdomain: str | None = None
     tunnel_mode: str | None = None
     tcp_port: int | None = None
+    local_port: int | None = None
     domains: list[str] = []  # extra custom domains (v1.4.0; custom_domain is primary)
     team_id: str | None = None        # v1.7.0 — token assigned to this team
     via_team: dict | None = None      # v1.7.0 — set when listing a team-shared token I don't own
@@ -54,6 +55,7 @@ class TokenCreate(BaseModel):
     name: str = Field(default="New Token", max_length=120)
     custom_domain: str | None = Field(default=None, max_length=255)
     fixed_subdomain: str | None = Field(default=None, max_length=50)  # permanent subdomain at creation time
+    local_port: int | None = Field(default=None, ge=1, le=65535)  # local service port (v2.8.2)
 
 
 class TokenUpdate(BaseModel):
@@ -62,6 +64,7 @@ class TokenUpdate(BaseModel):
     fixed_subdomain: str | None = Field(default=None, max_length=50)
     tunnel_mode: str | None = None       # http | tcp (v1.0.0, Pro)
     tcp_port: int | None = Field(default=None, ge=1024, le=65535)
+    local_port: int | None = Field(default=None, ge=1, le=65535)  # local service port (v2.8.2)
     basic_auth_user: str | None = Field(default=None, max_length=120)
     basic_auth_pass: str | None = Field(default=None, max_length=120)
     ip_whitelist: str | None = None
@@ -192,7 +195,7 @@ async def list_tokens(
 ):
     """List all tokens for the current user (own + tokens shared via teams, v1.7.0)."""
     cur = await db.execute(
-        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only, fixed_subdomain, tunnel_mode, tcp_port, team_id, user_email, created_by_api_key FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
+        "SELECT id, token, name, custom_domain, created_at, basic_auth_user, ip_whitelist, bearer_key, https_only, fixed_subdomain, tunnel_mode, tcp_port, local_port, team_id, user_email, created_by_api_key FROM tokens WHERE user_email = %s ORDER BY created_at DESC",
         (user["email"],),
     )
     rows = await cur.fetchall()
@@ -201,7 +204,7 @@ async def list_tokens(
     # v1.7.0 — tokens shared with me through team membership (I'm not the owner)
     cur = await db.execute(
         """SELECT t.id, t.token, t.name, t.custom_domain, t.created_at, t.basic_auth_user, t.ip_whitelist,
-                  t.bearer_key, t.https_only, t.fixed_subdomain, t.tunnel_mode, t.tcp_port, t.team_id, t.user_email, tm.role, te.name
+                  t.bearer_key, t.https_only, t.fixed_subdomain, t.tunnel_mode, t.tcp_port, t.local_port, t.team_id, t.user_email, tm.role, te.name
            FROM tokens t
            JOIN team_members tm ON tm.team_id = t.team_id AND tm.user_email = %s
            JOIN teams te ON te.id = t.team_id
@@ -219,11 +222,11 @@ async def list_tokens(
         doms = [d[0] for d in await cur.fetchall()]
         await cur.close()
         via = None
-        if r[12]:
-            cur = await db.execute("SELECT name FROM teams WHERE id = %s", (r[12],))
+        if r[13]:
+            cur = await db.execute("SELECT name FROM teams WHERE id = %s", (r[13],))
             tn = await cur.fetchone()
             await cur.close()
-            via = {"team_id": str(r[12]), "team_name": tn[0] if tn else "", "owner": True}
+            via = {"team_id": str(r[13]), "team_name": tn[0] if tn else "", "owner": True}
         out.append(TokenOut(
             id=str(r[0]),
             token=r[1],
@@ -237,8 +240,9 @@ async def list_tokens(
             fixed_subdomain=r[9],
             tunnel_mode=r[10],
             tcp_port=r[11],
+            local_port=r[12],
             domains=doms,
-            team_id=str(r[12]) if r[12] else None,
+            team_id=str(r[13]) if r[13] else None,
             via_team=via,
             security={
                 "basic_auth_user": r[5],
@@ -246,7 +250,7 @@ async def list_tokens(
                 "bearer_key": "***set***" if r[7] else None,
                 "https_only": r[8],
             },
-            created_by_api_key=str(r[14]) if r[14] else None,
+            created_by_api_key=str(r[15]) if r[15] else None,
         ))
     # shared team tokens — read-only view for plain members; admins/owner get manage rights via guards
     for r in shared:
@@ -269,9 +273,10 @@ async def list_tokens(
             fixed_subdomain=r[9],
             tunnel_mode=r[10],
             tcp_port=r[11],
+            local_port=r[12],
             domains=doms,
-            team_id=str(r[12]) if r[12] else None,
-            via_team={"team_id": str(r[12]), "team_name": r[15], "owner": False, "my_role": r[14], "owner_email": r[13]},
+            team_id=str(r[13]) if r[13] else None,
+            via_team={"team_id": str(r[13]), "team_name": r[16], "owner": False, "my_role": r[15], "owner_email": r[14]},
             security={
                 "basic_auth_user": r[5],
                 "ip_whitelist": r[6],
@@ -353,10 +358,10 @@ async def create_token(
     token = _generate_token()
     api_key_id = user.get("api_key_id")
     cur = await db.execute(
-        "INSERT INTO tokens (user_email, token, name, custom_domain, fixed_subdomain, created_by_api_key) "
-        "VALUES (%s, %s, %s, %s, %s, %s) "
-        "RETURNING id, token, name, custom_domain, fixed_subdomain, created_at",
-        (user["email"], token, body.name, custom_domain, fixed_sub, api_key_id),
+        "INSERT INTO tokens (user_email, token, name, custom_domain, fixed_subdomain, created_by_api_key, local_port) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s) "
+        "RETURNING id, token, name, custom_domain, fixed_subdomain, created_at, local_port",
+        (user["email"], token, body.name, custom_domain, fixed_sub, api_key_id, body.local_port),
     )
     row = await cur.fetchone()
     await cur.close()
@@ -368,6 +373,7 @@ async def create_token(
         subdomain=row[4] or _subdomain_from_token(row[1]),
         fixed_subdomain=row[4],
         created_at=row[5].isoformat() if row[5] else None,
+        local_port=row[6],
     )
 
 
@@ -517,6 +523,9 @@ async def update_token(
                 raise HTTPException(status.HTTP_409_CONFLICT, "That TCP port is already taken.")
             await cur.close()
             updates.append("tcp_port = %s"); params.append(body.tcp_port)
+    # ---- local_port (v2.8.2): the local service port for HTTP tunnels ----
+    if body.local_port is not None:
+        updates.append("local_port = %s"); params.append(body.local_port)
     # ---- security options (v0.8.0): empty string clears a setting ----
     import secrets as _secrets
     sec_changed = []
@@ -549,7 +558,7 @@ async def update_token(
     try:
         cur = await db.execute(
             f"UPDATE tokens SET {', '.join(updates)}, updated_at = now() WHERE id = %s "
-            f"RETURNING id, token, name, custom_domain, created_at, fixed_subdomain",
+            f"RETURNING id, token, name, custom_domain, created_at, fixed_subdomain, local_port",
             tuple(params),
         )
         row = await cur.fetchone()
@@ -573,6 +582,7 @@ async def update_token(
         subdomain=row[5] or _subdomain_from_token(row[1]),
         created_at=row[4].isoformat() if row[4] else None,
         fixed_subdomain=row[5],
+        local_port=row[6],
     )
 
 
@@ -746,7 +756,7 @@ async def regenerate_token(
     try:
         cur = await db.execute(
             "UPDATE tokens SET token = %s, updated_at = now() WHERE id = %s AND user_email = %s "
-            "RETURNING id, token, name, custom_domain, created_at",
+            "RETURNING id, token, name, custom_domain, created_at, fixed_subdomain, local_port",
             (new_token, token_id, user["email"]),
         )
         row = await cur.fetchone()
@@ -762,8 +772,10 @@ async def regenerate_token(
         token=row[1],
         name=row[2],
         custom_domain=row[3],
-        subdomain=_subdomain_from_token(row[1]),
+        subdomain=row[5] or _subdomain_from_token(row[1]),
         created_at=row[4].isoformat() if row[4] else None,
+        fixed_subdomain=row[5],
+        local_port=row[6],
     )
 
 

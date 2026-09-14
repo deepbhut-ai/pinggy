@@ -100,12 +100,17 @@ export default function ConfigureTunnel() {
   const port = localAddr.split(':').pop() || '8080';
   const [tokenSearch, setTokenSearch] = useState('');
 
-  // Update local address when token changes — load saved port from Connection Guide
+  // Update local address when token changes — load saved port from DB (local_port) or localStorage
   useEffect(() => {
     if (!selToken) return;
-    const savedPort = localStorage.getItem(`token-port-${selToken.id}`);
-    if (savedPort) {
-      setLocalAddr(`127.0.0.1:${savedPort}`);
+    // Prefer DB-stored local_port, fall back to localStorage
+    if (selToken.local_port) {
+      setLocalAddr(`127.0.0.1:${selToken.local_port}`);
+    } else {
+      const savedPort = localStorage.getItem(`token-port-${selToken.id}`);
+      if (savedPort) {
+        setLocalAddr(`127.0.0.1:${savedPort}`);
+      }
     }
   }, [tokenSel, selToken]);
 
@@ -149,9 +154,13 @@ export default function ConfigureTunnel() {
     (async () => {
       const saved = await loadMultiPortConfig(tokenSel);
       setMultiPort(saved.multi_port_enabled !== false);
+      const defaultPort = (selToken.local_port || localAddr.split(':').pop() || '8080').toString();
       const addrs = tokenAddresses(selToken, tokens, true).map((a, i) => {
         const savedEntry = saved.ports?.[a.addr] || {};
-        return { ...a, port: savedEntry.port || '', enabled: savedEntry.enabled !== false };
+        // Use saved port from multiport config, or the token's local_port for its own address, or default
+        const isOwnAddr = a.addr === selToken.custom_domain || a.addr === `${selToken.subdomain}.iraglobaltech.com`;
+        const port = savedEntry.port || (isOwnAddr && selToken.local_port ? selToken.local_port.toString() : defaultPort);
+        return { ...a, port, enabled: savedEntry.enabled !== false };
       });
       setMultiPorts(addrs);
     })();
