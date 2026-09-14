@@ -41,6 +41,11 @@ async def lifespan(app: FastAPI):
     reconcile_result = await reconcile_tunnels_with_db()
     print(f"[{settings.APP_NAME}] Tunnel registry reconciled: {reconcile_result}")
 
+    # v2.10.0: Start periodic stale-tunnel reconciliation (every 5 min)
+    from app.core.tunnel_registry import periodic_reconcile_stale_tunnels
+    reconcile_task = asyncio.create_task(periodic_reconcile_stale_tunnels())
+    print(f"[{settings.APP_NAME}] Periodic tunnel reconciliation started (every 5 min)")
+
     # Start SSH server for tunnels
     from app.core.ssh_server import start_ssh_server
     ssh_server = await start_ssh_server()
@@ -58,6 +63,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
+    reconcile_task.cancel()
     ssl_renewal_task.cancel()
     digest_task.cancel()
     ssh_server.close()

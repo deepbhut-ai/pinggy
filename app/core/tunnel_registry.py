@@ -6,9 +6,12 @@ ports). All state is kept in memory for speed; the DB is used for persistence
 and the admin panel.
 """
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable
+
+logger = logging.getLogger("tunnel_registry")
 
 
 @dataclass
@@ -143,9 +146,14 @@ async def reconcile_tunnels_with_db() -> dict[str, int]:
     try:
         from app.core.db import get_conn
         async with get_conn() as db:
+            # v2.10.0: mark ALL 'active' rows as disconnected (not just ones
+            # where closed_at IS NULL). Previous versions skipped rows that
+            # already had closed_at set, leaving stale 'active' rows behind
+            # after a restart — these caused duplicate tunnel entries and
+            # confused the proxy which tried to route to dead ports.
             cur = await db.execute(
-                "UPDATE tunnels SET status = 'disconnected', closed_at = now() "
-                "WHERE status = 'active' AND closed_at IS NULL"
+                "UPDATE tunnels SET status = 'disconnected', closed_at = COALESCE(closed_at, now()) "
+                "WHERE status = 'active'"
             )
             updated = cur.rowcount
             await cur.close()
@@ -154,6 +162,42 @@ async def reconcile_tunnels_with_db() -> dict[str, int]:
         if logger:
             logger.warning("Failed to reconcile stale tunnel rows: %s", e)
     return {"stale_rows_marked_disconnected": updated, "in_memory_tunnels": len(_tunnels)}
+
+
+async def periodic_reconcile_stale_tunnels() -> None:
+    """Background task (v2.10.0): every 5 minutes, mark DB tunnel rows as
+    'disconnected' if they have no matching in-memory session.
+
+    The in-memory _tunnels dict is authoritative for live SSH sessions.
+    After a race-condition failure or an unclean disconnect, stale 'active'
+    rows accumulate in the DB. This task cleans them up so the proxy,
+    dashboard, and API all see accurate tunnel counts."""
+    import asyncio
+    from app.core.db import get_conn
+    while True:
+        await asyncio.sleep(300)  # 5 minutes
+        try:
+            live_subdomains = set(_tunnels.keys())
+            async with get_conn() as db:
+                if live_subdomains:
+                    # Mark all 'active' rows whose subdomain is NOT in memory
+                    cur = await db.execute(
+                        "UPDATE tunnels SET status = 'disconnected', closed_at = COALESCE(closed_at, now()) "
+                        "WHERE status = 'active' AND subdomain != ALL(%s)",
+                        (list(live_subdomains),),
+                    )
+                else:
+                    # No live tunnels — mark everything as disconnected
+                    cur = await db.execute(
+                        "UPDATE tunnels SET status = 'disconnected', closed_at = COALESCE(closed_at, now()) "
+                        "WHERE status = 'active'"
+                    )
+                updated = cur.rowcount
+                await cur.close()
+            if updated:
+                logger.warning("Periodic reconcile: marked %d stale tunnel rows as disconnected", updated)
+        except Exception as e:
+            logger.warning("Periodic reconcile failed: %s", e)
 
 
 async def increment_request_count(subdomain: str, bytes_count: int = 0, sent: int = 0, received: int = 0) -> None:

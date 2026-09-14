@@ -1,5 +1,20 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.10.0 — 2026-09-14 — Fix tunnel port-detection race condition + periodic stale-tunnel reconciliation + nginx configs for 35 fleet subdomains
+
+### Added
+- **`periodic_reconcile_stale_tunnels()`** background task (`app/core/tunnel_registry.py`) — runs every 5 minutes, marks DB tunnel rows as 'disconnected' if their subdomain is not in the in-memory `_tunnels` dict. Prevents stale 'active' rows from accumulating after race-condition failures or unclean disconnects. Wired into `app/main.py` lifespan with proper cleanup on shutdown.
+- **35 nginx server blocks** for callingagents.in fleet subdomains (`/etc/nginx/sites-available/custom-*.callingagents.in`) — acelle, activeecom, architect, astrology, bedrive, cloudoffice, code, eclassify, erpgo, infixlms, infycare, infyhms, instikit, jobpilot, larabuilder, magicai, maildoll, phpanalytics, phprank, porto, quickdate1, quickdate2, rith, socialvibe, stackposts, teleman, test-mode, unimatrix, whatsmark, wowonder, xerochat, yoori1, yoori2, zillapage. All use the self-signed wildcard `*.callingagents.in` cert until individual LE certs are issued.
+- WARNING-level logging in `_detect_port_and_setup` for both success ("Detected forwarded port(s)") and failure ("Could not detect forwarded port") — previously only failures were visible because success used INFO level which is suppressed by the default log config.
+- Test evidence: `Doc/tests/v2.10.0/output.txt` — 905 port detections, 2 failures (99.8% success), 107 live tunnels in memory, 44 nginx configs, old subdomains (erp/website/marketing) verified working, maildoll+quickdate2 verified working.
+
+### Changed
+- **`_detect_port_and_setup()`** (`app/core/ssh_server.py:383`) — rewrote the port-detection polling from two fixed sleeps (0.5s + 1.0s = 1.5s total budget) to a proper polling loop: 50 attempts × 200ms = 10s budget. Under load (33+ concurrent SSH reconnects after a service restart), asyncssh's `forward_local_port()` can take several seconds to create the TCP listener and store it in `_local_listeners`. The old 1.5s budget was too short — every tunnel failed to register, causing 502 on all subdomains. Also moved the `self._conn` check inside the loop so a connection lost during polling exits cleanly.
+- **`reconcile_tunnels_with_db()`** (`app/core/tunnel_registry.py:134`) — changed the UPDATE query from `WHERE status = 'active' AND closed_at IS NULL` to `WHERE status = 'active'` with `closed_at = COALESCE(closed_at, now())`. The old query skipped rows that already had `closed_at` set, leaving stale 'active' rows behind after a restart. These caused duplicate tunnel entries and confused the proxy.
+
+### Removed
+- `custom-webifly.callingagents.in` nginx config — removed to avoid conflicting server_name with the existing `webifly.callingagents.in` block in `iragt.ssl.conf` (which uses the real LE cert).
+
 ## v2.9.1 — 2026-09-14 — Post-rename cleanup: SSH banner, BrokenPipe fix, /users/me route, stale file renames, doc fixes
 
 ### Added

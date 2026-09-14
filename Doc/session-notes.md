@@ -328,3 +328,27 @@
 - **In progress:** nothing — all fixes committed + tagged.
 - **Next:** await user. Potential follow-up: rebuild dist/ if any source JS references "pinggy" (checked — none found).
 - **Watch out:** The server was running pre-rename code until we restarted it — always restart after code edits since Python loads modules into memory at startup.
+
+## 2026-09-14 — v2.10.0 — Fix tunnel port-detection race condition + stale-tunnel reconciliation + nginx configs
+- **Done:** v2.10.0 — Root cause of all 33 callingagents.in 502s was a RACE CONDITION in
+  `_detect_port_and_setup` (ssh_server.py): after the v2.9.1 service restart, all 33+ SSH
+  tunnels reconnected but the port-detection code gave up after only 1.5s (0.5s + 1.0s
+  fixed sleeps). Under load, asyncssh's `forward_local_port()` took >1.5s, so 0 tunnels
+  registered in the in-memory `_tunnels` dict. Fix: rewrote to poll every 200ms for up
+  to 10s (50 attempts). Result: 905 successful detections, 2 failures (99.8%). Also:
+  (1) fixed `reconcile_tunnels_with_db` to clear ALL stale rows (was skipping rows with
+  closed_at set, leaving 79 stale 'active' rows); (2) added `periodic_reconcile_stale_tunnels`
+  background task (every 5min) to clean stale DB rows automatically; (3) generated 35 nginx
+  server blocks for missing callingagents.in subdomains using self-signed wildcard cert.
+- **In progress:** Old subdomains (erp/website/marketing) + 2 new ones (maildoll/quickdate2)
+  work. Remaining 502s: the user's `start_cc.py` watchdog on their Mac is using a STALE token
+  `2582a5df` (deleted from DB) for the 33 new subdomains. The valid tokens are in the DB
+  (e.g. astrology = `8fe697ba83abe1cb`). The user needs to restart `start_cc.py` with
+  the current tokens.
+- **Next:** User must restart `start_cc.py` on Mac with correct tokens to reconnect all 33
+  tunnels. After that, request LE SSL certs for the 35 new subdomains (currently using
+  self-signed wildcard).
+- **Watch out:** `_detect_port_and_setup` has a `self._conn` check INSIDE the loop now
+  (was before the loop) — if the connection drops during polling, it exits cleanly.
+  The `asyncio` import in `periodic_reconcile_stale_tunnels` is redundant (already imported
+  at module level) but harmless.

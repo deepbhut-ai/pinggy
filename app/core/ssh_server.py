@@ -385,12 +385,12 @@ class MySSHServer(asyncssh.SSHServer):
         in _local_listeners and set up the tunnel.
         v1.9.0: with a multi-port username (TOKEN--p1,p2,...), each listener
         binds to the next address (subdomain -> primary -> extras) on the SAME
-        tunnel. A per-connection lock serializes concurrent listener setups."""
-        await asyncio.sleep(0.5)
-
-        if not self._conn:
-            return
-
+        tunnel. A per-connection lock serializes concurrent listener setups.
+        v2.10.0: poll _local_listeners in a loop (up to 10s, every 200ms)
+        instead of two fixed sleeps (0.5s + 1.0s). Under load (33+ concurrent
+        SSH reconnects after a restart), asyncssh's forward_local_port() can
+        take several seconds to create the listener, and the old 1.5s budget
+        was too short — every tunnel failed to register."""
         multi = bool(getattr(self, "_port_map", None))
         if not multi and self._tunnel:
             return  # classic single-port: only the first listener matters
@@ -405,13 +405,23 @@ class MySSHServer(asyncssh.SSHServer):
                     out.append(port)
             return sorted(out)
 
-        ports = _unbound_ports()
-        if not ports:
-            await asyncio.sleep(1.0)
+        # Poll for the listener with a generous timeout (v2.10.0).
+        # 10s × 200ms = 50 attempts — enough even under heavy event-loop load.
+        ports: list[int] = []
+        for _attempt in range(50):
+            if not self._conn:
+                return
             ports = _unbound_ports()
+            if ports:
+                break
+            await asyncio.sleep(0.2)
+
         if not ports:
-            logger.warning("Could not detect forwarded port for %s", self._peer)
+            logger.warning("Could not detect forwarded port for %s (waited 10s, %d listeners in _local_listeners)",
+                           self._peer, len(getattr(self._conn, "_local_listeners", {}) or {}))
             return
+
+        logger.warning("Detected forwarded port(s) %s for %s", ports, self._peer)
 
         async with self._setup_lock:
             ports = _unbound_ports()  # re-scan: another task may have consumed some
