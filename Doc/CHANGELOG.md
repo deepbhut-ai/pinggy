@@ -1,5 +1,20 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.8.4 — 2026-09-14 — Raise tunnel rate limits (legit users auto-banned browsing full web apps)
+
+### Added
+- Test evidence: `Doc/tests/v2.8.4/output.txt` — health 200, callingagents.in /login 200, no IPs blocked, all blocks cleared.
+
+### Changed
+- `app/core/rate_limit.py` `DEFAULTS["tunnel_ip"]`: 240 → **600** req/min per IP. Full web apps (Laravel/WordPress) load 20-50+ assets per page view; 240/min was too low — 3-4 page loads triggered strikes and a 1hr auto-ban.
+- `app/core/rate_limit.py` `DEFAULTS["tunnel_sub"]`: 600 → **2000** req/min per subdomain. Supports multiple concurrent users browsing the same tunneled app.
+- `app/core/rate_limit.py` `BAN_THRESHOLD`: 3 → **5** strikes. More forgiving before auto-ban; still catches genuine floods.
+- `app/core/rate_limit.py` `BAN_SECONDS`: 3600 → **1800** (1hr → 30min). Still enough to stop floods, less punitive for legit users who hit the limit.
+- Cleared all existing IP blocks in Redis (`blocklist:ips` hash, `blocked:*` keys, `rl:strikes:*` keys) — fresh start with new limits.
+
+### Removed
+- none
+
 ## v2.8.3 — 2026-09-14 — Fix: Tunnel proxy collapses multiple Set-Cookie headers (419 login on callingagents.in)
 
 ### Added

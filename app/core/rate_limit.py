@@ -25,15 +25,18 @@ from app.core.redis import get_redis
 logger = logging.getLogger("rate_limit")
 
 # zone -> (limit, window_seconds)
+# v2.8.4: tunnel limits raised — full web apps (Laravel/WordPress/etc.) load
+# dozens of assets per page view; 240/min was too low and caused legit users
+# to get auto-banned after 3-4 page loads.
 DEFAULTS = {
     "api": (60, 60),
     "auth": (10, 60),
-    "tunnel_ip": (240, 60),
-    "tunnel_sub": (600, 60),
+    "tunnel_ip": (600, 60),
+    "tunnel_sub": (2000, 60),
 }
-BAN_THRESHOLD = 3        # strikes before auto-ban
+BAN_THRESHOLD = 5        # strikes before auto-ban (v2.8.4: 3→5, more forgiving)
 STRIKE_WINDOW = 600      # strikes counted within 10 min
-BAN_SECONDS = 3600       # 1h ban on escalation
+BAN_SECONDS = 1800       # 30min ban on escalation (v2.8.4: 1h→30min)
 
 AUTH_PATHS = ("/auth/login", "/auth/register", "/auth/forgot-password",
               "/auth/verify-otp", "/auth/reset-password")
