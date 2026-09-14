@@ -1,5 +1,33 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.8.0 — 2026-09-14 — HTTPS/SSL for fleet subdomains + origin server 443
+
+### Added
+- **nginx 443 SSL listener** (`/etc/nginx/sites-available/pinggy.ssl.conf` → symlinked to sites-enabled): three server blocks — (1) `iraglobaltech.com` 443 using existing LE cert (main app HTTPS direct, not just via Cloudflare proxy), (2) `webifly.callingagents.in` 443 using new LE cert (first fleet sub), (3) `_` default 443 using self-signed `*.callingagents.in` wildcard (fallback so port 443 answers for all subs before per-sub LE certs are obtained).
+- **Self-signed wildcard cert** for `*.callingagents.in` at `/etc/letsencrypt/live/callingagents.in/` — temporary fallback cert so 443 never refuses while per-sub LE certs are being provisioned.
+- **Let's Encrypt cert for `webifly.callingagents.in`** via HTTP-01 webroot challenge (cert valid until 2026-12-13).
+- **Certbot nginx reload deploy hook** at `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh` — auto-reloads nginx after cert renewal (zero downtime). Certbot timer was already enabled; dry-run renewal passes.
+- **`scripts/create_cf_dns_records.sh`** — takes a Cloudflare API token, creates A records for all 33 fleet subdomains → 13.140.131.204 (DNS-only, not proxied) via CF API. Skips existing records.
+- **`scripts/provision_fleet_ssl.sh`** — checks DNS for each sub, requests LE cert via HTTP-01 if DNS resolves, generates per-subdomain nginx 443 config, reloads nginx. Idempotent — safe to re-run after adding DNS records.
+- **`nginx/pinggy.ssl.conf`** — project-tracked copy of the deployed SSL config for version control.
+- Test evidence: `Doc/tests/v2.6.0/output.txt` — full HTTPS verification (port 443 open, SSL certs, HTTP→HTTPS redirects, certbot renewal, fleet token inventory, DNS status).
+
+### Changed
+- nginx now listens on both port 80 (existing: ACME challenge + HTTP→HTTPS redirect) and port 443 (new: SSL termination → FastAPI proxy). Previously nginx only listened on port 80 — 443 was completely closed, causing "Connection refused" for all HTTPS requests to fleet subdomains.
+- The handoff doc (`Doc/problem/fleet-33-subdomains-handoff.md`) described the blocker as "IRAGT 443 refused" — root cause was that this server IS the IRAGT origin (13.140.131.204) and nginx had no 443 listener at all. Now fixed.
+
+### Removed
+- none (no files deleted; the unused template configs `pinggy.conf`, `pinggy.invitechsg.conf`, `pinggy.iraglobaltech.conf` in `nginx/` were left in place — they are not deployed)
+
+### Remaining steps for full fleet HTTPS (user action required)
+1. **Create Cloudflare DNS A records** for all 32 subs without DNS (only `webifly` has one today):
+   `bash /opt/pinggy/scripts/create_cf_dns_records.sh <CF_API_TOKEN>`
+   (Token needs Zone:DNS:Edit for callingagents.in. Or add manually in CF dashboard: A record, name=sub, content=13.140.131.204, proxy=DNS-only)
+2. **Wait for DNS propagation** (1–5 min), then run:
+   `bash /opt/pinggy/scripts/provision_fleet_ssl.sh`
+   (This gets LE certs for each sub and adds per-sub nginx 443 blocks)
+3. **Reconnect Mac tunnel loops** — all 33 tokens show `active_tunnels: 0`. The Mac's `~/ca-fleet/` SSH tunnel loops must be running for apps to be reachable.
+
 ## v2.5.0 — 2026-09-08 — Subdomain verify-before-create on Manage Tokens
 
 ### Added

@@ -1,0 +1,163 @@
+==========================================
+  v2.6.0 — HTTPS Test Evidence
+  Date: 2026-09-14 01:37:29 UTC
+==========================================
+
+=== 1. Port 443 listener ===
+LISTEN 0      511          0.0.0.0:443        0.0.0.0:*    users:(("nginx",pid=3978646,fd=38),("nginx",pid=3978645,fd=38),("nginx",pid=3978644,fd=38),("nginx",pid=3978643,fd=38),("nginx",pid=3978642,fd=38),("nginx",pid=3978641,fd=38),("nginx",pid=3388773,fd=38))
+LISTEN 0      511             [::]:443           [::]:*    users:(("nginx",pid=3978646,fd=39),("nginx",pid=3978645,fd=39),("nginx",pid=3978644,fd=39),("nginx",pid=3978643,fd=39),("nginx",pid=3978642,fd=39),("nginx",pid=3978641,fd=39),("nginx",pid=3388773,fd=39))
+
+=== 2. Port 443 TCP probe from outside ===
+PORT 443 OPEN
+
+=== 3. HTTPS: iraglobaltech.com (main app, LE cert) ===
+HTTP 200 | SSL verify: 0 | time: 0.127311s
+{"status":"ok","app":"IRAGT","env":"production"}
+
+=== 4. HTTPS: webifly.callingagents.in (fleet sub, LE cert) ===
+HTTP 502 | SSL verify: 0 | time: 0.082932s
+  (502 expected if Mac tunnel not connected — HTTPS itself works)
+
+=== 5. HTTPS: self-signed fallback (random sub via IP) ===
+HTTP 200 | time: 0.014335s
+
+=== 6. HTTP → HTTPS redirect ===
+HTTP 301 -> https://webifly.callingagents.in/
+HTTP 301 -> https://iraglobaltech.com/
+
+=== 7. SSL certificate details ===
+-- webifly.callingagents.in (real LE) --
+subject=CN = webifly.callingagents.in
+issuer=C = US, O = Let's Encrypt, CN = YE2
+notBefore=Sep 14 00:31:26 2026 GMT
+notAfter=Dec 13 00:31:25 2026 GMT
+
+-- iraglobaltech.com (real LE) --
+subject=CN = iraglobaltech.com
+issuer=C = US, O = Let's Encrypt, CN = YE1
+notBefore=Aug 24 09:32:41 2026 GMT
+notAfter=Nov 22 09:32:40 2026 GMT
+
+-- default (self-signed fallback) --
+subject=CN = *.callingagents.in
+issuer=CN = *.callingagents.in
+notBefore=Sep 14 01:28:40 2026 GMT
+notAfter=Sep 14 01:28:40 2027 GMT
+
+=== 8. nginx config test ===
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+=== 9. nginx 443 server blocks ===
+	# server_names_hash_bucket_size 64;
+	# server_name_in_redirect off;
+    server_name indicatorleads.com;
+    server_name iraglobaltech.com;
+    server_name *.iraglobaltech.com _;
+    listen 443 ssl http2;
+    server_name iraglobaltech.com;
+    ssl_certificate     /etc/letsencrypt/live/iraglobaltech.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/iraglobaltech.com/privkey.pem;
+    listen 443 ssl http2;
+    server_name webifly.callingagents.in;
+    ssl_certificate     /etc/letsencrypt/live/webifly.callingagents.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/webifly.callingagents.in/privkey.pem;
+    listen 443 ssl http2 default_server;
+    server_name _;
+    ssl_certificate     /etc/letsencrypt/live/callingagents.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/callingagents.in/privkey.pem;
+    server_name signal.indicatorleads.com;
+        proxy_set_header X-Forwarded-Host $server_name;
+
+=== 10. Certbot certs ===
+  Certificate Name: iraglobaltech.com
+    Domains: iraglobaltech.com www.iraglobaltech.com
+    Expiry Date: 2026-11-22 09:32:40+00:00 (VALID: 69 days)
+  Certificate Name: webifly.callingagents.in
+    Domains: webifly.callingagents.in
+    Expiry Date: 2026-12-13 00:31:25+00:00 (VALID: 89 days)
+
+=== 11. Certbot renewal hook ===
+-rwxr-xr-x 1 root root 90 Sep 14 03:36 /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+#!/bin/bash
+# Reload nginx after cert renewal (zero downtime)
+nginx -t && nginx -s reload
+
+=== 12. Fleet token inventory (from API) ===
+  aiagentsz.in         aiagentsz.in                             active=0
+  webifly              webifly.callingagents.in                 active=0
+  porto                porto.callingagents.in                   active=0
+  architect            architect.callingagents.in               active=0
+  quickdate2           quickdate2.callingagents.in              active=0
+  quickdate1           quickdate1.callingagents.in              active=0
+  wowonder             wowonder.callingagents.in                active=0
+  unimatrix            unimatrix.callingagents.in               active=0
+  xerochat             xerochat.callingagents.in                active=0
+  larabuilder          larabuilder.callingagents.in             active=0
+  whatsmark            whatsmark.callingagents.in               active=0
+  activeecom           activeecom.callingagents.in              active=0
+  yoori2               yoori2.callingagents.in                  active=0
+  phpanalytics         phpanalytics.callingagents.in            active=0
+  zillapage            zillapage.callingagents.in               active=0
+  bedrive              bedrive.callingagents.in                 active=0
+  instikit             instikit.callingagents.in                active=0
+  phprank              phprank.callingagents.in                 active=0
+  jobpilot             jobpilot.callingagents.in                active=0
+  stackposts           stackposts.callingagents.in              active=0
+  maildoll             maildoll.callingagents.in                active=0
+  infycare             infycare.callingagents.in                active=0
+  cloudoffice          cloudoffice.callingagents.in             active=0
+  erpgo                erpgo.callingagents.in                   active=0
+  magicai              magicai.callingagents.in                 active=0
+  teleman              teleman.callingagents.in                 active=0
+  acelle               acelle.callingagents.in                  active=0
+  rith                 rith.callingagents.in                    active=0
+  infyhms              infyhms.callingagents.in                 active=0
+  yoori1               yoori1.callingagents.in                  active=0
+  infixlms             infixlms.callingagents.in                active=0
+  eclassify            eclassify.callingagents.in               active=0
+  socialvibe           socialvibe.callingagents.in              active=0
+  astrology            astrology.callingagents.in               active=0
+  Default Token        none                                     active=0
+  code                 code.callingagents.in                    active=0
+  callingagents.in     callingagents.in                         active=0
+  livetest-token       iraglobaltech.com                        active=0
+
+=== 13. DNS status for all fleet subs ===
+  ❌ astrology.callingagents.in -> NO DNS
+  ❌ socialvibe.callingagents.in -> NO DNS
+  ❌ eclassify.callingagents.in -> NO DNS
+  ❌ infixlms.callingagents.in -> NO DNS
+  ❌ yoori1.callingagents.in -> NO DNS
+  ❌ infyhms.callingagents.in -> NO DNS
+  ❌ rith.callingagents.in -> NO DNS
+  ❌ acelle.callingagents.in -> NO DNS
+  ❌ teleman.callingagents.in -> NO DNS
+  ❌ magicai.callingagents.in -> NO DNS
+  ❌ erpgo.callingagents.in -> NO DNS
+  ❌ cloudoffice.callingagents.in -> NO DNS
+  ❌ infycare.callingagents.in -> NO DNS
+  ❌ maildoll.callingagents.in -> NO DNS
+  ❌ stackposts.callingagents.in -> NO DNS
+  ❌ jobpilot.callingagents.in -> NO DNS
+  ❌ phprank.callingagents.in -> NO DNS
+  ❌ instikit.callingagents.in -> NO DNS
+  ❌ bedrive.callingagents.in -> NO DNS
+  ❌ zillapage.callingagents.in -> NO DNS
+  ❌ phpanalytics.callingagents.in -> NO DNS
+  ❌ yoori2.callingagents.in -> NO DNS
+  ❌ activeecom.callingagents.in -> NO DNS
+  ❌ whatsmark.callingagents.in -> NO DNS
+  ❌ larabuilder.callingagents.in -> NO DNS
+  ❌ xerochat.callingagents.in -> NO DNS
+  ❌ unimatrix.callingagents.in -> NO DNS
+  ❌ wowonder.callingagents.in -> NO DNS
+  ❌ quickdate1.callingagents.in -> NO DNS
+  ❌ quickdate2.callingagents.in -> NO DNS
+  ❌ architect.callingagents.in -> NO DNS
+  ❌ porto.callingagents.in -> NO DNS
+  ✅ webifly.callingagents.in -> 13.140.131.204
+
+==========================================
+  END OF TEST EVIDENCE
+==========================================

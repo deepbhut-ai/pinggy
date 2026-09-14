@@ -35,6 +35,33 @@ Pinggy is a secure tunneling service that allows users to expose local applicati
 3. **SSH Connection**: External client connects via SSH → SSH server routes to tunnel → Proxy forwards to localhost
 4. **Dashboard Update**: Periodically polls `/api/tunnels` → Updates active tunnel list with stats
 
+## HTTPS / SSL Layer (v2.6.0)
+
+nginx terminates TLS on port 443 and proxies to FastAPI on 127.0.0.1:8000:
+
+```
+Browser (HTTPS)
+  → nginx :443 (SSL termination, SNI-based cert selection)
+    → FastAPI :8000 (TunnelProxyMiddleware)
+      → SSH tunnel remote_port (127.0.0.1:<remote_port>)
+        → User's local app
+```
+
+**Cert hierarchy (SNI-based):**
+- `iraglobaltech.com` → LE cert (existing, valid until 2026-11-22)
+- `webifly.callingagents.in` → LE cert (v2.6.0, valid until 2026-12-13)
+- `*.callingagents.in` (default) → self-signed wildcard fallback (replaced per-sub by LE certs via `provision_fleet_ssl.sh`)
+- Per-subdomain LE certs are added as `custom-<sub>.callingagents.in` nginx configs by the ssl_manager or `provision_fleet_ssl.sh`
+
+**Port 80 (existing, unchanged):** ACME challenge webroot (`/.well-known/acme-challenge/`) + HTTP→HTTPS 301 redirect.
+
+**Config files:**
+- `/etc/nginx/sites-enabled/pinggy.react.conf` — port 80 (HTTP redirect, ACME, React SPA for iraglobaltech.com)
+- `/etc/nginx/sites-enabled/pinggy.ssl.conf` — port 443 (SSL for iraglobaltech.com + fleet subs + default fallback)
+- `/opt/pinggy/nginx/pinggy.ssl.conf` — project-tracked copy
+
+**Fleet SSL provisioning:** `scripts/provision_fleet_ssl.sh` checks DNS → certbot HTTP-01 → per-sub nginx config → reload. Prerequisite: `scripts/create_cf_dns_records.sh <CF_TOKEN>` creates A records first.
+
 ## Key Entry Points
 
 | Route | Handler | Purpose |

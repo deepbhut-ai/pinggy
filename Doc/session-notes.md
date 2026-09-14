@@ -267,3 +267,23 @@
 - **Watch out:** callingagents.in has wildcard DNS on Cloudflare so all
   subdomains resolve — good for testing but means verification always passes
   for that domain.
+
+## 2026-09-14 — v2.8.0 (HTTPS/SSL for fleet subdomains + origin 443)
+- **Done:** v2.6.0 — Fixed the "IRAGT 443 refused" blocker from the fleet handoff
+  doc. Root cause: nginx on this server (13.140.131.204 = IRAGT origin) had NO
+  `listen 443` block — only port 80. Added `pinggy.ssl.conf` with 3 server blocks
+  (iraglobaltech.com LE cert, webifly.callingagents.in LE cert, self-signed
+  wildcard default). Obtained real LE cert for webifly via HTTP-01. Set up
+  certbot renewal hook (nginx reload). Created `scripts/create_cf_dns_records.sh`
+  (CF API token → A records for all 33 subs) and `scripts/provision_fleet_ssl.sh`
+  (DNS check → certbot → per-sub nginx config → reload). All tested: 443 open,
+  HTTPS 200 on iraglobaltech.com, SSL verify OK on webifly (502 = no tunnel, not
+  SSL issue), HTTP 301→HTTPS redirect works, certbot dry-run renewal passes.
+- **In progress:** 32 of 33 fleet subs still need Cloudflare A records (only
+  webifly has one). All 33 tokens show active_tunnels=0 (Mac tunnel loops down).
+- **Next:** User runs `scripts/create_cf_dns_records.sh <CF_TOKEN>` to create
+  DNS, then `scripts/provision_fleet_ssl.sh` to get LE certs, then Mac reconnects
+  tunnel loops. Full fleet goes live.
+- **Watch out:** psql pager wedges the VS Code terminal (alternate buffer) —
+  use Python psycopg or redirect psql output to files. CF API POST 403s without
+  a valid token — use the script or CF dashboard UI.
