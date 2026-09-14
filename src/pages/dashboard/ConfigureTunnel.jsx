@@ -4,53 +4,18 @@ import { useToast } from '../../components/Toast';
 import { copyToClipboard } from '../../utils';
 import { SearchBar } from '../../components/TableControls';
 
-const APP_PRESETS = [
-  { n: 'Custom / manual', p: 8080 },
-  { n: 'Django (runserver)', p: 8000 }, { n: 'Flask', p: 5000 },
-  { n: 'Jupyter Notebook', p: 8888 }, { n: 'Node.js / Express', p: 3000 },
-  { n: 'React / Vite dev', p: 5173 }, { n: 'Next.js', p: 3000 },
-  { n: 'Vue / Nuxt', p: 3000 }, { n: 'Laravel (artisan)', p: 8000 },
-  { n: 'WordPress', p: 80 }, { n: 'Nginx', p: 80 }, { n: 'Apache', p: 8080 },
-  { n: 'MySQL', p: 3306 }, { n: 'PostgreSQL', p: 5432 },
-  { n: 'MongoDB', p: 27017 }, { n: 'Redis', p: 6379 },
-].map((a, i) => ({ ...a, key: `preset-${i}` }));
-
 const PLATFORM_HINTS = {
   windows: 'Open Command Prompt (CMD) and paste the following command:',
   linux: 'Open terminal and paste the following command:',
   mac: 'Open Terminal and paste the following command:',
 };
 
-function isRootDomain(domain) {
-  if (!domain) return false;
-  const labels = domain.replace(/^https?:\/\//, '').split('.').filter(Boolean);
-  return labels.length <= 2;
-}
-
-function tokenAddresses(t, allTokens = [], includeAll = false) {
-  const addrs = [];
-  if (t.subdomain && !t.custom_domain && (t.domains || []).length === 0) {
-    addrs.push({ addr: `${t.subdomain}.iraglobaltech.com`, label: '🌐 Subdomain' });
-  }
-  if (t.custom_domain) {
-    addrs.push({ addr: t.custom_domain, label: isRootDomain(t.custom_domain) ? '🌐 Domain' : '🔗 Subdomain' });
-  }
-  (t.domains || []).forEach((d) => addrs.push({ addr: d, label: '➕ Extra domain' }));
-  if (includeAll) {
-    allTokens.forEach((other) => {
-      if (other.id === t.id) return;
-      if (other.custom_domain && !addrs.some((a) => a.addr === other.custom_domain)) {
-        addrs.push({ addr: other.custom_domain, label: isRootDomain(other.custom_domain) ? '🌐 Domain' : '🔗 Subdomain' });
-      }
-      if (other.subdomain && !other.custom_domain && (other.domains || []).length === 0 && !addrs.some((a) => a.addr === `${other.subdomain}.iraglobaltech.com`)) {
-        addrs.push({ addr: `${other.subdomain}.iraglobaltech.com`, label: '🌐 Subdomain' });
-      }
-      (other.domains || []).forEach((d) => {
-        if (!addrs.some((a) => a.addr === d)) addrs.push({ addr: d, label: '➕ Extra domain' });
-      });
-    });
-  }
-  return addrs;
+function getRootDomain(domain) {
+  if (!domain) return '';
+  const cleaned = domain.replace(/^https?:\/\//, '').toLowerCase().trim();
+  const parts = cleaned.split('.').filter(Boolean);
+  if (parts.length <= 2) return cleaned;
+  return parts.slice(-2).join('.');
 }
 
 export default function ConfigureTunnel() {
@@ -58,9 +23,6 @@ export default function ConfigureTunnel() {
   const [info, setInfo] = useState(null);
   const [tokens, setTokens] = useState([]);
 
-  const [preset, setPreset] = useState('preset-0');
-  const [localAddr, setLocalAddr] = useState('127.0.0.1:8080');
-  const [tunnelType, setTunnelType] = useState('http');
   const [platform, setPlatform] = useState('windows');
   const [tokenSel, setTokenSel] = useState('');
   const [multiPort, setMultiPort] = useState(true);
@@ -71,6 +33,66 @@ export default function ConfigureTunnel() {
   const [strictHost, setStrictHost] = useState(false);
   const [verbose, setVerbose] = useState(false);
   const [qr, setQr] = useState(null);
+  const [tokenSearch, setTokenSearch] = useState('');
+
+  // Group all tokens by their main root domain
+  const mainDomains = useMemo(() => {
+    const rootMap = new Map();
+
+    tokens.forEach((t) => {
+      const dom = t.custom_domain || (t.subdomain ? `${t.subdomain}.iraglobaltech.com` : null);
+      if (!dom) return;
+      const root = getRootDomain(dom);
+      if (!root) return;
+
+      if (!rootMap.has(root)) {
+        rootMap.set(root, {
+          rootDomain: root,
+          primaryToken: t.token,
+          tokenObj: t,
+          items: [],
+        });
+      }
+
+      const entry = rootMap.get(root);
+      if (dom.toLowerCase() === root.toLowerCase()) {
+        entry.primaryToken = t.token;
+        entry.tokenObj = t;
+      }
+
+      const addrList = [];
+      if (t.custom_domain) addrList.push(t.custom_domain);
+      else if (t.subdomain) addrList.push(`${t.subdomain}.iraglobaltech.com`);
+      (t.domains || []).forEach((d) => addrList.push(d));
+
+      addrList.forEach((addr) => {
+        if (!entry.items.some((item) => item.addr.toLowerCase() === addr.toLowerCase())) {
+          entry.items.push({
+            addr,
+            label: addr.toLowerCase() === root.toLowerCase() ? '🌐 Root Domain' : '🔗 Subdomain',
+            token: t.token,
+            local_port: t.local_port,
+          });
+        }
+      });
+    });
+
+    tokens.forEach((t) => {
+      if (!t.custom_domain && !t.subdomain) {
+        const key = t.name || `Token ${t.token.substring(0, 8)}`;
+        if (!rootMap.has(key)) {
+          rootMap.set(key, {
+            rootDomain: key,
+            primaryToken: t.token,
+            tokenObj: t,
+            items: [],
+          });
+        }
+      }
+    });
+
+    return Array.from(rootMap.values());
+  }, [tokens]);
 
   const load = useCallback(async () => {
     try {
@@ -80,50 +102,37 @@ export default function ConfigureTunnel() {
       ]);
       setInfo(infoD);
       setTokens(tokensD);
-      // pick the first token on initial load (or keep the current selection valid)
-      setTokenSel((cur) => {
-        if (cur && tokensD.some((t) => t.token === cur)) return cur;
-        return tokensD.length ? tokensD[0].token : '';
-      });
     } catch (e) { toast(e.message, 'error'); }
   }, [toast]);
 
   useEffect(() => {
     load();
-    // auto-detect platform
     const ua = navigator.userAgent;
     const detected = /Mac|iPhone|iPad|iPod/i.test(ua) ? 'mac' : /Win/i.test(ua) ? 'windows' : 'linux';
     setPlatform(detected);
   }, [load]);
 
-  const selToken = tokens.find((t) => t.token === tokenSel);
-  const port = localAddr.split(':').pop() || '8080';
-  const [tokenSearch, setTokenSearch] = useState('');
-
-  // Update local address when token changes — load saved port from DB (local_port) or localStorage
+  // Default selection to first main domain token on load
   useEffect(() => {
-    if (!selToken) return;
-    // Prefer DB-stored local_port, fall back to localStorage
-    if (selToken.local_port) {
-      setLocalAddr(`127.0.0.1:${selToken.local_port}`);
-    } else {
-      const savedPort = localStorage.getItem(`token-port-${selToken.id}`);
-      if (savedPort) {
-        setLocalAddr(`127.0.0.1:${savedPort}`);
-      }
+    if (mainDomains.length && !tokenSel) {
+      setTokenSel(mainDomains[0].primaryToken);
     }
-  }, [tokenSel, selToken]);
+  }, [mainDomains, tokenSel]);
 
-  const filteredTokens = useMemo(() => {
-    if (!tokenSearch.trim()) return tokens;
+  const selectedGroup = useMemo(() => {
+    return mainDomains.find((g) => g.primaryToken === tokenSel || g.items.some((i) => i.token === tokenSel)) || mainDomains[0];
+  }, [mainDomains, tokenSel]);
+
+  const selToken = selectedGroup?.tokenObj || tokens.find((t) => t.token === tokenSel) || tokens[0];
+
+  const filteredMainDomains = useMemo(() => {
+    if (!tokenSearch.trim()) return mainDomains;
     const q = tokenSearch.trim().toLowerCase();
-    return tokens.filter((t) =>
-      String(t.name || '').toLowerCase().includes(q) ||
-      String(t.subdomain || '').toLowerCase().includes(q) ||
-      String(t.token || '').toLowerCase().includes(q) ||
-      String(t.custom_domain || '').toLowerCase().includes(q)
+    return mainDomains.filter((g) =>
+      g.rootDomain.toLowerCase().includes(q) ||
+      g.items.some((i) => i.addr.toLowerCase().includes(q))
     );
-  }, [tokens, tokenSearch]);
+  }, [mainDomains, tokenSearch]);
 
   // Load saved multi-port config from backend
   const loadMultiPortConfig = useCallback(async (token) => {
@@ -150,30 +159,23 @@ export default function ConfigureTunnel() {
   }, []);
 
   useEffect(() => {
-    if (!selToken) return;
+    if (!selectedGroup) return;
     (async () => {
-      const saved = await loadMultiPortConfig(tokenSel);
+      const saved = await loadMultiPortConfig(selectedGroup.primaryToken);
       setMultiPort(saved.multi_port_enabled !== false);
-      const fallbackPort = (selToken.local_port || localAddr.split(':').pop() || '8080').toString();
-      // Build a map: address → token's local_port (for per-address defaults)
-      const addrToPort = {};
-      tokens.forEach((t) => {
-        const lp = t.local_port ? t.local_port.toString() : null;
-        if (!lp) return;
-        if (t.custom_domain) addrToPort[t.custom_domain] = lp;
-        if (t.subdomain && !t.custom_domain) addrToPort[`${t.subdomain}.iraglobaltech.com`] = lp;
-        (t.domains || []).forEach((d) => { addrToPort[d] = lp; });
-      });
-      const addrs = tokenAddresses(selToken, tokens, true).map((a, i) => {
+      const fallbackPort = (selToken?.local_port || '8080').toString();
+
+      const addrs = (selectedGroup.items || []).map((a, i) => {
         const savedEntry = saved.ports?.[a.addr] || {};
-        // Priority: saved multiport config > address's token local_port > selected token local_port > localAddr > 8080
-        const port = savedEntry.port || addrToPort[a.addr] || fallbackPort;
+        const port = savedEntry.port || a.local_port?.toString() || fallbackPort;
         return { ...a, port, enabled: savedEntry.enabled !== false };
       });
       setMultiPorts(addrs);
     })();
-  }, [tokenSel, selToken, tokens, loadMultiPortConfig]);
+  }, [selectedGroup, selToken, loadMultiPortConfig]);
 
+  const fallbackPort = (selToken?.local_port || '8080').toString();
+  const port = fallbackPort;
   const portList = multiPort ? multiPorts.filter((m) => m.enabled !== false && m.port.trim()).map((m) => m.port.trim()) : null;
   const sshPort = info?.ssh_port || 2222;
 
@@ -208,18 +210,14 @@ export default function ConfigureTunnel() {
     return ssh;
   };
 
-  // TCP mode (Pro): the public port is the token's persistent TCP port
-  const isTcp = tunnelType === 'tcp';
   const multiAddrs = multiPort && portList?.length
     ? multiPorts.filter((m) => m.enabled !== false && m.port.trim()).map((m) => `https://${m.addr}`)
     : [];
   const primaryAddr = selToken
-    ? (isTcp
-        ? `tcp://iraglobaltech.com:${selToken.tcp_port || '— (set in Manage Tokens)'}`
-        : (() => {
-            const addrs = tokenAddresses(selToken, tokens);
-            return addrs[0] ? `https://${addrs[0].addr}` : 'https://—.iraglobaltech.com';
-          })())
+    ? (() => {
+        const rootAddr = selectedGroup?.rootDomain;
+        return rootAddr ? `https://${rootAddr}` : 'https://—.iraglobaltech.com';
+      })()
     : 'https://—.iraglobaltech.com';
   const previewUrl = multiAddrs.length > 1 ? multiAddrs.join('  ·  ') : primaryAddr;
 
@@ -268,42 +266,6 @@ export default function ConfigureTunnel() {
         </div>
         <div className="card-body">
           <div className="cfg-row">
-            <div className="form-group" style={{ maxWidth: 240 }}>
-              <label>App / Service preset</label>
-              <select
-                value={preset}
-                onChange={(e) => {
-                  const p = APP_PRESETS.find((a) => a.key === e.target.value);
-                  setPreset(e.target.value);
-                  if (p) setLocalAddr(`127.0.0.1:${p.p}`);
-                }}
-              >
-                {APP_PRESETS.map((a) => <option key={a.key} value={a.key}>{a.n} — :{a.p}</option>)}
-              </select>
-            </div>
-            <div className="form-group" style={{ maxWidth: 130 }}>
-              <label>Tunnel type</label>
-              <select value={tunnelType} onChange={(e) => setTunnelType(e.target.value)}>
-                <option value="http">HTTP</option>
-                <option value="tcp">TCP (Pro)</option>
-              </select>
-            </div>
-            {isTcp && (
-              <div className="form-group" style={{ flex: 1, minWidth: 180 }}>
-                <label>TCP mode</label>
-                <div className="inline-note amber" style={{ margin: 0, padding: '.5rem .7rem' }}>
-                  TCP tunnels use the token's persistent port. {selToken?.tcp_port
-                    ? <>Your public port: <strong className="code">{selToken.tcp_port}</strong></>
-                    : <>Set the port under <strong>Manage Tokens → Edit → Tunnel type</strong>.</>}
-                </div>
-              </div>
-            )}
-            <div className="form-group cfg-field">
-              <label>Local address — what you want to share</label>
-              <input type="text" value={localAddr} onChange={(e) => setLocalAddr(e.target.value)} placeholder="127.0.0.1:8080" />
-            </div>
-          </div>
-          <div className="cfg-row">
             <div className="form-group" style={{ maxWidth: 180 }}>
               <label>Platform</label>
               <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
@@ -313,21 +275,17 @@ export default function ConfigureTunnel() {
               </select>
             </div>
             <div className="form-group cfg-field" style={{ flex: 1 }}>
-              <label>Access token</label>
+              <label>Domain / Access Token</label>
               <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
                 <select value={tokenSel} onChange={(e) => setTokenSel(e.target.value)} style={{ flex: 1 }}>
-                  {filteredTokens.map((t) => {
-                    const addrs = tokenAddresses(t, tokens).map((a) => a.addr);
-                    const label = addrs.length ? addrs.join(', ') : (t.name || 'Unnamed');
-                    return (
-                      <option key={t.id} value={t.token}>
-                        {label} — {t.token.substring(0, 8)}...
-                      </option>
-                    );
-                  })}
-                  {filteredTokens.length === 0 && <option value="">No tokens match</option>}
+                  {filteredMainDomains.map((g) => (
+                    <option key={g.primaryToken} value={g.primaryToken}>
+                      {g.rootDomain}
+                    </option>
+                  ))}
+                  {filteredMainDomains.length === 0 && <option value="">No domains match</option>}
                 </select>
-                {tokens.length > 3 && (
+                {mainDomains.length > 3 && (
                   <SearchBar value={tokenSearch} onChange={setTokenSearch} placeholder="Filter…" style={{ maxWidth: 140 }} />
                 )}
               </div>
@@ -339,10 +297,10 @@ export default function ConfigureTunnel() {
               Multi-port <span className="badge" style={{ marginLeft: '.2rem' }}>Pro</span> — each address → its own local port, one command
             </label>
           </div>
-          {multiPort && selToken && (
+          {multiPort && selectedGroup && (
             <div className="multiport-box">
               <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.6rem' }}>
-                All domains and subdomains on your account — one SSH command, one tunnel, all addresses. Enter a local port for each:
+                All subdomains under <strong>{selectedGroup.rootDomain}</strong> — enter a local port for each:
               </p>
               {multiPorts.map((m, i) => {
                 const enabled = m.enabled !== false;
