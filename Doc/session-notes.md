@@ -304,3 +304,9 @@
 - **In progress:** ConfigureTunnel.jsx + dist/index.html have uncommitted changes from v2.8.2 (local_port feature) — not part of v2.8.3, still staged in working tree.
 - **Next:** user should test callingagents.in login in browser with real credentials to confirm full flow works end-to-end.
 - **Watch out:** Service restart disconnects all SSH tunnels — they auto-reconnect within ~10s but tests must wait. psql pager still wedges VS Code terminal — use Python psycopg instead.
+
+## 2026-09-14 — v2.8.4 — Raise tunnel rate limits (auto-ban on legit browsing)
+- **Done:** v2.8.4 — Raised tunnel_ip 240→600, tunnel_sub 600→2000, ban threshold 3→5, ban duration 1h→30min. Cleared all existing IP blocks in Redis. User IP 103.240.76.163 was banned with "tunnel flood" after browsing callingagents.in — now unblocked and limits raised to accommodate full web app asset loads.
+- **In progress:** ConfigureTunnel.jsx + dist/index.html still have uncommitted changes from v2.8.2.
+- **Next:** user should test callingagents.in browsing multiple pages without getting blocked.
+- **Watch out:** Service restart disconnects SSH tunnels (~10s reconnect). psql pager wedges VS Code terminal — use Python psycopg.
