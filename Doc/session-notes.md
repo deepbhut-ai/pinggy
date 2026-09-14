@@ -316,3 +316,15 @@
 - **In progress:** ConfigureTunnel.jsx + dist/index.html still uncommitted from v2.8.2.
 - **Next:** user should test API keys in dashboard (create, use via SDK, revoke) and verify existing keys still work (they may need to be recreated since key_plain was dropped — old raw keys are gone from DB but the hash is still valid if the user saved the key elsewhere).
 - **Watch out:** Existing API keys in the DB still have valid hashes — users who saved their raw key can still use it. But users who relied on the dashboard's copy button to retrieve the key later will NOT be able to — the key is now shown only once at creation.
+
+## 2026-09-14 — v2.9.1 — Post-rename cleanup + verification
+- **Done:** v2.9.1 — Tested project after v2.9.0 rename, found + fixed 5 issues:
+  (1) SSH console banner line 583 still said "tunnel" not "IRAGT tunnel" (missed in v2.9.0),
+  (2) BrokenPipeError log spam in _send_info_when_ready (unguarded chan.write),
+  (3) GET /users/me 500 (shadowed by /{user_id} — added dedicated /me route),
+  (4) stale filenames (pinggy.postman_collection.json, nginx/pinggy-rate-limits.conf,
+  installed nginx configs), (5) stale pinggy refs in active Doc/ files (deploy/setup/database/process-flow).
+  Service restarted, all 20 endpoint checks PASS, 0 BrokenPipeErrors, 93 IRAGT banners, 0 old banners.
+- **In progress:** nothing — all fixes committed + tagged.
+- **Next:** await user. Potential follow-up: rebuild dist/ if any source JS references "pinggy" (checked — none found).
+- **Watch out:** The server was running pre-rename code until we restarted it — always restart after code edits since Python loads modules into memory at startup.

@@ -1,6 +1,6 @@
-# database.md — local PostgreSQL `pinggy`
+# database.md — local PostgreSQL `iragt`
 
-Connection (local dev): `postgresql://postgres:root@localhost:5432/pinggy`
+Connection (local dev): `postgresql://postgres:root@localhost:5432/iragt`
 (brew postgresql@14; credentials in `.env`). Schema managed by Alembic — see migrations.md.
 
 ## users

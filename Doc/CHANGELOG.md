@@ -1,5 +1,24 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.9.1 — 2026-09-14 — Post-rename cleanup: SSH banner, BrokenPipe fix, /users/me route, stale file renames, doc fixes
+
+### Added
+- `GET /api/v1/users/me` — returns the current authenticated user's own profile (any logged-in user). Without this, `/users/me` was shadowed by the `/{user_id}` route (user_id="me") and crashed with HTTP 500. The frontend uses `/auth/me`, so this was not user-visible, but any API consumer calling `/users/me` would hit the 500.
+- Test evidence: `Doc/tests/v2.9.1/output.txt` — 20 endpoint checks all pass, 0 BrokenPipeErrors, 0 stale "tunnel" banners, 0 stale "pinggy" filenames/docs.
+
+### Changed
+- `app/core/ssh_server.py:583` — server console banner renamed from `tunnel — ACTIVE` to `IRAGT tunnel — ACTIVE` (line 89 was already renamed in v2.9.0; this print() at line 583 was missed).
+- `app/core/ssh_server.py:102` — `TunnelInfoSession._send_info_when_ready()`: wrapped `self._chan.write(data)` in `try/except` to suppress `BrokenPipeError` when the SSH channel is already closed by the client. Previously, the unguarded write caused recurring "Task exception was never retrieved" log spam every few seconds with active tunnels.
+- `Doc/guides/deploy.md` — updated all `/opt/pinggy` → `/opt/iragt`, `pinggy.service` → `iragt.service`, `systemctl ... pinggy` → `iragt`, `pinggy-rate-limits.conf` → `iragt-rate-limits.conf`.
+- `Doc/guides/setup.md` — title "run pinggy" → "run IRAGT", DB name `pinggy` → `iragt`, `deploy/pinggy.service` → `deploy/iragt.service`, connection string updated.
+- `Doc/database.md` — header + connection string `pinggy` → `iragt`.
+- `Doc/process-flow.md` — nginx config file paths `pinggy.react.conf`/`pinggy.ssl.conf` → `iragt.*`, `/opt/pinggy` → `/opt/iragt`.
+
+### Removed
+- `pinggy.postman_collection.json` — renamed to `iragt.postman_collection.json` (content already used "IRAGT"; only the filename was stale).
+- `nginx/pinggy-rate-limits.conf` — renamed to `nginx/iragt-rate-limits.conf`.
+- Installed nginx config files `/etc/nginx/sites-enabled/pinggy.react.conf` and `/etc/nginx/sites-available/pinggy.ssl.conf` — renamed to `iragt.*` (content was already correct, only filenames were stale).
+
 ## v2.8.7 — 2026-09-14 — Public Guide page + health monitoring + auto-restart enhancements
 
 ### Added

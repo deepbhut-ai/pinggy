@@ -99,8 +99,11 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                 ]
                 data = "\n".join(lines) + "\n"
                 if self._chan:
-                    self._chan.write(data)
-                    # Don't call flush() — SSHServerChannel doesn't support it
+                    try:
+                        self._chan.write(data)
+                        # Don't call flush() — SSHServerChannel doesn't support it
+                    except Exception:
+                        pass  # Channel already closed by client — suppress BrokenPipeError
                 self._info_sent = True
                 logger.info("Tunnel info sent to client terminal")
                 return
@@ -580,7 +583,7 @@ class MySSHServer(asyncssh.SSHServer):
 
             # Print to server console
             print(f"\n  ╔══════════════════════════════════════════════════════╗")
-            print(f"  ║  tunnel — ACTIVE                                     ║")
+            print(f"  ║  IRAGT tunnel — ACTIVE                                ║")
             print(f"  ║  URL:  {url:<46s}║")
             if custom_url:
                 print(f"  ║  Custom domain: {custom_url:<37s}║")

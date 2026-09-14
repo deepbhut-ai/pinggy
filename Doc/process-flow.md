@@ -56,9 +56,9 @@ Browser (HTTPS)
 **Port 80 (existing, unchanged):** ACME challenge webroot (`/.well-known/acme-challenge/`) + HTTP→HTTPS 301 redirect.
 
 **Config files:**
-- `/etc/nginx/sites-enabled/pinggy.react.conf` — port 80 (HTTP redirect, ACME, React SPA for iraglobaltech.com)
-- `/etc/nginx/sites-enabled/pinggy.ssl.conf` — port 443 (SSL for iraglobaltech.com + fleet subs + default fallback)
-- `/opt/pinggy/nginx/pinggy.ssl.conf` — project-tracked copy
+- `/etc/nginx/sites-enabled/iragt.react.conf` — port 80 (HTTP redirect, ACME, React SPA for iraglobaltech.com)
+- `/etc/nginx/sites-enabled/iragt.ssl.conf` — port 443 (SSL for iraglobaltech.com + fleet subs + default fallback)
+- `/opt/iragt/nginx/iragt.ssl.conf` — project-tracked copy
 
 **Fleet SSL provisioning:** `scripts/provision_fleet_ssl.sh` checks DNS → certbot HTTP-01 → per-sub nginx config → reload. Prerequisite: `scripts/create_cf_dns_records.sh <CF_TOKEN>` creates A records first.
 
