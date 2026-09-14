@@ -37,12 +37,12 @@ class Settings(BaseSettings):
     # SSH Tunnel Server
     SSH_HOST: str = "0.0.0.0"
     SSH_PORT: int = 2222
-    # Domain for tunnel subdomains (e.g. "pinggy.example.com" → abc123.pinggy.example.com)
+    # Domain for tunnel subdomains (e.g. "iraglobaltech.com" → abc123.iraglobaltech.com)
     TUNNEL_DOMAIN: str = "localhost"
     # Port range for SSH reverse tunnels (allocated dynamically)
     TUNNEL_PORT_MIN: int = 10000
     TUNNEL_PORT_MAX: int = 20000
-    # Free plan: tunnel auto-disconnect after this many minutes (like pinggy.io)
+    # Free plan: tunnel auto-disconnect after this many minutes
     FREE_TUNNEL_TIMEOUT_MINUTES: int = 60
 
     # ---- Payments / Subscriptions ----

@@ -184,7 +184,7 @@ def _extract_subdomain(host: str) -> str | None:
     """Extract the tunnel subdomain from a Host header.
 
     e.g. "abc123.localhost:8080" → "abc123"
-         "abc123.pinggy.example.com" → "abc123"
+         "abc123.iraglobaltech.com" → "abc123"
     """
     # Strip port
     if ":" in host:

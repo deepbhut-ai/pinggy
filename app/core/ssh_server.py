@@ -247,7 +247,9 @@ class MySSHServer(asyncssh.SSHServer):
 
     def session_requested(self) -> bool:
         """Allow the client to open a session so we can send the tunnel URL
-        back to their terminal (like pinggy.io does)."""
+        back to their terminal (like pinggy.io does).
+
+        Note: IRAGT uses token-as-username auth (no SSH keys needed)."""
         if self._auth_failed:
             return False  # Reject — invalid token
         self._info_session = TunnelInfoSession(self)

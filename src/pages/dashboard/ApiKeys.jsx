@@ -206,7 +206,7 @@ export default function ApiKeys() {
       <div className="card" style={{ marginTop: '1rem' }}>
         <div className="card-header"><h2>Python SDK quick start</h2></div>
         <div className="card-body">
-          <div className="cmd-box"><pre>{`from sdk.pinggy_sdk import TunnelClient
+          <div className="cmd-box"><pre>{`from sdk.iragt_sdk import TunnelClient
 
 client = TunnelClient("${origin}", api_key="pk_YOUR_KEY")
 print(client.tokens())            # list tokens

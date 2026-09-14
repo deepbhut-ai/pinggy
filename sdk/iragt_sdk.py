@@ -1,7 +1,7 @@
 """IRAGT Tunnel Python SDK — manage tunnels, tokens & domains programmatically.
 
 Usage:
-    from sdk.pinggy_sdk import TunnelClient
+    from sdk.iragt_sdk import TunnelClient
 
     client = TunnelClient("https://iraglobaltech.com", api_key="pk_...")
     print(client.tokens())                       # list tokens

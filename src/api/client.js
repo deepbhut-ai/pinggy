@@ -2,14 +2,14 @@
 // Adds the Bearer token to every request and redirects to /login on 401.
 
 const API_BASE = '/api/v1';
-const TOKEN_KEY = 'pinggy_token';
+const TOKEN_KEY = 'iragt_token';
 
 export const getToken = () => sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
 export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
 export const clearToken = () => {
   sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem('pinggy_impersonate');
+  sessionStorage.removeItem('iragt_impersonate');
 };
 
 export class ApiError extends Error {

@@ -22,13 +22,13 @@ export default function RemoteDevices() {
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div className="card-body">
           <div className="cmd-box cmd-box-relative">
-            <pre>{`from sdk.pinggy_sdk import TunnelClient
+            <pre>{`from sdk.iragt_sdk import TunnelClient
 client = TunnelClient("${window.location.origin}", api_key="pk_YOUR_KEY")
 client.watch("YOUR_TOKEN", ports=[3000, 8000])   # auto-reconnects forever`}</pre>
             <button
               className="btn btn-sm copy-btn"
               onClick={() => {
-                copyToClipboard(`from sdk.pinggy_sdk import TunnelClient\nclient = TunnelClient("${window.location.origin}", api_key="pk_YOUR_KEY")\nclient.watch("YOUR_TOKEN", ports=[3000, 8000])`);
+                copyToClipboard(`from sdk.iragt_sdk import TunnelClient\nclient = TunnelClient("${window.location.origin}", api_key="pk_YOUR_KEY")\nclient.watch("YOUR_TOKEN", ports=[3000, 8000])`);
                 toast('Copied');
               }}
             >📋 Copy</button>

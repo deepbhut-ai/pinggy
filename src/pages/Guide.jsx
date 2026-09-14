@@ -288,7 +288,7 @@ done`}</pre>
                 <div className="card-header"><h2>Quick start</h2></div>
                 <div className="card-body">
                   <div className="cmd-box cmd-box-relative">
-                    <pre>{`from sdk.pinggy_sdk import TunnelClient
+                    <pre>{`from sdk.iragt_sdk import TunnelClient
 
 client = TunnelClient("https://iraglobaltech.com", api_key="pk_YOUR_KEY")
 
@@ -303,9 +303,9 @@ print(client.tunnels())
 
 # Stop a tunnel
 client.stop_tunnel("ci-run")`}</pre>
-                    <button className="btn btn-sm copy-btn" onClick={() => copy(`from sdk.pinggy_sdk import TunnelClient\n\nclient = TunnelClient("https://iraglobaltech.com", api_key="pk_YOUR_KEY")\nprint(client.tokens())\nt = client.create_token(name="ci-run", fixed_subdomain="ci-run")\nprint(client.tunnels())\nclient.stop_tunnel("ci-run")`, 'sdk1')}>{copied === 'sdk1' ? '✅' : '📋'}</button>
+                    <button className="btn btn-sm copy-btn" onClick={() => copy(`from sdk.iragt_sdk import TunnelClient\n\nclient = TunnelClient("https://iraglobaltech.com", api_key="pk_YOUR_KEY")\nprint(client.tokens())\nt = client.create_token(name="ci-run", fixed_subdomain="ci-run")\nprint(client.tunnels())\nclient.stop_tunnel("ci-run")`, 'sdk1')}>{copied === 'sdk1' ? '✅' : '📋'}</button>
                   </div>
-                  <p className="dim" style={{ fontSize: '.8rem', marginTop: '.5rem' }}>The SDK uses only <span className="code">urllib</span> — no external dependencies. Copy <span className="code">sdk/pinggy_sdk.py</span> into your project.</p>
+                  <p className="dim" style={{ fontSize: '.8rem', marginTop: '.5rem' }}>The SDK uses only <span className="code">urllib</span> — no external dependencies. Copy <span className="code">sdk/iragt_sdk.py</span> into your project.</p>
                 </div>
               </div>
             </section>
