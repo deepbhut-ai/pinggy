@@ -154,12 +154,20 @@ export default function ConfigureTunnel() {
     (async () => {
       const saved = await loadMultiPortConfig(tokenSel);
       setMultiPort(saved.multi_port_enabled !== false);
-      const defaultPort = (selToken.local_port || localAddr.split(':').pop() || '8080').toString();
+      const fallbackPort = (selToken.local_port || localAddr.split(':').pop() || '8080').toString();
+      // Build a map: address → token's local_port (for per-address defaults)
+      const addrToPort = {};
+      tokens.forEach((t) => {
+        const lp = t.local_port ? t.local_port.toString() : null;
+        if (!lp) return;
+        if (t.custom_domain) addrToPort[t.custom_domain] = lp;
+        if (t.subdomain && !t.custom_domain) addrToPort[`${t.subdomain}.iraglobaltech.com`] = lp;
+        (t.domains || []).forEach((d) => { addrToPort[d] = lp; });
+      });
       const addrs = tokenAddresses(selToken, tokens, true).map((a, i) => {
         const savedEntry = saved.ports?.[a.addr] || {};
-        // Use saved port from multiport config, or the token's local_port for its own address, or default
-        const isOwnAddr = a.addr === selToken.custom_domain || a.addr === `${selToken.subdomain}.iraglobaltech.com`;
-        const port = savedEntry.port || (isOwnAddr && selToken.local_port ? selToken.local_port.toString() : defaultPort);
+        // Priority: saved multiport config > address's token local_port > selected token local_port > localAddr > 8080
+        const port = savedEntry.port || addrToPort[a.addr] || fallbackPort;
         return { ...a, port, enabled: savedEntry.enabled !== false };
       });
       setMultiPorts(addrs);
