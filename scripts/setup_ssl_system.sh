@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# pinggy — One-Time Automated SSL & Certbot Webroot System Setup
+# IRAGT — One-Time Automated SSL & Certbot Webroot System Setup
 # ==============================================================================
 # Usage (run as root on production server):
 #   sudo bash scripts/setup_ssl_system.sh

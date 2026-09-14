@@ -373,8 +373,8 @@ async function doLogin() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Login failed');
-    localStorage.setItem('pinggy_token', data.access_token);
-    localStorage.setItem('pinggy_user', JSON.stringify(data.user));
+    localStorage.setItem('iragt_token', data.access_token);
+    localStorage.setItem('iragt_user', JSON.stringify(data.user));
     // Redirect based on role
     if (data.user.role === 'admin') {
       window.location.href = '/admin';
@@ -422,8 +422,8 @@ async function doLoginAfterRegister(email, password) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error('Login failed after registration');
-    localStorage.setItem('pinggy_token', data.access_token);
-    localStorage.setItem('pinggy_user', JSON.stringify(data.user));
+    localStorage.setItem('iragt_token', data.access_token);
+    localStorage.setItem('iragt_user', JSON.stringify(data.user));
     // New users go to dashboard (role = user)
     window.location.href = '/dashboard';
   } catch (e) {
@@ -437,7 +437,7 @@ async function doLoginAfterRegister(email, password) {
 
 // Check if already logged in
 (async function() {
-  const token = localStorage.getItem('pinggy_token');
+  const token = localStorage.getItem('iragt_token');
   if (!token) return;
   try {
     const res = await fetch(`${API}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } });

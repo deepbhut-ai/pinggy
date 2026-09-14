@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# pinggy — SSL Certificate Setup (Let's Encrypt wildcard)
+# IRAGT — SSL Certificate Setup (Let's Encrypt wildcard)
 # ============================================================
 # Run on the production server as root/sudo.
 #
@@ -23,7 +23,7 @@ DOMAIN="${1:-xyz.com}"
 EMAIL="${2:-admin@${DOMAIN}}"
 
 echo "=========================================="
-echo "  pinggy SSL Setup"
+echo "  IRAGT SSL Setup"
 echo "  Domain: *.${DOMAIN}"
 echo "  Email:  ${EMAIL}"
 echo "=========================================="

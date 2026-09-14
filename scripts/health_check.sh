@@ -5,7 +5,7 @@
 #
 # If /health returns "degraded" or doesn't respond, the script exits
 # with a non-zero code. Combined with WatchdogSec + Restart=always,
-# systemd will auto-restart the pinggy service.
+# systemd will auto-restart the IRAGT service.
 #
 # Usage:
 #   1. Install: sudo cp scripts/health_check.sh /opt/pinggy/scripts/health_check.sh
