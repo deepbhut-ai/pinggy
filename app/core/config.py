@@ -23,9 +23,9 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
-    POSTGRES_DB: str = "pinggy"
+    POSTGRES_DB: str = "iragt"
     DATABASE_URL: str = (
-        "postgresql+psycopg://postgres:postgres@localhost:5432/pinggy"
+        "postgresql+psycopg://postgres:postgres@localhost:5432/iragt"
     )
 
     # JWT

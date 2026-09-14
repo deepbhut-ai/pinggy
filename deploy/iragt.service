@@ -1,9 +1,9 @@
-# systemd service file for pinggy
-# Install: sudo cp deploy/pinggy.service /etc/systemd/system/pinggy.service
-#          sudo chmod +x /opt/pinggy/scripts/health_check.sh
+# systemd service file for IRAGT
+# Install: sudo cp deploy/iragt.service /etc/systemd/system/iragt.service
+#          sudo chmod +x /opt/iragt/scripts/health_check.sh
 #          sudo systemctl daemon-reload
-#          sudo systemctl enable pinggy
-#          sudo systemctl start pinggy
+#          sudo systemctl enable iragt
+#          sudo systemctl start iragt
 #
 # v2.8.7: Added health check + auto-restart enhancements.
 #         Restart=always + RestartSec=5 already handles crashes.
@@ -11,16 +11,16 @@
 #         For watchdog mode, install sd_notify support (see scripts/health_check.sh).
 
 [Unit]
-Description=pinggy Tunnel Service
+Description=IRAGT Tunnel Service
 After=network.target postgresql.service
 Requires=postgresql.service
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/pinggy
-EnvironmentFile=/opt/pinggy/.env
-ExecStart=/opt/pinggy/.venv/bin/python /opt/pinggy/run.py
+WorkingDirectory=/opt/iragt
+EnvironmentFile=/opt/iragt/.env
+ExecStart=/opt/iragt/.venv/bin/python /opt/iragt/run.py
 Restart=always
 RestartSec=5
 StartLimitInterval=300

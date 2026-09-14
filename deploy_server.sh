@@ -1,13 +1,13 @@
 #!/bin/bash
 set -e
 
-echo "=== Creating pinggy database ==="
-sudo -u postgres psql -c "CREATE DATABASE pinggy;" 2>/dev/null || echo "Database may already exist"
+echo "=== Creating IRAGT database ==="
+sudo -u postgres psql -c "CREATE DATABASE iragt;" 2>/dev/null || echo "Database may already exist"
 sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'root';"
 echo "✅ Database ready"
 
 echo "=== Creating directory ==="
-mkdir -p /opt/pinggy
+mkdir -p /opt/iragt
 echo "✅ Directory ready"
 
 echo "=== Installing Python venv ==="

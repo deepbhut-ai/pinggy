@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-cd /opt/pinggy
+cd /opt/iragt
 
 echo "=== Copying production env ==="
 cp .env.production .env
@@ -25,17 +25,17 @@ echo "=== Testing startup ==="
 echo "✅ App imports work"
 
 echo "=== Creating systemd service ==="
-cat > /etc/systemd/system/pinggy.service << 'EOF'
+cat > /etc/systemd/system/iragt.service << 'EOF'
 [Unit]
-Description=pinggy SSH Tunnel Service
+Description=IRAGT SSH Tunnel Service
 After=network.target postgresql.service
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/pinggy
-EnvironmentFile=/opt/pinggy/.env
-ExecStart=/opt/pinggy/.venv/bin/python /opt/pinggy/run.py
+WorkingDirectory=/opt/iragt
+EnvironmentFile=/opt/iragt/.env
+ExecStart=/opt/iragt/.venv/bin/python /opt/iragt/run.py
 Restart=always
 RestartSec=5
 
@@ -46,18 +46,18 @@ echo "✅ systemd service created"
 
 echo "=== Enabling and starting service ==="
 systemctl daemon-reload
-systemctl enable pinggy
-systemctl start pinggy
+systemctl enable iragt
+systemctl start iragt
 sleep 3
-systemctl status pinggy --no-pager || true
+systemctl status iragt --no-pager || true
 echo "✅ Service started"
 
 echo "=== Creating nginx config ==="
-cat > /etc/nginx/sites-available/pinggy << 'NGINX'
-# pinggy tunnel service — admin panel + API
+cat > /etc/nginx/sites-available/iragt << 'NGINX'
+# IRAGT tunnel service — admin panel + API
 server {
     listen 80;
-    server_name pinggy.indicatorleads.com;
+    server_name iragt.indicatorleads.com;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -69,14 +69,14 @@ server {
         proxy_send_timeout 300s;
     }
 
-    access_log /var/log/nginx/pinggy_access.log;
-    error_log /var/log/nginx/pinggy_error.log;
+    access_log /var/log/nginx/iragt_access.log;
+    error_log /var/log/nginx/iragt_error.log;
 }
 
-# pinggy tunnel subdomains — wildcard for *.pinggy.indicatorleads.com
+# IRAGT tunnel subdomains — wildcard for *.iragt.indicatorleads.com
 server {
     listen 80 default_server;
-    server_name ~^.+\.pinggy\.indicatorleads\.com$;
+    server_name ~^.+\.iragt\.indicatorleads\.com$;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -88,14 +88,14 @@ server {
         proxy_send_timeout 300s;
     }
 
-    access_log /var/log/nginx/pinggy_tunnel_access.log;
-    error_log /var/log/nginx/pinggy_tunnel_error.log;
+    access_log /var/log/nginx/iragt_tunnel_access.log;
+    error_log /var/log/nginx/iragt_tunnel_error.log;
 }
 NGINX
 echo "✅ nginx config created"
 
 echo "=== Enabling nginx site ==="
-ln -sf /etc/nginx/sites-available/pinggy /etc/nginx/sites-enabled/pinggy
+ln -sf /etc/nginx/sites-available/iragt /etc/nginx/sites-enabled/iragt
 nginx -t
 systemctl reload nginx
 echo "✅ nginx reloaded"
@@ -104,5 +104,5 @@ echo ""
 echo "=== DEPLOYMENT COMPLETE ==="
 echo "Admin panel: http://13.140.131.204:8000/admin"
 echo "SSH tunnel:  ssh -p 2222 -R0:localhost:PORT TOKEN@13.140.131.204"
-echo "Service:     systemctl status pinggy"
-echo "Logs:        journalctl -u pinggy -f"
+echo "Service:     systemctl status iragt"
+echo "Logs:        journalctl -u iragt -f"

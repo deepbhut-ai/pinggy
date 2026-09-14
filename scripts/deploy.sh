@@ -7,7 +7,7 @@ set -Eeuo pipefail
 
 DEPLOY_HOST="${DEPLOY_HOST:-13.140.131.204}"
 DEPLOY_USER="${DEPLOY_USER:-root}"
-DEPLOY_PATH="${DEPLOY_PATH:-/opt/pinggy}"
+DEPLOY_PATH="${DEPLOY_PATH:-/opt/iragt}"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 DEPLOY_REMOTE="${DEPLOY_REMOTE:-origin}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/health}"
@@ -84,14 +84,14 @@ command -v npm >/dev/null || {
 npm ci --no-audit --no-fund
 npm run build
 
-systemctl restart pinggy
+systemctl restart iragt
 nginx -t
 systemctl reload nginx
 
 for attempt in 1 2 3 4 5 6 7 8 9 10; do
   if curl --fail --silent --show-error "$health_url"; then
     printf '\n'
-    systemctl is-active --quiet pinggy
+    systemctl is-active --quiet iragt
     systemctl is-active --quiet nginx
     echo "Deployment successful: $(git rev-parse --short HEAD)"
     exit 0
@@ -100,6 +100,6 @@ for attempt in 1 2 3 4 5 6 7 8 9 10; do
 done
 
 echo "ERROR: health check failed after 10 attempts" >&2
-journalctl -u pinggy -n 40 --no-pager >&2
+journalctl -u iragt -n 40 --no-pager >&2
 exit 1
 REMOTE

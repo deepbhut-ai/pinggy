@@ -6,7 +6,7 @@ EMAILS = [
     "support@@iraglobaltech.com",
 ]
 
-conn = psycopg.connect("host=localhost dbname=pinggy user=postgres password=root")
+conn = psycopg.connect("host=localhost dbname=iragt user=postgres password=root")
 cur = conn.cursor()
 
 # Show users before deletion

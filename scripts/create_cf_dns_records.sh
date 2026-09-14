@@ -8,7 +8,7 @@
 #   - jq installed: apt install jq
 #
 # Usage:
-#   bash /opt/pinggy/scripts/create_cf_dns_records.sh <CF_API_TOKEN>
+#   bash /opt/iragt/scripts/create_cf_dns_records.sh <CF_API_TOKEN>
 #
 # What it does:
 #   1. Looks up the Cloudflare zone ID for callingagents.in
@@ -94,5 +94,5 @@ echo "=========================================="
 echo "  Summary: $created created, $exists existed, $failed failed"
 echo "=========================================="
 echo ""
-echo "Next step: bash /opt/pinggy/scripts/provision_fleet_ssl.sh"
+echo "Next step: bash /opt/iragt/scripts/provision_fleet_ssl.sh"
 echo "(DNS propagation may take a few minutes before certbot can verify)"

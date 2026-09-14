@@ -8,8 +8,8 @@
 # systemd will auto-restart the IRAGT service.
 #
 # Usage:
-#   1. Install: sudo cp scripts/health_check.sh /opt/pinggy/scripts/health_check.sh
-#   2. chmod +x /opt/pinggy/scripts/health_check.sh
+#   1. Install: sudo cp scripts/health_check.sh /opt/iragt/scripts/health_check.sh
+#   2. chmod +x /opt/iragt/scripts/health_check.sh
 #   3. Add to systemd service: WatchdogSec=30 + ExecStartPost
 
 set -euo pipefail

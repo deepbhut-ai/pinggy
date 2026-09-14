@@ -14,10 +14,10 @@
 #   4. Reloads nginx gracefully
 #
 # Usage:
-#   bash /opt/pinggy/scripts/provision_fleet_ssl.sh
+#   bash /opt/iragt/scripts/provision_fleet_ssl.sh
 #
 # To create DNS records in Cloudflare, use:
-#   bash /opt/pinggy/scripts/create_cf_dns_records.sh <CF_API_TOKEN>
+#   bash /opt/iragt/scripts/create_cf_dns_records.sh <CF_API_TOKEN>
 # ============================================================
 
 set -euo pipefail
@@ -171,4 +171,4 @@ fi
 
 echo ""
 echo "Done. Subs without DNS need A records in Cloudflare first."
-echo "Run: bash /opt/pinggy/scripts/create_cf_dns_records.sh <CF_API_TOKEN>"
+echo "Run: bash /opt/iragt/scripts/create_cf_dns_records.sh <CF_API_TOKEN>"
