@@ -1,0 +1,20 @@
+=== Test 1: Multiple Set-Cookie headers preserved ===
+Set-Cookie header count: 2
+  → XSRF-TOKEN
+  → callingagents_session
+PASS: Multiple Set-Cookie headers preserved as separate entries
+
+=== Test 2: Login flow CSRF validation ===
+CSRF token acquired: XGJU07dYSv2luPsbOIU2...
+POST /login status: HTTP/2 302
+PASS: No 419 — CSRF validation passed (302 redirect = credentials rejected, not CSRF)
+
+=== Test 3: Service health ===
+Health: {"status":"ok","app":"IRAGT","env":"production"}
+PASS: Service healthy
+
+=== Machine-verifiable assertions ===
+GET /login → HTTP 200 (expected 200)
+GET /health → HTTP 200 (expected 200)
+
+=== ALL TESTS PASSED ===

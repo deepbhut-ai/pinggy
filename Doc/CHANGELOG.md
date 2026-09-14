@@ -1,5 +1,18 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.8.3 — 2026-09-14 — Fix: Tunnel proxy collapses multiple Set-Cookie headers (419 login on callingagents.in)
+
+### Added
+- Test evidence: `Doc/tests/v2.8.3/output.txt` — verifies 2 separate Set-Cookie headers preserved, CSRF validation passes (302 not 419), health check OK, HTTP 200 assertions.
+- WebSocket handshake now forwards upstream response headers (including Set-Cookie) to the client via `websocket.accept` `headers` field — previously all upstream response headers were silently dropped during WS upgrade.
+
+### Changed
+- `app/core/proxy.py` HTTP response path: `Set-Cookie` headers are now extracted from `resp.headers.multi_items()` and appended individually to `response.raw_headers` as separate `(b"set-cookie", value)` tuples. Previously, response headers were built as a Python dict (`resp_headers[key] = value`), which collapsed multiple `Set-Cookie` headers into a single comma-joined header. Browsers only parse the first cookie in a merged `Set-Cookie` — the second is silently dropped. This broke Laravel/Django apps tunneled through pinggy that set session + CSRF cookies (e.g. `callingagents.in` login returned HTTP 419 "Page Expired" because the `callingagents_session` cookie was dropped, leaving Laravel unable to validate the CSRF token).
+- `app/core/proxy.py` WebSocket path: `tunnel_websocket()` now reads `upstream.response_headers` and forwards them as `(bytes, bytes)` tuples in the `websocket.accept` ASGI event, preserving multiple Set-Cookie headers during WS handshakes.
+
+### Removed
+- none
+
 ## v2.8.2 — 2026-09-14 — Persist local_port in DB (visible in Manage Tokens table)
 
 ### Added

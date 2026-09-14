@@ -273,10 +273,17 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             # Build headers to forward (exclude hop-by-hop headers)
             forward_headers = {}
             for key, value in request.headers.items():
-                if key.lower() not in ("host", "transfer-encoding", "connection"):
+                if key.lower() not in ("host", "transfer-encoding", "connection", "content-length"):
                     forward_headers[key] = value
-            # Set the host to the tunnel's local host
-            forward_headers["host"] = f"localhost:{tunnel.local_port}"
+            # Preserve the incoming host and standard proxy headers so frameworks like Laravel/Django
+            # can properly validate CSRF tokens, session cookies, and origin URLs.
+            real_host = host or request.headers.get("host", f"localhost:{tunnel.local_port}")
+            forward_headers["host"] = real_host
+            forward_headers["x-forwarded-host"] = real_host
+            forward_headers["x-forwarded-proto"] = request.headers.get("x-forwarded-proto", "https")
+            forward_headers["x-forwarded-port"] = "443" if forward_headers.get("x-forwarded-proto") == "https" else "80"
+            forward_headers["x-forwarded-for"] = _client_ip(request)
+            forward_headers["x-real-ip"] = _client_ip(request)
 
             # Track request timing for live log
             req_start = time.monotonic()
@@ -305,22 +312,52 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             status = resp.status_code
             log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {req_path:<30s} → {status}  ({elapsed_ms}ms)")
 
-            # Build response — exclude hop-by-hop headers
+            # Build response — exclude hop-by-hop headers.
+            # CRITICAL: Set-Cookie headers must be preserved as separate entries.
+            # Using a plain dict collapses multiple Set-Cookie headers into one
+            # (joined by comma), which browsers cannot parse — the second cookie
+            # is silently dropped. This breaks Laravel/Django apps that set
+            # session + CSRF cookies (e.g. callingagents.in login → 419 Page
+            # Expired).
+            # Fix: build the Response with a starlette Headers object that
+            # supports multiple values for the same key, then append each
+            # Set-Cookie individually via set_cookie or raw header.
+            from starlette.datastructures import Headers as StarletteHeaders
+
+            # Start with a dict for all non-Set-Cookie headers
             resp_headers = {}
-            for key, value in resp.headers.items():
-                if key.lower() not in ("transfer-encoding", "connection", "content-encoding", "content-length"):
+            set_cookie_values = []
+            for key, value in resp.headers.multi_items():
+                lk = key.lower()
+                if lk in ("transfer-encoding", "connection", "content-encoding", "content-length"):
+                    continue
+                if lk == "set-cookie":
+                    set_cookie_values.append(value)
+                else:
                     resp_headers[key] = value
+
+            # Build a dict copy for the debugger capture (it only needs a sample)
+            debug_hdrs = dict(resp_headers)
+            if set_cookie_values:
+                debug_hdrs["set-cookie"] = set_cookie_values[0]
 
             # Web debugger capture (v0.11.0) — fire-and-forget
             await _debug_capture(subdomain, request.method, req_path, resp.status_code,
-                                 forward_headers, resp_headers, resp.content)
+                                 forward_headers, debug_hdrs, resp.content)
 
-            return Response(
+            # Create the response with dict headers, then append each
+            # Set-Cookie as a separate raw header so the browser sees them
+            # as individual Set-Cookie entries.
+            response = Response(
                 content=resp.content,
                 status_code=resp.status_code,
                 headers=resp_headers,
                 media_type=resp.headers.get("content-type"),
             )
+            for sc_value in set_cookie_values:
+                response.raw_headers.append((b"set-cookie", sc_value.encode("latin-1")))
+
+            return response
 
         except httpx.ConnectError:
             timestamp = datetime.now().strftime("%H:%M:%S")
@@ -408,8 +445,20 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
             ping_timeout=20,
             close_timeout=5,
         ) as upstream:
-            # accept the client handshake
-            await send({"type": "websocket.accept"})
+            # Accept the client handshake — forward upstream response headers
+            # (especially Set-Cookie) as a list of (bytes, bytes) tuples so
+            # multiple Set-Cookie headers are preserved individually.
+            # The websockets library exposes response headers via .response_headers
+            ws_resp_headers = []
+            rh = getattr(upstream, "response_headers", None)
+            if rh is not None:
+                if hasattr(rh, "multi_items"):
+                    for k, v in rh.multi_items():
+                        ws_resp_headers.append((k.encode(), v.encode()))
+                else:
+                    for k, v in rh.items():
+                        ws_resp_headers.append((k.encode(), v.encode()))
+            await send({"type": "websocket.accept", "headers": ws_resp_headers})
 
             client_done = False
             upstream_done = False
