@@ -310,3 +310,9 @@
 - **In progress:** ConfigureTunnel.jsx + dist/index.html still have uncommitted changes from v2.8.2.
 - **Next:** user should test callingagents.in browsing multiple pages without getting blocked.
 - **Watch out:** Service restart disconnects SSH tunnels (~10s reconnect). psql pager wedges VS Code terminal — use Python psycopg.
+
+## 2026-09-14 — v2.8.5 — API key security audit fixes
+- **Done:** v2.8.5 — Fixed 5 issues found in API key security audit: (1) API key auth 500 crash (is_active column missing), (2) plaintext key storage dropped, (3) soft-delete revoke, (4) rate limiting on auth failures, (5) expired keys excluded from plan count. Migration 0033 applied. All 7 tests passed.
+- **In progress:** ConfigureTunnel.jsx + dist/index.html still uncommitted from v2.8.2.
+- **Next:** user should test API keys in dashboard (create, use via SDK, revoke) and verify existing keys still work (they may need to be recreated since key_plain was dropped — old raw keys are gone from DB but the hash is still valid if the user saved the key elsewhere).
+- **Watch out:** Existing API keys in the DB still have valid hashes — users who saved their raw key can still use it. But users who relied on the dashboard's copy button to retrieve the key later will NOT be able to — the key is now shown only once at creation.
