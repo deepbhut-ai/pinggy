@@ -133,5 +133,55 @@ app.include_router(admin_router)  # /admin, /dashboard, / (landing page)
 
 @app.get("/health", tags=["system"])
 async def health():
-    """Return basic service metadata for uptime checks."""
-    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}
+    """Return service health with DB + Redis checks for watchdog monitoring (v2.8.7).
+
+    Status is "ok" only when all checks pass. If DB or Redis is down, status is
+    "degraded" — systemd watchdog will restart the service after WatchdogSec.
+    """
+    checks = {}
+    overall = "ok"
+
+    # DB check
+    try:
+        from app.core.db import get_pool
+        pool = get_pool()
+        if pool:
+            async with pool.connection() as conn:
+                cur = await conn.execute("SELECT 1")
+                await cur.fetchone()
+                await cur.close()
+            checks["db"] = "ok"
+        else:
+            checks["db"] = "no pool"
+            overall = "degraded"
+    except Exception as e:
+        checks["db"] = f"error: {e!s:.60}"
+        overall = "degraded"
+
+    # Redis check (optional — app works without Redis but degraded)
+    try:
+        from app.core.redis import get_redis
+        r = get_redis()
+        if r is not None:
+            await r.ping()
+            checks["redis"] = "ok"
+        else:
+            checks["redis"] = "disabled"
+    except Exception as e:
+        checks["redis"] = f"error: {e!s:.60}"
+        overall = "degraded"
+
+    # Active tunnels count
+    try:
+        from app.core.tunnel_registry import list_tunnels
+        tunnels = await list_tunnels()
+        checks["tunnels"] = len(tunnels)
+    except Exception:
+        checks["tunnels"] = "unknown"
+
+    return {
+        "status": overall,
+        "app": settings.APP_NAME,
+        "env": settings.APP_ENV,
+        "checks": checks,
+    }

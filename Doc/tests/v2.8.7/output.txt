@@ -1,0 +1,27 @@
+=== v2.8.7 Test Evidence ===
+
+1. Enhanced /health endpoint
+   Response: {"status":"ok","app":"IRAGT","env":"production","checks":{"db":"ok","redis":"ok","tunnels":0}}
+   ✅ DB check: ok
+   ✅ Redis check: ok
+   ✅ Tunnel count: 0 (just restarted, tunnels reconnecting)
+
+2. Health check script
+   Exit code: 0 ✅ (service healthy)
+   Script: scripts/health_check.sh — pings /health, checks status field
+
+3. Systemd service updated
+   ✅ StartLimitInterval=300 + StartLimitBurst=10 (prevents restart loops)
+   ✅ Restart=always + RestartSec=5 (auto-restart on crash)
+
+4. Public Guide page (/guide)
+   GET /guide → HTTP 200 ✅
+   Sections: Quickstart, SSH Command, Custom Domains, API Keys, Python SDK, Security, Plans, FAQ
+   No login required — public access
+
+5. All pages still working
+   ✅ / → 200
+   ✅ /login → 200
+   ✅ /guide → 200 (NEW)
+   ✅ /dashboard → 200
+   ✅ /docs → 200

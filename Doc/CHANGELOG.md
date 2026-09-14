@@ -1,5 +1,22 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.8.7 — 2026-09-14 — Public Guide page + health monitoring + auto-restart enhancements
+
+### Added
+- **Public Guide page** (`/guide`) — user-facing documentation accessible without login. 8 sections: Quickstart, SSH Command builder (with auto-reconnect for bash/PowerShell), Custom Domains setup, API Keys usage, Python SDK examples, Security features, Plans comparison, FAQ. React component `src/pages/Guide.jsx` + route in `App.jsx`.
+- **Enhanced `/health` endpoint** — now checks DB connectivity (`SELECT 1`), Redis ping, and active tunnel count. Returns `"status": "ok"` only when all checks pass, `"degraded"` when DB or Redis is down. Response includes `checks` object with per-component status.
+- **Health check script** (`scripts/health_check.sh`) — pings `/health`, checks status field, exits 0 if healthy, 1 if dead. Can be used with systemd watchdog or cron for active monitoring.
+- **Systemd service enhancements** — `StartLimitInterval=300` + `StartLimitBurst=10` to prevent infinite restart loops. `Restart=always` + `RestartSec=5` already handles crashes.
+- Test evidence: `Doc/tests/v2.8.7/output.txt`.
+
+### Changed
+- `app/main.py` `/health` endpoint: expanded from basic metadata to full DB + Redis + tunnel count health check.
+- `deploy/pinggy.service`: added restart rate limiting (`StartLimitInterval`/`StartLimitBurst`).
+- Built frontend (`dist/`) with Guide page.
+
+### Removed
+- none
+
 ## v2.8.6 — 2026-09-14 — Enforce seat/domain limits on API key token creation (manage.py)
 
 ### Added

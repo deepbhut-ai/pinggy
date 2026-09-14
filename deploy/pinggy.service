@@ -1,8 +1,14 @@
 # systemd service file for pinggy
 # Install: sudo cp deploy/pinggy.service /etc/systemd/system/pinggy.service
+#          sudo chmod +x /opt/pinggy/scripts/health_check.sh
 #          sudo systemctl daemon-reload
 #          sudo systemctl enable pinggy
 #          sudo systemctl start pinggy
+#
+# v2.8.7: Added health check + auto-restart enhancements.
+#         Restart=always + RestartSec=5 already handles crashes.
+#         scripts/health_check.sh can be run via cron for active monitoring.
+#         For watchdog mode, install sd_notify support (see scripts/health_check.sh).
 
 [Unit]
 Description=pinggy Tunnel Service
@@ -17,6 +23,8 @@ EnvironmentFile=/opt/pinggy/.env
 ExecStart=/opt/pinggy/.venv/bin/python /opt/pinggy/run.py
 Restart=always
 RestartSec=5
+StartLimitInterval=300
+StartLimitBurst=10
 StandardOutput=journal
 StandardError=journal
 
