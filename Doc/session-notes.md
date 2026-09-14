@@ -298,3 +298,9 @@
 - **In progress:** nothing.
 - **Next:** await user. QA audit found no other missing plan guards.
 - **Watch out:** `domains.py` was the ONLY file missing the plan guard.
+
+## 2026-09-14 — v2.8.3 — Fix tunnel proxy Set-Cookie collapse (callingagents.in 419 login)
+- **Done:** v2.8.3 — Fixed `app/core/proxy.py` response header forwarding. Dict-based headers collapsed multiple `Set-Cookie` into one comma-joined header → browsers only saw first cookie → `callingagents_session` dropped → Laravel 419 Page Expired. Now uses `resp.headers.multi_items()` + `response.raw_headers.append()` for separate Set-Cookie entries. Also fixed WebSocket handshake to forward upstream response headers. Tests: 2 Set-Cookie headers confirmed, POST /login returns 302 (not 419), health 200.
+- **In progress:** ConfigureTunnel.jsx + dist/index.html have uncommitted changes from v2.8.2 (local_port feature) — not part of v2.8.3, still staged in working tree.
+- **Next:** user should test callingagents.in login in browser with real credentials to confirm full flow works end-to-end.
+- **Watch out:** Service restart disconnects all SSH tunnels — they auto-reconnect within ~10s but tests must wait. psql pager still wedges VS Code terminal — use Python psycopg instead.
