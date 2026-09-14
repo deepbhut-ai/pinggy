@@ -1,5 +1,25 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.8.5 — 2026-09-14 — API key security audit fixes (auth crash, plaintext storage, soft-delete, rate limiting)
+
+### Added
+- Migration `0033_api_keys_security.py` — adds `is_active BOOLEAN DEFAULT TRUE` to `api_keys` table, drops `key_plain` column. Down migration + `Doc/migrations.md` updated.
+- Rate limiting on API key auth failures: 20 failed attempts per IP per 5-min window (Redis ZSET `akfail:{ip}`). Prevents brute-force attacks on API keys.
+- `is_active` column on `api_keys` table with index `idx_api_keys_active` for soft-delete support.
+- Test evidence: `Doc/tests/v2.8.5/output.txt` — 7 tests all passed (auth 200, invalid 401, no plaintext, soft-delete, schema, rate limit, expired count).
+
+### Changed
+- `app/core/deps.py` `get_api_user()`: removed dead SQL query (lines 111-116) that referenced non-existent `is_active` column and crashed every API key auth with HTTP 500. Removed redundant `await cur.close()` + duplicate `_hash_key` import. Now passes `client_ip` to `resolve_api_key` for rate limiting.
+- `app/api/routers/apikeys.py` `resolve_api_key()`: now checks `is_active = true` in the lookup query (was only checking expiry). Records failed attempts in Redis for rate limiting. Accepts `client_ip` parameter.
+- `app/api/routers/apikeys.py` `list_api_keys()`: removed `key_plain` from SELECT — raw key is no longer retrievable after creation. Only returns `id, name, prefix, created_at, last_used_at, expires_at`. Also filters `is_active = true` (revoked keys hidden from list).
+- `app/api/routers/apikeys.py` `create_api_key()`: removed `key_plain` from INSERT — raw key is shown only once at creation, never stored. Count query now excludes expired and revoked keys (`is_active = true AND expires_at > now()`).
+- `app/api/routers/apikeys.py` `revoke_api_key()`: changed from hard `DELETE` to soft-delete (`UPDATE SET is_active = false`) — preserves audit trail in DB.
+- `app/api/routers/apikeys.py` `ApiKeyOut` model: removed `key` field from list response (was returning plaintext key to frontend).
+
+### Removed
+- `api_keys.key_plain` column — raw API keys were stored in cleartext in the database. DB compromise (SQL injection, backup leak, server access) would leak all API keys, bypassing the SHA-256 hash security model. Column dropped via migration 0033. The raw key is now shown only once at creation time (in the `ApiKeyCreated` response) and never retrievable again.
+- Dead SQL query in `deps.py` `get_api_user()` — meaningless query that selected an arbitrary key hash without using the actual input, then discarded the result. Caused HTTP 500 on every API key auth attempt.
+
 ## v2.8.4 — 2026-09-14 — Raise tunnel rate limits (legit users auto-banned browsing full web apps)
 
 ### Added

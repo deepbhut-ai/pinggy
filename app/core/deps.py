@@ -105,18 +105,15 @@ async def get_api_user(
     raw = request.headers.get("x-api-key", "")
     if raw:
         from app.api.routers.apikeys import resolve_api_key
-        email = await resolve_api_key(db, raw)
+        # v2.8.5 — pass client IP for auth rate limiting
+        client_ip = request.headers.get("CF-Connecting-IP") or request.headers.get("X-Real-IP") or ""
+        if not client_ip:
+            xff = request.headers.get("X-Forwarded-For", "")
+            client_ip = xff.split(",")[0].strip() if xff else "0.0.0.0"
+        email = await resolve_api_key(db, raw, client_ip)
         if not email:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid API key")
         # Resolve the API key ID for tracking which key created resources
-        cur = await db.execute(
-            "SELECT id FROM api_keys WHERE key_hash = "
-            "(SELECT key_hash FROM api_keys WHERE is_active = true LIMIT 1) "
-            "AND is_active = true LIMIT 1",
-            (),
-        )
-        # Simpler: look up the key by the raw value via resolve_api_key's logic
-        await cur.close()
         from app.api.routers.apikeys import _hash_key
         key_hash = _hash_key(raw)
         cur = await db.execute(

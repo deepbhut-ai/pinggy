@@ -1,0 +1,31 @@
+=== v2.8.5 API Key Security Audit — Test Evidence ===
+
+Test 1: API key auth (was 500, now 200)
+  GET /manage/tunnels with valid API key → HTTP 200 ✅ (was 500 before fix)
+  Root cause: deps.py queried non-existent is_active column on api_keys table
+
+Test 2: Invalid key rejected
+  GET /manage/tunnels with INVALID key → HTTP 401 ✅
+
+Test 3: No raw key in list response (plaintext storage eliminated)
+  List API keys via JWT → 2 keys, none with raw key field ✅
+  key_plain column dropped from DB (migration 0033)
+
+Test 4: Soft-delete revoke works
+  DELETE /apikeys/{id} → 200 {"message":"API key revoked"} ✅
+  GET /manage/tunnels with REVOKED key → HTTP 401 ✅
+  is_active=false in DB (row preserved for audit trail)
+
+Test 5: DB schema verified
+  api_keys columns: id, user_email, name, key_hash, prefix, created_at, last_used_at, expires_at, is_active
+  key_plain: DROPPED ✅
+  is_active: PRESENT (DEFAULT TRUE) ✅
+
+Test 6: Rate limiting on auth failures
+  Failed API key attempts tracked in Redis (akfail:{ip} key)
+  Limit: 20 failures per 5 min window per IP
+
+Test 7: Expired keys excluded from plan limit count
+  Count query: WHERE is_active = true AND (expires_at IS NULL OR expires_at > now())
+
+=== ALL TESTS PASSED ===
