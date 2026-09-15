@@ -118,6 +118,8 @@ async def list_backups(
 
     for entry in dir_path.iterdir():
         if entry.is_file() and (entry.name.endswith(".sql.gz") or entry.name.endswith(".sql")):
+            if entry.name == ".gitkeep":
+                continue
             stat = entry.stat()
             size = stat.st_size
             total_bytes += size
@@ -138,6 +140,33 @@ async def list_backups(
         "total_size_bytes": total_bytes,
         "total_size_formatted": f"{total_bytes / (1024 * 1024):.2f} MB" if total_bytes >= 1024 * 1024 else f"{total_bytes / 1024:.1f} KB",
         "backup_directory": str(dir_path),
+        "auto_backup_schedule": "3 times daily (every 8 hours)",
+        "retention_days": 7,
+    }
+
+
+@router.post("/cleanup")
+async def trigger_cleanup(
+    keep_days: int = 7,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncConnection = Depends(get_db),
+) -> dict[str, Any]:
+    """Trigger manual retention cleanup to remove backups older than keep_days."""
+    from app.core.backup_scheduler import cleanup_old_backups
+    deleted = cleanup_old_backups(keep_days=keep_days)
+    if deleted:
+        await log_audit(
+            db,
+            admin["email"],
+            "db_retention_purge",
+            target=", ".join(deleted[:5]),
+            details=f"Purged {len(deleted)} backup file(s) older than {keep_days} days",
+        )
+    return {
+        "ok": True,
+        "deleted_count": len(deleted),
+        "deleted_files": deleted,
+        "message": f"Purged {len(deleted)} backup(s) older than {keep_days} days" if deleted else f"No backups older than {keep_days} days found.",
     }
 
 

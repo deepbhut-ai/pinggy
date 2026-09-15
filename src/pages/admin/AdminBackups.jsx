@@ -111,6 +111,16 @@ export default function AdminBackups() {
     }
   };
 
+  const handleCleanup = async () => {
+    try {
+      const res = await api('/admin/backups/cleanup?keep_days=7', 'POST');
+      toast(res.message || 'Retention cleanup complete');
+      await load();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteModalFile) return;
     try {
@@ -183,7 +193,7 @@ export default function AdminBackups() {
       </div>
 
       {/* Overview Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
         <div className="card" style={{ padding: '1.25rem' }}>
           <div className="dim" style={{ fontSize: '.8rem', marginBottom: '.35rem' }}>TOTAL BACKUPS</div>
           <div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>{data.total_count || 0}</div>
@@ -193,23 +203,26 @@ export default function AdminBackups() {
           <div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>{data.total_size_formatted || '0 KB'}</div>
         </div>
         <div className="card" style={{ padding: '1.25rem' }}>
-          <div className="dim" style={{ fontSize: '.8rem', marginBottom: '.35rem' }}>ACCEPTED FORMATS</div>
-          <div style={{ display: 'flex', gap: '.35rem', marginTop: '.35rem' }}>
-            <span className="badge badge-green">.sql.gz</span>
-            <span className="badge badge-blue">.sql</span>
-            <span className="badge badge-green">.gz</span>
-          </div>
+          <div className="dim" style={{ fontSize: '.8rem', marginBottom: '.35rem' }}>AUTO-BACKUP SCHEDULE</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#10b981' }}>3× Daily (Every 8h)</div>
+          <div className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Automatic background worker</div>
         </div>
         <div className="card" style={{ padding: '1.25rem' }}>
-          <div className="dim" style={{ fontSize: '.8rem', marginBottom: '.35rem' }}>STORAGE LOCATION</div>
-          <div className="code" style={{ fontSize: '.8rem', wordBreak: 'break-all' }}>{data.backup_directory || '/opt/iragt/backups'}</div>
+          <div className="dim" style={{ fontSize: '.8rem', marginBottom: '.35rem' }}>RETENTION POLICY</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#3b82f6' }}>7 Days Auto-Purge</div>
+          <div className="dim" style={{ fontSize: '.75rem', marginTop: '.25rem' }}>Backups older than 7d removed</div>
         </div>
       </div>
 
-      {/* Safety Notice */}
-      <div className="card" style={{ marginBottom: '1.25rem', borderLeft: '4px solid #3b82f6' }}>
-        <div className="card-body" style={{ fontSize: '.85rem', lineHeight: '1.5' }}>
-          💡 <strong>Safety Guarantee:</strong> Every time you initiate a database restore, the system automatically creates a pre-restore safety snapshot (<code>iragt-pre-restore-*.sql.gz</code>) before applying the restore, allowing immediate rollback if needed.
+      {/* Safety & Retention Notice */}
+      <div className="card" style={{ marginBottom: '1.25rem', borderLeft: '4px solid #10b981' }}>
+        <div className="card-body" style={{ fontSize: '.85rem', lineHeight: '1.5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '.5rem' }}>
+          <div>
+            ⏰ <strong>Automated Schedule & Retention:</strong> Database backups are automatically created <strong>3 times daily</strong> (every 8 hours) with an automated <strong>7-day retention policy</strong> that purges older snapshots. Every restore also generates a pre-restore rollback backup.
+          </div>
+          <button className="btn btn-xs btn-ghost" onClick={handleCleanup} title="Purge backups older than 7 days now">
+            🧹 Clean Old Backups (&gt;7d)
+          </button>
         </div>
       </div>
 

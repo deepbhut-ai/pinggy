@@ -60,9 +60,15 @@ async def lifespan(app: FastAPI):
     ssl_renewal_task = start_ssl_renewal_task()
     print(f"[{settings.APP_NAME}] SSL auto-renewal scheduler started (every 12h)")
 
+    # Automated DB backup scheduler (every 8h, 7-day retention)
+    from app.core.backup_scheduler import start_backup_scheduler_task
+    backup_task = start_backup_scheduler_task()
+    print(f"[{settings.APP_NAME}] DB auto-backup scheduler started (every 8h, 7d retention)")
+
     yield
 
     # Shutdown
+    backup_task.cancel()
     reconcile_task.cancel()
     ssl_renewal_task.cancel()
     digest_task.cancel()
