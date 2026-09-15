@@ -1,5 +1,24 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.11.0 — 2026-09-15 — Fix WebSocket data frame forwarding (HTTP/2 → HTTP/1.1 for WS Upgrade support)
+
+### Added
+- **Dedicated nginx config for `code.zettalgor.com`** (`/etc/nginx/sites-available/custom-code.zettalgor.com`) — separate server block with real LE cert, no HTTP/2, dedicated `/ws/` location with 3600s `proxy_read_timeout`/`proxy_send_timeout` for sustained WebSocket connections (Twilio ConversationRelay).
+- **Let's Encrypt cert for `code.zettalgor.com`** — issued via certbot webroot. Previously fell through to the default server with the `callingagents.in` self-signed wildcard cert, causing SSL hostname mismatch.
+- **`/ws/` location block** in all custom domain nginx configs (ssl_manager template + zettalgor.com) — 3600s timeout for WebSocket routes vs 300s for regular HTTP.
+- Hop-by-hop header filtering in `tunnel_websocket` response header forwarding — prevents duplicate `Upgrade` and `Connection` headers in the 101 response that caused `InvalidUpgrade` errors in strict WebSocket clients.
+- Exception handling in `pump_up`/`pump_down` tasks — prevents silent task death and logs disconnection reasons.
+- Test evidence: `Doc/tests/v2.11.0/output.txt` — ALPN negotiation, WS upgrade (101), data flow, connection liveness, HTTP compatibility, LE cert verification.
+
+### Changed
+- **Removed `http2` from ALL nginx server blocks** (all `custom-*.conf` + `iragt.ssl.conf` + repo's `nginx/iragt.ssl.conf`). HTTP/2 does NOT support the WebSocket `Upgrade` header (RFC 6455). When nginx had `http2` on any `listen 443` directive, ALPN negotiated `h2` for ALL connections on that socket, causing the `Upgrade: websocket` header to be silently ignored by HTTP/2. This broke Twilio ConversationRelay which requires HTTP/1.1 WebSocket upgrade. Fix: `listen 443 ssl` (no `http2`).
+- **`app/core/ssl_manager.py` `_generate_nginx_config_content()`** — nginx config template now generates `listen 443 ssl` (no `http2`) and includes a dedicated `/ws/` location block with 3600s timeout.
+- **`app/core/proxy.py` `tunnel_websocket()`** — fixed upstream response header access for websockets v17: use `upstream.response.headers` instead of `upstream.response_headers` (which doesn't exist in v17+). Filter hop-by-hop headers (`upgrade`, `connection`, `sec-websocket-accept`, etc.) from forwarded response headers to prevent duplicates.
+- **`app/core/proxy.py` `tunnel_websocket()`** — upstream `ping_interval` and `ping_timeout` changed from 20s to `None` (disabled). The 20s ping timeout was too aggressive for proxied WS connections and could cause premature disconnection under load. `close_timeout` increased from 5s to 10s.
+
+### Removed
+- `http2` directive from all nginx `listen 443` lines across all server blocks — HTTP/2 is incompatible with WebSocket Upgrade (RFC 6455). This is a breaking change for HTTP/2 support but required for WebSocket functionality. HTTP/2 can be re-enabled per-domain on a separate port/IP if needed in the future.
+
 ## v2.10.0 — 2026-09-14 — Fix tunnel port-detection race condition + periodic stale-tunnel reconciliation + nginx configs for 35 fleet subdomains
 
 ### Added

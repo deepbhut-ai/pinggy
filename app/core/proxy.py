@@ -444,23 +444,35 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
                                  if k.lower() not in ("host", "connection", "upgrade", "sec-websocket-key",
                                                       "sec-websocket-version", "sec-websocket-extensions")},
             max_size=10 * 1024 * 1024,
-            ping_interval=20,
-            ping_timeout=20,
-            close_timeout=5,
+            ping_interval=None,
+            ping_timeout=None,
+            close_timeout=10,
         ) as upstream:
             # Accept the client handshake — forward upstream response headers
             # (especially Set-Cookie) as a list of (bytes, bytes) tuples so
             # multiple Set-Cookie headers are preserved individually.
-            # The websockets library exposes response headers via .response_headers
+            # websockets v17 exposes the handshake response via .response.headers
+            # (NOT .response_headers, which doesn't exist in v17+).
+            # Filter out hop-by-hop headers (Upgrade, Connection, etc.) — uvicorn
+            # sets its own when sending the 101 to the client. Forwarding the
+            # upstream's duplicates causes "invalid Upgrade header" errors.
+            _ws_hop_by_hop = {"upgrade", "connection", "sec-websocket-accept",
+                              "sec-websocket-key", "sec-websocket-version",
+                              "sec-websocket-extensions", "transfer-encoding",
+                              "content-length"}
             ws_resp_headers = []
-            rh = getattr(upstream, "response_headers", None)
+            rh = getattr(upstream, "response", None)
             if rh is not None:
-                if hasattr(rh, "multi_items"):
-                    for k, v in rh.multi_items():
-                        ws_resp_headers.append((k.encode(), v.encode()))
-                else:
-                    for k, v in rh.items():
-                        ws_resp_headers.append((k.encode(), v.encode()))
+                hdrs = getattr(rh, "headers", None)
+                if hdrs is not None:
+                    if hasattr(hdrs, "multi_items"):
+                        for k, v in hdrs.multi_items():
+                            if k.lower() not in _ws_hop_by_hop:
+                                ws_resp_headers.append((k.encode(), v.encode()))
+                    else:
+                        for k, v in hdrs.items():
+                            if k.lower() not in _ws_hop_by_hop:
+                                ws_resp_headers.append((k.encode(), v.encode()))
             await send({"type": "websocket.accept", "headers": ws_resp_headers})
 
             client_done = False
@@ -468,24 +480,34 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
 
             async def pump_up():
                 nonlocal client_done
-                while True:
-                    msg = await upstream.recv()
-                    if isinstance(msg, str):
-                        await send({"type": "websocket.send", "text": msg})
-                    else:
-                        await send({"type": "websocket.send", "bytes": msg})
+                try:
+                    while True:
+                        msg = await upstream.recv()
+                        if isinstance(msg, str):
+                            await send({"type": "websocket.send", "text": msg})
+                        else:
+                            await send({"type": "websocket.send", "bytes": msg})
+                except Exception as e:
+                    logger.debug("WS pump_up ended for %s: %s", subdomain, e)
+                finally:
+                    client_done = True
 
             async def pump_down():
                 nonlocal client_done
-                while True:
-                    ev = await receive()
-                    if ev["type"] == "websocket.disconnect":
-                        break
-                    if ev["type"] == "websocket.receive":
-                        if ev.get("text") is not None:
-                            await upstream.send(ev["text"])
-                        elif ev.get("bytes") is not None:
-                            await upstream.send(ev["bytes"])
+                try:
+                    while True:
+                        ev = await receive()
+                        if ev["type"] == "websocket.disconnect":
+                            break
+                        if ev["type"] == "websocket.receive":
+                            if ev.get("text") is not None:
+                                await upstream.send(ev["text"])
+                            elif ev.get("bytes") is not None:
+                                await upstream.send(ev["bytes"])
+                except Exception as e:
+                    logger.debug("WS pump_down ended for %s: %s", subdomain, e)
+                finally:
+                    client_done = True
 
             import asyncio as _aio
             up = _aio.create_task(pump_up())
