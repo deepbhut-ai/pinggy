@@ -43,6 +43,7 @@ import AdminCoupons from './pages/admin/AdminCoupons';
 import AdminAnnouncements from './pages/admin/AdminAnnouncements';
 import AdminEmailTemplates from './pages/admin/AdminEmailTemplates';
 import AdminBackups from './pages/admin/AdminBackups';
+import AdminBlogs from './pages/admin/AdminBlogs';
 
 // Route guard — replaces all the legacy token/bfcache checks
 function RequireAuth({ children }) {
@@ -113,6 +114,7 @@ export default function App() {
         <Route path="settings" element={<AdminSettings />} />
         <Route path="coupons" element={<AdminCoupons />} />
         <Route path="announcements" element={<AdminAnnouncements />} />
+        <Route path="blogs" element={<AdminBlogs />} />
         <Route path="email-templates" element={<AdminEmailTemplates />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

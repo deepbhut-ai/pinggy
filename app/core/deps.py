@@ -93,6 +93,41 @@ async def get_admin_user(
     return user
 
 
+async def get_optional_current_user(
+    request: Request,
+    db: AsyncConnection = Depends(get_db),
+) -> dict | None:
+    """Optional auth: returns user dict if valid Bearer token exists, else None."""
+    auth = request.headers.get("Authorization", "")
+    if not auth or not auth.lower().startswith("bearer "):
+        return None
+    token = auth[7:].strip()
+    if not token:
+        return None
+    try:
+        from fastapi.security import HTTPAuthorizationCredentials
+        payload = decode_credentials(HTTPAuthorizationCredentials(scheme="Bearer", credentials=token))
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+        cur = await db.execute(
+            "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, seats, plan_expires_at, is_active FROM users WHERE id = %s",
+            (user_id,),
+        )
+        row = await cur.fetchone()
+        await cur.close()
+        if not row or not row[9]:
+            return None
+        return {
+            "id": str(row[0]),
+            "email": row[1],
+            "full_name": row[2],
+            "role": row[3],
+        }
+    except Exception:
+        return None
+
+
 async def get_api_user(
     request: Request,
     db: AsyncConnection = Depends(get_db),

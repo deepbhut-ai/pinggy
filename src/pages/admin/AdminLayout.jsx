@@ -27,6 +27,7 @@ const ADMIN_NAV = [
   { to: 'coupons', label: '🎟️ Coupons' },
   { sep: true },
   { to: 'announcements', label: '📣 Announcements' },
+  { to: 'blogs', label: '✍️ Blogs' },
   { to: 'email-templates', label: '✉️ Email Templates' },
 ];
 

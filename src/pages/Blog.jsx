@@ -1,16 +1,60 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PublicLayout from '../components/PublicLayout';
-import { blogPosts } from './blogPosts.jsx';
+import { blogPosts as fallbackPosts } from './blogPosts.jsx';
 
-const featured = blogPosts.filter((p) => p.featured);
-const posts = blogPosts.filter((p) => !p.featured);
+const categoryEmojiMap = {
+  Tutorial: '🚀',
+  Security: '🔒',
+  Domains: '🌐',
+  Product: '⚡',
+  Teams: '🧑‍💻',
+  Tips: '💡',
+  Integration: '🛠️',
+  Usage: '📊',
+  Engineering: '💻',
+};
 
 export default function Blog() {
   const featuredRef = useRef(null);
   const gridRef = useRef(null);
+  const [blogs, setBlogs] = useState(fallbackPosts);
+  const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/v1/blogs')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && data.length > 0) {
+          // Normalize API data to match component expectations
+          const formatted = data.map((b) => {
+            const fb = fallbackPosts.find((f) => f.slug === b.slug);
+            const dateStr = b.published_at || b.created_at || '';
+            let metaStr = b.read_time || '5 min read';
+            if (dateStr) {
+              const d = new Date(dateStr);
+              if (!isNaN(d.getTime())) {
+                metaStr = `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${b.read_time || '5 min read'}`;
+              }
+            }
+            return {
+              slug: b.slug,
+              tag: b.category || 'Article',
+              emoji: fb?.emoji || categoryEmojiMap[b.category] || '⚡',
+              featured: Boolean(b.featured),
+              title: b.title,
+              meta: metaStr,
+              desc: b.summary || fb?.desc || 'Read the full guide and technical walkthrough.',
+            };
+          });
+          setBlogs(formatted);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     const selector = (ref) => (ref.current ? ref.current.querySelectorAll('[data-animate]') : []);
@@ -25,13 +69,18 @@ export default function Blog() {
     const obs = new IntersectionObserver(animate, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
     [...selector(featuredRef), ...selector(gridRef)].forEach((el) => obs.observe(el));
     return () => obs.disconnect();
-  }, []);
+  }, [blogs]);
 
   const submitNewsletter = (e) => {
     e.preventDefault();
     setSubscribed(true);
     setEmail('');
   };
+
+  const featured = blogs.filter((p) => p.featured);
+  const regular = blogs.filter((p) => !p.featured);
+  const displayFeatured = featured.length > 0 ? featured : blogs.slice(0, 2);
+  const displayRegular = featured.length > 0 ? regular : blogs.slice(2);
 
   return (
     <PublicLayout>
@@ -97,7 +146,7 @@ export default function Blog() {
       </section>
 
       <section className="pfeatured-grid" ref={featuredRef}>
-        {featured.map((post) => (
+        {displayFeatured.map((post) => (
           <article key={post.slug} className="pfeatured-card" data-animate>
             <div className="pfeatured-card-bg" />
             <div className="emoji">{post.emoji}</div>
@@ -113,7 +162,7 @@ export default function Blog() {
       </section>
 
       <section className="pblog-grid" id="blog" ref={gridRef}>
-        {posts.map((post) => (
+        {displayRegular.map((post) => (
           <article key={post.slug} className="pblog-card" data-animate>
             <div className="pblog-card-thumb">{post.emoji}</div>
             <div className="pblog-card-content">

@@ -1,23 +1,84 @@
-import { useEffect } from 'react';
-import { Link, useParams, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import PublicLayout from '../components/PublicLayout';
-import { getPostBySlug, blogPosts } from './blogPosts.jsx';
+import { getPostBySlug as getFallbackBySlug, blogPosts as fallbackList } from './blogPosts.jsx';
 
 export default function BlogPost() {
   const { slug } = useParams();
-  const post = getPostBySlug(slug);
+  const [post, setPost] = useState(() => getFallbackBySlug(slug));
+  const [related, setRelated] = useState([]);
+  const [loading, setLoading] = useState(!post);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [slug]);
 
-  if (!post) {
-    return <Navigate to="/blog" replace />;
+  useEffect(() => {
+    fetch(`/api/v1/blogs/${slug}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) {
+          const dateStr = data.published_at || data.created_at || '';
+          let metaStr = data.read_time || '5 min read';
+          if (dateStr) {
+            const d = new Date(dateStr);
+            if (!isNaN(d.getTime())) {
+              metaStr = `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${data.read_time || '5 min read'}`;
+            }
+          }
+          setPost({
+            slug: data.slug,
+            tag: data.category || 'Article',
+            title: data.title,
+            meta: metaStr,
+            author: data.author || 'IRAGT Team',
+            rawHtml: data.content,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+
+    // Fetch related
+    fetch('/api/v1/blogs')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((list) => {
+        if (list && list.length > 0) {
+          setRelated(list.filter((p) => p.slug !== slug).slice(0, 3));
+        } else {
+          setRelated(fallbackList.filter((p) => p.slug !== slug).slice(0, 3));
+        }
+      })
+      .catch(() => {
+        setRelated(fallbackList.filter((p) => p.slug !== slug).slice(0, 3));
+      });
+  }, [slug]);
+
+  if (!post && !loading) {
+    return (
+      <PublicLayout>
+        <div style={{ maxWidth: 600, margin: '5rem auto', textAlign: 'center', padding: '2rem' }}>
+          <h2>Article not found</h2>
+          <p className="dim" style={{ margin: '1rem 0 2rem' }}>The article you are looking for does not exist or has been removed.</p>
+          <Link to="/blog" className="pbtn">← Back to Blog</Link>
+        </div>
+      </PublicLayout>
+    );
+  }
+
+  if (loading && !post) {
+    return (
+      <PublicLayout>
+        <div style={{ maxWidth: 600, margin: '5rem auto', textAlign: 'center', padding: '2rem' }}>
+          <h2>Loading article…</h2>
+        </div>
+      </PublicLayout>
+    );
   }
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : `https://iraglobaltech.com/blog/${post.slug}`;
   const shareText = encodeURIComponent(post.title);
-  const Content = post.content;
+  const FallbackContent = post.content;
 
   return (
     <PublicLayout>
@@ -80,38 +141,43 @@ export default function BlogPost() {
         </header>
 
         <article className="particle-card">
-          <Content />
+          {post.rawHtml ? (
+            <div dangerouslySetInnerHTML={{ __html: post.rawHtml }} />
+          ) : FallbackContent ? (
+            <FallbackContent />
+          ) : null}
 
           <div className="particle-footer">
             <div className="pauthor">
               <div className="pauthor-avatar">IR</div>
               <div>
-                <div className="pauthor-name">IRAGT Team</div>
+                <div className="pauthor-name">{post.author || 'IRAGT Team'}</div>
                 <div className="pauthor-role">Product & Engineering</div>
               </div>
             </div>
             <div className="pshare">
-              <a href={`https://twitter.com/intent/tweet?text=${shareText}`} target="_blank" rel="noopener" title="Share on X">X</a>
-              <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`} target="_blank" rel="noopener" title="Share on LinkedIn">in</a>
+              <a href={`https://twitter.com/intent/tweet?text=${shareText}`} target="_blank" rel="noopener noreferrer" title="Share on X">X</a>
+              <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`} target="_blank" rel="noopener noreferrer" title="Share on LinkedIn">in</a>
               <a href={`mailto:?subject=${shareText}&body=${encodeURIComponent(currentUrl)}`} title="Share by email">✉</a>
             </div>
           </div>
         </article>
 
-        <div className="prelated">
-          <h3>More from the blog</h3>
-          <div className="prelated-list">
-            {blogPosts
-              .filter((p) => p.slug !== post.slug)
-              .slice(0, 3)
-              .map((p) => (
+        {related.length > 0 && (
+          <div className="prelated">
+            <h3>More from the blog</h3>
+            <div className="prelated-list">
+              {related.map((p) => (
                 <div key={p.slug} className="prelated-item">
-                  <Link to={`/blog/${p.slug}`}>{p.emoji} {p.title}</Link>
-                  <small>{p.meta}</small>
+                  <Link to={`/blog/${p.slug}`}>
+                    {p.emoji || '⚡'} {p.title}
+                  </Link>
+                  <small>{p.read_time || p.meta || 'Read article'}</small>
                 </div>
               ))}
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </PublicLayout>
   );
