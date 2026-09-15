@@ -12,7 +12,7 @@ const OS_HINTS = {
 };
 
 const TOTAL_STEPS = 5;
-const STORAGE_KEY = 'pinggy_quickstart_progress';
+const STORAGE_KEY = 'iragt_quickstart_progress';
 
 const STEP_META = [
   { icon: '🔑', label: 'Token',    title: 'Get your access token',     desc: 'Your token is like a password that connects your computer to our server.' },

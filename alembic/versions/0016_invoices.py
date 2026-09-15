@@ -34,6 +34,7 @@ def upgrade() -> None:
     op.execute("CREATE INDEX IF NOT EXISTS idx_invoices_user ON invoices(user_email);")
     op.execute("CREATE INDEX IF NOT EXISTS idx_invoices_issued ON invoices(issued_at DESC);")
     # one invoice per payment — unique constraint (also the ON CONFLICT target)
+    op.execute("ALTER TABLE invoices DROP CONSTRAINT IF EXISTS uq_invoices_payment;")
     op.execute("ALTER TABLE invoices ADD CONSTRAINT uq_invoices_payment UNIQUE (payment_id);")
 
 

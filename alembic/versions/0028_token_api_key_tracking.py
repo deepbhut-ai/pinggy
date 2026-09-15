@@ -14,8 +14,16 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("tokens", sa.Column("created_by_api_key", sa.String(36), nullable=True))
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [c["name"] for c in inspector.get_columns("tokens")]
+    if "created_by_api_key" not in columns:
+        op.add_column("tokens", sa.Column("created_by_api_key", sa.String(36), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column("tokens", "created_by_api_key")
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [c["name"] for c in inspector.get_columns("tokens")]
+    if "created_by_api_key" in columns:
+        op.drop_column("tokens", "created_by_api_key")

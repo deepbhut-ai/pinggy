@@ -2,6 +2,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import PublicHelpCenter from './pages/PublicHelpCenter';
+import Landing from './pages/Landing';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 import DashboardOverview from './pages/dashboard/DashboardOverview';
 import Quickstart from './pages/dashboard/Quickstart';
@@ -48,9 +53,14 @@ function RequireAuth({ children }) {
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/help-center" element={<PublicHelpCenter />} />
       <Route path="/support" element={<PublicHelpCenter />} />
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/blog/:slug" element={<BlogPost />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
       <Route
         path="/dashboard"
         element={
@@ -101,8 +111,7 @@ export default function App() {
         <Route path="announcements" element={<AdminAnnouncements />} />
         <Route path="email-templates" element={<AdminEmailTemplates />} />
       </Route>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

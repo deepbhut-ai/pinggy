@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "dev"
     APP_DEBUG: bool = True
     APP_HOST: str = "0.0.0.0"
-    APP_PORT: int = 8000
+    APP_PORT: int = 8080
 
     # PostgreSQL
     POSTGRES_USER: str = "postgres"

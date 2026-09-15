@@ -135,3 +135,32 @@ app.include_router(admin_router)  # /admin, /dashboard, / (landing page)
 async def health():
     """Return basic service metadata for uptime checks."""
     return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}
+
+
+from starlette.responses import FileResponse  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+_DIST_DIR = Path(__file__).resolve().parent / ".." / "dist"
+_INDEX_HTML = _DIST_DIR / "index.html"
+
+
+# Mount the Vite-built dist/assets directory so requests like /assets/index-D7WAh0Lu.js
+# are served with correct MIME types instead of being captured by the catch-all SPA route.
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+if (_DIST_DIR / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=str(_DIST_DIR / "assets")), name="spa_assets")
+
+
+@app.get("/{path:path}", response_class=FileResponse)
+async def spa_fallback(path: str):
+    """Serve the React SPA index.html for client-side routes like /login, /help-center, /dashboard.
+
+    API, WebSocket, /docs, /redoc, /health, /assets, and static pages (/blog, /privacy, /terms)
+    remain handled by their own routers. For any unmatched path, serve the SPA index.html
+    so React routing works on direct access and page refresh.
+    """
+    if _INDEX_HTML.exists():
+        return FileResponse(_INDEX_HTML)
+    # Dev fallback: Vite dev server serves index.html itself, so this route is mainly for production.
+    return {"detail": "Not Found"}
