@@ -41,3 +41,40 @@ export async function api(path, method = 'GET', body = null) {
 
 // Unauthenticated variants used by the login/signup screens
 export const postPublic = (path, body) => api(path, 'POST', body);
+
+export async function downloadFile(path, filename) {
+  const token = getToken();
+  const resp = await fetch(`${API_BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}` }));
+    throw new ApiError(err.detail || `HTTP ${resp.status}`, resp.status);
+  }
+  const blob = await resp.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || 'download';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function uploadFile(path, file) {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('file', file);
+  const resp = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}` }));
+    throw new ApiError(err.detail || `HTTP ${resp.status}`, resp.status);
+  }
+  const text = await resp.text();
+  return text ? JSON.parse(text) : {};
+}

@@ -22,6 +22,7 @@ const ADMIN_NAV = [
   { to: 'audit', label: '📋 Audit Log' },
   { to: 'tickets', label: '🎫 Tickets' },
   { sep: true },
+  { to: 'backups', label: '💾 DB Backup & Restore' },
   { to: 'settings', label: '⚙️ Settings' },
   { to: 'coupons', label: '🎟️ Coupons' },
   { sep: true },
