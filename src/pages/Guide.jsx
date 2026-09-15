@@ -24,6 +24,7 @@ export default function Guide() {
     { id: 'api-keys', label: 'API Keys', icon: '🔑' },
     { id: 'sdk', label: 'Python SDK', icon: '🐍' },
     { id: 'security', label: 'Security', icon: '🔒' },
+    { id: 'websocket', label: 'WebSocket', icon: '🔌' },
     { id: 'plans', label: 'Plans', icon: '💳' },
     { id: 'faq', label: 'FAQ', icon: '❓' },
   ];
@@ -370,6 +371,111 @@ client.stop_tunnel("ci-run")`}</pre>
                     <li>TCP tunneling</li>
                   </ul>
                   <p className="dim" style={{ fontSize: '.8rem', marginTop: '.5rem' }}>Upgrade from <strong>Dashboard → Plan</strong>.</p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ─── WEBSOCKET ─── */}
+          {activeSection === 'websocket' && (
+            <section>
+              <h1>🔌 WebSocket Tunnels</h1>
+              <p className="dim">IRAGT supports WebSocket connections through your tunnels. This is essential for real-time apps like chat, live dashboards, and AI voice (Twilio ConversationRelay).</p>
+
+              <div className="card" style={{ marginBottom: '1rem' }}>
+                <div className="card-header"><h2 style={{ fontSize: '1rem' }}>How It Works</h2></div>
+                <div className="card-body">
+                  <div className="cmd-box"><pre>{`Client (browser / Twilio)
+  → nginx :443 (TLS, HTTP/1.1)
+    → IRAGT FastAPI :8000 (tunnel_websocket)
+      → ws://127.0.0.1:<remote_port> (SSH tunnel)
+        → Your local service`}</pre></div>
+                  <p className="dim" style={{ fontSize: '.85rem', marginTop: '.5rem' }}>The proxy bridges the client's WebSocket to your local service. Data frames flow bidirectionally — no buffering, streamed in real time.</p>
+                </div>
+              </div>
+
+              <div className="card" style={{ marginBottom: '1rem' }}>
+                <div className="card-header"><h2 style={{ fontSize: '1rem' }}>Quick Start</h2></div>
+                <div className="card-body">
+                  <p><strong>1.</strong> Start your local WebSocket server:</p>
+                  <div className="cmd-box"><pre>{`# Django Daphne
+daphne -b 127.0.0.1 -p 8010 myproject.asgi:application
+
+# Node.js
+node server.js  # listening on port 8010`}</pre></div>
+
+                  <p style={{ marginTop: '.8rem' }}><strong>2.</strong> Connect the IRAGT tunnel:</p>
+                  <div className="cmd-box"><pre>ssh -p 2222 -R0:localhost:8010 your-token@ssh.iraglobaltech.com</pre></div>
+
+                  <p style={{ marginTop: '.8rem' }}><strong>3.</strong> Connect your WebSocket client:</p>
+                  <div className="cmd-box"><pre>{`# JavaScript (browser)
+const ws = new WebSocket('wss://abc123.iraglobaltech.com/ws/chat/');
+ws.onopen = () => {
+    console.log('Connected!');
+    ws.send(JSON.stringify({type: 'setup', sessionId: '123'}));
+};
+ws.onmessage = (event) => console.log('Received:', event.data);`}</pre></div>
+                  <div className="cmd-box" style={{ marginTop: '.5rem' }}><pre>{`# Python
+import asyncio, websockets
+
+async def connect():
+    async with websockets.connect(
+        "wss://abc123.iraglobaltech.com/ws/chat/"
+    ) as ws:
+        await ws.send('{"type":"setup","sessionId":"123"}')
+        print(await ws.recv())
+
+asyncio.run(connect())`}</pre></div>
+                </div>
+              </div>
+
+              <div className="card" style={{ marginBottom: '1rem' }}>
+                <div className="card-header"><h2 style={{ fontSize: '1rem' }}>Custom Domain</h2></div>
+                <div className="card-body">
+                  <p className="dim">If your token has a custom domain (configure under <strong>Dashboard → Domains</strong>), use that instead of the subdomain URL:</p>
+                  <div className="cmd-box"><pre>wss://code.example.com/ws/audio/</pre></div>
+                  <p className="dim" style={{ fontSize: '.85rem', marginTop: '.5rem' }}>A valid SSL certificate (Let's Encrypt) must be issued for the domain. Use <strong>Dashboard → Domains → Verify</strong> to trigger automatic cert issuance.</p>
+                </div>
+              </div>
+
+              <div className="card" style={{ marginBottom: '1rem' }}>
+                <div className="card-header"><h2 style={{ fontSize: '1rem' }}>Twilio ConversationRelay (AI Voice Calls)</h2></div>
+                <div className="card-body">
+                  <p className="dim">Twilio ConversationRelay requires a persistent WebSocket to your AI agent. Set the URL in your TwiML template:</p>
+                  <div className="cmd-box"><pre>{`<Response>
+  <Connect>
+    <ConversationRelay url="wss://code.example.com/ws/audio/"/>
+  </Connect>
+</Response>`}</pre></div>
+                  <p className="dim" style={{ fontSize: '.85rem', marginTop: '.5rem' }}>IRAGT will accept the WS upgrade, forward Twilio's setup message to your server, and stream audio data bidirectionally for the duration of the call.</p>
+                </div>
+              </div>
+
+              <div className="card" style={{ marginBottom: '1rem' }}>
+                <div className="card-header"><h2 style={{ fontSize: '1rem' }}>Important Notes</h2></div>
+                <div className="card-body">
+                  <ul className="dim" style={{ fontSize: '.85rem', paddingLeft: '1.2rem' }}>
+                    <li><strong>HTTP/1.1 required:</strong> WebSocket uses the <code>Upgrade</code> header (RFC 6455), which only works with HTTP/1.1. IRAGT's nginx is configured without HTTP/2 to ensure WebSocket compatibility.</li>
+                    <li><strong>Long timeout:</strong> The <code>/ws/</code> path has a 3600s (1 hour) proxy timeout for sustained connections.</li>
+                    <li><strong>No buffering:</strong> Frames are streamed directly — no proxy buffering.</li>
+                    <li><strong>After restart:</strong> Tunnels take 20-30s to reconnect after an IRAGT service restart. WS connections during this window get 403.</li>
+                    <li><strong>Path forwarding:</strong> The full path (e.g. <code>/ws/audio/</code>) is forwarded to your local service. Include trailing slashes if your server expects them.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="card" style={{ marginBottom: '1rem' }}>
+                <div className="card-header"><h2 style={{ fontSize: '1rem' }}>Troubleshooting</h2></div>
+                <div className="card-body">
+                  <table style={{ fontSize: '.85rem' }}>
+                    <thead><tr><th style={{ textAlign: 'left' }}>Problem</th><th style={{ textAlign: 'left' }}>Solution</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>403 Forbidden</code></td><td>Tunnel not connected. Check SSH tunnel is running, or wait 30s after server restart.</td></tr>
+                      <tr><td><code>400 Bad Request</code></td><td>HTTP/2 is being used. Ensure nginx configs don't have <code>http2</code> on port 443.</td></tr>
+                      <tr><td>Connects but no data</td><td>Check local service is running on the correct port and path.</td></tr>
+                      <tr><td>Drops after 10s</td><td>Upstream ping timeout too aggressive. IRAGT disables pings by default.</td></tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </section>

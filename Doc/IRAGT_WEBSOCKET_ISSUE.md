@@ -268,14 +268,14 @@ curl -sk --resolve "code.zettalgor.com:443:13.140.131.204" \
 | Pinggy server            | `pro.pinggy.io:443` (IP: `45.118.134.87`)           |
 | Pinggy token (port 8010) | `27HGa0QKadE+force`                                   |
 | Pinggy URL               | `znwpyberwv.a.pinggy.link`                            |
-| Local service            | Daphne on`127.0.0.1:8010` (Django ASGI)               |
-| Twilio account SID       | `AC****************************aa` (redacted)          |
-| Twilio from number       | `+15314144418`                                        |
-| Test call to             | `+919484806222` (Disha)                               |
+| Local service            | Daphne on `127.0.0.1:8010` (Django ASGI)               |
+| Twilio account SID       | `ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`                  |
+| Twilio from number       | `+1xxxxxxxxxx`                                        |
+| Test call to             | `+91xxxxxxxxxx` (Disha)                               |
 | TwiML voice template     | `uYkKk3J4lEp7IHQ8CLBi` (ElevenLabs voice)             |
 
 ## Contact
 
 - **IRAGT dashboard:** https://iraglobaltech.com/dashboard/tokens
-- **Twilio console:** https://1console.twilio.com/account/AC****(redacted)/us1/logs/voice/calls
+- **Twilio console:** https://console.twilio.com/
 - **CallingAgents contacts:** https://callingagents.in/customer_contacts/list

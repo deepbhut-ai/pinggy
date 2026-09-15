@@ -60,6 +60,15 @@ Browser (HTTPS)
 - `/etc/nginx/sites-enabled/iragt.ssl.conf` — port 443 (SSL for iraglobaltech.com + fleet subs + default fallback)
 - `/opt/iragt/nginx/iragt.ssl.conf` — project-tracked copy
 
+**WebSocket support (v2.11.0):**
+- nginx configs use `listen 443 ssl` (NO `http2`) — HTTP/2 breaks WebSocket Upgrade (RFC 6455)
+- Dedicated `/ws/` location block with 3600s `proxy_read_timeout` + `proxy_buffering off`
+- `tunnel_websocket()` in `app/core/proxy.py` — pure ASGI WebSocket route mounted at `/{rest:path}`
+- Bridges client WS → `ws://127.0.0.1:<remote_port>` via the SSH reverse tunnel
+- Bidirectional pump tasks (`pump_up` / `pump_down`) with exception handling
+- Hop-by-hop headers filtered from 101 response to prevent duplicate Upgrade
+- See [guides/websocket.md](guides/websocket.md) for full documentation
+
 **Fleet SSL provisioning:** `scripts/provision_fleet_ssl.sh` checks DNS → certbot HTTP-01 → per-sub nginx config → reload. Prerequisite: `scripts/create_cf_dns_records.sh <CF_TOKEN>` creates A records first.
 
 ## Key Entry Points
