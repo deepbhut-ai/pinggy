@@ -116,12 +116,17 @@ from starlette.requests import Request  # noqa: E402
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         resp = await call_next(request)
-        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
-        resp.headers.setdefault("X-Frame-Options", "DENY")
-        resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-        if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
-            resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        # Only inject strict dashboard security headers for main dashboard/API routes,
+        # not for proxied tunnel responses which have their own headers from user apps.
+        host = request.headers.get("host", "")
+        from app.core.proxy import _extract_subdomain
+        if not _extract_subdomain(host):
+            resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+            resp.headers.setdefault("X-Frame-Options", "DENY")
+            resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+            resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+            if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
+                resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         return resp
 
 

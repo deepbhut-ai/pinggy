@@ -275,13 +275,16 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             for key, value in request.headers.items():
                 if key.lower() not in ("host", "transfer-encoding", "connection", "content-length"):
                     forward_headers[key] = value
-            # Preserve the incoming host and standard proxy headers so frameworks like Laravel/Django
-            # can properly validate CSRF tokens, session cookies, and origin URLs.
+            # Preserve incoming host and standard proxy headers so frameworks like Laravel/Django/React
+            # can properly validate CSRF tokens, session cookies, origin URLs, and WebSockets.
             real_host = host or request.headers.get("host", f"localhost:{tunnel.local_port}")
             forward_headers["host"] = real_host
             forward_headers["x-forwarded-host"] = real_host
-            forward_headers["x-forwarded-proto"] = request.headers.get("x-forwarded-proto", "https")
-            forward_headers["x-forwarded-port"] = "443" if forward_headers.get("x-forwarded-proto") == "https" else "80"
+            
+            # Determine actual incoming protocol (http vs https)
+            proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "http"
+            forward_headers["x-forwarded-proto"] = proto
+            forward_headers["x-forwarded-port"] = request.headers.get("x-forwarded-port") or ("443" if proto == "https" else "80")
             forward_headers["x-forwarded-for"] = _client_ip(request)
             forward_headers["x-real-ip"] = _client_ip(request)
 
