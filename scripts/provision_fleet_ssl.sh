@@ -98,10 +98,9 @@ for sub in "${SUBDOMAINS[@]}"; do
     echo "  🔄 Creating nginx config..."
     cat > "$nginx_conf" << NGINX_CONF
 # HTTPS for ${domain} — managed by provision_fleet_ssl.sh
-# NO HTTP/2 — WebSocket Upgrade requires HTTP/1.1 (RFC 6455)
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name ${domain};
 
     ssl_certificate     ${cert_dir}/fullchain.pem;
@@ -117,24 +116,6 @@ server {
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
-    }
-
-    # WebSocket routes — long timeout, no buffering (v2.11.0)
-    location /ws/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-
-        proxy_connect_timeout 30s;
-        proxy_read_timeout 3600s;
-        proxy_send_timeout 3600s;
-        proxy_buffering off;
     }
 
     location / {
