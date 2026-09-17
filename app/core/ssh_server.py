@@ -71,17 +71,13 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
 
     async def _send_info_when_ready(self) -> None:
         """Wait for the tunnel to be set up, then send the info to the client."""
-        # Wait for tunnel to be created (retry for up to 10 seconds)
         for _ in range(50):
             if self._server._tunnel and not self._info_sent:
                 tunnel = self._server._tunnel
                 # Wait briefly to ensure all listener ports are registered
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.4)
                 scheme = "https" if settings.PROXY_PORT == 80 else "http"
                 primary_url = f"{scheme}://{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
-                
-                # Check if multi-port or custom domains are active
-                has_multi = bool(tunnel.endpoints) or bool(tunnel.custom_domains) or bool(tunnel.custom_domain) or bool(tunnel.paused_endpoints)
 
                 lines = [
                     "",
@@ -90,44 +86,33 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                     "  ╠══════════════════════════════════════════════════════════════════════════╣",
                 ]
 
-                # Track listed addresses to avoid duplicates
                 seen = set()
+                saved_ports_map = {}
+                if getattr(self._server, "_saved_multiport", None):
+                    saved_ports_map = self._server._saved_multiport.get("ports", {})
 
-                # 1. Primary subdomain
-                seen.add(tunnel.subdomain)
-                seen.add(f"{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}")
-                sub_lp = tunnel.local_ports.get(tunnel.subdomain) or tunnel.local_ports.get(f"{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}") or tunnel.local_port or "local"
-                sub_p = " [PAUSED]" if tunnel.is_endpoint_paused(tunnel.subdomain) or tunnel.is_endpoint_paused(f"{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}") else ""
-                row_str = f"  🌐 {primary_url} -> :{sub_lp}{sub_p}"
-                lines.append(f"  ║ {row_str:<72s} ║")
+                domain_list = []
+                if saved_ports_map:
+                    domain_list.extend(saved_ports_map.keys())
+                for addr in list(tunnel.endpoints.keys()) + list(tunnel.local_ports.keys()) + list(getattr(tunnel, "custom_domains", []) or []):
+                    if addr and addr != tunnel.subdomain and addr != f"{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}" and addr not in domain_list:
+                        domain_list.append(addr)
 
-                # 2. Custom domain (primary)
-                if tunnel.custom_domain and tunnel.custom_domain not in seen:
-                    seen.add(tunnel.custom_domain)
-                    cd_url = f"{scheme}://{tunnel.custom_domain}"
-                    cd_lp = tunnel.local_ports.get(tunnel.custom_domain) or "local"
-                    cd_p = " [PAUSED]" if tunnel.is_endpoint_paused(tunnel.custom_domain) else ""
-                    row_str = f"  🔗 {cd_url} -> :{cd_lp}{cd_p}"
+                if domain_list:
+                    for addr in domain_list:
+                        if addr in seen:
+                            continue
+                        seen.add(addr)
+                        addr_url = f"{scheme}://{addr}" if not addr.startswith("http") else addr
+                        lp = tunnel.local_ports.get(addr) or "local"
+                        p_stat = " [PAUSED]" if tunnel.is_endpoint_paused(addr) else ""
+                        row_str = f"  🌐 {addr_url} -> :{lp}{p_stat}"
+                        lines.append(f"  ║ {row_str:<72s} ║")
+                else:
+                    sub_lp = tunnel.local_ports.get(tunnel.subdomain) or tunnel.local_port or "local"
+                    sub_p = " [PAUSED]" if tunnel.is_endpoint_paused(tunnel.subdomain) else ""
+                    row_str = f"  🌐 {primary_url} -> :{sub_lp}{sub_p}"
                     lines.append(f"  ║ {row_str:<72s} ║")
-
-                # 3. Extra custom domains & endpoint addresses
-                for addr in (tunnel.custom_domains or []):
-                    if addr and addr not in seen:
-                        seen.add(addr)
-                        addr_url = f"{scheme}://{addr}" if not addr.startswith("http") else addr
-                        lp = tunnel.local_ports.get(addr) or "local"
-                        p_stat = " [PAUSED]" if tunnel.is_endpoint_paused(addr) else ""
-                        row_str = f"  🔗 {addr_url} -> :{lp}{p_stat}"
-                        lines.append(f"  ║ {row_str:<72s} ║")
-
-                for addr in set(list(tunnel.endpoints.keys()) + list(tunnel.local_ports.keys()) + list(tunnel.paused_endpoints)):
-                    if addr and addr not in seen:
-                        seen.add(addr)
-                        addr_url = f"{scheme}://{addr}" if not addr.startswith("http") else addr
-                        lp = tunnel.local_ports.get(addr) or "local"
-                        p_stat = " [PAUSED]" if tunnel.is_endpoint_paused(addr) else ""
-                        row_str = f"  🔗 {addr_url} -> :{lp}{p_stat}"
-                        lines.append(f"  ║ {row_str:<72s} ║")
 
                 lines += [
                     "  ╚══════════════════════════════════════════════════════════════════════════╝",
@@ -136,7 +121,7 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                     "  Press Ctrl+C to stop the tunnel.",
                     "",
                 ]
-                data = "\n".join(lines) + "\n"
+                data = "\r\n".join(lines) + "\r\n"
                 if self._chan:
                     try:
                         self._chan.write(data)
@@ -454,78 +439,51 @@ class MySSHServer(asyncssh.SSHServer):
             return False
 
     async def _detect_port_and_setup(self) -> None:
-        """Wait for asyncssh to create the listener, then find the port
-        in _local_listeners and set up the tunnel.
-        v1.9.0: with a multi-port username (TOKEN--p1,p2,...), each listener
-        binds to the next address (subdomain -> primary -> extras) on the SAME
-        tunnel. A per-connection lock serializes concurrent listener setups.
-        v2.10.0: poll _local_listeners in a loop (up to 10s, every 200ms)
-        instead of two fixed sleeps (0.5s + 1.0s). Under load (33+ concurrent
-        SSH reconnects after a restart), asyncssh's forward_local_port() can
-        take several seconds to create the listener, and the old 1.5s budget
-        was too short — every tunnel failed to register."""
-        multi = bool(getattr(self, "_port_map", None)) or bool(getattr(self, "_saved_multiport", None)) or len(getattr(self._conn, "_local_listeners", {}) or {}) > 1
-        if not multi and self._tunnel:
-            return  # classic single-port: only the first listener matters
+        """Wait for asyncssh to create listeners, then bind them in order to
+        configured multiport addresses.
 
-        def _unbound_ports() -> list[int]:
-            seen = set()
-            if self._tunnel:
-                seen = set(self._tunnel.endpoints.values()) | {self._tunnel.remote_port}
-            out = []
-            for (host, port), listener in (getattr(self._conn, "_local_listeners", {}) or {}).items():
-                if listener and port not in seen:
-                    out.append(port)
-            return sorted(out)
-
-        # Poll for the listener with a generous timeout (v2.10.0).
-        # 10s × 200ms = 50 attempts — enough even under heavy event-loop load.
-        ports: list[int] = []
-        for _attempt in range(50):
-            if not self._conn:
-                return
-            ports = _unbound_ports()
-            if ports:
-                break
-            await asyncio.sleep(0.2)
-
-        if not ports:
-            logger.warning("Could not detect forwarded port for %s (waited 10s, %d listeners in _local_listeners)",
-                           self._peer, len(getattr(self._conn, "_local_listeners", {}) or {}))
-            return
-
-        logger.warning("Detected forwarded port(s) %s for %s", ports, self._peer)
-
+        Insertion order of self._conn._local_listeners matches the client's -R flags.
+        """
         async with self._setup_lock:
-            ports = _unbound_ports()  # re-scan: another task may have consumed some
-            if not ports:
+            # Poll for listeners
+            all_listener_ports: list[int] = []
+            for _attempt in range(50):
+                if not self._conn:
+                    return
+                all_listener_ports = [
+                    port for (host, port), listener in (getattr(self._conn, "_local_listeners", {}) or {}).items()
+                    if listener
+                ]
+                if all_listener_ports:
+                    break
+                await asyncio.sleep(0.1)
+
+            if not all_listener_ports:
                 return
-            if not multi:
-                if not self._tunnel:
-                    await self._setup_tunnel(ports[0])
+
+            if not self._tunnel:
+                await self._setup_tunnel(all_listener_ports[0])
+            if not self._tunnel:
                 return
 
             saved_ports_map = {}
             if getattr(self, "_saved_multiport", None):
                 saved_ports_map = self._saved_multiport.get("ports", {})
 
-            # multi-port: first listener creates the tunnel, the rest map to
-            # the remaining addresses in canonical order
-            # v2.7.7: also include addresses from ALL the user's tokens so
-            # one tunnel can serve all domains/subdomains across the account
-            all_user_addresses = []
-            if self._tunnel:
-                all_user_addresses = list(self._tunnel.all_addresses())
+            target_addresses = []
+            if saved_ports_map:
+                target_addresses = list(saved_ports_map.keys())
+                for addr in [self._custom_domain] + list(getattr(self, "_custom_domains", []) or []):
+                    if addr and addr not in target_addresses:
+                        target_addresses.append(addr)
+            else:
+                if self._custom_domain:
+                    target_addresses.append(self._custom_domain)
+                for addr in list(getattr(self, "_custom_domains", []) or []):
+                    if addr and addr not in target_addresses:
+                        target_addresses.append(addr)
 
-            # Add all addresses defined in the saved multiport config
-            for addr in saved_ports_map.keys():
-                if addr and addr not in all_user_addresses:
-                    all_user_addresses.append(addr)
-
-            # Fetch additional addresses from the user's other tokens
-            logger.info("Multi-port setup: tunnel=%s, ports=%s, addresses=%s, username=%s, port_map=%s",
-                        bool(self._tunnel), ports, all_user_addresses, self._username, self._port_map)
-            if multi and self._username:
+            if self._username:
                 try:
                     import psycopg
                     conn2 = psycopg.connect(settings.async_dsn, autocommit=True)
@@ -535,10 +493,9 @@ class MySSHServer(asyncssh.SSHServer):
                     )
                     for r in cur2.fetchall():
                         addr = r[0]
-                        if addr and addr not in all_user_addresses:
-                            all_user_addresses.append(addr)
+                        if addr and addr not in target_addresses:
+                            target_addresses.append(addr)
                     cur2.close()
-                    # Also fetch extra domains from token_domains for all user tokens
                     cur2 = conn2.execute(
                         "SELECT td.domain FROM token_domains td "
                         "JOIN tokens t ON t.id = td.token_id "
@@ -547,25 +504,16 @@ class MySSHServer(asyncssh.SSHServer):
                     )
                     for r in cur2.fetchall():
                         addr = r[0]
-                        if addr and addr not in all_user_addresses:
-                            all_user_addresses.append(addr)
+                        if addr and addr not in target_addresses:
+                            target_addresses.append(addr)
                     cur2.close()
                     conn2.close()
                 except Exception as e:
                     logger.warning("Could not load cross-token addresses: %s", e)
 
-            for i, port in enumerate(ports):
-                if not self._tunnel:
-                    await self._setup_tunnel(port)
-                if not self._tunnel:
-                    continue
-
-                if i == 0:
-                    self._tunnel.endpoints[self._tunnel.subdomain] = port
-                    self._tunnel.endpoints[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = port
-
-                if i < len(all_user_addresses):
-                    addr = all_user_addresses[i]
+            for i, port in enumerate(all_listener_ports):
+                if i < len(target_addresses):
+                    addr = target_addresses[i]
                     self._tunnel.endpoints[addr] = port
                     lp = 0
                     if self._port_map and i < len(self._port_map):
@@ -577,15 +525,23 @@ class MySSHServer(asyncssh.SSHServer):
                             pass
                     if lp:
                         self._tunnel.local_ports[addr] = lp
-                        if i == 0:
+                    if i == 0:
+                        self._tunnel.remote_port = port
+                        self._tunnel.endpoints[self._tunnel.subdomain] = port
+                        self._tunnel.endpoints[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = port
+                        if lp:
                             self._tunnel.local_port = lp
                             self._tunnel.local_ports[self._tunnel.subdomain] = lp
                             self._tunnel.local_ports[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = lp
                 else:
-                    logger.info("Extra listener %d ignored (no address left) for %s", port, self._peer)
-            if self._tunnel:
-                logger.info("Multi-port tunnel %s endpoints: %s (local %s)",
-                            self._tunnel.subdomain, self._tunnel.endpoints, self._tunnel.local_ports)
+                    logger.info("Extra listener %d mapped as fallback for %s", port, self._peer)
+
+            if self._tunnel.subdomain not in self._tunnel.endpoints:
+                self._tunnel.endpoints[self._tunnel.subdomain] = all_listener_ports[0]
+                self._tunnel.endpoints[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = all_listener_ports[0]
+
+            logger.info("Multi-port tunnel %s endpoints: %s (local %s)",
+                        self._tunnel.subdomain, self._tunnel.endpoints, self._tunnel.local_ports)
 
     async def _setup_tunnel(self, remote_port: int) -> None:
         """Create the tunnel: use the token's fixed subdomain when set (v0.9.0),
