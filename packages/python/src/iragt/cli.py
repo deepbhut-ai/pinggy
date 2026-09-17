@@ -8,12 +8,29 @@ import urllib.request
 import urllib.error
 
 API_BASE = os.environ.get("IRAGT_API_HOST", "https://iraglobaltech.com")
+VERSION = "1.0.1"
 
 
 def main():
     args = sys.argv[1:]
     command = args[0] if len(args) > 0 else ""
     token = ""
+
+    if command in ("--version", "-v"):
+        print(f"iragt v{VERSION}")
+        sys.exit(0)
+
+    if command in ("--help", "-h"):
+        print("\n╔═════════════════════════════════════════════════════════════╗")
+        print("║                   IRAGT TUNNEL CLI                          ║")
+        print("╚═════════════════════════════════════════════════════════════╝")
+        print("\nUsage:")
+        print("  iragt connect <YOUR_TOKEN>    Connect your multiport tunnel")
+        print("  iragt <YOUR_TOKEN>            Shortcut connect")
+        print("  iragt --version               Show CLI version")
+        print("  iragt --help                  Show this help message\n")
+        print("Dashboard: https://iraglobaltech.com/dashboard\n")
+        sys.exit(0)
 
     if command == "connect" and len(args) > 1:
         token = args[1]
@@ -26,6 +43,7 @@ def main():
         print("\nUsage:")
         print("  iragt connect <YOUR_TOKEN>")
         print("  iragt <YOUR_TOKEN>\n")
+        print("Dashboard: https://iraglobaltech.com/dashboard\n")
         sys.exit(1)
 
     token_display = f"{token[:8]}..." if len(token) > 8 else token
@@ -36,7 +54,7 @@ def main():
     try:
         req = urllib.request.Request(
             api_url,
-            headers={"User-Agent": "iragt-python-cli/1.0"}
+            headers={"User-Agent": f"iragt-python-cli/{VERSION}"}
         )
         with urllib.request.urlopen(req) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -61,13 +79,16 @@ def main():
     ssh_host = data.get("ssh_host", "ssh.iraglobaltech.com")
     ssh_port = data.get("ssh_port", 2222)
 
-    print("\n  ╔═════════════════════════════════════════════════════════════╗")
-    print("  ║                     IRAGT TUNNEL ACTIVE                     ║")
-    print("  ╠═════════════════════════════════════════════════════════════╣")
+    print("\n  ╔══════════════════════════════════════════════════════════════════════════╗")
+    print("  ║                     IRAGT MULTI-PORT TUNNEL                              ║")
+    print("  ╠══════════════════════════════════════════════════════════════════════════╣")
     for p in ports:
         domain_str = f"https://{p['domain']}"
-        print(f"  ║  {domain_str:<26s} --> localhost:{p['local_port']:<6d}║")
-    print("  ╚═════════════════════════════════════════════════════════════╝\n")
+        paused_str = " [PAUSED]" if p.get("enabled") is False else ""
+        row_str = f"  🌐 {domain_str} -> :{p['local_port']}{paused_str}"
+        print(f"  ║ {row_str:<72s} ║")
+    print("  ╚══════════════════════════════════════════════════════════════════════════╝")
+    print("  💡 Manage & toggle ports live in your dashboard: https://iraglobaltech.com/dashboard\n")
 
     ssh_cmd = ["ssh", "-p", str(ssh_port), "-o", "StrictHostKeyChecking=no"]
     for p in ports:

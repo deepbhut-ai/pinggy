@@ -1,6 +1,6 @@
 {
   "name": "iragt",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "IRAGT Tunnel CLI - Instant Localhost Multi-Port Tunneling",
   "main": "bin/iragt.js",
   "bin": {

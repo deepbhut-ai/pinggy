@@ -143,18 +143,23 @@ async def get_cli_tunnel_config(
         cfg = _json.loads(cfg_row[0]) if isinstance(cfg_row[0], str) else cfg_row[0]
         if cfg.get("multi_port_enabled", True) and cfg.get("ports"):
             for addr, info in cfg.get("ports", {}).items():
-                if isinstance(info, dict) and info.get("enabled", True) is not False:
+                if isinstance(info, dict):
                     raw_port = info.get("port")
+                    is_enabled = info.get("enabled", True) is not False
                     if raw_port and str(raw_port).strip():
                         try:
-                            ports.append({"domain": addr, "local_port": int(str(raw_port).strip())})
+                            ports.append({
+                                "domain": addr,
+                                "local_port": int(str(raw_port).strip()),
+                                "enabled": is_enabled,
+                            })
                         except ValueError:
                             pass
 
     # 3. If no custom multiport entries configured, build default list
     if not ports:
         main_addr = custom_domain if custom_domain else f"{token}.{settings.TUNNEL_DOMAIN}"
-        ports.append({"domain": main_addr, "local_port": default_port})
+        ports.append({"domain": main_addr, "local_port": default_port, "enabled": True})
         # Add any extra domains attached to this token
         if token_id:
             try:
@@ -166,7 +171,7 @@ async def get_cli_tunnel_config(
                 await cur.close()
                 for er in extra_rows:
                     if er[0] and er[0] not in [p["domain"] for p in ports]:
-                        ports.append({"domain": er[0], "local_port": default_port})
+                        ports.append({"domain": er[0], "local_port": default_port, "enabled": True})
             except Exception:
                 pass
 
