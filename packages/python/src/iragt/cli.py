@@ -8,7 +8,7 @@ import urllib.request
 import urllib.error
 
 API_BASE = os.environ.get("IRAGT_API_HOST", "https://iraglobaltech.com")
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 
 def main():
