@@ -7,7 +7,6 @@ import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
-import Guide from './pages/Guide';
 import Docs from './pages/Docs';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 import DashboardOverview from './pages/dashboard/DashboardOverview';
@@ -59,7 +58,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/guide" element={<Guide />} />
+      <Route path="/guide" element={<Navigate to="/docs" replace />} />
       <Route path="/docs" element={<Docs />} />
       <Route path="/documentation" element={<Docs />} />
       <Route path="/help-center" element={<PublicHelpCenter />} />

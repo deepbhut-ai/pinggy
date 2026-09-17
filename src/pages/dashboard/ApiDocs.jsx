@@ -129,7 +129,7 @@ asyncio.run(connect())`}</pre>
           </ul>
 
           <p className="dim" style={{ marginTop: '1rem', fontSize: '.8rem' }}>
-            📖 Full guide: <a href="/guide#websocket" style={{ color: 'var(--brand)' }}>WebSocket Tunnel Guide</a>
+            📖 Full guide: <a href="/docs#websockets" style={{ color: 'var(--brand)' }}>WebSocket Tunnel Guide</a>
           </p>
         </div>
       </div>
