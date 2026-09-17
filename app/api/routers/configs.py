@@ -229,10 +229,12 @@ async def get_cli_tunnel_config(
             except Exception:
                 pass
 
+    ssh_host = f"ssh.{settings.TUNNEL_DOMAIN}" if not settings.TUNNEL_DOMAIN.startswith("ssh.") else settings.TUNNEL_DOMAIN
+
     return {
         "status": "success",
         "token": token,
-        "ssh_host": settings.TUNNEL_DOMAIN,
+        "ssh_host": ssh_host,
         "ssh_port": settings.SSH_PORT,
         "ports": ports,
     }
