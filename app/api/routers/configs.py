@@ -40,6 +40,8 @@ async def save_multiport_config(
 ):
     """Save multi-port toggle + per-address port settings for a token."""
     import json as _json
+    from app.core.tunnel_registry import sync_tunnel_multiport_config
+
     cur = await db.execute(
         """INSERT INTO tunnel_configs (user_email, name, config)
            VALUES (%s, %s, %s)
@@ -53,6 +55,13 @@ async def save_multiport_config(
     )
     row = await cur.fetchone()
     await cur.close()
+
+    # Live sync active tunnel session paused/resumed states & notify user terminal
+    try:
+        await sync_tunnel_multiport_config(user["email"], body.token, body.ports)
+    except Exception:
+        pass
+
     return {"saved": True, "id": str(row[0])}
 
 

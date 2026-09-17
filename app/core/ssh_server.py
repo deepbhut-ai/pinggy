@@ -75,25 +75,67 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
     async def _send_info_when_ready(self) -> None:
         """Wait for the tunnel to be set up, then send the info to the client."""
         # Wait for tunnel to be created (retry for up to 10 seconds)
-        for _ in range(20):
+        for _ in range(50):
             if self._server._tunnel and not self._info_sent:
                 tunnel = self._server._tunnel
-                # Use https:// when behind Cloudflare (port 80 = proxied by CF)
+                # Wait briefly to ensure all listener ports are registered
+                await asyncio.sleep(0.3)
                 scheme = "https" if settings.PROXY_PORT == 80 else "http"
-                url = f"{scheme}://{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
-                custom_domain = self._server._custom_domain
-                custom_url = f"{scheme}://{custom_domain}" if custom_domain else ""
+                primary_url = f"{scheme}://{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
+                
+                # Check if multi-port or custom domains are active
+                has_multi = bool(tunnel.endpoints) or bool(tunnel.custom_domains) or bool(tunnel.custom_domain) or bool(tunnel.paused_endpoints)
+
                 lines = [
                     "",
-                    "  ╔══════════════════════════════════════════════════════╗",
-                    "  ║  IRAGT tunnel — ACTIVE                                ║",
-                    f"  ║  URL:  {url:<46s}║",
+                    "  ╔══════════════════════════════════════════════════════════════════════════╗",
+                    "  ║  IRAGT Multi-Port Tunnel — ACTIVE                                        ║",
+                    "  ╠══════════════════════════════════════════════════════════════════════════╣",
                 ]
-                if custom_url:
-                    lines.append(f"  ║  Custom domain: {custom_url:<37s}║")
+
+                # Track listed addresses to avoid duplicates
+                seen = set()
+
+                # 1. Primary subdomain
+                seen.add(tunnel.subdomain)
+                seen.add(f"{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}")
+                sub_lp = tunnel.local_ports.get(tunnel.subdomain) or tunnel.local_ports.get(f"{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}") or tunnel.local_port or "local"
+                sub_p = " [PAUSED]" if tunnel.is_endpoint_paused(tunnel.subdomain) or tunnel.is_endpoint_paused(f"{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}") else ""
+                row_str = f"  🌐 {primary_url} -> :{sub_lp}{sub_p}"
+                lines.append(f"  ║ {row_str:<72s} ║")
+
+                # 2. Custom domain (primary)
+                if tunnel.custom_domain and tunnel.custom_domain not in seen:
+                    seen.add(tunnel.custom_domain)
+                    cd_url = f"{scheme}://{tunnel.custom_domain}"
+                    cd_lp = tunnel.local_ports.get(tunnel.custom_domain) or "local"
+                    cd_p = " [PAUSED]" if tunnel.is_endpoint_paused(tunnel.custom_domain) else ""
+                    row_str = f"  🔗 {cd_url} -> :{cd_lp}{cd_p}"
+                    lines.append(f"  ║ {row_str:<72s} ║")
+
+                # 3. Extra custom domains & endpoint addresses
+                for addr in (tunnel.custom_domains or []):
+                    if addr and addr not in seen:
+                        seen.add(addr)
+                        addr_url = f"{scheme}://{addr}" if not addr.startswith("http") else addr
+                        lp = tunnel.local_ports.get(addr) or "local"
+                        p_stat = " [PAUSED]" if tunnel.is_endpoint_paused(addr) else ""
+                        row_str = f"  🔗 {addr_url} -> :{lp}{p_stat}"
+                        lines.append(f"  ║ {row_str:<72s} ║")
+
+                for addr in set(list(tunnel.endpoints.keys()) + list(tunnel.local_ports.keys()) + list(tunnel.paused_endpoints)):
+                    if addr and addr not in seen:
+                        seen.add(addr)
+                        addr_url = f"{scheme}://{addr}" if not addr.startswith("http") else addr
+                        lp = tunnel.local_ports.get(addr) or "local"
+                        p_stat = " [PAUSED]" if tunnel.is_endpoint_paused(addr) else ""
+                        row_str = f"  🔗 {addr_url} -> :{lp}{p_stat}"
+                        lines.append(f"  ║ {row_str:<72s} ║")
+
                 lines += [
-                    "  ╚══════════════════════════════════════════════════════╝",
+                    "  ╚══════════════════════════════════════════════════════════════════════════╝",
                     "",
+                    "  💡 Manage & toggle ports live in your dashboard: https://iraglobaltech.com/dashboard",
                     "  Press Ctrl+C to stop the tunnel.",
                     "",
                 ]
@@ -101,13 +143,12 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                 if self._chan:
                     try:
                         self._chan.write(data)
-                        # Don't call flush() — SSHServerChannel doesn't support it
                     except Exception:
-                        pass  # Channel already closed by client — suppress BrokenPipeError
+                        pass
                 self._info_sent = True
                 logger.info("Tunnel info sent to client terminal")
                 return
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.2)
 
     def data_received(self, data: str, datatype: int) -> None:
         """Handle data from client — close on Ctrl+C (0x03) or 'q'."""
@@ -328,9 +369,42 @@ class MySSHServer(asyncssh.SSHServer):
                         cur.close()
                     except Exception:
                         pass  # table missing pre-migration — fine
+
+                    # v3.0.0: load saved multiport config (ports and enabled/paused states)
+                    self._saved_multiport = None
+                    self._initial_paused_endpoints = set()
+                    try:
+                        import json as _json
+                        cur = conn.execute(
+                            "SELECT config FROM tunnel_configs WHERE user_email = %s AND name = %s",
+                            (self._username, f"multiport:{base_token}"),
+                        )
+                        mp_row = cur.fetchone()
+                        cur.close()
+                        if mp_row:
+                            mp_cfg = _json.loads(mp_row[0]) if isinstance(mp_row[0], str) else mp_row[0]
+                            self._saved_multiport = mp_cfg
+                            ports_dict = mp_cfg.get("ports", {})
+                            for addr_k, info_v in ports_dict.items():
+                                norm = addr_k.strip().lower().split(":")[0]
+                                if isinstance(info_v, dict) and info_v.get("enabled") is False:
+                                    self._initial_paused_endpoints.add(norm)
+                            if not self._port_map and mp_cfg.get("multi_port_enabled"):
+                                extracted_ports = []
+                                for addr_k, info_v in ports_dict.items():
+                                    if isinstance(info_v, dict) and "port" in info_v:
+                                        try:
+                                            extracted_ports.append(int(info_v["port"]))
+                                        except (ValueError, TypeError):
+                                            pass
+                                if extracted_ports:
+                                    self._port_map = extracted_ports
+                    except Exception as e:
+                        logger.debug("Failed to read saved multiport config: %s", e)
+
                     # v2.7.8: multiport — load ALL the user's tokens' custom domains
                     # so one tunnel can serve every domain/subdomain on the account
-                    if self._port_map:
+                    if self._port_map or self._saved_multiport:
                         try:
                             cur = conn.execute(
                                 "SELECT custom_domain FROM tokens "
@@ -391,7 +465,7 @@ class MySSHServer(asyncssh.SSHServer):
         SSH reconnects after a restart), asyncssh's forward_local_port() can
         take several seconds to create the listener, and the old 1.5s budget
         was too short — every tunnel failed to register."""
-        multi = bool(getattr(self, "_port_map", None))
+        multi = bool(getattr(self, "_port_map", None)) or bool(getattr(self, "_saved_multiport", None)) or len(getattr(self._conn, "_local_listeners", {}) or {}) > 1
         if not multi and self._tunnel:
             return  # classic single-port: only the first listener matters
 
@@ -438,10 +512,14 @@ class MySSHServer(asyncssh.SSHServer):
             all_user_addresses = []
             if self._tunnel:
                 all_user_addresses = list(self._tunnel.all_addresses())
+                full_sub = f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
+                if full_sub not in all_user_addresses:
+                    all_user_addresses.append(full_sub)
+
             # Fetch additional addresses from the user's other tokens
             logger.info("Multi-port setup: tunnel=%s, ports=%s, addresses=%s, username=%s, port_map=%s",
                         bool(self._tunnel), ports, all_user_addresses, self._username, self._port_map)
-            if multi and self._username and len(all_user_addresses) < len(ports):
+            if multi and self._username:
                 try:
                     import psycopg
                     from app.core.config import settings
@@ -471,15 +549,41 @@ class MySSHServer(asyncssh.SSHServer):
                 except Exception as e:
                     logger.warning("Could not load cross-token addresses: %s", e)
 
+            saved_ports_map = {}
+            if getattr(self, "_saved_multiport", None):
+                saved_ports_map = self._saved_multiport.get("ports", {})
+
             for i, port in enumerate(ports):
                 if not self._tunnel:
                     await self._setup_tunnel(port)
+                    if self._tunnel:
+                        self._tunnel.endpoints[self._tunnel.subdomain] = port
+                        self._tunnel.endpoints[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = port
+                        lp = 0
+                        if self._port_map and len(self._port_map) > 0:
+                            lp = self._port_map[0]
+                        elif saved_ports_map.get(f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"):
+                            try:
+                                lp = int(saved_ports_map[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"].get("port", 0))
+                            except Exception:
+                                pass
+                        self._tunnel.local_port = lp
+                        self._tunnel.local_ports[self._tunnel.subdomain] = lp
+                        self._tunnel.local_ports[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = lp
                     continue
                 if i < len(all_user_addresses):
                     addr = all_user_addresses[i]
                     self._tunnel.endpoints[addr] = port
-                    if i < len(self._port_map):
-                        self._tunnel.local_ports[addr] = self._port_map[i]
+                    lp = 0
+                    if self._port_map and i < len(self._port_map):
+                        lp = self._port_map[i]
+                    elif saved_ports_map.get(addr):
+                        try:
+                            lp = int(saved_ports_map[addr].get("port", 0))
+                        except Exception:
+                            pass
+                    if lp:
+                        self._tunnel.local_ports[addr] = lp
                 else:
                     logger.info("Extra listener %d ignored (no address left) for %s", port, self._peer)
             if self._tunnel:
@@ -542,6 +646,8 @@ class MySSHServer(asyncssh.SSHServer):
 
             tunnel_id = _generate_tunnel_id()
 
+            paused_endpoints = set(getattr(self, "_initial_paused_endpoints", set()) or set())
+
             self._tunnel = TunnelSession(
                 tunnel_id=tunnel_id,
                 subdomain=subdomain,
@@ -553,6 +659,7 @@ class MySSHServer(asyncssh.SSHServer):
                 ssh_conn=self._conn,
                 custom_domain=self._custom_domain,
                 custom_domains=list(getattr(self, "_custom_domains", []) or []),
+                paused_endpoints=paused_endpoints,
                 token=self._token or "",
                 log_callback=self._info_session.write_log if self._info_session else None,
             )

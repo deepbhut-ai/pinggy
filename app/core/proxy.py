@@ -257,6 +257,37 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                 log_to_tunnel(subdomain, f"  [{datetime.now().strftime('%H:%M:%S')}] {request.method:<6s} {request.url.path or '/':<30s} → {denied.status_code}  (blocked: security)")
                 return denied
 
+        # Check if the specific endpoint (or whole tunnel) is paused at runtime (v3.0.0)
+        if tunnel.is_endpoint_paused(matched_addr) or tunnel.is_endpoint_paused(host):
+            await increment_request_count(subdomain, 0)
+            log_to_tunnel(subdomain, f"  [{datetime.now().strftime('%H:%M:%S')}] {request.method:<6s} {request.url.path or '/':<30s} → 503 (paused)")
+            return Response(
+                content="""<!DOCTYPE html>
+<html>
+<head><title>Endpoint Paused | IRAGT</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 32px; max-width: 460px; width: 100%; text-align: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); margin-bottom: 16px; }
+  h1 { font-size: 20px; font-weight: 700; margin: 0 0 10px 0; color: #ffffff; }
+  p { font-size: 14px; color: #9ca3af; line-height: 1.5; margin: 0 0 20px 0; }
+  .host { font-family: monospace; background: #1f2937; padding: 4px 8px; border-radius: 6px; color: #60a5fa; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">⏸️ PAUSED</div>
+    <h1>Endpoint is Currently Paused</h1>
+    <p>Traffic forwarding for <span class="host">""" + (host or subdomain) + """</span> is paused from your IRAGT dashboard.</p>
+    <p style="font-size: 12px; color: #6b7280; margin: 0;">Toggle this port back ON in your dashboard to resume instant traffic routing.</p>
+  </div>
+</body>
+</html>""",
+                status_code=503,
+                media_type="text/html",
+            )
+
         # Forward the request through the SSH reverse tunnel
         # The SSH -R0:localhost:PORT creates a listener on the server at
         # tunnel.remote_port. We forward to localhost:remote_port.
@@ -415,6 +446,10 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
         tunnel = await get_tunnel_by_custom_domain(host)
     if not tunnel:
         await send({"type": "websocket.close", "code": 1014})
+        return
+
+    if tunnel.is_endpoint_paused(host) or tunnel.is_endpoint_paused(subdomain):
+        await send({"type": "websocket.close", "code": 1013})  # 1013: Try Again Later
         return
 
     target_port = tunnel.endpoint_port(host)

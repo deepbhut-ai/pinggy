@@ -28,6 +28,7 @@ class TunnelSession:
     custom_domains: list = field(default_factory=list)  # extra domains (v1.4.0)
     endpoints: dict = field(default_factory=dict)   # v1.9.0 multi-port: address -> remote_port
     local_ports: dict = field(default_factory=dict)  # v1.9.0 multi-port: address -> client local port (display)
+    paused_endpoints: set = field(default_factory=set)  # runtime paused domains (v3.0.0)
     token: str = ""           # authenticating tunnel token (security lookups, v0.8.0)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     request_count: int = 0
@@ -55,6 +56,19 @@ class TunnelSession:
     @property
     def is_alive(self) -> bool:
         return self.ssh_conn is not None
+
+    def is_endpoint_paused(self, address: str) -> bool:
+        """Check if an endpoint address is paused at runtime."""
+        if not address:
+            return False
+        norm = address.strip().lower().split(":")[0]
+        if norm in self.paused_endpoints:
+            return True
+        if norm == self.subdomain and f"{self.subdomain}.{_domain}" in self.paused_endpoints:
+            return True
+        if norm == f"{self.subdomain}.{_domain}" and self.subdomain in self.paused_endpoints:
+            return True
+        return False
 
     def endpoint_port(self, address: str) -> int:
         """v1.9.0: remote port serving this address (falls back to the default)."""
@@ -245,3 +259,28 @@ def log_to_tunnel(subdomain: str, message: str) -> None:
 
 def is_subdomain_taken(subdomain: str) -> bool:
     return subdomain in _tunnels
+
+
+async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: dict) -> None:
+    """Synchronize multiport enable/pause states for all matching active tunnel sessions."""
+    async with _lock:
+        for tunnel in _tunnels.values():
+            if (tunnel.token and tunnel.token == token) or (tunnel.user_email and tunnel.user_email == user_email):
+                for addr, info in (ports_map or {}).items():
+                    norm = addr.strip().lower().split(":")[0]
+                    if isinstance(info, dict) and info.get("enabled") is False:
+                        if norm not in tunnel.paused_endpoints:
+                            tunnel.paused_endpoints.add(norm)
+                            if tunnel.log_callback:
+                                try:
+                                    tunnel.log_callback(f"  [dashboard] ⏸️  Paused endpoint: https://{norm}")
+                                except Exception:
+                                    pass
+                    else:
+                        if norm in tunnel.paused_endpoints:
+                            tunnel.paused_endpoints.discard(norm)
+                            if tunnel.log_callback:
+                                try:
+                                    tunnel.log_callback(f"  [dashboard] ▶️  Resumed endpoint: https://{norm}")
+                                except Exception:
+                                    pass
