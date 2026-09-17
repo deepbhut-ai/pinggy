@@ -320,9 +320,11 @@ export default function ConfigureTunnel() {
                     title={enabled ? 'Enabled — included in tunnel' : 'Disabled — excluded from tunnel'}
                     onClick={() => {
                       const next = [...multiPorts];
-                      next[i] = { ...m, enabled: !enabled };
+                      const newEnabled = !enabled;
+                      next[i] = { ...m, enabled: newEnabled };
                       setMultiPorts(next);
                       saveMultiPortConfig(tokenSel, multiPort, next);
+                      toast(newEnabled ? `▶️ Resumed: ${m.addr}` : `⏸️ Paused: ${m.addr}`, 'info');
                     }}
                     style={{
                       flex: '0 0 auto',

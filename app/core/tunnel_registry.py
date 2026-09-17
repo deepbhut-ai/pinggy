@@ -61,7 +61,7 @@ class TunnelSession:
         """Check if an endpoint address is paused at runtime."""
         if not address:
             return False
-        norm = address.strip().lower().split(":")[0]
+        norm = address.replace("https://", "").replace("http://", "").strip().lower().split("/")[0].split(":")[0]
         if norm in self.paused_endpoints:
             return True
         if norm == self.subdomain and f"{self.subdomain}.{_domain}" in self.paused_endpoints:
@@ -265,9 +265,16 @@ async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: d
     """Synchronize multiport enable/pause states for all matching active tunnel sessions."""
     async with _lock:
         for tunnel in _tunnels.values():
-            if (tunnel.token and tunnel.token == token) or (tunnel.user_email and tunnel.user_email == user_email):
+            match = False
+            if tunnel.token and token and tunnel.token == token:
+                match = True
+            elif tunnel.user_email and user_email and tunnel.user_email.lower() == user_email.lower():
+                match = True
+            if match:
                 for addr, info in (ports_map or {}).items():
-                    norm = addr.strip().lower().split(":")[0]
+                    norm = addr.replace("https://", "").replace("http://", "").strip().lower().split("/")[0].split(":")[0]
+                    if not norm:
+                        continue
                     if isinstance(info, dict) and info.get("enabled") is False:
                         if norm not in tunnel.paused_endpoints:
                             tunnel.paused_endpoints.add(norm)

@@ -1,5 +1,5 @@
 """Saved command-builder configurations (v0.7.0 Command Builder 2.0)."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from psycopg import AsyncConnection
 from pydantic import BaseModel, Field
 
@@ -35,12 +35,39 @@ class MultiPortConfig(BaseModel):
 @router.put("/multiport")
 async def save_multiport_config(
     body: MultiPortConfig,
-    user: dict = Depends(get_current_user),
+    request: Request,
     db: AsyncConnection = Depends(get_db),
 ):
     """Save multi-port toggle + per-address port settings for a token."""
     import json as _json
     from app.core.tunnel_registry import sync_tunnel_multiport_config
+    from app.core.deps import get_optional_current_user
+
+    user = await get_optional_current_user(request, db)
+    user_email = user["email"] if user else None
+
+    if not user_email:
+        # Resolve user_email from token
+        cur = await db.execute(
+            "SELECT user_email FROM tokens WHERE token = %s",
+            (body.token,),
+        )
+        t_row = await cur.fetchone()
+        await cur.close()
+        if t_row and t_row[0]:
+            user_email = t_row[0]
+        else:
+            cur = await db.execute(
+                "SELECT email FROM users WHERE tunnel_token = %s",
+                (body.token,),
+            )
+            u_row = await cur.fetchone()
+            await cur.close()
+            if u_row and u_row[0]:
+                user_email = u_row[0]
+
+    if not user_email:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
     cur = await db.execute(
         """INSERT INTO tunnel_configs (user_email, name, config)
@@ -48,7 +75,7 @@ async def save_multiport_config(
            ON CONFLICT (user_email, name) DO UPDATE
            SET config = EXCLUDED.config
            RETURNING id""",
-        (user["email"], f"multiport:{body.token}", _json.dumps({
+        (user_email, f"multiport:{body.token}", _json.dumps({
             "multi_port_enabled": body.multi_port_enabled,
             "ports": body.ports,
         })),
@@ -58,24 +85,51 @@ async def save_multiport_config(
 
     # Live sync active tunnel session paused/resumed states & notify user terminal
     try:
-        await sync_tunnel_multiport_config(user["email"], body.token, body.ports)
+        await sync_tunnel_multiport_config(user_email, body.token, body.ports)
     except Exception:
         pass
 
-    return {"saved": True, "id": str(row[0])}
+    return {"saved": True, "id": str(row[0]) if row else ""}
 
 
 @router.get("/multiport/{token}")
 async def get_multiport_config(
     token: str,
-    user: dict = Depends(get_current_user),
+    request: Request,
     db: AsyncConnection = Depends(get_db),
 ):
     """Load saved multi-port config for a token. Returns empty if not saved yet."""
     import json as _json
+    from app.core.deps import get_optional_current_user
+
+    user = await get_optional_current_user(request, db)
+    user_email = user["email"] if user else None
+
+    if not user_email:
+        cur = await db.execute(
+            "SELECT user_email FROM tokens WHERE token = %s",
+            (token,),
+        )
+        t_row = await cur.fetchone()
+        await cur.close()
+        if t_row and t_row[0]:
+            user_email = t_row[0]
+        else:
+            cur = await db.execute(
+                "SELECT email FROM users WHERE tunnel_token = %s",
+                (token,),
+            )
+            u_row = await cur.fetchone()
+            await cur.close()
+            if u_row and u_row[0]:
+                user_email = u_row[0]
+
+    if not user_email:
+        return {"multi_port_enabled": True, "ports": {}}
+
     cur = await db.execute(
         "SELECT config FROM tunnel_configs WHERE user_email = %s AND name = %s",
-        (user["email"], f"multiport:{token}"),
+        (user_email, f"multiport:{token}"),
     )
     row = await cur.fetchone()
     await cur.close()
