@@ -35,7 +35,7 @@ export default function Guide() {
       <nav className="public-nav">
         <div className="public-nav-brand">
           <a href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.4rem' }}>⚡</span>
+            <img src="/logo.png" alt="IRAGT" style={{ height: '28px', width: 'auto', display: 'block' }} />
             <span style={{ fontWeight: 900, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>IRAGT</span>
           </a>
         </div>

@@ -37,7 +37,10 @@ export default function DashboardLayout() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="topbar-brand">⚡ IRAGT</div>
+        <div className="topbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+          <img src="/logo.png" alt="IRAGT" style={{ height: '26px', width: 'auto', display: 'block' }} />
+          <span>IRAGT</span>
+        </div>
         <div className="topbar-user">
           <div className="avatar">{(user?.email || 'U')[0].toUpperCase()}</div>
           <span>{user?.email}</span>

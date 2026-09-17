@@ -213,7 +213,10 @@ export default function Login() {
         <div className="wave-overlay"></div>
       </div>
       <div className="auth-card">
-        <div className="logo">⚡ IRAGT</div>
+        <div className="logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '.6rem', marginBottom: '.5rem' }}>
+          <img src="/logo.png" alt="IRAGT" style={{ height: '36px', width: 'auto', display: 'block' }} />
+          <span>IRAGT</span>
+        </div>
         <div className="subtitle">Secure tunnels to localhost</div>
 
         {resetToken ? (

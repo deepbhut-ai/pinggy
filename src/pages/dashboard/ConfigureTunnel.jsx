@@ -27,7 +27,7 @@ export default function ConfigureTunnel() {
   const [tokenSel, setTokenSel] = useState('');
   const [multiPort, setMultiPort] = useState(true);
   const [multiPorts, setMultiPorts] = useState([]);
-  const [cmdTab, setCmdTab] = useState('ssh');
+  const [cmdTab, setCmdTab] = useState('cli');
   const [keepAlive, setKeepAlive] = useState(true);
   const [autoReconnect, setAutoReconnect] = useState(true);
   const [strictHost, setStrictHost] = useState(false);
@@ -188,6 +188,12 @@ export default function ConfigureTunnel() {
 
   const buildCmd = () => {
     if (!info || !tokenSel) return 'Create a token first in Manage Tokens →';
+    if (cmdTab === 'cli') {
+      return `iragt connect ${tokenSel}\n\n# Or without installing anything:\nnpx iragt connect ${tokenSel}`;
+    }
+    if (cmdTab === 'curl') {
+      return `curl -sSL https://iraglobaltech.com/run | bash -s ${tokenSel}`;
+    }
     if (cmdTab === 'docker') return buildDocker();
     const multi = multiPort && portList?.length;
     let ssh = 'ssh';
@@ -383,6 +389,8 @@ export default function ConfigureTunnel() {
         </div>
         <div className="card-body">
           <div className="tabs" style={{ marginBottom: '.75rem' }}>
+            <button className={`tab ${cmdTab === 'cli' ? 'active' : ''}`} onClick={() => setCmdTab('cli')}>🚀 CLI (iragt)</button>
+            <button className={`tab ${cmdTab === 'curl' ? 'active' : ''}`} onClick={() => setCmdTab('curl')}>⚡ cURL / Bash</button>
             <button className={`tab ${cmdTab === 'ssh' ? 'active' : ''}`} onClick={() => setCmdTab('ssh')}>SSH</button>
             <button className={`tab ${cmdTab === 'docker' ? 'active' : ''}`} onClick={() => setCmdTab('docker')}>Docker</button>
           </div>

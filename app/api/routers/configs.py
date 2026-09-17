@@ -76,6 +76,100 @@ async def get_multiport_config(
     return cfg
 
 
+@router.get("/cli/{token}")
+async def get_cli_tunnel_config(
+    token: str,
+    db: AsyncConnection = Depends(get_db),
+):
+    """Fetch saved multiport and domain mappings for a token to power zero-flag CLI connections."""
+    import json as _json
+    from app.core.config import settings
+
+    # 1. Lookup token in tokens table
+    user_email = None
+    custom_domain = ""
+    default_port = 8080
+    token_id = None
+
+    try:
+        cur = await db.execute(
+            "SELECT t.id, t.user_email, t.custom_domain, t.local_port, u.is_active "
+            "FROM tokens t JOIN users u ON u.email = t.user_email "
+            "WHERE t.token = %s",
+            (token,),
+        )
+        row = await cur.fetchone()
+        await cur.close()
+        if row:
+            if not row[4]:
+                raise HTTPException(status_code=403, detail="Account is disabled")
+            token_id, user_email, custom_domain, default_port = row[0], row[1], row[2] or "", row[3] or 8080
+    except Exception:
+        pass
+
+    # Fallback to users table (legacy single-token)
+    if not user_email:
+        cur = await db.execute(
+            "SELECT email, custom_domain, is_active FROM users WHERE tunnel_token = %s",
+            (token,),
+        )
+        row = await cur.fetchone()
+        await cur.close()
+        if not row:
+            raise HTTPException(status_code=404, detail="Invalid or inactive token")
+        if not row[2]:
+            raise HTTPException(status_code=403, detail="Account is disabled")
+        user_email, custom_domain = row[0], row[1] or ""
+
+    # 2. Fetch saved multiport settings from tunnel_configs
+    cur = await db.execute(
+        "SELECT config FROM tunnel_configs WHERE user_email = %s AND name = %s",
+        (user_email, f"multiport:{token}"),
+    )
+    cfg_row = await cur.fetchone()
+    await cur.close()
+
+    ports = []
+    if cfg_row:
+        cfg = _json.loads(cfg_row[0]) if isinstance(cfg_row[0], str) else cfg_row[0]
+        if cfg.get("multi_port_enabled", True) and cfg.get("ports"):
+            for addr, info in cfg.get("ports", {}).items():
+                if isinstance(info, dict) and info.get("enabled", True) is not False:
+                    raw_port = info.get("port")
+                    if raw_port and str(raw_port).strip():
+                        try:
+                            ports.append({"domain": addr, "local_port": int(str(raw_port).strip())})
+                        except ValueError:
+                            pass
+
+    # 3. If no custom multiport entries configured, build default list
+    if not ports:
+        main_addr = custom_domain if custom_domain else f"{token}.{settings.TUNNEL_DOMAIN}"
+        ports.append({"domain": main_addr, "local_port": default_port})
+        # Add any extra domains attached to this token
+        if token_id:
+            try:
+                cur = await db.execute(
+                    "SELECT domain FROM token_domains WHERE token_id = %s",
+                    (token_id,),
+                )
+                extra_rows = await cur.fetchall()
+                await cur.close()
+                for er in extra_rows:
+                    if er[0] and er[0] not in [p["domain"] for p in ports]:
+                        ports.append({"domain": er[0], "local_port": default_port})
+            except Exception:
+                pass
+
+    return {
+        "status": "success",
+        "token": token,
+        "ssh_host": settings.TUNNEL_DOMAIN,
+        "ssh_port": settings.SSH_PORT,
+        "ports": ports,
+    }
+
+
 @router.get("", response_model=list[ConfigOut])
 async def list_configs(
     user: dict = Depends(get_current_user),

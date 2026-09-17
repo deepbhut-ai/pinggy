@@ -148,6 +148,98 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(admin_router)  # /admin, /dashboard, / (landing page)
 
 
+from starlette.responses import PlainTextResponse
+
+
+@app.get("/run", response_class=PlainTextResponse, tags=["cli"])
+async def get_runner_script():
+    """Universal bash script for 1-line zero-flag tunneling."""
+    script = r"""#!/usr/bin/env bash
+# IRAGT Universal One-Line Tunnel Runner
+# Usage: curl -sSL https://iraglobaltech.com/run | bash -s YOUR_TOKEN
+
+set -e
+
+TOKEN="$1"
+if [ -z "$TOKEN" ]; then
+  echo ""
+  echo "❌ Error: Missing tunnel token."
+  echo "Usage: curl -sSL https://iraglobaltech.com/run | bash -s <YOUR_TOKEN>"
+  echo ""
+  exit 1
+fi
+
+echo "🚀 Fetching IRAGT tunnel configuration for token: ${TOKEN:0:8}..."
+
+API_HOST="${IRAGT_API_HOST:-https://iraglobaltech.com}"
+CONFIG=$(curl -sSL "${API_HOST}/api/v1/configs/cli/${TOKEN}")
+
+if echo "$CONFIG" | grep -q '"detail"'; then
+  ERR_MSG=$(echo "$CONFIG" | grep -o '"detail":"[^"]*' | cut -d'"' -f4)
+  echo "❌ Failed: ${ERR_MSG:-Invalid token}"
+  exit 1
+fi
+
+SSH_HOST=$(echo "$CONFIG" | grep -o '"ssh_host":"[^"]*' | cut -d'"' -f4)
+SSH_PORT=$(echo "$CONFIG" | grep -o '"ssh_port":[0-9]*' | cut -d':' -f2)
+
+SSH_HOST="${SSH_HOST:-ssh.iraglobaltech.com}"
+SSH_PORT="${SSH_PORT:-2222}"
+
+PORTS_DATA=$(python3 -c "import sys, json; data=json.loads(sys.stdin.read()); print('\n'.join(f'{p[\"domain\"]}:{p[\"local_port\"]}' for p in data.get('ports', [])))" <<< "$CONFIG" 2>/dev/null || echo "")
+
+if [ -z "$PORTS_DATA" ]; then
+  PORTS_DATA="tunnel:8080"
+fi
+
+echo ""
+echo "  ╔═════════════════════════════════════════════════════════════╗"
+echo "  ║                     IRAGT TUNNEL ACTIVE                     ║"
+echo "  ╠═════════════════════════════════════════════════════════════╣"
+
+R_FLAGS=""
+while IFS=':' read -r domain port; do
+  if [ -n "$port" ]; then
+    printf "  ║  https://%-26s --> localhost:%-6s║\n" "$domain" "$port"
+    R_FLAGS="$R_FLAGS -R0:127.0.0.1:$port"
+  fi
+done <<< "$PORTS_DATA"
+
+echo "  ╚═════════════════════════════════════════════════════════════╝"
+echo ""
+
+exec ssh -p "$SSH_PORT" $R_FLAGS -o StrictHostKeyChecking=no "${TOKEN}@${SSH_HOST}"
+"""
+    return PlainTextResponse(content=script, media_type="text/x-shellscript")
+
+
+@app.get("/install.sh", response_class=PlainTextResponse, tags=["cli"])
+async def get_installer_script():
+    """CLI installer script for placing iragt into /usr/local/bin."""
+    script = r"""#!/usr/bin/env bash
+# IRAGT CLI Global Installer
+set -e
+
+echo "📦 Installing IRAGT Tunnel CLI..."
+
+TARGET_DIR="/usr/local/bin"
+if [ ! -w "$TARGET_DIR" ]; then
+  SUDO="sudo"
+else
+  SUDO=""
+fi
+
+$SUDO curl -sSL https://iraglobaltech.com/run -o "${TARGET_DIR}/iragt"
+$SUDO chmod +x "${TARGET_DIR}/iragt"
+
+echo ""
+echo "✅ iragt CLI installed successfully to ${TARGET_DIR}/iragt!"
+echo "👉 Connect anytime using: iragt <YOUR_TOKEN>"
+echo ""
+"""
+    return PlainTextResponse(content=script, media_type="text/x-shellscript")
+
+
 @app.get("/health", tags=["system"])
 async def health():
     """Return service health with DB + Redis checks for watchdog monitoring (v2.8.7).

@@ -8,6 +8,7 @@ import BlogPost from './pages/BlogPost';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import Guide from './pages/Guide';
+import Docs from './pages/Docs';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 import DashboardOverview from './pages/dashboard/DashboardOverview';
 import Quickstart from './pages/dashboard/Quickstart';
@@ -59,6 +60,8 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/guide" element={<Guide />} />
+      <Route path="/docs" element={<Docs />} />
+      <Route path="/documentation" element={<Docs />} />
       <Route path="/help-center" element={<PublicHelpCenter />} />
       <Route path="/support" element={<PublicHelpCenter />} />
       <Route path="/blog" element={<Blog />} />

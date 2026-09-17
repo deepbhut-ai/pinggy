@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const publicLinks = [
   { label: 'Home', to: '/' },
+  { label: 'Docs', to: '/docs' },
   { label: 'How It Works', to: '/#how-it-works', hash: '#how-it-works' },
   { label: 'Pricing', to: '/#pricing', hash: '#pricing' },
   { label: 'Guide', to: '/guide' },
@@ -281,7 +282,8 @@ export default function PublicLayout({ children, topAlert = null }) {
 
         <nav className="pnav">
           <Link to="/" className="plogo">
-            <span>⚡</span>IRAGT
+            <img src="/logo.png" alt="IRAGT" style={{ height: '28px', width: 'auto', display: 'block' }} />
+            <span>IRAGT</span>
           </Link>
           <div className="plinks">
             {publicLinks.map((l) => (
@@ -316,9 +318,15 @@ export default function PublicLayout({ children, topAlert = null }) {
 
         <footer className="pfooter">
           <div className="pfooter-grid">
-            <div className="pfooter-brand"><span>⚡</span> IRAGT<p>Public URLs for localhost without downloading any binary. Built with SSH & Cloudflare.</p></div>
+            <div className="pfooter-brand">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.4rem' }}>
+                <img src="/logo.png" alt="IRAGT" style={{ height: '24px', width: 'auto', display: 'block' }} />
+                <span style={{ fontWeight: 800, fontSize: '1.1rem' }}>IRAGT</span>
+              </div>
+              <p>Public URLs for localhost without downloading any binary. Built with SSH & Cloudflare.</p>
+            </div>
             <div className="pfooter-col"><h4>Product</h4><Link to="/#how-it-works">How It Works</Link><Link to="/#pricing">Pricing</Link></div>
-            <div className="pfooter-col"><h4>Resources</h4><Link to="/#faq">Help</Link><Link to="/help-center">Help Center</Link><Link to="/blog">Blog</Link></div>
+            <div className="pfooter-col"><h4>Resources</h4><Link to="/docs">Documentation</Link><Link to="/guide">Guide</Link><Link to="/help-center">Help Center</Link><Link to="/blog">Blog</Link></div>
             <div className="pfooter-col"><h4>Legal</h4><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></div>
           </div>
           <div className="pfooter-bottom">Powered by SSH & Cloudflare · © 2024 IRAGT</div>
