@@ -90,7 +90,7 @@ def main():
     print("  ╚══════════════════════════════════════════════════════════════════════════╝")
     print("  💡 Manage & toggle ports live in your dashboard: https://iraglobaltech.com/dashboard\n")
 
-    ssh_cmd = ["ssh", "-p", str(ssh_port), "-o", "StrictHostKeyChecking=no"]
+    ssh_cmd = ["ssh", "-p", str(ssh_port), "-tt", "-o", "StrictHostKeyChecking=no"]
     for p in ports:
         ssh_cmd.extend(["-R", f"0:127.0.0.1:{p['local_port']}"])
     ssh_cmd.append(f"{token}@{ssh_host}")

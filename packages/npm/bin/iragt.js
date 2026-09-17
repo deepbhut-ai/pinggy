@@ -77,7 +77,7 @@ https.get(apiUrl, (res) => {
       console.log('  💡 Manage & toggle ports live in your dashboard: https://iraglobaltech.com/dashboard\n');
 
       // Build -R arguments for SSH
-      const sshArgs = ['-p', sshPort.toString(), '-o', 'StrictHostKeyChecking=no'];
+      const sshArgs = ['-p', sshPort.toString(), '-tt', '-o', 'StrictHostKeyChecking=no'];
       ports.forEach((p) => {
         sshArgs.push('-R', `0:127.0.0.1:${p.local_port}`);
       });
