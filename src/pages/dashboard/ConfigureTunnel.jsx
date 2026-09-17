@@ -323,7 +323,8 @@ export default function ConfigureTunnel() {
                       const newEnabled = !enabled;
                       next[i] = { ...m, enabled: newEnabled };
                       setMultiPorts(next);
-                      saveMultiPortConfig(tokenSel, multiPort, next);
+                      const targetToken = selectedGroup?.primaryToken || tokenSel;
+                      saveMultiPortConfig(targetToken, multiPort, next);
                       toast(newEnabled ? `▶️ Resumed: ${m.addr}` : `⏸️ Paused: ${m.addr}`, 'info');
                     }}
                     style={{
@@ -367,7 +368,8 @@ export default function ConfigureTunnel() {
                       const next = [...multiPorts];
                       next[i] = { ...m, port: e.target.value };
                       setMultiPorts(next);
-                      saveMultiPortConfig(tokenSel, multiPort, next);
+                      const targetToken = selectedGroup?.primaryToken || tokenSel;
+                      saveMultiPortConfig(targetToken, multiPort, next);
                     }}
                   />
                 </div>

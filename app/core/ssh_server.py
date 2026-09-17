@@ -46,6 +46,8 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
 
     def connection_made(self, chan: asyncssh.SSHServerChannel) -> None:
         self._chan = chan
+        if self._server._tunnel:
+            self._server._tunnel.log_callback = self.write_log
 
     def shell_requested(self) -> bool:
         return True
@@ -54,16 +56,11 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
         return False
 
     def write_log(self, message: str) -> None:
-        """Write a log line to the user's terminal (called by the proxy)."""
+        """Write a log line to the user's terminal (called by the proxy and dashboard)."""
         if not self._chan:
             return
-        # asyncssh's SSHServerChannel doesn't have an `exit_status_sent`
-        # attribute — using it raises AttributeError, which was silently
-        # swallowed by log_to_tunnel's except, so NO log lines were ever
-        # shown to the user.  Instead, just attempt the write and let the
-        # try/except guard against a closed channel.
         try:
-            self._chan.write(message + "\n")
+            self._chan.write(message + "\r\n")
         except Exception:
             pass
 
@@ -214,6 +211,11 @@ class MySSHServer(asyncssh.SSHServer):
         if peer:
             self._peer = f"{peer[0]}:{peer[1]}"
         logger.info("SSH connection from %s", self._peer)
+
+    def write_log(self, message: str) -> None:
+        """Forward log lines to the connected client channel."""
+        if self._info_session:
+            self._info_session.write_log(message)
 
     def connection_lost(self, exc: Exception | None) -> None:
         logger.info("SSH connection lost from %s", self._peer)
@@ -656,7 +658,7 @@ class MySSHServer(asyncssh.SSHServer):
                 custom_domains=list(getattr(self, "_custom_domains", []) or []),
                 paused_endpoints=paused_endpoints,
                 token=self._token or "",
-                log_callback=self._info_session.write_log if self._info_session else None,
+                log_callback=self.write_log,
             )
 
             from app.core.db import get_conn
