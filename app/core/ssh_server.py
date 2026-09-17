@@ -319,7 +319,6 @@ class MySSHServer(asyncssh.SSHServer):
         v1.9.0: username may be TOKEN--3000,8000,5173 (multi-port: one listener
         per address, in order subdomain → primary → extras). Pro only."""
         import psycopg
-        from app.core.config import settings
         self._port_map = None
         base_token = token
         if "--" in token:
@@ -330,8 +329,6 @@ class MySSHServer(asyncssh.SSHServer):
                     self._port_map = None
             except ValueError:
                 return False  # malformed suffix
-        import psycopg
-        from app.core.config import settings
         try:
             conn = psycopg.connect(settings.async_dsn, autocommit=True)
 
@@ -505,6 +502,11 @@ class MySSHServer(asyncssh.SSHServer):
                 if not self._tunnel:
                     await self._setup_tunnel(ports[0])
                 return
+
+            saved_ports_map = {}
+            if getattr(self, "_saved_multiport", None):
+                saved_ports_map = self._saved_multiport.get("ports", {})
+
             # multi-port: first listener creates the tunnel, the rest map to
             # the remaining addresses in canonical order
             # v2.7.7: also include addresses from ALL the user's tokens so
@@ -512,9 +514,11 @@ class MySSHServer(asyncssh.SSHServer):
             all_user_addresses = []
             if self._tunnel:
                 all_user_addresses = list(self._tunnel.all_addresses())
-                full_sub = f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
-                if full_sub not in all_user_addresses:
-                    all_user_addresses.append(full_sub)
+
+            # Add all addresses defined in the saved multiport config
+            for addr in saved_ports_map.keys():
+                if addr and addr not in all_user_addresses:
+                    all_user_addresses.append(addr)
 
             # Fetch additional addresses from the user's other tokens
             logger.info("Multi-port setup: tunnel=%s, ports=%s, addresses=%s, username=%s, port_map=%s",
@@ -522,7 +526,6 @@ class MySSHServer(asyncssh.SSHServer):
             if multi and self._username:
                 try:
                     import psycopg
-                    from app.core.config import settings
                     conn2 = psycopg.connect(settings.async_dsn, autocommit=True)
                     cur2 = conn2.execute(
                         "SELECT custom_domain FROM tokens WHERE user_email = %s AND token != %s AND custom_domain IS NOT NULL",
@@ -549,28 +552,16 @@ class MySSHServer(asyncssh.SSHServer):
                 except Exception as e:
                     logger.warning("Could not load cross-token addresses: %s", e)
 
-            saved_ports_map = {}
-            if getattr(self, "_saved_multiport", None):
-                saved_ports_map = self._saved_multiport.get("ports", {})
-
             for i, port in enumerate(ports):
                 if not self._tunnel:
                     await self._setup_tunnel(port)
-                    if self._tunnel:
-                        self._tunnel.endpoints[self._tunnel.subdomain] = port
-                        self._tunnel.endpoints[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = port
-                        lp = 0
-                        if self._port_map and len(self._port_map) > 0:
-                            lp = self._port_map[0]
-                        elif saved_ports_map.get(f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"):
-                            try:
-                                lp = int(saved_ports_map[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"].get("port", 0))
-                            except Exception:
-                                pass
-                        self._tunnel.local_port = lp
-                        self._tunnel.local_ports[self._tunnel.subdomain] = lp
-                        self._tunnel.local_ports[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = lp
+                if not self._tunnel:
                     continue
+
+                if i == 0:
+                    self._tunnel.endpoints[self._tunnel.subdomain] = port
+                    self._tunnel.endpoints[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = port
+
                 if i < len(all_user_addresses):
                     addr = all_user_addresses[i]
                     self._tunnel.endpoints[addr] = port
@@ -584,6 +575,10 @@ class MySSHServer(asyncssh.SSHServer):
                             pass
                     if lp:
                         self._tunnel.local_ports[addr] = lp
+                        if i == 0:
+                            self._tunnel.local_port = lp
+                            self._tunnel.local_ports[self._tunnel.subdomain] = lp
+                            self._tunnel.local_ports[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = lp
                 else:
                     logger.info("Extra listener %d ignored (no address left) for %s", port, self._peer)
             if self._tunnel:
