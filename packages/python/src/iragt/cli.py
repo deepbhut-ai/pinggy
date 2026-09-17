@@ -1,14 +1,44 @@
 #!/usr/bin/env python3
-"""IRAGT Tunnel CLI - Connect to your IRAGT multi-port tunnel with zero flags."""
+"""IRAGT Tunnel CLI - Connect to your IRAGT multi-port tunnel with zero flags and auto-sync."""
 import os
 import sys
 import json
+import time
+import signal
+import threading
 import subprocess
 import urllib.request
 import urllib.error
 
 API_BASE = os.environ.get("IRAGT_API_HOST", "https://iraglobaltech.com")
 VERSION = "1.0.2"
+
+
+def fetch_config(token: str) -> dict:
+    api_url = f"{API_BASE}/api/v1/configs/cli/{token}"
+    req = urllib.request.Request(
+        api_url,
+        headers={"User-Agent": f"iragt-python-cli/{VERSION}"}
+    )
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def get_ports_sig(ports: list) -> str:
+    return "|".join(sorted(f"{p.get('domain')}:{p.get('local_port')}" for p in ports))
+
+
+def print_banner(ports: list):
+    print("\n  ╔══════════════════════════════════════════════════════════════════════════╗")
+    print("  ║                     IRAGT MULTI-PORT TUNNEL                              ║")
+    print("  ╠══════════════════════════════════════════════════════════════════════════╣")
+    for p in ports:
+        domain_str = f"https://{p.get('domain')}"
+        paused_str = " [PAUSED]" if p.get("enabled") is False else ""
+        row_str = f"  🌐 {domain_str} -> :{p.get('local_port')}{paused_str}"
+        print(f"  ║ {row_str:<72s} ║")
+    print("  ╚══════════════════════════════════════════════════════════════════════════╝")
+    print("  💡 Manage & toggle ports live in your dashboard: https://iraglobaltech.com/dashboard\n")
 
 
 def main():
@@ -49,15 +79,8 @@ def main():
     token_display = f"{token[:8]}..." if len(token) > 8 else token
     print(f"\n🚀 Fetching tunnel configuration for token: {token_display}")
 
-    api_url = f"{API_BASE}/api/v1/configs/cli/{token}"
-
     try:
-        req = urllib.request.Request(
-            api_url,
-            headers={"User-Agent": f"iragt-python-cli/{VERSION}"}
-        )
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+        data = fetch_config(token)
     except urllib.error.HTTPError as e:
         err_msg = f"HTTP {e.code}"
         try:
@@ -75,30 +98,84 @@ def main():
         print(f"\n❌ Error: {data.get('detail', 'Invalid token')}\n")
         sys.exit(1)
 
-    ports = data.get("ports", [])
-    ssh_host = data.get("ssh_host", "ssh.iraglobaltech.com")
-    ssh_port = data.get("ssh_port", 2222)
+    state = {
+        "current_process": None,
+        "current_ports": data.get("ports", []),
+        "current_sig": get_ports_sig(data.get("ports", [])),
+        "is_reloading": False,
+        "is_running": True,
+    }
 
-    print("\n  ╔══════════════════════════════════════════════════════════════════════════╗")
-    print("  ║                     IRAGT MULTI-PORT TUNNEL                              ║")
-    print("  ╠══════════════════════════════════════════════════════════════════════════╣")
-    for p in ports:
-        domain_str = f"https://{p['domain']}"
-        paused_str = " [PAUSED]" if p.get("enabled") is False else ""
-        row_str = f"  🌐 {domain_str} -> :{p['local_port']}{paused_str}"
-        print(f"  ║ {row_str:<72s} ║")
-    print("  ╚══════════════════════════════════════════════════════════════════════════╝")
-    print("  💡 Manage & toggle ports live in your dashboard: https://iraglobaltech.com/dashboard\n")
+    print_banner(state["current_ports"])
 
-    ssh_cmd = ["ssh", "-p", str(ssh_port), "-tt", "-o", "StrictHostKeyChecking=no"]
-    for p in ports:
-        ssh_cmd.extend(["-R", f"0:127.0.0.1:{p['local_port']}"])
-    ssh_cmd.append(f"{token}@{ssh_host}")
+    def launch_ssh(cfg, is_reload=False):
+        ports = cfg.get("ports", [])
+        ssh_host = cfg.get("ssh_host", "ssh.iraglobaltech.com")
+        ssh_port = cfg.get("ssh_port", 2222)
 
-    try:
-        subprocess.run(ssh_cmd)
-    except KeyboardInterrupt:
+        if is_reload:
+            old_domains = {p["domain"] for p in state["current_ports"]}
+            added = [p for p in ports if p["domain"] not in old_domains]
+            for p in added:
+                print(f"\n  [dashboard] ➕ Added endpoint: https://{p['domain']} -> :{p['local_port']}")
+
+        state["current_ports"] = ports
+        state["current_sig"] = get_ports_sig(ports)
+
+        ssh_cmd = ["ssh", "-p", str(ssh_port), "-tt", "-o", "StrictHostKeyChecking=no"]
+        for p in ports:
+            ssh_cmd.extend(["-R", f"0:127.0.0.1:{p['local_port']}"])
+        ssh_cmd.append(f"{token}@{ssh_host}")
+
+        state["current_process"] = subprocess.Popen(ssh_cmd)
+
+    def watcher():
+        while state["is_running"]:
+            time.sleep(3)
+            if not state["is_running"]:
+                break
+            try:
+                fresh = fetch_config(token)
+                fresh_sig = get_ports_sig(fresh.get("ports", []))
+                if fresh_sig and fresh_sig != state["current_sig"]:
+                    state["is_reloading"] = True
+                    if state["current_process"]:
+                        state["current_process"].terminate()
+                        try:
+                            state["current_process"].wait(timeout=2)
+                        except Exception:
+                            pass
+                    time.sleep(0.5)
+                    launch_ssh(fresh, is_reload=True)
+                    state["is_reloading"] = False
+            except Exception:
+                pass
+
+    launch_ssh(data, is_reload=False)
+
+    w_thread = threading.Thread(target=watcher, daemon=True)
+    w_thread.start()
+
+    def handle_signal(sig, frame):
+        state["is_running"] = False
+        if state["current_process"]:
+            try:
+                state["current_process"].terminate()
+            except Exception:
+                pass
         print("\nTunnel disconnected.")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
+
+    while state["is_running"]:
+        if state["current_process"]:
+            ret = state["current_process"].poll()
+            if ret is not None and not state["is_reloading"]:
+                print("\nTunnel disconnected.")
+                break
+        time.sleep(0.5)
 
 
 if __name__ == "__main__":
