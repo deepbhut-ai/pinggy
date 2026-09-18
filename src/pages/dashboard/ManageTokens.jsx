@@ -4,6 +4,7 @@ import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
 import { copyToClipboard, formatBytes } from '../../utils';
 import { useTableData, SearchBar, Pagination } from '../../components/TableControls';
+import MultiportActivationModal from '../../components/MultiportActivationModal';
 
 const COMMON_SECOND_LEVEL_SUFFIXES = new Set(['ac', 'co', 'com', 'edu', 'gov', 'net', 'org']);
 
@@ -110,9 +111,10 @@ export default function ManageTokens() {
     }
   };
 
-  const enableInMultiport = async () => {
+  const enableInMultiport = async (chosenPort) => {
     if (!multiportPrompt) return;
     const { domain, token, port } = multiportPrompt;
+    const finalPort = (chosenPort || port || '8080').toString().trim();
     try {
       let existing = { multi_port_enabled: true, ports: {} };
       if (token) {
@@ -121,7 +123,7 @@ export default function ManageTokens() {
         } catch {}
       }
       const updatedPorts = { ...(existing.ports || {}) };
-      updatedPorts[domain] = { enabled: true, port: (port || '8080').toString().trim() };
+      updatedPorts[domain] = { enabled: true, port: finalPort };
 
       await api('/configs/multiport', 'PUT', {
         token: token || domain,
@@ -129,7 +131,7 @@ export default function ManageTokens() {
         ports: updatedPorts,
       });
 
-      toast(`🚀 ${domain} enabled in Multi-Port tunnel on port :${(port || '8080').toString().trim()}!`);
+      toast(`🚀 ${domain} enabled in Multi-Port tunnel on port :${finalPort}!`);
     } catch (e) {
       toast(`Token created, but could not set Multi-Port: ${e.message}`, 'error');
     } finally {
@@ -518,46 +520,12 @@ export default function ManageTokens() {
 
       {/* Multi-Port Activation Modal */}
       {multiportPrompt && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div className="card" style={{ maxWidth: 480, width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '1px solid var(--primary)' }}>
-            <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-              <h2>🚀 Enable in Multi-Port Tunnel?</h2>
-            </div>
-            <div className="card-body">
-              <p style={{ fontSize: '.9rem', marginBottom: '.8rem', lineHeight: 1.5 }}>
-                🎉 <strong>{multiportPrompt.domain}</strong> is ready!
-              </p>
-              <p className="dim" style={{ fontSize: '.85rem', marginBottom: '1.2rem', lineHeight: 1.5 }}>
-                Do you want to start and route traffic for this subdomain under your <strong>Multi-port tunnel</strong>? If enabled, incoming requests will automatically forward to your specified local port.
-              </p>
-
-              <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-                <label style={{ fontSize: '.85rem', fontWeight: 600, marginBottom: '.4rem', display: 'block' }}>
-                  Local Port on your computer (e.g. 8080, 3000, 8005):
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="65535"
-                  value={multiportPrompt.port}
-                  onChange={(e) => setMultiportPrompt({ ...multiportPrompt, port: e.target.value })}
-                  placeholder="e.g. 8080"
-                  style={{ width: '100%' }}
-                  autoFocus
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-                <button className="btn btn-ghost" onClick={skipMultiport}>
-                  Skip for now
-                </button>
-                <button className="btn" onClick={enableInMultiport} style={{ background: 'var(--primary)', color: '#fff', fontWeight: 600 }}>
-                  ✅ Yes, Enable in Multi-Port
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <MultiportActivationModal
+          domain={multiportPrompt.domain}
+          initialPort={multiportPrompt.port || '8080'}
+          onEnable={enableInMultiport}
+          onSkip={skipMultiport}
+        />
       )}
 
     </>
