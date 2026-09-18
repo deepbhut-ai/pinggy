@@ -75,18 +75,28 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
             # Check for strict mode port mismatch error
             if getattr(self._server, "_port_mismatch_error", None) and not self._info_sent:
                 err = self._server._port_mismatch_error
-                given_str = ", ".join(f":{p}" for p in err.get("given", []))
+                is_missing = err.get("missing_port", False)
+                given_str = ", ".join(f":{p}" for p in err.get("given", [])) or "None (missing --port)"
                 expected_str = ", ".join(f":{p}" for p in err.get("expected", []))
                 expected_p = err.get("expected", [8080])[0]
+
+                if is_missing:
+                    title = "❌ STRICT PORT CHECK: PORT REQUIRED IN COMMAND"
+                    detail_line = f"  ║  Configured Port(s) on Web: {expected_str:<44s} ║"
+                    info_line = "  ║  Please specify your configured port in your SSH command username.       ║"
+                else:
+                    title = "❌ PORT MISMATCH ERROR — CONNECTION REJECTED"
+                    detail_line = f"  ║  Port in your command: {given_str:<15s} Configured on Web: {expected_str:<18s} ║"
+                    info_line = "  ║  The port in your command does not match your dashboard configuration.   ║"
+
                 lines = [
                     "",
                     "  ╔══════════════════════════════════════════════════════════════════════════╗",
-                    "  ║  ❌ PORT MISMATCH ERROR — CONNECTION REJECTED                            ║",
+                    f"  ║  {title:<72s} ║",
                     "  ╠══════════════════════════════════════════════════════════════════════════╣",
-                    f"  ║  Port in your command:   {given_str:<47s} ║",
-                    f"  ║  Configured in Web:      {expected_str:<47s} ║",
+                    detail_line,
                     "  ║                                                                          ║",
-                    "  ║  The port in your command does not match your dashboard configuration.   ║",
+                    info_line,
                     "  ║  Please connect with the matching port:                                  ║",
                     f"  ║    ssh -p 2222 -R0:127.0.0.1:{expected_p} {self._server._token}--{expected_p}@ssh.iraglobaltech.com",
                     "  ║                                                                          ║",
@@ -109,7 +119,7 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                 tunnel = self._server._tunnel
                 # Wait briefly to ensure all listener ports are registered
                 await asyncio.sleep(0.4)
-                scheme = "https" if settings.PROXY_PORT == 80 else "http"
+                scheme = "https"
                 primary_url = f"{scheme}://{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
 
                 lines = [
@@ -137,7 +147,7 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                             continue
                         seen.add(addr)
                         addr_url = f"{scheme}://{addr}" if not addr.startswith("http") else addr
-                        lp = tunnel.local_ports.get(addr) or "local"
+                        lp = tunnel.local_ports.get(addr) or (saved_ports_map.get(addr, {}).get("port") if saved_ports_map.get(addr) else None) or tunnel.local_port or "local"
                         p_stat = " [PAUSED]" if tunnel.is_endpoint_paused(addr) else ""
                         row_str = f"  🌐 {addr_url} -> :{lp}{p_stat}"
                         lines.append(f"  ║ {row_str:<72s} ║")
@@ -418,30 +428,41 @@ class MySSHServer(asyncssh.SSHServer):
                                         configured_ports.add(int(info_v["port"]))
                                     except (ValueError, TypeError):
                                         pass
-                            if not self._port_map and mp_cfg.get("multi_port_enabled"):
-                                extracted_ports = []
-                                for addr_k, info_v in ports_dict.items():
-                                    if isinstance(info_v, dict) and "port" in info_v:
-                                        try:
-                                            extracted_ports.append(int(info_v["port"]))
-                                        except (ValueError, TypeError):
-                                            pass
-                                if extracted_ports:
-                                    self._port_map = extracted_ports
-                    except Exception as e:
-                        logger.debug("Failed to read saved multiport config: %s", e)
+                    has_explicit_ports = bool(self._port_map)
 
-                    # Strict mode check: validate given port_map against web configured ports
+                    # Strict mode check:
                     self._port_mismatch_error = None
-                    if self._port_map and configured_ports:
-                        invalid_ports = [p for p in self._port_map if p not in configured_ports]
-                        if invalid_ports:
+                    if configured_ports:
+                        if not has_explicit_ports:
+                            # User connected with plain TOKEN@ without specifying the port
                             self._port_mismatch_error = {
-                                "given": self._port_map,
+                                "given": [],
                                 "expected": sorted(list(configured_ports)),
+                                "missing_port": True,
                             }
-                            logger.warning("SSH port mismatch: %s requested %s, expected %s",
-                                           self._username, self._port_map, configured_ports)
+                            logger.warning("SSH strict port required: %s did not specify port in username (expected %s)",
+                                           self._username, configured_ports)
+                        else:
+                            invalid_ports = [p for p in self._port_map if p not in configured_ports]
+                            if invalid_ports:
+                                self._port_mismatch_error = {
+                                    "given": self._port_map,
+                                    "expected": sorted(list(configured_ports)),
+                                    "missing_port": False,
+                                }
+                                logger.warning("SSH port mismatch: %s requested %s, expected %s",
+                                               self._username, self._port_map, configured_ports)
+
+                    if not self._port_map and mp_cfg.get("multi_port_enabled"):
+                        extracted_ports = []
+                        for addr_k, info_v in ports_dict.items():
+                            if isinstance(info_v, dict) and "port" in info_v:
+                                try:
+                                    extracted_ports.append(int(info_v["port"]))
+                                except (ValueError, TypeError):
+                                    pass
+                        if extracted_ports:
+                            self._port_map = extracted_ports
 
                     # v2.7.8: multiport — load ALL the user's tokens' custom domains
                     # so one tunnel can serve every domain/subdomain on the account
