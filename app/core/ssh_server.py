@@ -122,24 +122,45 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                 scheme = "https"
                 primary_url = f"{scheme}://{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
 
-                lines = [
-                    "",
-                    "  ╔══════════════════════════════════════════════════════════════════════════╗",
-                    "  ║  IRAGT Multi-Port Tunnel — ACTIVE                                        ║",
-                    "  ╠══════════════════════════════════════════════════════════════════════════╣",
-                ]
-
                 seen = set()
                 saved_ports_map = {}
                 if getattr(self._server, "_saved_multiport", None):
                     saved_ports_map = self._server._saved_multiport.get("ports", {})
 
+                # Filter by explicitly connected ports on this connection
+                connected_ports = set(getattr(self._server, "_port_map", []) or [])
+
                 domain_list = []
                 if saved_ports_map:
-                    domain_list.extend(saved_ports_map.keys())
+                    for d_name, d_info in saved_ports_map.items():
+                        if isinstance(d_info, dict) and "port" in d_info:
+                            try:
+                                p_num = int(d_info["port"])
+                                if not connected_ports or p_num in connected_ports:
+                                    domain_list.append(d_name)
+                            except Exception:
+                                pass
+                        elif not connected_ports:
+                            domain_list.append(d_name)
+
                 for addr in list(tunnel.endpoints.keys()) + list(tunnel.local_ports.keys()) + list(getattr(tunnel, "custom_domains", []) or []):
                     if addr and addr != tunnel.subdomain and addr != f"{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}" and addr not in domain_list:
-                        domain_list.append(addr)
+                        lp_val = tunnel.local_ports.get(addr)
+                        try:
+                            if not connected_ports or (lp_val and int(lp_val) in connected_ports):
+                                domain_list.append(addr)
+                        except Exception:
+                            pass
+
+                is_multi = len(domain_list) > 1 or len(connected_ports) > 1
+                title_header = "IRAGT Multi-Port Tunnel — ACTIVE" if is_multi else "IRAGT Tunnel — ACTIVE"
+
+                lines = [
+                    "",
+                    "  ╔══════════════════════════════════════════════════════════════════════════╗",
+                    f"  ║  {title_header:<72s} ║",
+                    "  ╠══════════════════════════════════════════════════════════════════════════╣",
+                ]
 
                 if domain_list:
                     for addr in domain_list:
@@ -152,7 +173,7 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                         row_str = f"  🌐 {addr_url} -> :{lp}{p_stat}"
                         lines.append(f"  ║ {row_str:<72s} ║")
                 else:
-                    sub_lp = tunnel.local_ports.get(tunnel.subdomain) or tunnel.local_port or "local"
+                    sub_lp = tunnel.local_ports.get(tunnel.subdomain) or tunnel.local_port or (list(connected_ports)[0] if connected_ports else "local")
                     sub_p = " [PAUSED]" if tunnel.is_endpoint_paused(tunnel.subdomain) else ""
                     row_str = f"  🌐 {primary_url} -> :{sub_lp}{sub_p}"
                     lines.append(f"  ║ {row_str:<72s} ║")
@@ -554,8 +575,13 @@ class MySSHServer(asyncssh.SSHServer):
 
             target_addresses = []
             if saved_ports_map:
-                target_addresses = list(saved_ports_map.keys())
-                for addr in [self._custom_domain] + list(getattr(self, "_custom_domains", []) or []):
+                if self._port_map:
+                    for req_p in self._port_map:
+                        for addr, info_v in saved_ports_map.items():
+                            if isinstance(info_v, dict) and str(info_v.get("port", "")).strip() == str(req_p):
+                                if addr not in target_addresses:
+                                    target_addresses.append(addr)
+                for addr in list(saved_ports_map.keys()) + [self._custom_domain] + list(getattr(self, "_custom_domains", []) or []):
                     if addr and addr not in target_addresses:
                         target_addresses.append(addr)
             else:
