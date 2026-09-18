@@ -129,7 +129,8 @@ function startSsh(config, isHotReload = false) {
   ports.forEach((p) => {
     sshArgs.push('-R', `0:127.0.0.1:${p.local_port}`);
   });
-  sshArgs.push(`${token}@${sshHost}`);
+  const portsSuffix = ports.length > 0 ? `--${ports.map((p) => p.local_port).join(',')}` : '';
+  sshArgs.push(`${token}${portsSuffix}@${sshHost}`);
 
   currentSsh = spawn('ssh', sshArgs, { stdio: 'inherit' });
 

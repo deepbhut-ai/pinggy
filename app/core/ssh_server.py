@@ -226,14 +226,11 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
             asyncio.create_task(self._server._cleanup_tunnel())
 
     def eof_received(self) -> bool:
-        # Client closed their end — close the channel too
-        if self._chan:
-            self._chan.close()
-        return True
+        # Do not close the channel on stdin EOF so the tunnel session remains active
+        return False
 
     def close_received(self) -> None:
-        if self._chan:
-            self._chan.close()
+        pass
 
 
 class MySSHServer(asyncssh.SSHServer):
@@ -455,30 +452,22 @@ class MySSHServer(asyncssh.SSHServer):
                     except Exception as e:
                         logger.debug("Failed to read saved multiport config: %s", e)
 
+                    self._configured_ports = configured_ports
+                    self._has_explicit_ports = has_explicit_ports
                     # Strict mode check:
                     self._port_mismatch_error = None
-                    if configured_ports:
-                        if not has_explicit_ports:
-                            # User connected with plain TOKEN@ without specifying the port
+                    if configured_ports and has_explicit_ports:
+                        invalid_ports = [p for p in self._port_map if p not in configured_ports]
+                        if invalid_ports:
                             self._port_mismatch_error = {
-                                "given": [],
+                                "given": self._port_map,
                                 "expected": sorted(list(configured_ports)),
-                                "missing_port": True,
+                                "missing_port": False,
                             }
-                            logger.warning("SSH strict port required: %s did not specify port in username (expected %s)",
-                                           self._username, configured_ports)
-                        else:
-                            invalid_ports = [p for p in self._port_map if p not in configured_ports]
-                            if invalid_ports:
-                                self._port_mismatch_error = {
-                                    "given": self._port_map,
-                                    "expected": sorted(list(configured_ports)),
-                                    "missing_port": False,
-                                }
-                                logger.warning("SSH port mismatch: %s requested %s, expected %s",
-                                               self._username, self._port_map, configured_ports)
+                            logger.warning("SSH port mismatch: %s requested %s, expected %s",
+                                           self._username, self._port_map, configured_ports)
 
-                    if not self._port_mismatch_error and not self._port_map and self._saved_multiport and self._saved_multiport.get("multi_port_enabled"):
+                    if not self._port_mismatch_error and not self._port_map and self._saved_multiport:
                         extracted_ports = []
                         ports_dict = self._saved_multiport.get("ports", {})
                         for addr_k, info_v in ports_dict.items():
@@ -565,6 +554,18 @@ class MySSHServer(asyncssh.SSHServer):
                 await asyncio.sleep(0.1)
 
             if not all_listener_ports:
+                return
+
+            cfg_ports = getattr(self, "_configured_ports", set()) or set()
+            has_exp = getattr(self, "_has_explicit_ports", False)
+            if not has_exp and len(cfg_ports) > 1 and len(all_listener_ports) < len(cfg_ports):
+                self._port_mismatch_error = {
+                    "given": [],
+                    "expected": sorted(list(cfg_ports)),
+                    "missing_port": True,
+                }
+                logger.warning("SSH strict port required: %s ran single-port SSH without specifying port (expected %s)",
+                               self._username, cfg_ports)
                 return
 
             if not self._tunnel:

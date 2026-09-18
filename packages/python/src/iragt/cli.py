@@ -11,7 +11,7 @@ import urllib.request
 import urllib.error
 
 API_BASE = os.environ.get("IRAGT_API_HOST", "https://iraglobaltech.com")
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 
 
 def fetch_config(token: str) -> dict:
@@ -125,7 +125,8 @@ def main():
         ssh_cmd = ["ssh", "-p", str(ssh_port), "-tt", "-o", "StrictHostKeyChecking=no"]
         for p in ports:
             ssh_cmd.extend(["-R", f"0:127.0.0.1:{p['local_port']}"])
-        ssh_cmd.append(f"{token}@{ssh_host}")
+        ports_suffix = f"--{','.join(str(p['local_port']) for p in ports)}" if ports else ""
+        ssh_cmd.append(f"{token}{ports_suffix}@{ssh_host}")
 
         state["current_process"] = subprocess.Popen(ssh_cmd)
 
