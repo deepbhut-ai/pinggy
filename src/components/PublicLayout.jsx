@@ -245,7 +245,7 @@ export default function PublicLayout({ children, topAlert = null }) {
         .pnav-mobile-menu a:hover { color: var(--brand); text-decoration: none; }
         .pnav-mobile-menu .pbtn { margin-top: 1rem; border-bottom: none; text-align: center; }
 
-        .ptop-alert { position: relative; z-index: 2; background: linear-gradient(90deg, var(--brand-light), rgba(42,157,143,.10)); border-bottom: 1px solid var(--border); padding: .55rem 1rem; text-align: center; font-size: .82rem; color: var(--text-dim); }
+        .ptop-alert {display:none; position: relative; z-index: 2; background: linear-gradient(90deg, var(--brand-light), rgba(42,157,143,.10)); border-bottom: 1px solid var(--border); padding: .55rem 1rem; text-align: center; font-size: .82rem; color: var(--text-dim); }
         .ptop-alert a { color: var(--brand); font-weight: 700; text-decoration: none; }
 
         /* Content wrapper sits above the fixed background */
@@ -290,7 +290,7 @@ export default function PublicLayout({ children, topAlert = null }) {
             ))}
             {email ? (
               <>
-                <Link to="/dashboard" style={{ color: 'var(--text)' }}>{email}</Link>
+                <Link to="/dashboard" style={{ color: 'var(--text)' }}>{email.substring(0,13)}</Link>
                 <Link to="/dashboard" className="pbtn">Dashboard →</Link>
               </>
             ) : (

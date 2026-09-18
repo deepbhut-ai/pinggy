@@ -311,7 +311,7 @@ export default function ConfigureTunnel() {
               {multiPorts.map((m, i) => {
                 const enabled = m.enabled !== false;
                 return (
-                <div key={m.addr} className="multiport-row" style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem', opacity: enabled ? 1 : 0.5 }}>
+                <div key={m.addr} className="multiport-row" style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem', opacity: enabled ? 1 : 0.5 ,flexWrap:'wrap'}}>
                   <button
                     type="button"
                     className="toggle-switch"

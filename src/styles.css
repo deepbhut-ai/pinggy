@@ -322,8 +322,8 @@ tr:hover td { background: var(--surface-1); }
 .announcement-body { font-size: .875rem; color: var(--text-dim); margin-top: .4rem; white-space: pre-line; }
 
 /* ---- Page toolbar ---- */
-.page-toolbar { display: flex; align: flex-start; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: .75rem; flex-wrap: wrap; position: sticky; top: -1.5rem; z-index: 20; background: var(--bg); padding: .75rem 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(74,85,162,.04); }
-.page-toolbar-actions { display: flex; gap: .5rem; align-items: center; }
+.page-toolbar { display: flex; align: flex-start; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: .75rem; flex-wrap: wrap;  top: -1.5rem; z-index: 20; background: var(--bg); padding: .75rem 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(74,85,162,.04); }
+.page-toolbar-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: balance;}
 
 /* ---- Search bar + Pagination (v2.4.0) ---- */
 .search-bar { display: flex; align-items: center; gap: .4rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .3rem .6rem; flex: 1; min-width: 180px; max-width: 320px; }
@@ -405,7 +405,7 @@ tr:hover td { background: var(--surface-1); }
 .tl-card { flex: 1; background: rgba(255,255,255,.88); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; min-width: 0; backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(74,85,162,.06); }
 
 /* ---- Wizard (Quickstart guided flow) ---- */
-.wizard-dots { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 1.5rem; }
+.wizard-dots { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 0; margin-bottom: 1.5rem; }
 .wizard-dot-group { display: flex; align-items: center; gap: 0; }
 .wizard-dot { width: 36px; height: 36px; border-radius: 50%; background: var(--bg); border: 2px solid var(--border); color: var(--text-dim); display: flex; align-items: center; justify-content: center; font-size: .85rem; font-weight: 700; transition: all .3s cubic-bezier(.4,0,.2,1); z-index: 1; }
 .wizard-dot.active { background: var(--brand); border-color: var(--brand); color: #fff; transform: scale(1.2); box-shadow: 0 0 0 4px var(--brand-light); animation: wizard-dot-pulse 2s ease-in-out infinite; }

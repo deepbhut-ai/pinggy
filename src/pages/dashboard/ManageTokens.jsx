@@ -347,10 +347,10 @@ export default function ManageTokens() {
                           >📋</button>
                         </span>
                       </td>
-                      <td>{t.name || '—'} {teamBadge}</td>
+                      <td style={{textWrap:'nowrap'}}>{t.name || '—'} {teamBadge}</td>
                       <td className="code" style={{ fontSize: '.78rem', lineHeight: 1.5 }}>
                         {allAddrs.length ? allAddrs.map((a, i) => (
-                          <div key={i}>
+                          <div key={i} style={{textWrap:'nowrap'}}>
                             {i === 0 && t.fixed_subdomain ? '📌 ' : ''}{a}
                             {i === 0 && t.custom_domain ? ' 🌐' : ''}
                           </div>
@@ -369,8 +369,8 @@ export default function ManageTokens() {
                       <td>{t.total_requests || 0}</td>
                       <td>{formatBytes(t.total_bytes || 0)}</td>
                       <td><span className={`badge ${t.active_tunnels > 0 ? 'badge-green' : ''}`}>{t.active_tunnels || 0}</span></td>
-                      <td>{t.created_at ? t.created_at.substring(0, 10) : '—'}</td>
-                      <td onClick={(e) => e.stopPropagation()}>
+                      <td style={{textWrap:'nowrap'}}>{t.created_at ? t.created_at.substring(0, 10) : '—'}</td>
+                      <td style={{display:"flex",gap:"5px"}} onClick={(e) => e.stopPropagation()}>
                         <button className="btn btn-sm btn-ghost" title="Regenerate" onClick={() => setRegenOpen(t)}>🔄</button>{' '}
                         {canDelete && (
                           <button className="btn btn-sm btn-danger" title="Delete token" aria-label={`Delete ${t.name || 'token'}`} onClick={() => setDelOpen(t)}>🗑️</button>

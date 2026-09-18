@@ -6,7 +6,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const [mobilemenu,setMobilemenu]=useState(false)
   // Validate the stored token on mount — replaces the legacy checkAuth() + bfcache hacks
   useEffect(() => {
     (async () => {
@@ -62,7 +62,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, verifyOtp, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyOtp, register, logout, refreshUser,mobilemenu,setMobilemenu }}>
       {children}
     </AuthContext.Provider>
   );

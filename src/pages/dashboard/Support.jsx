@@ -205,7 +205,7 @@ export default function Support() {
             />
           </div>
 
-          <button type="submit" className="btn-help-submit" disabled={submitting}>
+          <button type="submit" className="btn-help-submit btn" disabled={submitting}>
             {submitting ? 'Submitting…' : 'Submit Request →'}
           </button>
         </form>
