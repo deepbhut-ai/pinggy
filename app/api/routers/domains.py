@@ -166,6 +166,7 @@ async def verify_and_save_domain(
         "status": "ok",
         "domain": domain,
         "token_id": str(saved[0]) if saved else None,
+        "token": str(saved[1]) if saved and len(saved) > 1 else None,
         "https_url": f"https://{domain}",
         "ssl": ssl_res,
         "message": f"🎉 {domain} verified, SSL certificate installed, and domain activated!",

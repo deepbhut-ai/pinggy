@@ -59,6 +59,8 @@ export default function Domains() {
     toast(`${domain} entered — configure DNS, then click Verify & Save`);
   };
 
+  const [multiportPrompt, setMultiportPrompt] = useState(null); // { domain, token, tokenId, port }
+
   const verifyAndSave = async () => {
     if (!pending) return;
     const { domain } = pending;
@@ -81,6 +83,13 @@ export default function Domains() {
         toast(`🎉 ${domain} verified with HTTPS active!`);
         setPending(null);
         setAddDom('');
+        // Prompt user to enable in Multi-Port tunnel
+        setMultiportPrompt({
+          domain,
+          token: res.token || '',
+          tokenId: res.token_id || '',
+          port: '8080',
+        });
         setTimeout(() => load(), 1500);
       } else {
         setVerifyResult({ status: 'error', message: res.message || 'Verification failed' });
@@ -90,6 +99,39 @@ export default function Domains() {
     } finally {
       setVerifying(false);
     }
+  };
+
+  const enableInMultiport = async () => {
+    if (!multiportPrompt) return;
+    const { domain, token, port } = multiportPrompt;
+    try {
+      let existing = { multi_port_enabled: true, ports: {} };
+      if (token) {
+        try {
+          existing = await api(`/configs/multiport/${encodeURIComponent(token)}`);
+        } catch {}
+      }
+      const updatedPorts = { ...(existing.ports || {}) };
+      updatedPorts[domain] = { enabled: true, port: (port || '8080').trim() };
+
+      await api('/configs/multiport', 'PUT', {
+        token: token || domain,
+        multi_port_enabled: true,
+        ports: updatedPorts,
+      });
+
+      toast(`🚀 ${domain} enabled in Multi-Port tunnel on port :${(port || '8080').trim()}!`);
+    } catch (e) {
+      toast(`Domain saved, but could not set Multi-Port: ${e.message}`, 'error');
+    } finally {
+      setMultiportPrompt(null);
+      load();
+    }
+  };
+
+  const skipMultiport = () => {
+    setMultiportPrompt(null);
+    load();
   };
 
   const cancelPending = () => {
@@ -224,6 +266,50 @@ export default function Domains() {
         <div className="card" style={{ marginTop: '1rem' }}>
           <div className="card-body">
             <p className="empty">No domains added yet.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Multi-Port Activation Modal */}
+      {multiportPrompt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div className="card" style={{ maxWidth: 480, width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '1px solid var(--primary)' }}>
+            <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+              <h2>🚀 Enable in Multi-Port Tunnel?</h2>
+            </div>
+            <div className="card-body">
+              <p style={{ fontSize: '.9rem', marginBottom: '.8rem', lineHeight: 1.5 }}>
+                🎉 <strong>{multiportPrompt.domain}</strong> is verified and SSL is active!
+              </p>
+              <p className="dim" style={{ fontSize: '.85rem', marginBottom: '1.2rem', lineHeight: 1.5 }}>
+                Do you want to start this subdomain under your <strong>Multi-port tunnel</strong>? If enabled, incoming requests will automatically forward to your specified local port.
+              </p>
+
+              <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+                <label style={{ fontSize: '.85rem', fontWeight: 600, marginBottom: '.4rem', display: 'block' }}>
+                  Local Port on your computer (e.g. 8080, 3000, 8005):
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="65535"
+                  value={multiportPrompt.port}
+                  onChange={(e) => setMultiportPrompt({ ...multiportPrompt, port: e.target.value })}
+                  placeholder="e.g. 8080"
+                  style={{ width: '100%' }}
+                  autoFocus
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button className="btn btn-ghost" onClick={skipMultiport}>
+                  Skip for now
+                </button>
+                <button className="btn" onClick={enableInMultiport} style={{ background: 'var(--primary)', color: '#fff', fontWeight: 600 }}>
+                  ✅ Yes, Enable in Multi-Port
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
