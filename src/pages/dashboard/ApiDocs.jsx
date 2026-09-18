@@ -59,7 +59,7 @@ export default function ApiDocs() {
                 <tr key={method + path}>
                   <td><span className={`badge ${method === 'GET' ? 'badge-green' : ''}`}>{method}</span></td>
                   <td className="code">{path}</td>
-                  <td>{desc}</td>
+                  <td style={{textWrap:"nowrap"}}>{desc}</td>
                 </tr>
               ))}
             </tbody>

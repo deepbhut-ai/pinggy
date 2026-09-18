@@ -97,7 +97,7 @@ export default function Landing() {
         @keyframes pfloatCard { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);} }
         @media (max-width:900px) { .phero-float-card { display: none; } }
 
-        .pconfig-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 1.5rem; box-shadow: 0 22px 70px rgba(74,85,162,.12); position: relative; z-index: 1; }
+        .pconfig-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 1.5rem; box-shadow: 0 22px 70px rgba(74,85,162,.12); position: relative; z-index: 1; overflow-x:hidden }
         .pconfig-card::before { content:''; position: absolute; inset: -2px; border-radius: inherit; padding: 2px; background: linear-gradient(90deg,var(--brand),var(--brand-2),var(--green),var(--brand-2),var(--brand)); background-size: 300% 100%; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; animation: pmoveBorder 6s linear infinite; }
         .pcmd-box { background: linear-gradient(180deg,#f8faff,#f0f4ff); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; font-family: var(--font-mono); font-size: .85rem; line-height: 1.6; color: var(--text); position: relative; }
         .pcopy-btn { position: absolute; top: .65rem; right: .65rem; background: var(--text); color: #fff; border: none; border-radius: var(--radius); padding: .35rem .6rem; font-size: .75rem; cursor: pointer; }
@@ -213,7 +213,7 @@ export default function Landing() {
           .phero { padding: 1.5rem 1rem 2rem; } .phero-title { font-size: 1.8rem; } .phero-sub { font-size: 1rem; }
           .phero-cta-row { flex-direction: column; gap: .5rem; } .phero-cta-row .pbtn { width: 100%; }
           .phero-terminal-body { font-size: .75rem; padding: 1rem .85rem; }
-          .pconfig-card { padding: 1rem; }
+          .pconfig-card { padding: 1rem;overflow-x:scroll  }
           .phiw-scroll-wrap { max-height: 75vh; }
           .phiw-timeline::before { left: 28px; } .phiw-progress-line { left: 28px; }
           .phiw-node { left: 28px; width: 48px; height: 48px; font-size: 1.1rem; }
@@ -221,7 +221,7 @@ export default function Landing() {
           .phiw-row.phiw-left .phiw-card::before, .phiw-row.phiw-right .phiw-card::before { left: -11px; right: auto; transform: translateY(-50%) rotate(135deg); }
           .pfeature-grid { grid-template-columns: 1fr; }
         }
-        @media (max-width:480px) { .phero-title { font-size: 1.5rem; } .pcmd-box { font-size: .72rem; padding: .6rem; } }
+        @media (max-width:480px) { .phero-title { font-size: 1.5rem; } .pcmd-box { font-size: .72rem; padding: .6rem; }  .pconfig-card {  overflow-x:scroll } ..phiw-scroll-wrap{padding:0px} }
       `}</style>
 
       <section className="phero" id="hero" style={{ paddingTop: '2.5rem' }}>
@@ -265,7 +265,7 @@ export default function Landing() {
       </section>
 
       <section style={{ padding: '0 1.5rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
-        <div className="pconfig-card pglass" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto auto', gap: '1rem', alignItems: 'center', padding: '1rem 1.5rem' }}>
+        <div className="pconfig-card pglass" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto auto', gap: '1rem', alignItems: 'center', padding: '1rem 1.5rem',overflowY:'hidden',}}>
           <div style={{ fontSize: '.78rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '.04em', margin: 0 }}>Try it now:</div>
           <div style={{ display: 'flex', gap: '.5rem' }}>
             <select value={proto} onChange={(e) => setProto(e.target.value)} style={{ padding: '.5rem .7rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '.85rem', background: '#fff' }}>

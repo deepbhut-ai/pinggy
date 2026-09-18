@@ -25,7 +25,7 @@ const NAV_ITEMS = [
 ];
 
 export default function DashboardLayout() {
-  const { user, logout } = useAuth();
+  const {mobilemenu, setMobilemenu, user, logout } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -36,20 +36,89 @@ export default function DashboardLayout() {
 
   return (
     <div className="app-shell">
+      <style>{`
+  
+  @media(max-width:540px){
+  .email-head{
+   display: none;
+  }
+  }
+  @media (max-width: 790px) {
+  .app-nav-mobile {
+    position: fixed;
+    top: 60px;              /* your topbar height */
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: 99;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    box-shadow: 4px 0 24px rgba(0,0,0,.08);
+    overflow: hidden;
+  }
+
+  .mobile_menu {
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: .75rem;
+    padding-bottom: 2rem;   /* breathing room past the last item */
+  }
+}
+    .menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+
+.menu-toggle:hover {
+  background: var(--surface-2);
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+@media (max-width: 790px) {
+  .menu-toggle { display: inline-flex; }
+}
+      `}</style>
       <header className="topbar">
+
         <div className="topbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                  <div>
+ <button
+  onClick={() => setMobilemenu(prev => !prev)}
+  aria-label="Toggle menu"
+  aria-expanded={mobilemenu}
+  className="menu-toggle"
+>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+       strokeLinecap="round" width="20" height="20">
+    <path d={mobilemenu ? 'M18 6L6 18M6 6l12 12' : 'M3 12h18M3 6h18M3 18h18'} />
+  </svg>
+</button>
+        </div>
           <img src="/logo.png" alt="IRAGT" style={{ height: '26px', width: 'auto', display: 'block' }} />
           <span>IRAGT</span>
         </div>
         <div className="topbar-user">
           <div className="avatar">{(user?.email || 'U')[0].toUpperCase()}</div>
-          <span>{user?.email}</span>
+          <span className='email-head'>{user?.email}</span>
           <button className="btn btn-ghost btn-sm" onClick={handleLogout}>Logout</button>
         </div>
       </header>
 
       <div className="app-body">
         <nav className="app-nav">
+          <div className=''>
           {NAV_ITEMS.map((item, i) =>
             item.sep ? (
               <div key={`sep-${i}`} className="nav-sep" />
@@ -67,6 +136,30 @@ export default function DashboardLayout() {
               </NavLink>
             )
           )}
+
+          </div>
+        </nav>
+        <nav className="app-nav app-nav-mobile" style={{display:mobilemenu ? 'flex':'none'}} >
+          <div className='mobile_menu'>
+          {NAV_ITEMS.map((item, i) =>
+            item.sep ? (
+              <div key={`sep-${i}`} className="nav-sep" />
+            ) : (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d={item.icon} />
+                </svg>
+                {item.label}
+              </NavLink>
+            )
+          )}
+
+          </div>
         </nav>
 
         <main className="app-main">

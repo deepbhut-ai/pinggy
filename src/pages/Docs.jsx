@@ -30,6 +30,25 @@ export default function Docs() {
 
   return (
     <PublicLayout>
+         <style>{`
+      @media (max-width: 790px) {
+        .docs-container {
+          display: block !important;
+          padding: 1.25rem 1rem !important;
+        }
+        .docs-sidebar {
+          width: 100% !important;
+          position: static !important;
+          margin-bottom: 1.5rem;
+        }
+        .docs-content {
+          width: 100% !important;
+        }
+          .setpre{
+           overflow-x: scroll;
+          }
+      }
+    `}</style>
       <div className="docs-container" style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem', display: 'flex', gap: '2rem', minHeight: 'calc(100vh - 180px)' }}>
         
         {/* ─── SIDEBAR NAVIGATION ─── */}
@@ -203,7 +222,7 @@ export default function Docs() {
                 </ol>
               </div>
 
-              <div style={{ background: '#0d1117', color: '#c9d1d9', padding: '1.25rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-mono)', fontSize: '.82rem', lineHeight: 1.6 }}>
+              <div className='setpre' style={{ background: '#0d1117', color: '#c9d1d9', padding: '1.25rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-mono)', fontSize: '.82rem', lineHeight: 1.6 }}>
                 <pre style={{ margin: 0 }}>{`  ╔═════════════════════════════════════════════════════════════╗
   ║                     IRAGT TUNNEL ACTIVE                     ║
   ╠═════════════════════════════════════════════════════════════╣
@@ -339,20 +358,20 @@ export default function Docs() {
                 Programmatically manage tokens, retrieve active tunnels, and fetch multi-port configurations.
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
-                <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '.75rem 1rem', display: 'flex', alignItems: 'center', gap: '.75rem' }}>
+              <div  style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
+                <div className='setpre' style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '.75rem 1rem', display: 'flex', alignItems: 'center', gap: '.75rem' }}>
                   <span style={{ background: 'var(--green)', color: '#fff', fontSize: '.72rem', fontWeight: 700, padding: '.15rem .45rem', borderRadius: '4px' }}>GET</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.85rem', fontWeight: 600 }}>/api/v1/configs/cli/&#123;token&#125;</span>
-                  <span style={{ marginLeft: 'auto', color: 'var(--text-dim)', fontSize: '.8rem' }}>Fetch CLI tunnel & port mappings</span>
+                  <span style={{ marginLeft: 'auto', color: 'var(--text-dim)', fontSize: '.8rem',}}>Fetch CLI tunnel & port mappings</span>
                 </div>
 
-                <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '.75rem 1rem', display: 'flex', alignItems: 'center', gap: '.75rem' }}>
+                <div className='setpre' style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '.75rem 1rem', display: 'flex', alignItems: 'center', gap: '.75rem' }}>
                   <span style={{ background: 'var(--brand)', color: '#fff', fontSize: '.72rem', fontWeight: 700, padding: '.15rem .45rem', borderRadius: '4px' }}>PUT</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.85rem', fontWeight: 600 }}>/api/v1/configs/multiport</span>
                   <span style={{ marginLeft: 'auto', color: 'var(--text-dim)', fontSize: '.8rem' }}>Save multiport domain/port preferences</span>
                 </div>
 
-                <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '.75rem 1rem', display: 'flex', alignItems: 'center', gap: '.75rem' }}>
+                <div className='setpre' style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '.75rem 1rem', display: 'flex', alignItems: 'center', gap: '.75rem' }}>
                   <span style={{ background: 'var(--green)', color: '#fff', fontSize: '.72rem', fontWeight: 700, padding: '.15rem .45rem', borderRadius: '4px' }}>GET</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.85rem', fontWeight: 600 }}>/api/v1/tunnels</span>
                   <span style={{ marginLeft: 'auto', color: 'var(--text-dim)', fontSize: '.8rem' }}>List live active tunnels</span>
