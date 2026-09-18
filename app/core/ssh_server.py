@@ -72,6 +72,39 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
     async def _send_info_when_ready(self) -> None:
         """Wait for the tunnel to be set up, then send the info to the client."""
         for _ in range(50):
+            # Check for strict mode port mismatch error
+            if getattr(self._server, "_port_mismatch_error", None) and not self._info_sent:
+                err = self._server._port_mismatch_error
+                given_str = ", ".join(f":{p}" for p in err.get("given", []))
+                expected_str = ", ".join(f":{p}" for p in err.get("expected", []))
+                expected_p = err.get("expected", [8080])[0]
+                lines = [
+                    "",
+                    "  ╔══════════════════════════════════════════════════════════════════════════╗",
+                    "  ║  ❌ PORT MISMATCH ERROR — CONNECTION REJECTED                            ║",
+                    "  ╠══════════════════════════════════════════════════════════════════════════╣",
+                    f"  ║  Port in your command:   {given_str:<47s} ║",
+                    f"  ║  Configured in Web:      {expected_str:<47s} ║",
+                    "  ║                                                                          ║",
+                    "  ║  The port in your command does not match your dashboard configuration.   ║",
+                    "  ║  Please connect with the matching port:                                  ║",
+                    f"  ║    ssh -p 2222 -R0:127.0.0.1:{expected_p} {self._server._token}--{expected_p}@ssh.iraglobaltech.com",
+                    "  ║                                                                          ║",
+                    "  ║  Or update your port at: https://iraglobaltech.com/dashboard/tokens      ║",
+                    "  ╚══════════════════════════════════════════════════════════════════════════╝",
+                    "",
+                ]
+                data = "\r\n".join(lines) + "\r\n"
+                if self._chan:
+                    try:
+                        self._chan.write(data)
+                    except Exception:
+                        pass
+                self._info_sent = True
+                await asyncio.sleep(1.2)
+                self._cleanup_and_close()
+                return
+
             if self._server._tunnel and not self._info_sent:
                 tunnel = self._server._tunnel
                 # Wait briefly to ensure all listener ports are registered
@@ -322,7 +355,7 @@ class MySSHServer(asyncssh.SSHServer):
             # 1. Check tokens table (multi-token system — what the dashboard uses)
             try:
                 cur = conn.execute(
-                    "SELECT t.user_email, t.custom_domain, u.is_active, u.plan "
+                    "SELECT t.user_email, t.custom_domain, u.is_active, u.plan, t.local_port "
                     "FROM tokens t JOIN users u ON u.email = t.user_email "
                     "WHERE t.token = %s",
                     (base_token,),
@@ -341,6 +374,7 @@ class MySSHServer(asyncssh.SSHServer):
                     self._username = row[0]
                     self._custom_domain = row[1] or ""
                     self._token = base_token
+                    token_local_port = row[4] if len(row) > 4 else None
                     # v1.4.0: load extra domains attached to this token
                     self._custom_domains = []
                     try:
@@ -357,6 +391,12 @@ class MySSHServer(asyncssh.SSHServer):
                     # v3.0.0: load saved multiport config (ports and enabled/paused states)
                     self._saved_multiport = None
                     self._initial_paused_endpoints = set()
+                    configured_ports = set()
+                    if token_local_port:
+                        try:
+                            configured_ports.add(int(token_local_port))
+                        except Exception:
+                            pass
                     try:
                         import json as _json
                         cur = conn.execute(
@@ -373,6 +413,11 @@ class MySSHServer(asyncssh.SSHServer):
                                 norm = addr_k.strip().lower().split(":")[0]
                                 if isinstance(info_v, dict) and info_v.get("enabled") is False:
                                     self._initial_paused_endpoints.add(norm)
+                                if isinstance(info_v, dict) and "port" in info_v:
+                                    try:
+                                        configured_ports.add(int(info_v["port"]))
+                                    except (ValueError, TypeError):
+                                        pass
                             if not self._port_map and mp_cfg.get("multi_port_enabled"):
                                 extracted_ports = []
                                 for addr_k, info_v in ports_dict.items():
@@ -385,6 +430,18 @@ class MySSHServer(asyncssh.SSHServer):
                                     self._port_map = extracted_ports
                     except Exception as e:
                         logger.debug("Failed to read saved multiport config: %s", e)
+
+                    # Strict mode check: validate given port_map against web configured ports
+                    self._port_mismatch_error = None
+                    if self._port_map and configured_ports:
+                        invalid_ports = [p for p in self._port_map if p not in configured_ports]
+                        if invalid_ports:
+                            self._port_mismatch_error = {
+                                "given": self._port_map,
+                                "expected": sorted(list(configured_ports)),
+                            }
+                            logger.warning("SSH port mismatch: %s requested %s, expected %s",
+                                           self._username, self._port_map, configured_ports)
 
                     # v2.7.8: multiport — load ALL the user's tokens' custom domains
                     # so one tunnel can serve every domain/subdomain on the account
@@ -445,6 +502,8 @@ class MySSHServer(asyncssh.SSHServer):
         Insertion order of self._conn._local_listeners matches the client's -R flags.
         """
         async with self._setup_lock:
+            if getattr(self, "_port_mismatch_error", None):
+                return
             # Poll for listeners
             all_listener_ports: list[int] = []
             for _attempt in range(50):

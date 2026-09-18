@@ -128,7 +128,7 @@ export default function Quickstart() {
   const buildCmd = () => {
     if (!token) return 'Create a token first in step 1 →';
     if (!localPort) return 'Enter a local port to generate your tunnel command';
-    const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${localPort} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}@${sshHost}`;
+    const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${localPort} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${token}--${localPort}@${sshHost}`;
     if (!autoReconnect) return ssh;
     if (os === 'cmd') return `for /L %i in (0,1,2147483647) do @(${ssh} & echo Disconnected. Reconnecting in 5 seconds... & timeout /t 5 /nobreak >nul)`;
     if (os === 'powershell') return `while ($true) { ${ssh}; Write-Host "Disconnected. Reconnecting in 5 seconds..."; Start-Sleep -Seconds 5 }`;

@@ -558,7 +558,7 @@ function TokenGuide({ token: t, sshPort, onClose, toast }) {
   };
 
   const tunnelUrl = t.custom_domain ? `https://${t.custom_domain}` : `https://${t.subdomain}.iraglobaltech.com`;
-  const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${t.token}@ssh.iraglobaltech.com`;
+  const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${t.token}--${port}@ssh.iraglobaltech.com`;
   let cmd = ssh;
   if (autoReconnect) {
     cmd = os === 'windows'
