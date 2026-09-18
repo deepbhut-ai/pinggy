@@ -31,6 +31,7 @@ export default function ManageTokens() {
   const [verifyResult, setVerifyResult] = useState(null);
   const [apiKeys, setApiKeys] = useState([]);
   const [apiKeyFilter, setApiKeyFilter] = useState('');
+  const [multiportPrompt, setMultiportPrompt] = useState(null); // { domain, token, port }
 
   const load = useCallback(async () => {
     try {
@@ -90,13 +91,56 @@ export default function ManageTokens() {
       toast('Token created: ' + result.token + (address ? ` · address: ${address}` : ''));
       setCreateOpen(false);
       setVerifyResult(null);
+      const initialPort = createPort ? createPort.toString() : '8080';
       setCreatePort('');
       load();
+
+      // Open Multi-Port Activation Prompt
+      if (address) {
+        setMultiportPrompt({
+          domain: address,
+          token: result.token,
+          port: initialPort,
+        });
+      }
     } catch (e) {
       if (e.message.toLowerCase().includes('free plan') || e.message.toLowerCase().includes('upgrade')) {
         toast('Free plan allows only 1 tunnel. Upgrade to Pro for more.', 'error');
       } else { toast(e.message, 'error'); }
     }
+  };
+
+  const enableInMultiport = async () => {
+    if (!multiportPrompt) return;
+    const { domain, token, port } = multiportPrompt;
+    try {
+      let existing = { multi_port_enabled: true, ports: {} };
+      if (token) {
+        try {
+          existing = await api(`/configs/multiport/${encodeURIComponent(token)}`);
+        } catch {}
+      }
+      const updatedPorts = { ...(existing.ports || {}) };
+      updatedPorts[domain] = { enabled: true, port: (port || '8080').toString().trim() };
+
+      await api('/configs/multiport', 'PUT', {
+        token: token || domain,
+        multi_port_enabled: true,
+        ports: updatedPorts,
+      });
+
+      toast(`🚀 ${domain} enabled in Multi-Port tunnel on port :${(port || '8080').toString().trim()}!`);
+    } catch (e) {
+      toast(`Token created, but could not set Multi-Port: ${e.message}`, 'error');
+    } finally {
+      setMultiportPrompt(null);
+      load();
+    }
+  };
+
+  const skipMultiport = () => {
+    setMultiportPrompt(null);
+    load();
   };
 
   const openEdit = async (t) => {
@@ -470,6 +514,50 @@ export default function ManageTokens() {
             <span className="code">{delOpen.token.substring(0, 8)}••••••••</span>
           </div>
         </Modal>
+      )}
+
+      {/* Multi-Port Activation Modal */}
+      {multiportPrompt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div className="card" style={{ maxWidth: 480, width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '1px solid var(--primary)' }}>
+            <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+              <h2>🚀 Enable in Multi-Port Tunnel?</h2>
+            </div>
+            <div className="card-body">
+              <p style={{ fontSize: '.9rem', marginBottom: '.8rem', lineHeight: 1.5 }}>
+                🎉 <strong>{multiportPrompt.domain}</strong> is ready!
+              </p>
+              <p className="dim" style={{ fontSize: '.85rem', marginBottom: '1.2rem', lineHeight: 1.5 }}>
+                Do you want to start and route traffic for this subdomain under your <strong>Multi-port tunnel</strong>? If enabled, incoming requests will automatically forward to your specified local port.
+              </p>
+
+              <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+                <label style={{ fontSize: '.85rem', fontWeight: 600, marginBottom: '.4rem', display: 'block' }}>
+                  Local Port on your computer (e.g. 8080, 3000, 8005):
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="65535"
+                  value={multiportPrompt.port}
+                  onChange={(e) => setMultiportPrompt({ ...multiportPrompt, port: e.target.value })}
+                  placeholder="e.g. 8080"
+                  style={{ width: '100%' }}
+                  autoFocus
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button className="btn btn-ghost" onClick={skipMultiport}>
+                  Skip for now
+                </button>
+                <button className="btn" onClick={enableInMultiport} style={{ background: 'var(--primary)', color: '#fff', fontWeight: 600 }}>
+                  ✅ Yes, Enable in Multi-Port
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </>
