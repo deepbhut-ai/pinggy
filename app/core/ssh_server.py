@@ -372,12 +372,15 @@ class MySSHServer(asyncssh.SSHServer):
         import psycopg
         self._port_map = None
         base_token = token
+        has_explicit_ports = False
         if "--" in token:
             base_token, _, ports_s = token.partition("--")
             try:
                 self._port_map = [int(p) for p in ports_s.split(",") if p.strip()]
                 if not self._port_map:
                     self._port_map = None
+                else:
+                    has_explicit_ports = True
             except ValueError:
                 return False  # malformed suffix
         try:
@@ -449,20 +452,8 @@ class MySSHServer(asyncssh.SSHServer):
                                         configured_ports.add(int(info_v["port"]))
                                     except (ValueError, TypeError):
                                         pass
-                            if not self._port_map and mp_cfg.get("multi_port_enabled"):
-                                extracted_ports = []
-                                for addr_k, info_v in ports_dict.items():
-                                    if isinstance(info_v, dict) and "port" in info_v:
-                                        try:
-                                            extracted_ports.append(int(info_v["port"]))
-                                        except (ValueError, TypeError):
-                                            pass
-                                if extracted_ports:
-                                    self._port_map = extracted_ports
                     except Exception as e:
                         logger.debug("Failed to read saved multiport config: %s", e)
-
-                    has_explicit_ports = bool(self._port_map)
 
                     # Strict mode check:
                     self._port_mismatch_error = None
@@ -486,6 +477,18 @@ class MySSHServer(asyncssh.SSHServer):
                                 }
                                 logger.warning("SSH port mismatch: %s requested %s, expected %s",
                                                self._username, self._port_map, configured_ports)
+
+                    if not self._port_mismatch_error and not self._port_map and self._saved_multiport and self._saved_multiport.get("multi_port_enabled"):
+                        extracted_ports = []
+                        ports_dict = self._saved_multiport.get("ports", {})
+                        for addr_k, info_v in ports_dict.items():
+                            if isinstance(info_v, dict) and "port" in info_v:
+                                try:
+                                    extracted_ports.append(int(info_v["port"]))
+                                except (ValueError, TypeError):
+                                    pass
+                        if extracted_ports:
+                            self._port_map = extracted_ports
 
                     # v2.7.8: multiport — load ALL the user's tokens' custom domains
                     # so one tunnel can serve every domain/subdomain on the account
