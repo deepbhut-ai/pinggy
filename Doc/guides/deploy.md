@@ -11,8 +11,8 @@ For an existing installation, commit the intended code changes and run:
 ```
 
 The script requires a clean working tree. It pushes `main`, fast-forwards the
-server checkout in `/opt/pinggy`, installs dependencies, builds the frontend,
-restarts `pinggy`, reloads nginx after validating its configuration, and checks
+server checkout in `/opt/iragt`, installs dependencies, builds the frontend,
+restarts `iragt`, reloads nginx after validating its configuration, and checks
 `http://127.0.0.1:8000/health`. It never copies local `.env` files.
 
 Connection settings can be overridden without editing the script:
@@ -33,35 +33,35 @@ Migrations 0001–0025 auto-apply on first boot (auto_setup).
 1. **Push code to the server**
    ```bash
    rsync -av --exclude .venv --exclude backups --exclude .git \
-     ./ user@13.140.131.204:/opt/pinggy/
+     ./ user@13.140.131.204:/opt/iragt/
    # (or git pull if the server tracks the repo; tag: v1.14.0)
    ```
 
-2. **Prepare .env** (on server, /opt/pinggy/.env)
+2. **Prepare .env** (on server, /opt/iragt/.env)
    - Set a strong `JWT_SECRET` (openssl rand -hex 32)
    - `APP_ENV=production`, correct `TUNNEL_DOMAIN`, DB + Redis URLs
    - SMTP settings for 2FA OTP / digest emails
 
 3. **First install only**
    ```bash
-   cd /opt/pinggy && bash setup_server.sh
-   sudo cp deploy/pinggy.service /etc/systemd/system/
-   sudo systemctl daemon-reload && sudo systemctl enable --now pinggy
+   cd /opt/iragt && bash setup_server.sh
+   sudo cp deploy/iragt.service /etc/systemd/system/
+   sudo systemctl daemon-reload && sudo systemctl enable --now iragt
    ```
-   Watch migrations apply: `journalctl -u pinggy -f | grep alembic`
+   Watch migrations apply: `journalctl -u iragt -f | grep alembic`
    (expect `Running upgrade ... -> 0025`)
 
 4. **Existing install (update)**
    ```bash
-   cd /opt/pinggy
+   cd /opt/iragt
    .venv/bin/pip install -r requirements.txt   # if changed
-   sudo systemctl restart pinggy
+   sudo systemctl restart iragt
    ```
 
 5. **Backups cron**
    ```bash
    crontab -e
-   0 3 * * * cd /opt/pinggy && ./scripts/backup_db.sh >> /var/log/iragt-backup.log 2>&1
+   0 3 * * * cd /opt/iragt && ./scripts/backup_db.sh >> /var/log/iragt-backup.log 2>&1
    ```
 
 6. **Verify**
@@ -72,7 +72,7 @@ Migrations 0001–0025 auto-apply on first boot (auto_setup).
    # hammer API 70x/min → 429 at 61 (shield active)
    ```
 
-7. **nginx**: configs in nginx/ (rate-limit presets in pinggy-rate-limits.conf);
+7. **nginx**: configs in nginx/ (rate-limit presets in iragt-rate-limits.conf);
    enable wildcard SSL for main app via nginx/setup-ssl.sh.
 
 8. **Automatic Custom Domains SSL (Let's Encrypt Webroot)**:
@@ -85,7 +85,7 @@ Migrations 0001–0025 auto-apply on first boot (auto_setup).
 
 ## Rollback
 ```bash
-git checkout v1.13.0 && sudo systemctl restart pinggy
+git checkout v1.13.0 && sudo systemctl restart iragt
 # DB migrations 0023–0025 are additive; leaving them applied is safe for older code
 # (new columns default NULL/FALSE). For full revert see Doc/migrations.md down sections.
 ```

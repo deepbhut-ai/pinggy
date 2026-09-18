@@ -57,6 +57,12 @@ async def verify_domain_dns(domain: str) -> dict[str, Any]:
 
     points_to_us = target_ip in all_ips
 
+    # Detect extra A/AAAA records that point to OTHER servers — these cause
+    # Let's Encrypt HTTP-01 challenge failures because LE may hit a different
+    # IP that doesn't serve the ACME challenge file.
+    extra_ips = sorted({ip for ip in all_ips if ip != target_ip})
+    has_extra_ips = len(extra_ips) > 0
+
     # 2. HTTP health check test
     health_ok = False
     try:
@@ -75,12 +81,26 @@ async def verify_domain_dns(domain: str) -> dict[str, Any]:
     except Exception:
         pass
 
-    if health_ok:
+    if health_ok and not has_extra_ips:
         return {
             "dns_resolves": True,
             "pointed_ip": primary_ip,
             "status": "ok",
             "message": f"✅ {domain} is verified and reaching this server",
+        }
+
+    if points_to_us and has_extra_ips:
+        # Our IP is present but there are extra records → certbot will fail
+        ip_list = ", ".join(extra_ips)
+        return {
+            "dns_resolves": True,
+            "pointed_ip": primary_ip,
+            "status": "error",
+            "message": (
+                f"⚠️ {domain} has DNS records pointing to multiple IPs: {target_ip} (our server) "
+                f"AND {ip_list}. Let's Encrypt will fail if it hits the wrong IP. "
+                f"Remove all A/AAAA records for {domain} except the one pointing to {target_ip}."
+            ),
         }
 
     if points_to_us:
@@ -114,11 +134,12 @@ def _generate_nginx_config_content(domain: str) -> str:
 
     return f"""# Nginx configuration for custom domain: {domain}
 # Managed automatically by IRAGT SSL Manager
-# Zero-downtime HTTPS reverse proxy
+# NO HTTP/2 — WebSocket Upgrade requires HTTP/1.1 (RFC 6455)
+# HTTP/2 ignores the Upgrade header, breaking WebSocket connections
 
 server {{
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    listen 443 ssl;
+    listen [::]:443 ssl;
     server_name {domain};
 
     ssl_certificate     {cert_path};
@@ -132,6 +153,24 @@ server {{
 
     add_header Strict-Transport-Security "max-age=31536000" always;
 
+    # WebSocket routes — long timeout, no buffering (v2.11.0)
+    location /ws/ {{
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 30s;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_buffering off;
+    }}
+
     location / {{
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
@@ -139,12 +178,10 @@ server {{
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # WebSocket support
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
 
-        # Timeouts for tunneled requests
         proxy_connect_timeout 30s;
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;

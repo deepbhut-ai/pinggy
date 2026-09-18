@@ -35,6 +35,42 @@ Pinggy is a secure tunneling service that allows users to expose local applicati
 3. **SSH Connection**: External client connects via SSH → SSH server routes to tunnel → Proxy forwards to localhost
 4. **Dashboard Update**: Periodically polls `/api/tunnels` → Updates active tunnel list with stats
 
+## HTTPS / SSL Layer (v2.6.0)
+
+nginx terminates TLS on port 443 and proxies to FastAPI on 127.0.0.1:8000:
+
+```
+Browser (HTTPS)
+  → nginx :443 (SSL termination, SNI-based cert selection)
+    → FastAPI :8000 (TunnelProxyMiddleware)
+      → SSH tunnel remote_port (127.0.0.1:<remote_port>)
+        → User's local app
+```
+
+**Cert hierarchy (SNI-based):**
+- `iraglobaltech.com` → LE cert (existing, valid until 2026-11-22)
+- `webifly.callingagents.in` → LE cert (v2.6.0, valid until 2026-12-13)
+- `*.callingagents.in` (default) → self-signed wildcard fallback (replaced per-sub by LE certs via `provision_fleet_ssl.sh`)
+- Per-subdomain LE certs are added as `custom-<sub>.callingagents.in` nginx configs by the ssl_manager or `provision_fleet_ssl.sh`
+
+**Port 80 (existing, unchanged):** ACME challenge webroot (`/.well-known/acme-challenge/`) + HTTP→HTTPS 301 redirect.
+
+**Config files:**
+- `/etc/nginx/sites-enabled/iragt.react.conf` — port 80 (HTTP redirect, ACME, React SPA for iraglobaltech.com)
+- `/etc/nginx/sites-enabled/iragt.ssl.conf` — port 443 (SSL for iraglobaltech.com + fleet subs + default fallback)
+- `/opt/iragt/nginx/iragt.ssl.conf` — project-tracked copy
+
+**WebSocket support (v2.11.0):**
+- nginx configs use `listen 443 ssl` (NO `http2`) — HTTP/2 breaks WebSocket Upgrade (RFC 6455)
+- Dedicated `/ws/` location block with 3600s `proxy_read_timeout` + `proxy_buffering off`
+- `tunnel_websocket()` in `app/core/proxy.py` — pure ASGI WebSocket route mounted at `/{rest:path}`
+- Bridges client WS → `ws://127.0.0.1:<remote_port>` via the SSH reverse tunnel
+- Bidirectional pump tasks (`pump_up` / `pump_down`) with exception handling
+- Hop-by-hop headers filtered from 101 response to prevent duplicate Upgrade
+- See [guides/websocket.md](guides/websocket.md) for full documentation
+
+**Fleet SSL provisioning:** `scripts/provision_fleet_ssl.sh` checks DNS → certbot HTTP-01 → per-sub nginx config → reload. Prerequisite: `scripts/create_cf_dns_records.sh <CF_TOKEN>` creates A records first.
+
 ## Key Entry Points
 
 | Route | Handler | Purpose |

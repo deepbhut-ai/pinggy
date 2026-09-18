@@ -2,6 +2,12 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import PublicHelpCenter from './pages/PublicHelpCenter';
+import Landing from './pages/Landing';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import Docs from './pages/Docs';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 import DashboardOverview from './pages/dashboard/DashboardOverview';
 import Quickstart from './pages/dashboard/Quickstart';
@@ -36,6 +42,8 @@ import AdminSettings from './pages/admin/AdminSettings';
 import AdminCoupons from './pages/admin/AdminCoupons';
 import AdminAnnouncements from './pages/admin/AdminAnnouncements';
 import AdminEmailTemplates from './pages/admin/AdminEmailTemplates';
+import AdminBackups from './pages/admin/AdminBackups';
+import AdminBlogs from './pages/admin/AdminBlogs';
 
 // Route guard — replaces all the legacy token/bfcache checks
 function RequireAuth({ children }) {
@@ -48,9 +56,17 @@ function RequireAuth({ children }) {
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/guide" element={<Navigate to="/docs" replace />} />
+      <Route path="/docs" element={<Docs />} />
+      <Route path="/documentation" element={<Docs />} />
       <Route path="/help-center" element={<PublicHelpCenter />} />
       <Route path="/support" element={<PublicHelpCenter />} />
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/blog/:slug" element={<BlogPost />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
       <Route
         path="/dashboard"
         element={
@@ -96,13 +112,14 @@ export default function App() {
         <Route path="ipmonitor" element={<AdminIpMonitor />} />
         <Route path="audit" element={<AdminAudit />} />
         <Route path="tickets" element={<AdminTickets />} />
+        <Route path="backups" element={<AdminBackups />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="coupons" element={<AdminCoupons />} />
         <Route path="announcements" element={<AdminAnnouncements />} />
+        <Route path="blogs" element={<AdminBlogs />} />
         <Route path="email-templates" element={<AdminEmailTemplates />} />
       </Route>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

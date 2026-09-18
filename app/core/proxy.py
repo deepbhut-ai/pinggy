@@ -184,7 +184,7 @@ def _extract_subdomain(host: str) -> str | None:
     """Extract the tunnel subdomain from a Host header.
 
     e.g. "abc123.localhost:8080" → "abc123"
-         "abc123.pinggy.example.com" → "abc123"
+         "abc123.iraglobaltech.com" → "abc123"
     """
     # Strip port
     if ":" in host:
@@ -257,6 +257,37 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                 log_to_tunnel(subdomain, f"  [{datetime.now().strftime('%H:%M:%S')}] {request.method:<6s} {request.url.path or '/':<30s} → {denied.status_code}  (blocked: security)")
                 return denied
 
+        # Check if the specific endpoint (or whole tunnel) is paused at runtime (v3.0.0)
+        if tunnel.is_endpoint_paused(matched_addr) or tunnel.is_endpoint_paused(host):
+            await increment_request_count(subdomain, 0)
+            log_to_tunnel(subdomain, f"  [{datetime.now().strftime('%H:%M:%S')}] {request.method:<6s} {request.url.path or '/':<30s} → 503 (paused)")
+            return Response(
+                content="""<!DOCTYPE html>
+<html>
+<head><title>Endpoint Paused | IRAGT</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 32px; max-width: 460px; width: 100%; text-align: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); margin-bottom: 16px; }
+  h1 { font-size: 20px; font-weight: 700; margin: 0 0 10px 0; color: #ffffff; }
+  p { font-size: 14px; color: #9ca3af; line-height: 1.5; margin: 0 0 20px 0; }
+  .host { font-family: monospace; background: #1f2937; padding: 4px 8px; border-radius: 6px; color: #60a5fa; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">⏸️ PAUSED</div>
+    <h1>Endpoint is Currently Paused</h1>
+    <p>Traffic forwarding for <span class="host">""" + (host or subdomain) + """</span> is paused from your IRAGT dashboard.</p>
+    <p style="font-size: 12px; color: #6b7280; margin: 0;">Toggle this port back ON in your dashboard to resume instant traffic routing.</p>
+  </div>
+</body>
+</html>""",
+                status_code=503,
+                media_type="text/html",
+            )
+
         # Forward the request through the SSH reverse tunnel
         # The SSH -R0:localhost:PORT creates a listener on the server at
         # tunnel.remote_port. We forward to localhost:remote_port.
@@ -273,10 +304,20 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             # Build headers to forward (exclude hop-by-hop headers)
             forward_headers = {}
             for key, value in request.headers.items():
-                if key.lower() not in ("host", "transfer-encoding", "connection"):
+                if key.lower() not in ("host", "transfer-encoding", "connection", "content-length"):
                     forward_headers[key] = value
-            # Set the host to the tunnel's local host
-            forward_headers["host"] = f"localhost:{tunnel.local_port}"
+            # Preserve incoming host and standard proxy headers so frameworks like Laravel/Django/React
+            # can properly validate CSRF tokens, session cookies, origin URLs, and WebSockets.
+            real_host = host or request.headers.get("host", f"localhost:{tunnel.local_port}")
+            forward_headers["host"] = real_host
+            forward_headers["x-forwarded-host"] = real_host
+            
+            # Determine actual incoming protocol (http vs https)
+            proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "http"
+            forward_headers["x-forwarded-proto"] = proto
+            forward_headers["x-forwarded-port"] = request.headers.get("x-forwarded-port") or ("443" if proto == "https" else "80")
+            forward_headers["x-forwarded-for"] = _client_ip(request)
+            forward_headers["x-real-ip"] = _client_ip(request)
 
             # Track request timing for live log
             req_start = time.monotonic()
@@ -305,22 +346,52 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             status = resp.status_code
             log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {req_path:<30s} → {status}  ({elapsed_ms}ms)")
 
-            # Build response — exclude hop-by-hop headers
+            # Build response — exclude hop-by-hop headers.
+            # CRITICAL: Set-Cookie headers must be preserved as separate entries.
+            # Using a plain dict collapses multiple Set-Cookie headers into one
+            # (joined by comma), which browsers cannot parse — the second cookie
+            # is silently dropped. This breaks Laravel/Django apps that set
+            # session + CSRF cookies (e.g. callingagents.in login → 419 Page
+            # Expired).
+            # Fix: build the Response with a starlette Headers object that
+            # supports multiple values for the same key, then append each
+            # Set-Cookie individually via set_cookie or raw header.
+            from starlette.datastructures import Headers as StarletteHeaders
+
+            # Start with a dict for all non-Set-Cookie headers
             resp_headers = {}
-            for key, value in resp.headers.items():
-                if key.lower() not in ("transfer-encoding", "connection", "content-encoding", "content-length"):
+            set_cookie_values = []
+            for key, value in resp.headers.multi_items():
+                lk = key.lower()
+                if lk in ("transfer-encoding", "connection", "content-encoding", "content-length"):
+                    continue
+                if lk == "set-cookie":
+                    set_cookie_values.append(value)
+                else:
                     resp_headers[key] = value
+
+            # Build a dict copy for the debugger capture (it only needs a sample)
+            debug_hdrs = dict(resp_headers)
+            if set_cookie_values:
+                debug_hdrs["set-cookie"] = set_cookie_values[0]
 
             # Web debugger capture (v0.11.0) — fire-and-forget
             await _debug_capture(subdomain, request.method, req_path, resp.status_code,
-                                 forward_headers, resp_headers, resp.content)
+                                 forward_headers, debug_hdrs, resp.content)
 
-            return Response(
+            # Create the response with dict headers, then append each
+            # Set-Cookie as a separate raw header so the browser sees them
+            # as individual Set-Cookie entries.
+            response = Response(
                 content=resp.content,
                 status_code=resp.status_code,
                 headers=resp_headers,
                 media_type=resp.headers.get("content-type"),
             )
+            for sc_value in set_cookie_values:
+                response.raw_headers.append((b"set-cookie", sc_value.encode("latin-1")))
+
+            return response
 
         except httpx.ConnectError:
             timestamp = datetime.now().strftime("%H:%M:%S")
@@ -377,6 +448,10 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
         await send({"type": "websocket.close", "code": 1014})
         return
 
+    if tunnel.is_endpoint_paused(host) or tunnel.is_endpoint_paused(subdomain):
+        await send({"type": "websocket.close", "code": 1013})  # 1013: Try Again Later
+        return
+
     target_port = tunnel.endpoint_port(host)
     path = scope.get("path", "/")
     qs = scope.get("query_string", b"").decode()
@@ -404,36 +479,70 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
                                  if k.lower() not in ("host", "connection", "upgrade", "sec-websocket-key",
                                                       "sec-websocket-version", "sec-websocket-extensions")},
             max_size=10 * 1024 * 1024,
-            ping_interval=20,
-            ping_timeout=20,
-            close_timeout=5,
+            ping_interval=None,
+            ping_timeout=None,
+            close_timeout=10,
         ) as upstream:
-            # accept the client handshake
-            await send({"type": "websocket.accept"})
+            # Accept the client handshake — forward upstream response headers
+            # (especially Set-Cookie) as a list of (bytes, bytes) tuples so
+            # multiple Set-Cookie headers are preserved individually.
+            # websockets v17 exposes the handshake response via .response.headers
+            # (NOT .response_headers, which doesn't exist in v17+).
+            # Filter out hop-by-hop headers (Upgrade, Connection, etc.) — uvicorn
+            # sets its own when sending the 101 to the client. Forwarding the
+            # upstream's duplicates causes "invalid Upgrade header" errors.
+            _ws_hop_by_hop = {"upgrade", "connection", "sec-websocket-accept",
+                              "sec-websocket-key", "sec-websocket-version",
+                              "sec-websocket-extensions", "transfer-encoding",
+                              "content-length"}
+            ws_resp_headers = []
+            rh = getattr(upstream, "response", None)
+            if rh is not None:
+                hdrs = getattr(rh, "headers", None)
+                if hdrs is not None:
+                    if hasattr(hdrs, "multi_items"):
+                        for k, v in hdrs.multi_items():
+                            if k.lower() not in _ws_hop_by_hop:
+                                ws_resp_headers.append((k.encode(), v.encode()))
+                    else:
+                        for k, v in hdrs.items():
+                            if k.lower() not in _ws_hop_by_hop:
+                                ws_resp_headers.append((k.encode(), v.encode()))
+            await send({"type": "websocket.accept", "headers": ws_resp_headers})
 
             client_done = False
             upstream_done = False
 
             async def pump_up():
                 nonlocal client_done
-                while True:
-                    msg = await upstream.recv()
-                    if isinstance(msg, str):
-                        await send({"type": "websocket.send", "text": msg})
-                    else:
-                        await send({"type": "websocket.send", "bytes": msg})
+                try:
+                    while True:
+                        msg = await upstream.recv()
+                        if isinstance(msg, str):
+                            await send({"type": "websocket.send", "text": msg})
+                        else:
+                            await send({"type": "websocket.send", "bytes": msg})
+                except Exception as e:
+                    logger.debug("WS pump_up ended for %s: %s", subdomain, e)
+                finally:
+                    client_done = True
 
             async def pump_down():
                 nonlocal client_done
-                while True:
-                    ev = await receive()
-                    if ev["type"] == "websocket.disconnect":
-                        break
-                    if ev["type"] == "websocket.receive":
-                        if ev.get("text") is not None:
-                            await upstream.send(ev["text"])
-                        elif ev.get("bytes") is not None:
-                            await upstream.send(ev["bytes"])
+                try:
+                    while True:
+                        ev = await receive()
+                        if ev["type"] == "websocket.disconnect":
+                            break
+                        if ev["type"] == "websocket.receive":
+                            if ev.get("text") is not None:
+                                await upstream.send(ev["text"])
+                            elif ev.get("bytes") is not None:
+                                await upstream.send(ev["bytes"])
+                except Exception as e:
+                    logger.debug("WS pump_down ended for %s: %s", subdomain, e)
+                finally:
+                    client_done = True
 
             import asyncio as _aio
             up = _aio.create_task(pump_up())

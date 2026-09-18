@@ -1,4 +1,4 @@
-# guides/setup.md — run pinggy locally (macOS, VS Code)
+# guides/setup.md — run IRAGT locally (macOS, VS Code)
 
 ## Prereqs (already true on this machine)
 - PostgreSQL 14 running (brew services, port 5432, user postgres / password root)
@@ -13,13 +13,13 @@ python3 -m venv .venv            # NEVER copy a .venv from the Linux server — 
 ```
 `.env` is the LOCAL DEV config (APP_ENV=dev, port 8020, TUNNEL_DOMAIN=localhost:8020,
 payments disabled). Production values are preserved in `.env.production` — to deploy,
-copy that over `.env` on the server (deploy/pinggy.service + setup_server.sh).
+copy that over `.env` on the server (deploy/iragt.service + setup_server.sh).
 
 ## Run
 ```bash
 .venv/bin/python run.py          # → http://127.0.0.1:8020
 ```
-First start auto-creates DB `pinggy`, runs all migrations, seeds an admin.
+First start auto-creates DB `iragt`, runs all migrations, seeds an admin.
 
 Ports: app 8020 (8000/8010/8030 are taken by other apps on this Mac), SSH tunnel
 server 2222. If 8020 is busy: `APP_PORT=8021 .venv/bin/python run.py` (env var beats .env).
@@ -36,7 +36,7 @@ LOCAL DB only, production DB untouched.)
 .venv/bin/python -m http.server 9090
 
 # terminal 2 — open the tunnel (username = admin's tunnel token from dashboard or DB)
-TOKEN=$(psql "postgresql://postgres:root@localhost:5432/pinggy" -tAc \
+TOKEN=$(psql "postgresql://postgres:root@localhost:5432/iragt" -tAc \
   "SELECT tunnel_token FROM users WHERE email='support@callingagents.in'")
 ssh -p 2222 -R0:localhost:9090 "$TOKEN"@localhost
 # banner prints the URL, e.g. http://abc1234.localhost:8020

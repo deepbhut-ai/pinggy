@@ -22,10 +22,12 @@ const ADMIN_NAV = [
   { to: 'audit', label: '📋 Audit Log' },
   { to: 'tickets', label: '🎫 Tickets' },
   { sep: true },
+  { to: 'backups', label: '💾 DB Backup & Restore' },
   { to: 'settings', label: '⚙️ Settings' },
   { to: 'coupons', label: '🎟️ Coupons' },
   { sep: true },
   { to: 'announcements', label: '📣 Announcements' },
+  { to: 'blogs', label: '✍️ Blogs' },
   { to: 'email-templates', label: '✉️ Email Templates' },
 ];
 
@@ -52,7 +54,11 @@ export default function AdminLayout() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="topbar-brand">⚡ IRAGT <span className="badge badge-green" style={{ marginLeft: '.5rem' }}>ADMIN</span></div>
+        <div className="topbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+          <img src="/logo.png" alt="IRAGT" style={{ height: '26px', width: 'auto', display: 'block' }} />
+          <span>IRAGT</span>
+          <span className="badge badge-green" style={{ marginLeft: '.3rem' }}>ADMIN</span>
+        </div>
         <div className="topbar-user">
           <div className="avatar">{(user.email || 'A')[0].toUpperCase()}</div>
           <span>{user.email} (admin)</span>

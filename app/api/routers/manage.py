@@ -100,11 +100,17 @@ async def manage_create_token(
     user: dict = Depends(get_api_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """Create a token: {name?, fixed_subdomain?, custom_domain?}."""
+    """Create a token: {name?, fixed_subdomain?, custom_domain?}.
+
+    v2.8.6: now enforces the same seat/domain limits as the dashboard:
+    - Root custom domains count against the user's seat limit.
+    - Subdomain-only tokens and subdomains under owned root domains are unlimited.
+    """
     import secrets as _secrets
     name = (body.get("name") or "API token").strip()
     sub = (body.get("fixed_subdomain") or "").strip().lower() or None
     cd = (body.get("custom_domain") or "").strip().lower() or None
+
     if sub:
         import re as _re
         if not _re.fullmatch(r"[a-z0-9][a-z0-9-]{2,49}", sub):
@@ -114,16 +120,34 @@ async def manage_create_token(
             await cur.close()
             raise HTTPException(status.HTTP_409_CONFLICT, "subdomain taken")
         await cur.close()
+
+    # v2.8.6 — enforce seat/domain limit (same logic as dashboard tokens.py)
+    from app.api.routers.tokens import enforce_seat_domain_limit, _validate_custom_domain, _enforce_root_domain_ownership
+    await enforce_seat_domain_limit(db, user, cd)
+
+    # Validate custom_domain if provided
+    custom_domain = None
+    if cd:
+        cd = _validate_custom_domain(cd, user)
+        await _enforce_root_domain_ownership(db, user, cd)
+        if cd:
+            cur = await db.execute("SELECT id FROM tokens WHERE custom_domain = %s", (cd,))
+            if await cur.fetchone():
+                await cur.close()
+                raise HTTPException(status.HTTP_409_CONFLICT, "custom_domain already taken")
+            await cur.close()
+            custom_domain = cd
+
     token = _secrets.token_hex(8)
     cur = await db.execute(
         "INSERT INTO tokens (user_email, token, name, custom_domain, fixed_subdomain) "
         "VALUES (%s, %s, %s, %s, %s) RETURNING id, created_at",
-        (user["email"], token, name, cd, sub),
+        (user["email"], token, name, custom_domain, sub),
     )
     r = await cur.fetchone()
     await cur.close()
     return {"id": str(r[0]), "token": token, "name": name,
-            "custom_domain": cd, "fixed_subdomain": sub,
+            "custom_domain": custom_domain, "fixed_subdomain": sub,
             "created_at": r[1].isoformat() if r[1] else None}
 
 

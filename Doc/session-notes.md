@@ -267,3 +267,88 @@
 - **Watch out:** callingagents.in has wildcard DNS on Cloudflare so all
   subdomains resolve — good for testing but means verification always passes
   for that domain.
+
+## 2026-09-14 — v2.8.0 (HTTPS/SSL for fleet subdomains + origin 443)
+- **Done:** v2.6.0 — Fixed the "IRAGT 443 refused" blocker from the fleet handoff
+  doc. Root cause: nginx on this server (13.140.131.204 = IRAGT origin) had NO
+  `listen 443` block — only port 80. Added `pinggy.ssl.conf` with 3 server blocks
+  (iraglobaltech.com LE cert, webifly.callingagents.in LE cert, self-signed
+  wildcard default). Obtained real LE cert for webifly via HTTP-01. Set up
+  certbot renewal hook (nginx reload). Created `scripts/create_cf_dns_records.sh`
+  (CF API token → A records for all 33 subs) and `scripts/provision_fleet_ssl.sh`
+  (DNS check → certbot → per-sub nginx config → reload). All tested: 443 open,
+  HTTPS 200 on iraglobaltech.com, SSL verify OK on webifly (502 = no tunnel, not
+  SSL issue), HTTP 301→HTTPS redirect works, certbot dry-run renewal passes.
+- **In progress:** 32 of 33 fleet subs still need Cloudflare A records (only
+  webifly has one). All 33 tokens show active_tunnels=0 (Mac tunnel loops down).
+- **Next:** User runs `scripts/create_cf_dns_records.sh <CF_TOKEN>` to create
+  DNS, then `scripts/provision_fleet_ssl.sh` to get LE certs, then Mac reconnects
+  tunnel loops. Full fleet goes live.
+- **Watch out:** psql pager wedges the VS Code terminal (alternate buffer) —
+  use Python psycopg or redirect psql output to files. CF API POST 403s without
+  a valid token — use the script or CF dashboard UI.
+
+## 2026-09-14 — v2.8.1 (Fix: Pro users blocked from adding domains on Domains page)
+- **Done:** v2.8.1 — Fixed bug where Pro users (support@iraglobaltech.com, plan=pro,
+  seats=20) got "Free plan allows only 1 custom domain" error on the Domains page.
+  Root cause: `domains.py` `verify_and_save_domain()` called `_enforce_free_domain_limit`
+  unconditionally without checking if user is Pro. The tokens router had the guard
+  at all 5 call sites; domains.py was missing it. Added `if (user.get("plan") or "free") != "pro":`
+  guard. Verified: free user still gets 402, pro user passes plan check. Service restarted.
+- **In progress:** nothing.
+- **Next:** await user. QA audit found no other missing plan guards.
+- **Watch out:** `domains.py` was the ONLY file missing the plan guard.
+
+## 2026-09-14 — v2.8.3 — Fix tunnel proxy Set-Cookie collapse (callingagents.in 419 login)
+- **Done:** v2.8.3 — Fixed `app/core/proxy.py` response header forwarding. Dict-based headers collapsed multiple `Set-Cookie` into one comma-joined header → browsers only saw first cookie → `callingagents_session` dropped → Laravel 419 Page Expired. Now uses `resp.headers.multi_items()` + `response.raw_headers.append()` for separate Set-Cookie entries. Also fixed WebSocket handshake to forward upstream response headers. Tests: 2 Set-Cookie headers confirmed, POST /login returns 302 (not 419), health 200.
+- **In progress:** ConfigureTunnel.jsx + dist/index.html have uncommitted changes from v2.8.2 (local_port feature) — not part of v2.8.3, still staged in working tree.
+- **Next:** user should test callingagents.in login in browser with real credentials to confirm full flow works end-to-end.
+- **Watch out:** Service restart disconnects all SSH tunnels — they auto-reconnect within ~10s but tests must wait. psql pager still wedges VS Code terminal — use Python psycopg instead.
+
+## 2026-09-14 — v2.8.4 — Raise tunnel rate limits (auto-ban on legit browsing)
+- **Done:** v2.8.4 — Raised tunnel_ip 240→600, tunnel_sub 600→2000, ban threshold 3→5, ban duration 1h→30min. Cleared all existing IP blocks in Redis. User IP 103.240.76.163 was banned with "tunnel flood" after browsing callingagents.in — now unblocked and limits raised to accommodate full web app asset loads.
+- **In progress:** ConfigureTunnel.jsx + dist/index.html still have uncommitted changes from v2.8.2.
+- **Next:** user should test callingagents.in browsing multiple pages without getting blocked.
+- **Watch out:** Service restart disconnects SSH tunnels (~10s reconnect). psql pager wedges VS Code terminal — use Python psycopg.
+
+## 2026-09-14 — v2.8.5 — API key security audit fixes
+- **Done:** v2.8.5 — Fixed 5 issues found in API key security audit: (1) API key auth 500 crash (is_active column missing), (2) plaintext key storage dropped, (3) soft-delete revoke, (4) rate limiting on auth failures, (5) expired keys excluded from plan count. Migration 0033 applied. All 7 tests passed.
+- **In progress:** ConfigureTunnel.jsx + dist/index.html still uncommitted from v2.8.2.
+- **Next:** user should test API keys in dashboard (create, use via SDK, revoke) and verify existing keys still work (they may need to be recreated since key_plain was dropped — old raw keys are gone from DB but the hash is still valid if the user saved the key elsewhere).
+- **Watch out:** Existing API keys in the DB still have valid hashes — users who saved their raw key can still use it. But users who relied on the dashboard's copy button to retrieve the key later will NOT be able to — the key is now shown only once at creation.
+
+## 2026-09-14 — v2.9.1 — Post-rename cleanup + verification
+- **Done:** v2.9.1 — Tested project after v2.9.0 rename, found + fixed 5 issues:
+  (1) SSH console banner line 583 still said "tunnel" not "IRAGT tunnel" (missed in v2.9.0),
+  (2) BrokenPipeError log spam in _send_info_when_ready (unguarded chan.write),
+  (3) GET /users/me 500 (shadowed by /{user_id} — added dedicated /me route),
+  (4) stale filenames (pinggy.postman_collection.json, nginx/pinggy-rate-limits.conf,
+  installed nginx configs), (5) stale pinggy refs in active Doc/ files (deploy/setup/database/process-flow).
+  Service restarted, all 20 endpoint checks PASS, 0 BrokenPipeErrors, 93 IRAGT banners, 0 old banners.
+- **In progress:** nothing — all fixes committed + tagged.
+- **Next:** await user. Potential follow-up: rebuild dist/ if any source JS references "pinggy" (checked — none found).
+- **Watch out:** The server was running pre-rename code until we restarted it — always restart after code edits since Python loads modules into memory at startup.
+
+## 2026-09-14 — v2.10.0 — Fix tunnel port-detection race condition + stale-tunnel reconciliation + nginx configs
+- **Done:** v2.10.0 — Root cause of all 33 callingagents.in 502s was a RACE CONDITION in
+  `_detect_port_and_setup` (ssh_server.py): after the v2.9.1 service restart, all 33+ SSH
+  tunnels reconnected but the port-detection code gave up after only 1.5s (0.5s + 1.0s
+  fixed sleeps). Under load, asyncssh's `forward_local_port()` took >1.5s, so 0 tunnels
+  registered in the in-memory `_tunnels` dict. Fix: rewrote to poll every 200ms for up
+  to 10s (50 attempts). Result: 905 successful detections, 2 failures (99.8%). Also:
+  (1) fixed `reconcile_tunnels_with_db` to clear ALL stale rows (was skipping rows with
+  closed_at set, leaving 79 stale 'active' rows); (2) added `periodic_reconcile_stale_tunnels`
+  background task (every 5min) to clean stale DB rows automatically; (3) generated 35 nginx
+  server blocks for missing callingagents.in subdomains using self-signed wildcard cert.
+- **In progress:** Old subdomains (erp/website/marketing) + 2 new ones (maildoll/quickdate2)
+  work. Remaining 502s: the user's `start_cc.py` watchdog on their Mac is using a STALE token
+  `2582a5df` (deleted from DB) for the 33 new subdomains. The valid tokens are in the DB
+  (e.g. astrology = `8fe697ba83abe1cb`). The user needs to restart `start_cc.py` with
+  the current tokens.
+- **Next:** User must restart `start_cc.py` on Mac with correct tokens to reconnect all 33
+  tunnels. After that, request LE SSL certs for the 35 new subdomains (currently using
+  self-signed wildcard).
+- **Watch out:** `_detect_port_and_setup` has a `self._conn` check INSIDE the loop now
+  (was before the loop) — if the connection drops during polling, it exits cleanly.
+  The `asyncio` import in `periodic_reconcile_stale_tunnels` is redundant (already imported
+  at module level) but harmless.

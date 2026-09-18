@@ -1,0 +1,35 @@
+=== v2.8.2 — local_port in DB (Manage Tokens + Configure Tunnel) ===
+Date: 2026-09-14 06:00 UTC
+
+=== DB Migration 0032 ===
+ALTER TABLE tokens ADD COLUMN local_port INTEGER
+✅ Applied
+
+=== API Test ===
+- TokenOut now includes local_port field
+- Create token accepts local_port
+- Update token (PUT /tokens/{id}) accepts local_port
+- Backfilled: apimarketing=8036, marketing=3002, all others=8080
+
+=== Manage Tokens Page (browser) ===
+Port column added (between Subdomain and API Key)
+- apimarketing → 8036 ✅
+- marketing → 3002 ✅
+- aiagentsz.in → 8080 ✅
+- webifly → 8080 ✅
+- porto → 8080 ✅
+- All others → 8080 ✅
+
+=== Configure Tunnel Page ===
+- Local address field reads from selToken.local_port (DB) instead of localStorage
+- Multiport addresses use token's local_port as default for its own address
+- Falls back to localStorage then 8080 if not set
+
+=== Token Guide ===
+- Reads port from t.local_port (DB) instead of localStorage only
+- Saves port changes via PUT /tokens/{id} API (persists to DB)
+- Still writes localStorage as fallback for backward compatibility
+
+=== JS Bundle ===
+- New: dist/assets/index-d7MvFlN_.js (463.55 kB)
+- nginx reloaded successfully

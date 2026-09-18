@@ -1,4 +1,4 @@
-"""Test SSH tunnel client — connects to the pinggy SSH server with -R reverse forwarding."""
+"""Test SSH tunnel client — connects to the IRAGT SSH server with -R reverse forwarding."""
 import asyncio
 import logging
 

@@ -1,0 +1,53 @@
+IRAGT WebSocket Fix — v2.11.0 Test Evidence
+===============================================
+
+## Root Cause
+nginx had `http2` enabled on all 443 server blocks. HTTP/2 does NOT support
+the WebSocket `Upgrade` header (RFC 6455). ALPN negotiated h2, causing the
+Upgrade header to be silently ignored → Twilio ConversationRelay could not
+connect.
+
+## Fixes Applied
+1. Removed `http2` from ALL nginx server blocks (all custom-*.conf + iragt.ssl.conf)
+2. Created dedicated nginx config for code.zettalgor.com (no http2, /ws/ location with 3600s timeout)
+3. Issued LE cert for code.zettalgor.com
+4. Updated ssl_manager.py template to generate configs WITHOUT http2
+5. Fixed WS response header forwarding: filter hop-by-hop headers (Upgrade, Connection, etc.)
+   to prevent duplicate Upgrade header in 101 response
+6. Fixed websockets v17 response header access: use upstream.response.headers
+   (not .response_headers which doesn't exist in v17+)
+7. Added exception handling to pump_up/pump_down tasks
+8. Disabled upstream ping_interval/ping_timeout (let the connection manage itself)
+
+## Test Results
+
+### 1. ALPN negotiation (before vs after)
+BEFORE: ALPN: server accepted h2 → HTTP/2 → Upgrade header ignored → 400 Bad Request
+AFTER:  ALPN: server accepted http/1.1 → HTTP/1.1 → Upgrade header processed → 101
+
+### 2. WebSocket upgrade through IRAGT edge
+$ curl -sk --http1.1 --resolve "code.zettalgor.com:443:13.140.131.204" \
+    -H "Upgrade: websocket" -H "Connection: Upgrade" \
+    -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" -H "Sec-WebSocket-Version: 13" \
+    "https://code.zettalgor.com/ws/audio/"
+Result: HTTP/1.1 101 Switching Protocols ✅
+
+### 3. WebSocket data flow test (Python websockets client)
+✅ Connected! (101 Switching Protocols)
+✅ Setup message sent through proxy
+✅ No response (expected — Daphne waits for real Twilio session)
+✅ Second message sent — connection alive!
+✅ Done!
+
+### 4. Connection stays alive without data (15s test)
+✅ Connection stayed alive for 15s — proxy keeps WS open
+
+### 5. HTTP still works (non-WS endpoints)
+$ curl -sk --http1.1 --resolve "code.zettalgor.com:443:13.140.131.204" \
+    "https://code.zettalgor.com/health"
+Result: HTTP 200 {"status":"ok","app":"IRAGT","env":"production","checks":{"db":"ok","redis":"ok","tunnels":14}}
+
+### 6. LE cert for code.zettalgor.com
+$ openssl x509 -in /etc/letsencrypt/live/code.zettalgor.com/cert.pem -noout -subject
+subject: CN = code.zettalgor.com
+Issuer: C=US; O=Let's Encrypt; CN=YE1

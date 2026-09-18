@@ -41,6 +41,11 @@ async def lifespan(app: FastAPI):
     reconcile_result = await reconcile_tunnels_with_db()
     print(f"[{settings.APP_NAME}] Tunnel registry reconciled: {reconcile_result}")
 
+    # v2.10.0: Start periodic stale-tunnel reconciliation (every 5 min)
+    from app.core.tunnel_registry import periodic_reconcile_stale_tunnels
+    reconcile_task = asyncio.create_task(periodic_reconcile_stale_tunnels())
+    print(f"[{settings.APP_NAME}] Periodic tunnel reconciliation started (every 5 min)")
+
     # Start SSH server for tunnels
     from app.core.ssh_server import start_ssh_server
     ssh_server = await start_ssh_server()
@@ -55,9 +60,16 @@ async def lifespan(app: FastAPI):
     ssl_renewal_task = start_ssl_renewal_task()
     print(f"[{settings.APP_NAME}] SSL auto-renewal scheduler started (every 12h)")
 
+    # Automated DB backup scheduler (every 8h, 7-day retention)
+    from app.core.backup_scheduler import start_backup_scheduler_task
+    backup_task = start_backup_scheduler_task()
+    print(f"[{settings.APP_NAME}] DB auto-backup scheduler started (every 8h, 7d retention)")
+
     yield
 
     # Shutdown
+    backup_task.cancel()
+    reconcile_task.cancel()
     ssl_renewal_task.cancel()
     digest_task.cancel()
     ssh_server.close()
@@ -104,12 +116,17 @@ from starlette.requests import Request  # noqa: E402
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         resp = await call_next(request)
-        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
-        resp.headers.setdefault("X-Frame-Options", "DENY")
-        resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-        if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
-            resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        # Only inject strict dashboard security headers for main dashboard/API routes,
+        # not for proxied tunnel responses which have their own headers from user apps.
+        host = request.headers.get("host", "")
+        from app.core.proxy import _extract_subdomain
+        if not _extract_subdomain(host):
+            resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+            resp.headers.setdefault("X-Frame-Options", "DENY")
+            resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+            resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+            if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
+                resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         return resp
 
 
@@ -131,7 +148,149 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(admin_router)  # /admin, /dashboard, / (landing page)
 
 
+from starlette.responses import PlainTextResponse
+
+
+@app.get("/run", response_class=PlainTextResponse, tags=["cli"])
+async def get_runner_script():
+    """Universal bash script for 1-line zero-flag tunneling."""
+    script = r"""#!/usr/bin/env bash
+# IRAGT Universal One-Line Tunnel Runner
+# Usage: curl -sSL https://iraglobaltech.com/run | bash -s YOUR_TOKEN
+
+set -e
+
+TOKEN="$1"
+if [ -z "$TOKEN" ]; then
+  echo ""
+  echo "❌ Error: Missing tunnel token."
+  echo "Usage: curl -sSL https://iraglobaltech.com/run | bash -s <YOUR_TOKEN>"
+  echo ""
+  exit 1
+fi
+
+echo "🚀 Fetching IRAGT tunnel configuration for token: ${TOKEN:0:8}..."
+
+API_HOST="${IRAGT_API_HOST:-https://iraglobaltech.com}"
+CONFIG=$(curl -sSL "${API_HOST}/api/v1/configs/cli/${TOKEN}")
+
+if echo "$CONFIG" | grep -q '"detail"'; then
+  ERR_MSG=$(echo "$CONFIG" | grep -o '"detail":"[^"]*' | cut -d'"' -f4)
+  echo "❌ Failed: ${ERR_MSG:-Invalid token}"
+  exit 1
+fi
+
+SSH_HOST=$(echo "$CONFIG" | grep -o '"ssh_host":"[^"]*' | cut -d'"' -f4)
+SSH_PORT=$(echo "$CONFIG" | grep -o '"ssh_port":[0-9]*' | cut -d':' -f2)
+
+SSH_HOST="${SSH_HOST:-ssh.iraglobaltech.com}"
+SSH_PORT="${SSH_PORT:-2222}"
+
+PORTS_DATA=$(python3 -c "import sys, json; data=json.loads(sys.stdin.read()); print('\n'.join(f'{p[\"domain\"]}:{p[\"local_port\"]}' for p in data.get('ports', [])))" <<< "$CONFIG" 2>/dev/null || echo "")
+
+if [ -z "$PORTS_DATA" ]; then
+  PORTS_DATA="tunnel:8080"
+fi
+
+echo ""
+echo "  ╔═════════════════════════════════════════════════════════════╗"
+echo "  ║                     IRAGT TUNNEL ACTIVE                     ║"
+echo "  ╠═════════════════════════════════════════════════════════════╣"
+
+R_FLAGS=""
+while IFS=':' read -r domain port; do
+  if [ -n "$port" ]; then
+    printf "  ║  https://%-26s --> localhost:%-6s║\n" "$domain" "$port"
+    R_FLAGS="$R_FLAGS -R0:127.0.0.1:$port"
+  fi
+done <<< "$PORTS_DATA"
+
+echo "  ╚═════════════════════════════════════════════════════════════╝"
+echo ""
+
+exec ssh -p "$SSH_PORT" $R_FLAGS -o StrictHostKeyChecking=no "${TOKEN}@${SSH_HOST}"
+"""
+    return PlainTextResponse(content=script, media_type="text/x-shellscript")
+
+
+@app.get("/install.sh", response_class=PlainTextResponse, tags=["cli"])
+async def get_installer_script():
+    """CLI installer script for placing iragt into /usr/local/bin."""
+    script = r"""#!/usr/bin/env bash
+# IRAGT CLI Global Installer
+set -e
+
+echo "📦 Installing IRAGT Tunnel CLI..."
+
+TARGET_DIR="/usr/local/bin"
+if [ ! -w "$TARGET_DIR" ]; then
+  SUDO="sudo"
+else
+  SUDO=""
+fi
+
+$SUDO curl -sSL https://iraglobaltech.com/run -o "${TARGET_DIR}/iragt"
+$SUDO chmod +x "${TARGET_DIR}/iragt"
+
+echo ""
+echo "✅ iragt CLI installed successfully to ${TARGET_DIR}/iragt!"
+echo "👉 Connect anytime using: iragt <YOUR_TOKEN>"
+echo ""
+"""
+    return PlainTextResponse(content=script, media_type="text/x-shellscript")
+
+
 @app.get("/health", tags=["system"])
 async def health():
-    """Return basic service metadata for uptime checks."""
-    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}
+    """Return service health with DB + Redis checks for watchdog monitoring (v2.8.7).
+
+    Status is "ok" only when all checks pass. If DB or Redis is down, status is
+    "degraded" — systemd watchdog will restart the service after WatchdogSec.
+    """
+    checks = {}
+    overall = "ok"
+
+    # DB check
+    try:
+        from app.core.db import get_pool
+        pool = get_pool()
+        if pool:
+            async with pool.connection() as conn:
+                cur = await conn.execute("SELECT 1")
+                await cur.fetchone()
+                await cur.close()
+            checks["db"] = "ok"
+        else:
+            checks["db"] = "no pool"
+            overall = "degraded"
+    except Exception as e:
+        checks["db"] = f"error: {e!s:.60}"
+        overall = "degraded"
+
+    # Redis check (optional — app works without Redis but degraded)
+    try:
+        from app.core.redis import get_redis
+        r = get_redis()
+        if r is not None:
+            await r.ping()
+            checks["redis"] = "ok"
+        else:
+            checks["redis"] = "disabled"
+    except Exception as e:
+        checks["redis"] = f"error: {e!s:.60}"
+        overall = "degraded"
+
+    # Active tunnels count
+    try:
+        from app.core.tunnel_registry import list_tunnels
+        tunnels = await list_tunnels()
+        checks["tunnels"] = len(tunnels)
+    except Exception:
+        checks["tunnels"] = "unknown"
+
+    return {
+        "status": overall,
+        "app": settings.APP_NAME,
+        "env": settings.APP_ENV,
+        "checks": checks,
+    }

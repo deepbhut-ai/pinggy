@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import { copyToClipboard } from '../../utils';
+import MultiportActivationModal from '../../components/MultiportActivationModal';
 
 const SERVER_IP = '13.140.131.204';
 
@@ -59,6 +60,8 @@ export default function Domains() {
     toast(`${domain} entered — configure DNS, then click Verify & Save`);
   };
 
+  const [multiportPrompt, setMultiportPrompt] = useState(null); // { domain, token, tokenId, port }
+
   const verifyAndSave = async () => {
     if (!pending) return;
     const { domain } = pending;
@@ -81,6 +84,13 @@ export default function Domains() {
         toast(`🎉 ${domain} verified with HTTPS active!`);
         setPending(null);
         setAddDom('');
+        // Prompt user to enable in Multi-Port tunnel
+        setMultiportPrompt({
+          domain,
+          token: res.token || '',
+          tokenId: res.token_id || '',
+          port: '8080',
+        });
         setTimeout(() => load(), 1500);
       } else {
         setVerifyResult({ status: 'error', message: res.message || 'Verification failed' });
@@ -90,6 +100,40 @@ export default function Domains() {
     } finally {
       setVerifying(false);
     }
+  };
+
+  const enableInMultiport = async (chosenPort) => {
+    if (!multiportPrompt) return;
+    const { domain, token } = multiportPrompt;
+    const finalPort = (chosenPort || '8080').trim();
+    try {
+      let existing = { multi_port_enabled: true, ports: {} };
+      if (token) {
+        try {
+          existing = await api(`/configs/multiport/${encodeURIComponent(token)}`);
+        } catch {}
+      }
+      const updatedPorts = { ...(existing.ports || {}) };
+      updatedPorts[domain] = { enabled: true, port: finalPort };
+
+      await api('/configs/multiport', 'PUT', {
+        token: token || domain,
+        multi_port_enabled: true,
+        ports: updatedPorts,
+      });
+
+      toast(`🚀 ${domain} enabled in Multi-Port tunnel on port :${finalPort}!`);
+    } catch (e) {
+      toast(`Domain saved, but could not set Multi-Port: ${e.message}`, 'error');
+    } finally {
+      setMultiportPrompt(null);
+      load();
+    }
+  };
+
+  const skipMultiport = () => {
+    setMultiportPrompt(null);
+    load();
   };
 
   const cancelPending = () => {
@@ -226,6 +270,16 @@ export default function Domains() {
             <p className="empty">No domains added yet.</p>
           </div>
         </div>
+      )}
+
+      {/* Multi-Port Activation Modal */}
+      {multiportPrompt && (
+        <MultiportActivationModal
+          domain={multiportPrompt.domain}
+          initialPort={multiportPrompt.port || '8080'}
+          onEnable={enableInMultiport}
+          onSkip={skipMultiport}
+        />
       )}
     </>
   );

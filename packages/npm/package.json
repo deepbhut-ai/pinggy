@@ -1,0 +1,23 @@
+{
+  "name": "iragt",
+  "version": "1.0.4",
+  "description": "IRAGT Tunnel CLI - Instant Localhost Multi-Port Tunneling",
+  "main": "bin/iragt.js",
+  "bin": {
+    "iragt": "bin/iragt.js"
+  },
+  "keywords": [
+    "tunnel",
+    "localhost",
+    "multiport",
+    "proxy",
+    "webhook",
+    "iragt"
+  ],
+  "author": "IRA Global Tech <support@iraglobaltech.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iraglobaltech/iragt-cli"
+  }
+}

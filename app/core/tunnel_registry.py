@@ -6,9 +6,12 @@ ports). All state is kept in memory for speed; the DB is used for persistence
 and the admin panel.
 """
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable
+
+logger = logging.getLogger("tunnel_registry")
 
 
 @dataclass
@@ -25,6 +28,7 @@ class TunnelSession:
     custom_domains: list = field(default_factory=list)  # extra domains (v1.4.0)
     endpoints: dict = field(default_factory=dict)   # v1.9.0 multi-port: address -> remote_port
     local_ports: dict = field(default_factory=dict)  # v1.9.0 multi-port: address -> client local port (display)
+    paused_endpoints: set = field(default_factory=set)  # runtime paused domains (v3.0.0)
     token: str = ""           # authenticating tunnel token (security lookups, v0.8.0)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     request_count: int = 0
@@ -52,6 +56,19 @@ class TunnelSession:
     @property
     def is_alive(self) -> bool:
         return self.ssh_conn is not None
+
+    def is_endpoint_paused(self, address: str) -> bool:
+        """Check if an endpoint address is paused at runtime."""
+        if not address:
+            return False
+        norm = address.replace("https://", "").replace("http://", "").strip().lower().split("/")[0].split(":")[0]
+        if norm in self.paused_endpoints:
+            return True
+        if norm == self.subdomain and f"{self.subdomain}.{_domain}" in self.paused_endpoints:
+            return True
+        if norm == f"{self.subdomain}.{_domain}" and self.subdomain in self.paused_endpoints:
+            return True
+        return False
 
     def endpoint_port(self, address: str) -> int:
         """v1.9.0: remote port serving this address (falls back to the default)."""
@@ -143,9 +160,14 @@ async def reconcile_tunnels_with_db() -> dict[str, int]:
     try:
         from app.core.db import get_conn
         async with get_conn() as db:
+            # v2.10.0: mark ALL 'active' rows as disconnected (not just ones
+            # where closed_at IS NULL). Previous versions skipped rows that
+            # already had closed_at set, leaving stale 'active' rows behind
+            # after a restart — these caused duplicate tunnel entries and
+            # confused the proxy which tried to route to dead ports.
             cur = await db.execute(
-                "UPDATE tunnels SET status = 'disconnected', closed_at = now() "
-                "WHERE status = 'active' AND closed_at IS NULL"
+                "UPDATE tunnels SET status = 'disconnected', closed_at = COALESCE(closed_at, now()) "
+                "WHERE status = 'active'"
             )
             updated = cur.rowcount
             await cur.close()
@@ -154,6 +176,42 @@ async def reconcile_tunnels_with_db() -> dict[str, int]:
         if logger:
             logger.warning("Failed to reconcile stale tunnel rows: %s", e)
     return {"stale_rows_marked_disconnected": updated, "in_memory_tunnels": len(_tunnels)}
+
+
+async def periodic_reconcile_stale_tunnels() -> None:
+    """Background task (v2.10.0): every 5 minutes, mark DB tunnel rows as
+    'disconnected' if they have no matching in-memory session.
+
+    The in-memory _tunnels dict is authoritative for live SSH sessions.
+    After a race-condition failure or an unclean disconnect, stale 'active'
+    rows accumulate in the DB. This task cleans them up so the proxy,
+    dashboard, and API all see accurate tunnel counts."""
+    import asyncio
+    from app.core.db import get_conn
+    while True:
+        await asyncio.sleep(300)  # 5 minutes
+        try:
+            live_subdomains = set(_tunnels.keys())
+            async with get_conn() as db:
+                if live_subdomains:
+                    # Mark all 'active' rows whose subdomain is NOT in memory
+                    cur = await db.execute(
+                        "UPDATE tunnels SET status = 'disconnected', closed_at = COALESCE(closed_at, now()) "
+                        "WHERE status = 'active' AND subdomain != ALL(%s)",
+                        (list(live_subdomains),),
+                    )
+                else:
+                    # No live tunnels — mark everything as disconnected
+                    cur = await db.execute(
+                        "UPDATE tunnels SET status = 'disconnected', closed_at = COALESCE(closed_at, now()) "
+                        "WHERE status = 'active'"
+                    )
+                updated = cur.rowcount
+                await cur.close()
+            if updated:
+                logger.warning("Periodic reconcile: marked %d stale tunnel rows as disconnected", updated)
+        except Exception as e:
+            logger.warning("Periodic reconcile failed: %s", e)
 
 
 async def increment_request_count(subdomain: str, bytes_count: int = 0, sent: int = 0, received: int = 0) -> None:
@@ -201,3 +259,35 @@ def log_to_tunnel(subdomain: str, message: str) -> None:
 
 def is_subdomain_taken(subdomain: str) -> bool:
     return subdomain in _tunnels
+
+
+async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: dict) -> None:
+    """Synchronize multiport enable/pause states for all matching active tunnel sessions."""
+    async with _lock:
+        for tunnel in _tunnels.values():
+            match = False
+            if tunnel.token and token and tunnel.token == token:
+                match = True
+            elif tunnel.user_email and user_email and tunnel.user_email.lower() == user_email.lower():
+                match = True
+            if match:
+                for addr, info in (ports_map or {}).items():
+                    norm = addr.replace("https://", "").replace("http://", "").strip().lower().split("/")[0].split(":")[0]
+                    if not norm:
+                        continue
+                    if isinstance(info, dict) and info.get("enabled") is False:
+                        if norm not in tunnel.paused_endpoints:
+                            tunnel.paused_endpoints.add(norm)
+                            if tunnel.log_callback:
+                                try:
+                                    tunnel.log_callback(f"  [dashboard] ⏸️  Paused endpoint: https://{norm}")
+                                except Exception:
+                                    pass
+                    else:
+                        if norm in tunnel.paused_endpoints:
+                            tunnel.paused_endpoints.discard(norm)
+                            if tunnel.log_callback:
+                                try:
+                                    tunnel.log_callback(f"  [dashboard] ▶️  Resumed endpoint: https://{norm}")
+                                except Exception:
+                                    pass

@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "pinggy API",
-    "_postman_id": "pinggy-api-collection-001",
-    "description": "Complete API collection for the pinggy SSH tunnel service.\n\n## Setup\n1. Set the `base_url` variable to your server (default: https://iraglobaltech.com)\n2. Call \"Login\" or \"Register\" — the `access_token` is auto-saved to the collection variable\n3. All authenticated requests use `{{access_token}}` automatically\n\n## Auth\n- Public: Register, Login\n- User: Me, Tunnel Token, Regenerate Token, My Tokens, My Tunnels, My Payments, Checkout\n- Admin: All Users, All Tokens, All Tunnels, All Payments, User Management, Tunnel Control\n\nBase URL: {{base_url}}/api/v1",
+    "name": "IRAGT API",
+    "_postman_id": "iragt-api-collection-001",
+    "description": "Complete API collection for the IRAGT tunnel service.\n\n## Setup\n1. Set the `base_url` variable to your server (default: https://iraglobaltech.com)\n2. Call \"Login\" or \"Register\" — the `access_token` is auto-saved to the collection variable\n3. All authenticated requests use `{{access_token}}` automatically\n\n## Auth\n- Public: Register, Login\n- User: Me, Tunnel Token, Regenerate Token, My Tokens, My Tunnels, My Payments, Checkout\n- Admin: All Users, All Tokens, All Tunnels, All Payments, User Management, Tunnel Control\n\nBase URL: {{base_url}}/api/v1",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

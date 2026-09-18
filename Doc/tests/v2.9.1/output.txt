@@ -1,0 +1,72 @@
+=== IRAGT v2.9.1 — Post-rename verification (2026-09-14T21:11:57+02:00) ===
+
+=== 1. Health endpoint ===
+{
+    "status": "ok",
+    "app": "IRAGT",
+    "env": "production",
+    "checks": {
+        "db": "ok",
+        "redis": "ok",
+        "tunnels": 18
+    }
+}
+
+=== 2. Page routes (HTTPS via nginx) ===
+  / → 200
+  /login → 200
+  /guide → 200
+  /dashboard → 200
+
+=== 3. Auth ===
+  POST /api/v1/auth/login → 200
+  GET  /api/v1/auth/me → 200
+
+=== 4. /users/me (was 500, fixed in v2.9.1) ===
+  GET  /api/v1/users/me → 200
+{
+    "id": "de3baf53-09e3-40f3-ac6a-01ef548ffb24",
+    "email": "support@callingagents.in",
+    "full_name": "Calling Agents Admin",
+    "role": "admin",
+    "tunnel_token": "17b3ecb3a8aac81a",
+    "custom_domain": null,
+    "plan": "free",
+    "plan_expires_at": null,
+    "seats": 1,
+    "is_active": true
+}
+
+=== 5. /users/me sub-routes (not shadowed by /{user_id}) ===
+  PUT  /api/v1/users/me/custom-domain → 200
+  GET  /api/v1/users/me/verify-domain → 200
+
+=== 6. All API endpoints ===
+  /api/v1/tunnels → 200
+  /api/v1/tokens → 200
+  /api/v1/settings → 200
+  /api/v1/analytics/overview → 200
+  /api/v1/ip-monitor/stats → 200
+  /api/v1/payments/my → 200
+  /api/v1/apikeys → 200
+  /api/v1/plans → 200
+  /api/v1/announcements → 200
+  /api/v1/audit → 200
+
+=== 7. SSH banner shows IRAGT ===
+  'IRAGT tunnel — ACTIVE' banners: 93
+  old 'tunnel — ACTIVE' (without IRAGT): 0
+
+=== 8. BrokenPipeError spam fixed ===
+  BrokenPipeError (last 1 min): 0
+  Task exception (last 1 min): 0
+
+=== 9. No stale pinggy filenames ===
+  (none — all renamed)
+  installed nginx: none
+  rate-limits: none — renamed to iragt-rate-limits.conf
+
+=== 10. No stale pinggy in active docs ===
+  (none — all clean)
+
+=== ALL CHECKS PASSED ===

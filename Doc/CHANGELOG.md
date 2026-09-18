@@ -1,5 +1,199 @@
 # CHANGELOG — IRAGT (formerly pinggy)
 
+## v2.11.0 — 2026-09-15 — Fix WebSocket data frame forwarding (HTTP/2 → HTTP/1.1 for WS Upgrade support)
+
+### Added
+- **Dedicated nginx config for `code.zettalgor.com`** (`/etc/nginx/sites-available/custom-code.zettalgor.com`) — separate server block with real LE cert, no HTTP/2, dedicated `/ws/` location with 3600s `proxy_read_timeout`/`proxy_send_timeout` for sustained WebSocket connections (Twilio ConversationRelay).
+- **Let's Encrypt cert for `code.zettalgor.com`** — issued via certbot webroot. Previously fell through to the default server with the `callingagents.in` self-signed wildcard cert, causing SSL hostname mismatch.
+- **`/ws/` location block** in all custom domain nginx configs (ssl_manager template + zettalgor.com) — 3600s timeout for WebSocket routes vs 300s for regular HTTP.
+- Hop-by-hop header filtering in `tunnel_websocket` response header forwarding — prevents duplicate `Upgrade` and `Connection` headers in the 101 response that caused `InvalidUpgrade` errors in strict WebSocket clients.
+- Exception handling in `pump_up`/`pump_down` tasks — prevents silent task death and logs disconnection reasons.
+- Test evidence: `Doc/tests/v2.11.0/output.txt` — ALPN negotiation, WS upgrade (101), data flow, connection liveness, HTTP compatibility, LE cert verification.
+
+### Changed
+- **Removed `http2` from ALL nginx server blocks** (all `custom-*.conf` + `iragt.ssl.conf` + repo's `nginx/iragt.ssl.conf`). HTTP/2 does NOT support the WebSocket `Upgrade` header (RFC 6455). When nginx had `http2` on any `listen 443` directive, ALPN negotiated `h2` for ALL connections on that socket, causing the `Upgrade: websocket` header to be silently ignored by HTTP/2. This broke Twilio ConversationRelay which requires HTTP/1.1 WebSocket upgrade. Fix: `listen 443 ssl` (no `http2`).
+- **`app/core/ssl_manager.py` `_generate_nginx_config_content()`** — nginx config template now generates `listen 443 ssl` (no `http2`) and includes a dedicated `/ws/` location block with 3600s timeout.
+- **`app/core/proxy.py` `tunnel_websocket()`** — fixed upstream response header access for websockets v17: use `upstream.response.headers` instead of `upstream.response_headers` (which doesn't exist in v17+). Filter hop-by-hop headers (`upgrade`, `connection`, `sec-websocket-accept`, etc.) from forwarded response headers to prevent duplicates.
+- **`app/core/proxy.py` `tunnel_websocket()`** — upstream `ping_interval` and `ping_timeout` changed from 20s to `None` (disabled). The 20s ping timeout was too aggressive for proxied WS connections and could cause premature disconnection under load. `close_timeout` increased from 5s to 10s.
+
+### Removed
+- `http2` directive from all nginx `listen 443` lines across all server blocks — HTTP/2 is incompatible with WebSocket Upgrade (RFC 6455). This is a breaking change for HTTP/2 support but required for WebSocket functionality. HTTP/2 can be re-enabled per-domain on a separate port/IP if needed in the future.
+
+## v2.10.0 — 2026-09-14 — Fix tunnel port-detection race condition + periodic stale-tunnel reconciliation + nginx configs for 35 fleet subdomains
+
+### Added
+- **`periodic_reconcile_stale_tunnels()`** background task (`app/core/tunnel_registry.py`) — runs every 5 minutes, marks DB tunnel rows as 'disconnected' if their subdomain is not in the in-memory `_tunnels` dict. Prevents stale 'active' rows from accumulating after race-condition failures or unclean disconnects. Wired into `app/main.py` lifespan with proper cleanup on shutdown.
+- **35 nginx server blocks** for callingagents.in fleet subdomains (`/etc/nginx/sites-available/custom-*.callingagents.in`) — acelle, activeecom, architect, astrology, bedrive, cloudoffice, code, eclassify, erpgo, infixlms, infycare, infyhms, instikit, jobpilot, larabuilder, magicai, maildoll, phpanalytics, phprank, porto, quickdate1, quickdate2, rith, socialvibe, stackposts, teleman, test-mode, unimatrix, whatsmark, wowonder, xerochat, yoori1, yoori2, zillapage. All use the self-signed wildcard `*.callingagents.in` cert until individual LE certs are issued.
+- WARNING-level logging in `_detect_port_and_setup` for both success ("Detected forwarded port(s)") and failure ("Could not detect forwarded port") — previously only failures were visible because success used INFO level which is suppressed by the default log config.
+- Test evidence: `Doc/tests/v2.10.0/output.txt` — 905 port detections, 2 failures (99.8% success), 107 live tunnels in memory, 44 nginx configs, old subdomains (erp/website/marketing) verified working, maildoll+quickdate2 verified working.
+
+### Changed
+- **`_detect_port_and_setup()`** (`app/core/ssh_server.py:383`) — rewrote the port-detection polling from two fixed sleeps (0.5s + 1.0s = 1.5s total budget) to a proper polling loop: 50 attempts × 200ms = 10s budget. Under load (33+ concurrent SSH reconnects after a service restart), asyncssh's `forward_local_port()` can take several seconds to create the TCP listener and store it in `_local_listeners`. The old 1.5s budget was too short — every tunnel failed to register, causing 502 on all subdomains. Also moved the `self._conn` check inside the loop so a connection lost during polling exits cleanly.
+- **`reconcile_tunnels_with_db()`** (`app/core/tunnel_registry.py:134`) — changed the UPDATE query from `WHERE status = 'active' AND closed_at IS NULL` to `WHERE status = 'active'` with `closed_at = COALESCE(closed_at, now())`. The old query skipped rows that already had `closed_at` set, leaving stale 'active' rows behind after a restart. These caused duplicate tunnel entries and confused the proxy.
+
+### Removed
+- `custom-webifly.callingagents.in` nginx config — removed to avoid conflicting server_name with the existing `webifly.callingagents.in` block in `iragt.ssl.conf` (which uses the real LE cert).
+
+## v2.9.1 — 2026-09-14 — Post-rename cleanup: SSH banner, BrokenPipe fix, /users/me route, stale file renames, doc fixes
+
+### Added
+- `GET /api/v1/users/me` — returns the current authenticated user's own profile (any logged-in user). Without this, `/users/me` was shadowed by the `/{user_id}` route (user_id="me") and crashed with HTTP 500. The frontend uses `/auth/me`, so this was not user-visible, but any API consumer calling `/users/me` would hit the 500.
+- Test evidence: `Doc/tests/v2.9.1/output.txt` — 20 endpoint checks all pass, 0 BrokenPipeErrors, 0 stale "tunnel" banners, 0 stale "pinggy" filenames/docs.
+
+### Changed
+- `app/core/ssh_server.py:583` — server console banner renamed from `tunnel — ACTIVE` to `IRAGT tunnel — ACTIVE` (line 89 was already renamed in v2.9.0; this print() at line 583 was missed).
+- `app/core/ssh_server.py:102` — `TunnelInfoSession._send_info_when_ready()`: wrapped `self._chan.write(data)` in `try/except` to suppress `BrokenPipeError` when the SSH channel is already closed by the client. Previously, the unguarded write caused recurring "Task exception was never retrieved" log spam every few seconds with active tunnels.
+- `Doc/guides/deploy.md` — updated all `/opt/pinggy` → `/opt/iragt`, `pinggy.service` → `iragt.service`, `systemctl ... pinggy` → `iragt`, `pinggy-rate-limits.conf` → `iragt-rate-limits.conf`.
+- `Doc/guides/setup.md` — title "run pinggy" → "run IRAGT", DB name `pinggy` → `iragt`, `deploy/pinggy.service` → `deploy/iragt.service`, connection string updated.
+- `Doc/database.md` — header + connection string `pinggy` → `iragt`.
+- `Doc/process-flow.md` — nginx config file paths `pinggy.react.conf`/`pinggy.ssl.conf` → `iragt.*`, `/opt/pinggy` → `/opt/iragt`.
+
+### Removed
+- `pinggy.postman_collection.json` — renamed to `iragt.postman_collection.json` (content already used "IRAGT"; only the filename was stale).
+- `nginx/pinggy-rate-limits.conf` — renamed to `nginx/iragt-rate-limits.conf`.
+- Installed nginx config files `/etc/nginx/sites-enabled/pinggy.react.conf` and `/etc/nginx/sites-available/pinggy.ssl.conf` — renamed to `iragt.*` (content was already correct, only filenames were stale).
+
+## v2.8.7 — 2026-09-14 — Public Guide page + health monitoring + auto-restart enhancements
+
+### Added
+- **Public Guide page** (`/guide`) — user-facing documentation accessible without login. 8 sections: Quickstart, SSH Command builder (with auto-reconnect for bash/PowerShell), Custom Domains setup, API Keys usage, Python SDK examples, Security features, Plans comparison, FAQ. React component `src/pages/Guide.jsx` + route in `App.jsx`.
+- **Enhanced `/health` endpoint** — now checks DB connectivity (`SELECT 1`), Redis ping, and active tunnel count. Returns `"status": "ok"` only when all checks pass, `"degraded"` when DB or Redis is down. Response includes `checks` object with per-component status.
+- **Health check script** (`scripts/health_check.sh`) — pings `/health`, checks status field, exits 0 if healthy, 1 if dead. Can be used with systemd watchdog or cron for active monitoring.
+- **Systemd service enhancements** — `StartLimitInterval=300` + `StartLimitBurst=10` to prevent infinite restart loops. `Restart=always` + `RestartSec=5` already handles crashes.
+- Test evidence: `Doc/tests/v2.8.7/output.txt`.
+
+### Changed
+- `app/main.py` `/health` endpoint: expanded from basic metadata to full DB + Redis + tunnel count health check.
+- `deploy/pinggy.service`: added restart rate limiting (`StartLimitInterval`/`StartLimitBurst`).
+- Built frontend (`dist/`) with Guide page.
+
+### Removed
+- none
+
+## v2.8.6 — 2026-09-14 — Enforce seat/domain limits on API key token creation (manage.py)
+
+### Added
+- `enforce_seat_domain_limit()` shared helper in `app/api/routers/tokens.py` — single source of truth for seat/domain enforcement, used by both dashboard (`tokens.py create_token`) and API key (`manage.py manage_create_token`) paths.
+- Domain validation (`_validate_custom_domain`, `_enforce_root_domain_ownership`, uniqueness check) now applied to API key token creation — was completely missing before.
+- Test evidence: `Doc/tests/v2.8.6/output.txt` — 5 tests all passed (subdomain unlimited, second root domain 402, subdomain under owned root unlimited, plain token unlimited, duplicate domain 409).
+
+### Changed
+- `app/api/routers/manage.py` `manage_create_token()`: now calls `enforce_seat_domain_limit()` + `_validate_custom_domain()` + `_enforce_root_domain_ownership()` + uniqueness check before inserting. Previously inserted tokens with zero validation — API key users could create unlimited root domain tokens bypassing seats.
+- `app/api/routers/tokens.py` `create_token()`: replaced inline seat-check logic (20 lines) with call to shared `enforce_seat_domain_limit()` helper.
+
+### Removed
+- Inline seat-check code in `tokens.py create_token()` (replaced by shared helper call — same behavior, less duplication).
+
+## v2.8.5 — 2026-09-14 — API key security audit fixes (auth crash, plaintext storage, soft-delete, rate limiting)
+
+### Added
+- Migration `0033_api_keys_security.py` — adds `is_active BOOLEAN DEFAULT TRUE` to `api_keys` table, drops `key_plain` column. Down migration + `Doc/migrations.md` updated.
+- Rate limiting on API key auth failures: 20 failed attempts per IP per 5-min window (Redis ZSET `akfail:{ip}`). Prevents brute-force attacks on API keys.
+- `is_active` column on `api_keys` table with index `idx_api_keys_active` for soft-delete support.
+- Test evidence: `Doc/tests/v2.8.5/output.txt` — 7 tests all passed (auth 200, invalid 401, no plaintext, soft-delete, schema, rate limit, expired count).
+
+### Changed
+- `app/core/deps.py` `get_api_user()`: removed dead SQL query (lines 111-116) that referenced non-existent `is_active` column and crashed every API key auth with HTTP 500. Removed redundant `await cur.close()` + duplicate `_hash_key` import. Now passes `client_ip` to `resolve_api_key` for rate limiting.
+- `app/api/routers/apikeys.py` `resolve_api_key()`: now checks `is_active = true` in the lookup query (was only checking expiry). Records failed attempts in Redis for rate limiting. Accepts `client_ip` parameter.
+- `app/api/routers/apikeys.py` `list_api_keys()`: removed `key_plain` from SELECT — raw key is no longer retrievable after creation. Only returns `id, name, prefix, created_at, last_used_at, expires_at`. Also filters `is_active = true` (revoked keys hidden from list).
+- `app/api/routers/apikeys.py` `create_api_key()`: removed `key_plain` from INSERT — raw key is shown only once at creation, never stored. Count query now excludes expired and revoked keys (`is_active = true AND expires_at > now()`).
+- `app/api/routers/apikeys.py` `revoke_api_key()`: changed from hard `DELETE` to soft-delete (`UPDATE SET is_active = false`) — preserves audit trail in DB.
+- `app/api/routers/apikeys.py` `ApiKeyOut` model: removed `key` field from list response (was returning plaintext key to frontend).
+
+### Removed
+- `api_keys.key_plain` column — raw API keys were stored in cleartext in the database. DB compromise (SQL injection, backup leak, server access) would leak all API keys, bypassing the SHA-256 hash security model. Column dropped via migration 0033. The raw key is now shown only once at creation time (in the `ApiKeyCreated` response) and never retrievable again.
+- Dead SQL query in `deps.py` `get_api_user()` — meaningless query that selected an arbitrary key hash without using the actual input, then discarded the result. Caused HTTP 500 on every API key auth attempt.
+
+## v2.8.4 — 2026-09-14 — Raise tunnel rate limits (legit users auto-banned browsing full web apps)
+
+### Added
+- Test evidence: `Doc/tests/v2.8.4/output.txt` — health 200, callingagents.in /login 200, no IPs blocked, all blocks cleared.
+
+### Changed
+- `app/core/rate_limit.py` `DEFAULTS["tunnel_ip"]`: 240 → **600** req/min per IP. Full web apps (Laravel/WordPress) load 20-50+ assets per page view; 240/min was too low — 3-4 page loads triggered strikes and a 1hr auto-ban.
+- `app/core/rate_limit.py` `DEFAULTS["tunnel_sub"]`: 600 → **2000** req/min per subdomain. Supports multiple concurrent users browsing the same tunneled app.
+- `app/core/rate_limit.py` `BAN_THRESHOLD`: 3 → **5** strikes. More forgiving before auto-ban; still catches genuine floods.
+- `app/core/rate_limit.py` `BAN_SECONDS`: 3600 → **1800** (1hr → 30min). Still enough to stop floods, less punitive for legit users who hit the limit.
+- Cleared all existing IP blocks in Redis (`blocklist:ips` hash, `blocked:*` keys, `rl:strikes:*` keys) — fresh start with new limits.
+
+### Removed
+- none
+
+## v2.8.3 — 2026-09-14 — Fix: Tunnel proxy collapses multiple Set-Cookie headers (419 login on callingagents.in)
+
+### Added
+- Test evidence: `Doc/tests/v2.8.3/output.txt` — verifies 2 separate Set-Cookie headers preserved, CSRF validation passes (302 not 419), health check OK, HTTP 200 assertions.
+- WebSocket handshake now forwards upstream response headers (including Set-Cookie) to the client via `websocket.accept` `headers` field — previously all upstream response headers were silently dropped during WS upgrade.
+
+### Changed
+- `app/core/proxy.py` HTTP response path: `Set-Cookie` headers are now extracted from `resp.headers.multi_items()` and appended individually to `response.raw_headers` as separate `(b"set-cookie", value)` tuples. Previously, response headers were built as a Python dict (`resp_headers[key] = value`), which collapsed multiple `Set-Cookie` headers into a single comma-joined header. Browsers only parse the first cookie in a merged `Set-Cookie` — the second is silently dropped. This broke Laravel/Django apps tunneled through pinggy that set session + CSRF cookies (e.g. `callingagents.in` login returned HTTP 419 "Page Expired" because the `callingagents_session` cookie was dropped, leaving Laravel unable to validate the CSRF token).
+- `app/core/proxy.py` WebSocket path: `tunnel_websocket()` now reads `upstream.response_headers` and forwards them as `(bytes, bytes)` tuples in the `websocket.accept` ASGI event, preserving multiple Set-Cookie headers during WS handshakes.
+
+### Removed
+- none
+
+## v2.8.2 — 2026-09-14 — Persist local_port in DB (visible in Manage Tokens table)
+
+### Added
+- DB migration `0032_add_local_port_to_tokens.py` — adds `local_port INTEGER` column to `tokens` table (nullable).
+- `local_port` field in `TokenOut`, `TokenCreate`, and `TokenUpdate` Pydantic models (`app/api/routers/tokens.py`).
+- `local_port` in all token list SQL queries (own + shared team tokens) and create/update endpoints.
+- **Port column** in the Manage Tokens table — shows each token's local service port (between Subdomain and API Key columns).
+- Configure Tunnel page now reads the token's `local_port` from the DB (via API) instead of only from browser `localStorage`.
+- Token Guide now reads `local_port` from the token object (DB) and saves port changes via `PUT /tokens/{id}` API call (persists to DB).
+- Test evidence: `Doc/tests/v2.8.2/output.txt`.
+
+### Changed
+- `ManageTokens.jsx`: token creation now sends `local_port` in the POST payload (saved to DB) instead of only `localStorage`.
+- `ManageTokens.jsx` `TokenGuide`: `savePort()` now calls `api('/tokens/{id}', 'PUT', { local_port })` to persist to DB.
+- `ConfigureTunnel.jsx`: local address field uses `selToken.local_port` (from API) as primary source, localStorage as fallback.
+- `ConfigureTunnel.jsx`: multiport addresses use `selToken.local_port` as the default for the token's own address.
+- Backfilled all existing tokens: `apimarketing=8036`, `marketing=3002`, all others `8080`.
+
+### Removed
+- none (localStorage fallback kept for backward compatibility)
+
+## v2.8.1 — 2026-09-14 — Fix: Pro users blocked from domains + DNS multi-IP detection
+
+### Added
+- DNS multi-IP detection in `ssl_manager.py` `verify_domain_dns()`: when a domain resolves to our server IP AND extra IPs (other A/AAAA records), returns `status: error` with an actionable message telling the user to remove the extra records. This prevents the cryptic "Certbot SSL issuance failed: Some challenges have failed" error that users see when Let's Encrypt hits the wrong IP.
+- Test evidence: `Doc/tests/v2.8.1/output.txt` — verifies free user still gets 402, pro user passes plan check, zettalgor.com gets multi-IP warning, webifly.callingagents.in passes clean.
+
+### Changed
+- `app/api/routers/domains.py` line 116: added plan check `if (user.get("plan") or "free") != "pro":` before calling `_enforce_free_domain_limit` in `verify_and_save_domain()`. Previously the free-domain limit was enforced unconditionally for ALL users — Pro users with 20 seats got "Free plan allows only 1 custom domain" when adding a 2nd root domain via the Domains page.
+- `app/core/ssl_manager.py` `verify_domain_dns()`: now detects when a domain has A/AAAA records pointing to multiple servers (our IP + others). Returns error status with specific IP list and instructions to remove extra records, instead of returning "ok" and letting certbot fail with a cryptic message. Also deduplicates resolved IPs (getaddrinfo returns multiple entries per IP).
+
+### Removed
+- none
+
+## v2.8.0 — 2026-09-14 — HTTPS/SSL for fleet subdomains + origin server 443
+
+### Added
+- **nginx 443 SSL listener** (`/etc/nginx/sites-available/pinggy.ssl.conf` → symlinked to sites-enabled): three server blocks — (1) `iraglobaltech.com` 443 using existing LE cert (main app HTTPS direct, not just via Cloudflare proxy), (2) `webifly.callingagents.in` 443 using new LE cert (first fleet sub), (3) `_` default 443 using self-signed `*.callingagents.in` wildcard (fallback so port 443 answers for all subs before per-sub LE certs are obtained).
+- **Self-signed wildcard cert** for `*.callingagents.in` at `/etc/letsencrypt/live/callingagents.in/` — temporary fallback cert so 443 never refuses while per-sub LE certs are being provisioned.
+- **Let's Encrypt cert for `webifly.callingagents.in`** via HTTP-01 webroot challenge (cert valid until 2026-12-13).
+- **Certbot nginx reload deploy hook** at `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh` — auto-reloads nginx after cert renewal (zero downtime). Certbot timer was already enabled; dry-run renewal passes.
+- **`scripts/create_cf_dns_records.sh`** — takes a Cloudflare API token, creates A records for all 33 fleet subdomains → 13.140.131.204 (DNS-only, not proxied) via CF API. Skips existing records.
+- **`scripts/provision_fleet_ssl.sh`** — checks DNS for each sub, requests LE cert via HTTP-01 if DNS resolves, generates per-subdomain nginx 443 config, reloads nginx. Idempotent — safe to re-run after adding DNS records.
+- **`nginx/pinggy.ssl.conf`** — project-tracked copy of the deployed SSL config for version control.
+- Test evidence: `Doc/tests/v2.6.0/output.txt` — full HTTPS verification (port 443 open, SSL certs, HTTP→HTTPS redirects, certbot renewal, fleet token inventory, DNS status).
+
+### Changed
+- nginx now listens on both port 80 (existing: ACME challenge + HTTP→HTTPS redirect) and port 443 (new: SSL termination → FastAPI proxy). Previously nginx only listened on port 80 — 443 was completely closed, causing "Connection refused" for all HTTPS requests to fleet subdomains.
+- The handoff doc (`Doc/problem/fleet-33-subdomains-handoff.md`) described the blocker as "IRAGT 443 refused" — root cause was that this server IS the IRAGT origin (13.140.131.204) and nginx had no 443 listener at all. Now fixed.
+
+### Removed
+- none (no files deleted; the unused template configs `pinggy.conf`, `pinggy.invitechsg.conf`, `pinggy.iraglobaltech.conf` in `nginx/` were left in place — they are not deployed)
+
+### Remaining steps for full fleet HTTPS (user action required)
+1. **Create Cloudflare DNS A records** for all 32 subs without DNS (only `webifly` has one today):
+   `bash /opt/pinggy/scripts/create_cf_dns_records.sh <CF_API_TOKEN>`
+   (Token needs Zone:DNS:Edit for callingagents.in. Or add manually in CF dashboard: A record, name=sub, content=13.140.131.204, proxy=DNS-only)
+2. **Wait for DNS propagation** (1–5 min), then run:
+   `bash /opt/pinggy/scripts/provision_fleet_ssl.sh`
+   (This gets LE certs for each sub and adds per-sub nginx 443 blocks)
+3. **Reconnect Mac tunnel loops** — all 33 tokens show `active_tunnels: 0`. The Mac's `~/ca-fleet/` SSH tunnel loops must be running for apps to be reachable.
+
 ## v2.5.0 — 2026-09-08 — Subdomain verify-before-create on Manage Tokens
 
 ### Added

@@ -6,14 +6,14 @@ The live production deployment uses **systemd** on a bare metal server.
 |--------|-------|
 | **Server IP** | `13.140.131.204` |
 | **Domain** | `iraglobaltech.com` (Cloudflare proxied) |
-| **Project path** | `/opt/pinggy` |
-| **Deployment method** | Systemd service (`pinggy.service`) |
-| **Service file** | `/etc/systemd/system/pinggy.service` |
-| **Process** | `/opt/pinggy/.venv/bin/python /opt/pinggy/run.py` |
-| **Python env** | `/opt/pinggy/.venv/` (virtualenv) |
-| **Config** | `/opt/pinggy/.env` (EnvironmentFile) |
+| **Project path** | `/opt/iragt` |
+| **Deployment method** | Systemd service (`iragt.service`) |
+| **Service file** | `/etc/systemd/system/iragt.service` |
+| **Process** | `/opt/iragt/.venv/bin/python /opt/iragt/run.py` |
+| **Python env** | `/opt/iragt/.venv/` (virtualenv) |
+| **Config** | `/opt/iragt/.env` (EnvironmentFile) |
 | **Auto-restart** | `Restart=always`, `RestartSec=5` |
-| **Logs** | `journalctl -u pinggy` |
+| **Logs** | `journalctl -u iragt` |
 
 ### Ports
 

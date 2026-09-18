@@ -1,0 +1,13 @@
+=== Test DNS verify for zettalgor.com (should now warn about extra IPs) ===
+Login as support@iraglobaltech.com failed, trying admin...
+JWT length: 255
+
+=== verify-dns for zettalgor.com ===
+status: error
+message: ⚠️ zettalgor.com has DNS records pointing to multiple IPs: 13.140.131.204 (our server) AND 2600:3c15::f03c:95ff:feb3:a643, 2600:3c15::f03c:95ff:feb3:a643, 2600:3c15::f03c:95ff:feb3:a643, 172.236.129.88, 172.236.129.88, 172.236.129.88. Let's Encrypt will fail if it hits the wrong IP. Remove all A/AAAA records for zettalgor.com except the one pointing to 13.140.131.204.
+dns_resolves: True
+pointed_ip: 2600:3c15::f03c:95ff:feb3:a643
+
+=== verify-dns for webifly.callingagents.in (should be OK — single IP) ===
+status: ok
+message: ✅ webifly.callingagents.in is verified and reaching this server

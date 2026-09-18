@@ -4,6 +4,7 @@ import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
 import { copyToClipboard, formatBytes } from '../../utils';
 import { useTableData, SearchBar, Pagination } from '../../components/TableControls';
+import MultiportActivationModal from '../../components/MultiportActivationModal';
 
 const COMMON_SECOND_LEVEL_SUFFIXES = new Set(['ac', 'co', 'com', 'edu', 'gov', 'net', 'org']);
 
@@ -31,6 +32,7 @@ export default function ManageTokens() {
   const [verifyResult, setVerifyResult] = useState(null);
   const [apiKeys, setApiKeys] = useState([]);
   const [apiKeyFilter, setApiKeyFilter] = useState('');
+  const [multiportPrompt, setMultiportPrompt] = useState(null); // { domain, token, port }
 
   const load = useCallback(async () => {
     try {
@@ -84,22 +86,63 @@ export default function ManageTokens() {
       const payload = { name };
       if (d) payload.custom_domain = sub ? `${sub}.${d}` : d;
       else if (sub) payload.fixed_subdomain = sub;
+      if (createPort) payload.local_port = parseInt(createPort);
       const result = await api('/tokens', 'POST', payload);
       const address = d ? (sub ? `${sub}.${d}` : d) : (sub ? `${sub}.iraglobaltech.com` : '');
-      // Save port to localStorage for this token (used by Connection Guide and Configure Tunnel)
-      if (createPort && result.id) {
-        localStorage.setItem(`token-port-${result.id}`, String(createPort));
-      }
       toast('Token created: ' + result.token + (address ? ` · address: ${address}` : ''));
       setCreateOpen(false);
       setVerifyResult(null);
+      const initialPort = createPort ? createPort.toString() : '8080';
       setCreatePort('');
       load();
+
+      // Open Multi-Port Activation Prompt
+      if (address) {
+        setMultiportPrompt({
+          domain: address,
+          token: result.token,
+          port: initialPort,
+        });
+      }
     } catch (e) {
       if (e.message.toLowerCase().includes('free plan') || e.message.toLowerCase().includes('upgrade')) {
         toast('Free plan allows only 1 tunnel. Upgrade to Pro for more.', 'error');
       } else { toast(e.message, 'error'); }
     }
+  };
+
+  const enableInMultiport = async (chosenPort) => {
+    if (!multiportPrompt) return;
+    const { domain, token, port } = multiportPrompt;
+    const finalPort = (chosenPort || port || '8080').toString().trim();
+    try {
+      let existing = { multi_port_enabled: true, ports: {} };
+      if (token) {
+        try {
+          existing = await api(`/configs/multiport/${encodeURIComponent(token)}`);
+        } catch {}
+      }
+      const updatedPorts = { ...(existing.ports || {}) };
+      updatedPorts[domain] = { enabled: true, port: finalPort };
+
+      await api('/configs/multiport', 'PUT', {
+        token: token || domain,
+        multi_port_enabled: true,
+        ports: updatedPorts,
+      });
+
+      toast(`🚀 ${domain} enabled in Multi-Port tunnel on port :${finalPort}!`);
+    } catch (e) {
+      toast(`Token created, but could not set Multi-Port: ${e.message}`, 'error');
+    } finally {
+      setMultiportPrompt(null);
+      load();
+    }
+  };
+
+  const skipMultiport = () => {
+    setMultiportPrompt(null);
+    load();
   };
 
   const openEdit = async (t) => {
@@ -271,7 +314,7 @@ export default function ManageTokens() {
             <table>
               <thead>
                 <tr>
-                  <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th><th>API Key</th><th>Requests</th><th>Data</th>
+                  <th>ID</th><th>Token</th><th>Name</th><th>Subdomain</th><th>Port</th><th>API Key</th><th>Requests</th><th>Data</th>
                   <th>Active</th><th>Created</th><th>Actions</th>
                 </tr>
               </thead>
@@ -312,6 +355,9 @@ export default function ManageTokens() {
                             {i === 0 && t.custom_domain ? ' 🌐' : ''}
                           </div>
                         )) : <span className="dim">—</span>}
+                      </td>
+                      <td className="code" style={{ fontSize: '.78rem' }}>
+                        {t.local_port ? <strong>{t.local_port}</strong> : <span className="dim">—</span>}
                       </td>
                       <td style={{ fontSize: '.75rem' }}>
                         {t.created_by_api_key && apiKeyMap[t.created_by_api_key] ? (
@@ -472,6 +518,16 @@ export default function ManageTokens() {
         </Modal>
       )}
 
+      {/* Multi-Port Activation Modal */}
+      {multiportPrompt && (
+        <MultiportActivationModal
+          domain={multiportPrompt.domain}
+          initialPort={multiportPrompt.port || '8080'}
+          onEnable={enableInMultiport}
+          onSkip={skipMultiport}
+        />
+      )}
+
     </>
   );
 }
@@ -486,18 +542,23 @@ function TokenGuide({ token: t, sshPort, onClose, toast }) {
   });
   const [autoReconnect, setAutoReconnect] = useState(false);
   const [port, setPort] = useState(() => {
-    // Restore saved port from localStorage for this token
+    // Read from token's local_port (DB), fall back to localStorage, then 8080
+    if (t.local_port) return t.local_port;
     const saved = localStorage.getItem(`token-port-${t.id}`);
     return saved ? parseInt(saved) : 8080;
   });
 
-  const savePort = (newPort) => {
+  const savePort = async (newPort) => {
     setPort(newPort);
+    // Persist to DB via API
+    try {
+      await api(`/tokens/${t.id}`, 'PUT', { local_port: newPort });
+    } catch { /* silent */ }
     if (newPort) localStorage.setItem(`token-port-${t.id}`, String(newPort));
   };
 
   const tunnelUrl = t.custom_domain ? `https://${t.custom_domain}` : `https://${t.subdomain}.iraglobaltech.com`;
-  const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${t.token}@ssh.iraglobaltech.com`;
+  const ssh = `ssh -p ${sshPort} -R0:127.0.0.1:${port} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${t.token}--${port}@ssh.iraglobaltech.com`;
   let cmd = ssh;
   if (autoReconnect) {
     cmd = os === 'windows'
@@ -559,8 +620,9 @@ function TokenGuide({ token: t, sshPort, onClose, toast }) {
           <div className="step-num">2</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '.875rem', fontWeight: 600, marginBottom: '.5rem' }}>Enter your local port</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', flexWrap: 'wrap' }}>
-              <input type="number" value={port} min="1" max="65535" onChange={(e) => savePort(parseInt(e.target.value) || 8080)} style={{ width: 100 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
+              <input type="number" value={port} min="1" max="65535" onChange={(e) => setPort(parseInt(e.target.value) || 8080)} style={{ width: 100 }} />
+              <button className="btn btn-sm" onClick={() => savePort(port)}>💾 Save</button>
               <span className="dim" style={{ fontSize: '.8rem' }}>The port your local service runs on (e.g. 8080, 3000, 8000). Saved for this token and reflected in Configure Tunnel.</span>
             </div>
           </div>

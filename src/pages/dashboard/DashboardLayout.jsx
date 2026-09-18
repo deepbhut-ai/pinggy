@@ -8,10 +8,10 @@ const NAV_ITEMS = [
   { sep: true },
   { to: 'configure', label: 'Configure Tunnel', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6z' },
   { to: 'domains', label: 'Domains', icon: 'M2 12h20M12 2a15.3 15.3 0 010 20 15.3 15.3 0 010-20z' },
+  { to: 'tokens', label: 'Manage Tokens', icon: 'M3 11h18v11H3zM7 11V7a5 5 0 0110 0v4' },
   { to: 'tunnels', label: 'Active Tunnels', icon: 'M22 12h-4l-3 9L9 3l-3 9H2' },
   { to: 'devices', label: 'Remote Devices', icon: 'M2 3h20v14H2zM8 21h8M12 17v4' },
   { to: 'inspector', label: 'Inspector', icon: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35' },
-  { to: 'tokens', label: 'Manage Tokens', icon: 'M3 11h18v11H3zM7 11V7a5 5 0 0110 0v4' },
   { to: 'apikeys', label: 'API Keys', icon: 'M16 18l6-6-6-6M8 6l-6 6 6 6' },
   { to: 'apidocs', label: 'API Docs', icon: 'M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z' },
   { to: 'usage', label: 'My Usage', icon: 'M18 20V10M12 20V4M6 20v-6' },
@@ -37,7 +37,10 @@ export default function DashboardLayout() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="topbar-brand">⚡ IRAGT</div>
+        <div className="topbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+          <img src="/logo.png" alt="IRAGT" style={{ height: '26px', width: 'auto', display: 'block' }} />
+          <span>IRAGT</span>
+        </div>
         <div className="topbar-user">
           <div className="avatar">{(user?.email || 'U')[0].toUpperCase()}</div>
           <span>{user?.email}</span>

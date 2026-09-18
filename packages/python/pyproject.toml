@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iragt"
+version = "1.0.3"
+authors = [
+  { name="IRA Global Tech", email="support@iraglobaltech.com" },
+]
+description = "IRAGT Tunnel CLI - Instant Localhost Multi-Port Tunneling"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+keywords = ["tunnel", "localhost", "multiport", "proxy", "webhook", "iragt"]
+
+[project.scripts]
+iragt = "iragt.cli:main"

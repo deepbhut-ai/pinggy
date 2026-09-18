@@ -27,4 +27,7 @@ Thumbs.db
 .DS_Store
 
 # Database backups (contain sensitive data — never commit)
-backups/backups/
+backups/*.sql
+backups/*.sql.gz
+backups/*.gz
+!backups/.gitkeep

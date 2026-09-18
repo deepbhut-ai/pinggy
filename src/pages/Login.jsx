@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { postPublic } from '../api/client';
@@ -22,6 +22,83 @@ export default function Login() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Background particles + ripple animation (matches landing page)
+  const bgRef = useRef(null);
+  useEffect(() => {
+    const bg = bgRef.current;
+    if (!bg) return;
+    // Resize to cover full scroll height
+    const resize = () => { bg.style.minHeight = Math.max(window.innerHeight, document.documentElement.scrollHeight) + 'px'; };
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Spawn floating particles
+    for (let i = 0; i < 18; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 8 + 4;
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.animationDuration = (Math.random() * 10 + 12) + 's';
+      p.style.animationDelay = (Math.random() * 15) + 's';
+      p.style.opacity = Math.random() * .4 + .3;
+      bg.appendChild(p);
+    }
+
+    // Ripple on pointer down / move
+    const spawnRipple = (x, y, withRing) => {
+      const ripple = document.createElement('div');
+      ripple.className = 'ripple';
+      ripple.style.position = 'fixed';
+      const sz = Math.max(window.innerWidth, window.innerHeight) * .18;
+      ripple.style.width = sz + 'px';
+      ripple.style.height = sz + 'px';
+      ripple.style.left = (x - sz / 2) + 'px';
+      ripple.style.top = (y - sz / 2) + 'px';
+      document.body.appendChild(ripple);
+      if (withRing) {
+        const ring = document.createElement('div');
+        ring.className = 'ripple-ring';
+        ring.style.position = 'fixed';
+        ring.style.width = sz + 'px';
+        ring.style.height = sz + 'px';
+        ring.style.left = (x - sz / 2) + 'px';
+        ring.style.top = (y - sz / 2) + 'px';
+        document.body.appendChild(ring);
+        setTimeout(() => ring.remove(), 1600);
+      }
+      setTimeout(() => ripple.remove(), 1600);
+    };
+
+    const onDown = (e) => {
+      if (e.target && e.target.closest && e.target.closest('input, button, a, textarea, select, .auth-card, label')) return;
+      spawnRipple(e.clientX, e.clientY + window.scrollY, true);
+    };
+    let last = 0;
+    const onMove = (e) => {
+      const now = Date.now();
+      if (now - last < 120) return;
+      if (e.target && e.target.closest && e.target.closest('input, button, a, textarea, select, .auth-card, label')) return;
+      last = now;
+      spawnRipple(e.clientX, e.clientY + window.scrollY, false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('pointermove', onMove);
+
+    // Auto ripples every 2.8s
+    const interval = setInterval(() => {
+      spawnRipple(Math.random() * window.innerWidth, window.scrollY + Math.random() * window.innerHeight, true);
+    }, 2800);
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('pointermove', onMove);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Admins land on the React admin panel (inside the SPA — client-side navigate);
   // regular users go to their dashboard.
@@ -129,8 +206,17 @@ export default function Login() {
 
   return (
     <div className="auth-page">
+      <div className="auth-bg" ref={bgRef} aria-hidden="true">
+        <div className="blob"></div>
+        <div className="blob"></div>
+        <div className="blob"></div>
+        <div className="wave-overlay"></div>
+      </div>
       <div className="auth-card">
-        <div className="logo">⚡ IRAGT</div>
+        <div className="logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '.6rem', marginBottom: '.5rem' }}>
+          <img src="/logo.png" alt="IRAGT" style={{ height: '36px', width: 'auto', display: 'block' }} />
+          <span>IRAGT</span>
+        </div>
         <div className="subtitle">Secure tunnels to localhost</div>
 
         {resetToken ? (

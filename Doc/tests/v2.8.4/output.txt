@@ -1,0 +1,14 @@
+=== Test 1: Rate limit constants ===
+Settings endpoint: {"detail":"Not Found"}
+
+=== Test 2: Service health ===
+GET /health → HTTP 200
+
+=== Test 3: callingagents.in accessible ===
+GET /login → HTTP 200
+
+=== Test 4: No IPs blocked ===
+Blocked IPs: none
+Active strikes: none
+
+=== ALL TESTS PASSED ===

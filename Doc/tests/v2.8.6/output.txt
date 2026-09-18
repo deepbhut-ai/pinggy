@@ -1,0 +1,7 @@
+✅ Test 1: Subdomain-only token (unlimited) → HTTP 200
+✅ Test 2: Second root domain (seat limit → 402) → HTTP 402
+✅ Test 3: Subdomain under owned root (unlimited) → HTTP 200
+✅ Test 4: Plain token (unlimited) → HTTP 200
+✅ Test 5: Duplicate domain (→ 409) → HTTP 409
+
+ALL PASSED

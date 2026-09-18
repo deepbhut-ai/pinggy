@@ -1,0 +1,32 @@
+# systemd service file for IRAGT
+# Install: sudo cp deploy/iragt.service /etc/systemd/system/iragt.service
+#          sudo chmod +x /opt/iragt/scripts/health_check.sh
+#          sudo systemctl daemon-reload
+#          sudo systemctl enable iragt
+#          sudo systemctl start iragt
+#
+# v2.8.7: Added health check + auto-restart enhancements.
+#         Restart=always + RestartSec=5 already handles crashes.
+#         scripts/health_check.sh can be run via cron for active monitoring.
+#         For watchdog mode, install sd_notify support (see scripts/health_check.sh).
+
+[Unit]
+Description=IRAGT Tunnel Service
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/iragt
+EnvironmentFile=/opt/iragt/.env
+ExecStart=/opt/iragt/.venv/bin/python /opt/iragt/run.py
+Restart=always
+RestartSec=5
+StartLimitInterval=300
+StartLimitBurst=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

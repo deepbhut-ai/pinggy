@@ -40,6 +40,27 @@ async def list_users(
     return [UserOut(id=str(r[0]), email=r[1], full_name=r[2], role=r[3], tunnel_token=r[4], custom_domain=r[5], plan=r[6], seats=int(r[7] or 1), plan_expires_at=r[8].isoformat() if r[8] else None, is_active=r[9]) for r in rows]
 
 
+@router.get("/me", response_model=UserOut)
+async def get_my_profile(
+    user: dict = Depends(get_api_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Return the current authenticated user's own profile (any logged-in user).
+
+    Added in v2.9.1 — without this, GET /users/me was shadowed by the /{user_id}
+    route (user_id="me") and crashed with HTTP 500 trying to query WHERE id='me'.
+    """
+    cur = await db.execute(
+        "SELECT id, email, full_name, role, tunnel_token, custom_domain, plan, seats, plan_expires_at, is_active FROM users WHERE id = %s",
+        (user["id"],),
+    )
+    row = await cur.fetchone()
+    await cur.close()
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6], seats=int(row[7] or 1), plan_expires_at=row[8].isoformat() if row[8] else None, is_active=row[9])
+
+
 @router.get("/{user_id}", response_model=UserOut)
 async def get_user(
     user_id: str,

@@ -1,0 +1,60 @@
+astrology → 502
+socialvibe → 502
+eclassify → 502
+infixlms → 502
+yoori1 → 502
+infyhms → 502
+rith → 502
+acelle → 502
+teleman → 502
+magicai → 502
+erpgo → 502
+cloudoffice → 502
+infycare → 502
+maildoll → 200
+stackposts → 502
+jobpilot → 502
+phprank → 502
+instikit → 502
+bedrive → 502
+zillapage → 502
+phpanalytics → 502
+yoori2 → 502
+activeecom → 502
+whatsmark → 502
+larabuilder → 502
+xerochat → 502
+unimatrix → 502
+wowonder → 502
+quickdate1 → 502
+quickdate2 → 200
+architect → 502
+porto → 502
+webifly → 502
+erp → 302
+website → 200
+marketing → 200
+single → 200
+ws → 404
+aivobiz → 404
+apimarketing → 200
+apiserverira → 404
+zetta → 400
+zettaapi → 400
+=== Race condition fix verification ===
+Detected forwarded ports: 905
+Could not detect (failures): 2
+Live tunnels in memory: 107
+Listening tunnel ports: 32
+Active DB tunnels: 112
+Nginx configs for callingagents.in: 44
+=== Old subdomains (working) ===
+erp → 302 (app redirect)
+website → 200 (app responds)
+marketing → 200 (app responds)
+=== New subdomains with live tunnels ===
+maildoll → 200 (tunnel connected)
+quickdate2 → 200 (tunnel connected)
+=== Remaining 502s: SSH clients on Mac need to reconnect with valid tokens ===
+The user's start_cc.py watchdog is using stale token 2582a5df for 33 new subdomains.
+It needs to be restarted with the current tokens from the DB.

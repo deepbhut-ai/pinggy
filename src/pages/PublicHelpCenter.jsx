@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api/client';
 import { useToast } from '../components/Toast';
-import { Link } from 'react-router-dom';
+import PublicLayout from '../components/PublicLayout';
 
 export default function PublicHelpCenter() {
   const toast = useToast();
@@ -12,7 +12,6 @@ export default function PublicHelpCenter() {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -81,49 +80,7 @@ export default function PublicHelpCenter() {
   ];
 
   return (
-    <div className="public-help-page">
-      {/* ─── PUBLIC NAVBAR ─── */}
-      <nav className="public-nav">
-        <div className="public-nav-brand">
-          <a href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.4rem' }}>⚡</span>
-            <span style={{ fontWeight: 900, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>IRAGT</span>
-          </a>
-        </div>
-
-        <ul className="public-nav-links">
-          <li><a href="/#features">Features</a></li>
-          <li><a href="/#how">How It Works</a></li>
-        </ul>
-
-        <div className="public-nav-actions">
-          <Link to="/login" className="btn">Get Started</Link>
-        </div>
-
-        <button
-          className={`public-hamburger ${mobileMenuOpen ? 'open' : ''}`}
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle navigation menu"
-        >
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
-      </nav>
-
-      {/* ─── MOBILE DRAWER ─── */}
-      {mobileMenuOpen && (
-        <div className="public-mobile-drawer">
-          <ul className="public-mobile-links">
-            <li><a href="/#features" onClick={() => setMobileMenuOpen(false)}>Features</a></li>
-            <li><a href="/#how" onClick={() => setMobileMenuOpen(false)}>How It Works</a></li>
-          </ul>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem', marginTop: '1.5rem' }}>
-            <Link to="/login" className="btn" style={{ textAlign: 'center' }}>Get Started</Link>
-          </div>
-        </div>
-      )}
-
+    <PublicLayout>
       {/* ─── HERO SECTION ─── */}
       <section className="help-hero">
         <h1>
@@ -238,11 +195,6 @@ export default function PublicHelpCenter() {
           </div>
         </div>
       </section>
-
-      {/* ─── LANDING-PAGE FOOTER ─── */}
-      <footer className="public-footer">
-        <p>Powered by SSH &amp; Cloudflare · <a href="/docs">API Docs</a> · <a href="/">IRAGT Home</a></p>
-      </footer>
-    </div>
+    </PublicLayout>
   );
 }

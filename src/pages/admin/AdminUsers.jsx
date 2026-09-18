@@ -130,8 +130,8 @@ export default function AdminUsers() {
       // Open new window with the token stored, logging in as that user
       const w = window.open('/login', '_blank');
       if (w) {
-        w.sessionStorage.setItem('pinggy_token', r.access_token);
-        w.sessionStorage.setItem('pinggy_impersonate', '1');
+        w.sessionStorage.setItem('iragt_token', r.access_token);
+        w.sessionStorage.setItem('iragt_impersonate', '1');
         w.location.href = '/dashboard';
         toast(`Opened dashboard as ${u.email}`);
       } else {
