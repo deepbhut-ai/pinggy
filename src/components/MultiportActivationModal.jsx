@@ -39,9 +39,9 @@ export default function MultiportActivationModal({
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(15, 23, 42, 0.7)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
+        background: 'rgba(15, 23, 42, 0.72)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -55,25 +55,25 @@ export default function MultiportActivationModal({
         style={{
           background: 'var(--surface, #ffffff)',
           color: 'var(--text, #1a1a2e)',
-          borderRadius: '20px',
-          maxWidth: '520px',
+          borderRadius: '22px',
+          maxWidth: '540px',
           width: '100%',
           padding: '2.2rem',
-          boxShadow: '0 30px 70px -12px rgba(74, 85, 162, 0.35), 0 0 0 1px rgba(74, 85, 162, 0.15)',
+          boxShadow: '0 32px 80px -16px rgba(74, 85, 162, 0.35), 0 0 0 1px rgba(74, 85, 162, 0.15)',
           position: 'relative',
           overflow: 'hidden',
-          animation: 'mpSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+          animation: 'mpSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Gradient Highlight Bar */}
+        {/* Top Accent Gradient Line */}
         <div
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
-            height: '5px',
+            height: '4px',
             background: 'linear-gradient(90deg, #4a55a2 0%, #2a9d8f 50%, #6366f1 100%)',
           }}
         />
@@ -85,8 +85,8 @@ export default function MultiportActivationModal({
           title="Close (Esc)"
           style={{
             position: 'absolute',
-            top: '1.1rem',
-            right: '1.1rem',
+            top: '1.2rem',
+            right: '1.2rem',
             width: '32px',
             height: '32px',
             borderRadius: '50%',
@@ -97,38 +97,44 @@ export default function MultiportActivationModal({
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            fontSize: '1rem',
+            fontSize: '.95rem',
             lineHeight: 1,
-            transition: 'background .15s, transform .15s',
+            transition: 'all .15s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2, #e8eaf6)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--surface-1, #f4f5fb)')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--surface-2, #e8eaf6)';
+            e.currentTarget.style.transform = 'scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--surface-1, #f4f5fb)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
         >
           ✕
         </button>
 
         {/* Header Section */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.4rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.35rem' }}>
           <div
             style={{
-              width: '50px',
-              height: '50px',
+              width: '48px',
+              height: '48px',
               borderRadius: '14px',
-              background: 'linear-gradient(135deg, rgba(74,85,162,0.15) 0%, rgba(42,157,143,0.2) 100%)',
+              background: 'linear-gradient(135deg, rgba(74,85,162,0.14) 0%, rgba(42,157,143,0.18) 100%)',
               color: 'var(--brand, #4a55a2)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1.6rem',
+              fontSize: '1.55rem',
               flexShrink: 0,
-              boxShadow: '0 6px 16px rgba(74,85,162,0.15)',
-              border: '1px solid rgba(74,85,162,0.15)',
+              boxShadow: '0 4px 14px rgba(74,85,162,0.14)',
+              border: '1px solid rgba(74,85,162,0.12)',
             }}
           >
             🚀
           </div>
-          <div style={{ flex: 1, paddingRight: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
+          <div style={{ flex: 1, paddingRight: '1.8rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap', marginBottom: '.25rem' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text, #1a1a2e)', margin: 0, letterSpacing: '-0.3px' }}>
                 Enable in Multi-Port Tunnel?
               </h3>
@@ -148,7 +154,7 @@ export default function MultiportActivationModal({
                 ⚡ Live Auto-Sync
               </span>
             </div>
-            <p style={{ fontSize: '.88rem', color: 'var(--text-dim, #5a5d7a)', margin: 0, lineHeight: 1.45 }}>
+            <p style={{ fontSize: '.86rem', color: 'var(--text-dim, #5a5d7a)', margin: 0, lineHeight: 1.45 }}>
               🎉 <strong style={{ color: 'var(--text, #1a1a2e)' }}>{domain}</strong> is now registered & verified!
             </p>
           </div>
@@ -160,8 +166,8 @@ export default function MultiportActivationModal({
             background: 'linear-gradient(180deg, var(--surface-1, #f4f5fb) 0%, var(--surface-2, #e8eaf6) 100%)',
             borderRadius: '14px',
             border: '1px solid var(--border, rgba(74,85,162,0.15))',
-            padding: '1.1rem 1.25rem',
-            marginBottom: '1.4rem',
+            padding: '1rem 1.15rem',
+            marginBottom: '1.35rem',
             boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02)',
           }}
         >
@@ -185,48 +191,66 @@ export default function MultiportActivationModal({
             </span>
           </div>
 
+          {/* Clean 3-column horizontal route pipeline (Never wraps awkwardly) */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '.75rem',
-              flexWrap: 'wrap',
+              gap: '.55rem',
+              width: '100%',
             }}
           >
             {/* Domain Box */}
             <div
               style={{
-                flex: '1 1 auto',
-                minWidth: '160px',
+                flex: 1,
+                minWidth: 0,
                 background: 'var(--surface, #ffffff)',
                 border: '1px solid var(--border, rgba(74,85,162,0.15))',
                 borderRadius: '10px',
-                padding: '.55rem .85rem',
-                fontSize: '.85rem',
-                fontWeight: 600,
-                color: 'var(--brand, #4a55a2)',
+                padding: '.6rem .75rem',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '.5rem',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
-                wordBreak: 'break-all',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
               }}
             >
-              <span>🌐</span>
-              <span>https://{domain}</span>
+              <span style={{ fontSize: '1rem', flexShrink: 0 }}>🌐</span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: '.66rem', color: 'var(--text-muted, #8b8fa8)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '.3px' }}>
+                  Public URL
+                </div>
+                <div
+                  style={{
+                    fontSize: '.84rem',
+                    fontWeight: 700,
+                    color: 'var(--brand, #4a55a2)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={`https://${domain}`}
+                >
+                  https://{domain}
+                </div>
+              </div>
             </div>
 
-            {/* Pulsing Arrow */}
+            {/* Pulsing Arrow Indicator */}
             <div
               style={{
+                width: '30px',
+                height: '30px',
+                borderRadius: '50%',
+                background: 'rgba(42,157,143,0.12)',
+                color: 'var(--green, #2a9d8f)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--green, #2a9d8f)',
                 fontWeight: 900,
-                fontSize: '1.2rem',
+                fontSize: '1rem',
                 flexShrink: 0,
+                boxShadow: '0 2px 6px rgba(42,157,143,0.12)',
               }}
             >
               ➔
@@ -235,36 +259,38 @@ export default function MultiportActivationModal({
             {/* Localhost Box */}
             <div
               style={{
-                flex: '1 1 auto',
-                minWidth: '140px',
+                flex: '0 0 auto',
+                minWidth: '135px',
                 background: 'var(--surface, #ffffff)',
                 border: '1.5px solid rgba(42,157,143,0.35)',
                 borderRadius: '10px',
-                padding: '.55rem .85rem',
-                fontSize: '.85rem',
-                fontWeight: 700,
-                color: 'var(--text, #1a1a2e)',
+                padding: '.6rem .75rem',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '.5rem',
                 boxShadow: '0 2px 6px rgba(42,157,143,0.08)',
               }}
             >
-              <span>💻</span>
-              <span>
-                localhost:<span style={{ color: 'var(--green, #2a9d8f)', fontWeight: 800 }}>{port || '8080'}</span>
-              </span>
+              <span style={{ fontSize: '1rem', flexShrink: 0 }}>💻</span>
+              <div>
+                <div style={{ fontSize: '.66rem', color: 'var(--text-muted, #8b8fa8)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '.3px' }}>
+                  Target Port
+                </div>
+                <div style={{ fontSize: '.84rem', fontWeight: 800, color: 'var(--text, #1a1a2e)' }}>
+                  localhost:<span style={{ color: 'var(--green, #2a9d8f)', fontWeight: 800 }}>{port || '8080'}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Local Port Input & Presets */}
-        <div style={{ marginBottom: '1.6rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.45rem' }}>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.4rem' }}>
             <label style={{ fontSize: '.84rem', fontWeight: 700, color: 'var(--text, #1a1a2e)' }}>
               Forward to Local Port on your computer:
             </label>
-            <span style={{ fontSize: '.75rem', color: 'var(--text-muted, #8b8fa8)' }}>1 – 65535</span>
+            <span style={{ fontSize: '.74rem', color: 'var(--text-muted, #8b8fa8)' }}>1 – 65535</span>
           </div>
 
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -286,6 +312,7 @@ export default function MultiportActivationModal({
               value={port}
               onChange={(e) => setPort(e.target.value)}
               placeholder="8080"
+              className="mp-no-spinner"
               style={{
                 width: '100%',
                 paddingLeft: '1.75rem',
@@ -300,8 +327,14 @@ export default function MultiportActivationModal({
                 outline: 'none',
                 transition: 'border-color .15s, box-shadow .15s',
               }}
-              onFocus={(e) => (e.target.style.borderColor = 'var(--brand, #4a55a2)')}
-              onBlur={(e) => (e.target.style.borderColor = 'var(--border, rgba(74,85,162,0.22))')}
+              onFocus={(e) => {
+                e.target.style.borderColor = 'var(--brand, #4a55a2)';
+                e.target.style.boxShadow = '0 0 0 3px rgba(74,85,162,0.12)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = 'var(--border, rgba(74,85,162,0.22))';
+                e.target.style.boxShadow = 'none';
+              }}
               autoFocus
             />
           </div>
@@ -317,7 +350,7 @@ export default function MultiportActivationModal({
                 style={{
                   background: port === p ? 'var(--brand, #4a55a2)' : 'var(--surface-1, #f4f5fb)',
                   color: port === p ? '#ffffff' : 'var(--text-dim, #5a5d7a)',
-                  border: port === p ? '1px solid var(--brand, #4a55a2)' : '1px solid var(--border, rgba(74,85,162,0.12))',
+                  border: port === p ? '1px solid var(--brand, #4a55a2)' : '1px solid var(--border, rgba(74,85,162,0.14))',
                   borderRadius: '6px',
                   padding: '.2rem .55rem',
                   fontSize: '.75rem',
@@ -331,7 +364,7 @@ export default function MultiportActivationModal({
             ))}
           </div>
 
-          <p style={{ fontSize: '.78rem', color: 'var(--text-dim, #5a5d7a)', marginTop: '.6rem', lineHeight: 1.45, margin: '.6rem 0 0 0' }}>
+          <p style={{ fontSize: '.78rem', color: 'var(--text-dim, #5a5d7a)', marginTop: '.55rem', lineHeight: 1.45, margin: '.55rem 0 0 0' }}>
             💡 Requests to <code style={{ color: 'var(--brand, #4a55a2)', fontWeight: 600 }}>https://{domain}</code> will instantly route to this local port without interrupting your running tunnel.
           </p>
         </div>
@@ -409,11 +442,19 @@ export default function MultiportActivationModal({
           to { opacity: 1; }
         }
         @keyframes mpSlideUp {
-          from { opacity: 0; transform: translateY(16px) scale(0.97); }
+          from { opacity: 0; transform: translateY(14px) scale(0.98); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes mpSpin {
           to { transform: rotate(360deg); }
+        }
+        .mp-no-spinner::-webkit-inner-spin-button,
+        .mp-no-spinner::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .mp-no-spinner {
+          -moz-appearance: textfield;
         }
       `}</style>
     </div>
