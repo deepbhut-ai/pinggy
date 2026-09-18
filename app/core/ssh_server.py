@@ -78,19 +78,19 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
         for _ in range(20):
             if self._server._tunnel and not self._info_sent:
                 tunnel = self._server._tunnel
+                expected_count = len(self._server._port_map or [])
+                if expected_count > 1 and len(tunnel.endpoints) < expected_count:
+                    await asyncio.sleep(0.5)
+                    continue
                 # Use https:// when behind Cloudflare (port 80 = proxied by CF)
                 scheme = "https" if settings.PROXY_PORT == 80 else "http"
-                url = f"{scheme}://{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
-                custom_domain = self._server._custom_domain
-                custom_url = f"{scheme}://{custom_domain}" if custom_domain else ""
                 lines = [
                     "",
                     "  ╔══════════════════════════════════════════════════════╗",
                     "  ║  IRAGT tunnel — ACTIVE                                ║",
-                    f"  ║  URL:  {url:<46s}║",
                 ]
-                if custom_url:
-                    lines.append(f"  ║  Custom domain: {custom_url:<37s}║")
+                for line in self._server._active_route_lines(scheme):
+                    lines.append(f"  ║  {line:<50s}║")
                 lines += [
                     "  ╚══════════════════════════════════════════════════════╝",
                     "",
@@ -146,6 +146,28 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
             self._chan.close()
 
 
+class RejectionSession(asyncssh.SSHServerSession):
+    """SSH session that prints a clear rejection reason, then closes."""
+
+    def __init__(self, message: str, server: "MySSHServer"):
+        self._message = message
+        self._server = server
+        self._chan: asyncssh.SSHServerChannel | None = None
+
+    def connection_made(self, chan: asyncssh.SSHServerChannel) -> None:
+        self._chan = chan
+
+    def shell_requested(self) -> bool:
+        return True
+
+    def session_started(self) -> None:
+        if self._chan:
+            self._chan.write(self._message + "\n")
+            self._chan.close()
+        if self._server._conn:
+            self._server._conn.close()
+
+
 class MySSHServer(asyncssh.SSHServer):
     """SSH server that accepts reverse port forwards and creates tunnels."""
 
@@ -159,7 +181,12 @@ class MySSHServer(asyncssh.SSHServer):
         self._tunnel: TunnelSession | None = None
         self._timeout_task: asyncio.Task | None = None
         self._custom_domain: str = ""
+        self._custom_domains: list[str] = []
+        self._fixed_subdomain: str = ""
         self._auth_failed: bool = False
+        self._reject_message: str = ""
+        self._allowed_addresses: list[str] | None = None
+        self._expected_port_bindings: list[tuple[str, int]] = []
         self._info_session: TunnelInfoSession | None = None
         self._setup_lock: asyncio.Lock = asyncio.Lock()  # v1.9.0: serialize multi-listener setup
         self._port_map = None
@@ -175,6 +202,15 @@ class MySSHServer(asyncssh.SSHServer):
         logger.info("SSH connection lost from %s", self._peer)
         if self._tunnel:
             asyncio.create_task(self._cleanup_tunnel())
+
+    def _close_failed_auth(self) -> None:
+        """Close connections which failed token auth without prompting."""
+        if not self._conn:
+            return
+        try:
+            self._conn.close()
+        except Exception:
+            pass
 
     async def _cleanup_tunnel(self) -> None:
         if not self._tunnel:
@@ -224,6 +260,7 @@ class MySSHServer(asyncssh.SSHServer):
         if not token:
             logger.warning("SSH connection rejected: no token provided from %s", self._peer)
             self._auth_failed = True
+            asyncio.get_event_loop().call_soon(self._close_failed_auth)
             return False  # No password prompt — will be disconnected
 
         # Synchronous DB check — no password needed if token is valid
@@ -233,6 +270,8 @@ class MySSHServer(asyncssh.SSHServer):
         else:
             logger.warning("SSH auth rejected: invalid token '%s...' from %s", token[:8], self._peer)
             self._auth_failed = True
+            if not self._reject_message:
+                asyncio.get_event_loop().call_soon(self._close_failed_auth)
             return False  # No password prompt — will be disconnected
 
     def password_auth_supported(self) -> bool:
@@ -249,6 +288,8 @@ class MySSHServer(asyncssh.SSHServer):
         """Allow the client to open a session so we can send the tunnel URL
         back to their terminal (like pinggy.io does)."""
         if self._auth_failed:
+            if self._reject_message:
+                return RejectionSession(self._reject_message, self)
             return False  # Reject — invalid token
         self._info_session = TunnelInfoSession(self)
         return self._info_session
@@ -262,6 +303,8 @@ class MySSHServer(asyncssh.SSHServer):
         v1.9.0: multiple listeners map to the token's addresses in order
         (subdomain → primary → extras) when the username carried --port list."""
         if self._auth_failed:
+            if self._reject_message:
+                asyncio.get_event_loop().call_later(0.5, self._close_failed_auth)
             return False  # Reject — invalid token
         logger.info("Port forward requested: %s:%d from %s", listen_host, listen_port, self._peer)
         # Schedule tunnel setup after asyncssh creates the listener
@@ -275,7 +318,6 @@ class MySSHServer(asyncssh.SSHServer):
         v1.9.0: username may be TOKEN--3000,8000,5173 (multi-port: one listener
         per address, in order subdomain → primary → extras). Pro only."""
         import psycopg
-        from app.core.config import settings
         self._port_map = None
         base_token = token
         if "--" in token:
@@ -285,97 +327,253 @@ class MySSHServer(asyncssh.SSHServer):
                 if not self._port_map:
                     self._port_map = None
             except ValueError:
-                return False  # malformed suffix
-        import psycopg
-        from app.core.config import settings
-        try:
-            conn = psycopg.connect(settings.async_dsn, autocommit=True)
-
-            # 1. Check tokens table (multi-token system — what the dashboard uses)
-            try:
-                cur = conn.execute(
-                    "SELECT t.user_email, t.custom_domain, u.is_active, u.plan "
-                    "FROM tokens t JOIN users u ON u.email = t.user_email "
-                    "WHERE t.token = %s",
-                    (base_token,),
+                self._set_reject_message(
+                    "❌ PORT MISMATCH ERROR\n"
+                    "The port suffix must be a comma-separated list of numbers."
                 )
+                return False  # malformed suffix
+        try:
+            with psycopg.connect(settings.async_dsn, autocommit=True) as conn:
+                # 1. Check tokens table (multi-token system — what the dashboard uses)
+                try:
+                    cur = conn.execute(
+                        "SELECT t.user_email, t.custom_domain, u.is_active, u.plan, t.fixed_subdomain "
+                        "FROM tokens t JOIN users u ON u.email = t.user_email "
+                        "WHERE t.token = %s",
+                        (base_token,),
+                    )
+                    row = cur.fetchone()
+                    cur.close()
+                    if row:
+                        if not row[2]:
+                            logger.warning("SSH auth rejected: account disabled (%s)", row[0])
+                            return False
+                        self._plan = row[3] or "free"
+                        if self._port_map and self._plan != "pro":
+                            logger.warning("SSH multi-port rejected: %s not Pro", row[0])
+                            return False
+                        self._username = row[0]
+                        self._custom_domain = row[1] or ""
+                        self._token = base_token
+                        self._fixed_subdomain = row[4] or ""
+                        # v1.4.0: load extra domains attached to this token
+                        self._custom_domains = []
+                        try:
+                            cur = conn.execute(
+                                "SELECT domain FROM token_domains WHERE token_id = "
+                                "(SELECT id FROM tokens WHERE token = %s)",
+                                (base_token,),
+                            )
+                            self._custom_domains = [r[0] for r in cur.fetchall()]
+                            cur.close()
+                        except Exception:
+                            pass  # table missing pre-migration — fine
+                        # v2.7.8: multiport — load ALL the user's tokens' custom domains
+                        # so one tunnel can serve every domain/subdomain on the account
+                        if self._port_map:
+                            for addr in self._load_cross_token_addresses_sync():
+                                if addr not in self._custom_domains and addr != self._custom_domain:
+                                    self._custom_domains.append(addr)
+                        if not self._validate_requested_ports_sync(conn):
+                            return False
+                        return True
+                except (psycopg.errors.UndefinedColumn, psycopg.errors.UndefinedTable):
+                    # Older schemas fall back to the legacy users.tunnel_token path.
+                    self._rollback_if_needed(conn)
+
+                # 2. Fallback: check users table (legacy single-token; no multi-port here)
+                if self._port_map:
+                    return False
+                try:
+                    cur = conn.execute(
+                        "SELECT email, custom_domain, is_active, plan FROM users WHERE tunnel_token = %s",
+                        (base_token,),
+                    )
+                except psycopg.errors.UndefinedColumn:
+                    self._rollback_if_needed(conn)
+                    cur = conn.execute(
+                        "SELECT email, custom_domain, TRUE, 'free' FROM users WHERE tunnel_token = %s",
+                        (base_token,),
+                    )
                 row = cur.fetchone()
                 cur.close()
                 if row:
                     if not row[2]:
-                        conn.close()
                         logger.warning("SSH auth rejected: account disabled (%s)", row[0])
-                        return False
-                    if self._port_map and (row[3] or "free") != "pro":
-                        conn.close()
-                        logger.warning("SSH multi-port rejected: %s not Pro", row[0])
                         return False
                     self._username = row[0]
                     self._custom_domain = row[1] or ""
+                    self._plan = row[3] or "free"
                     self._token = base_token
-                    # v1.4.0: load extra domains attached to this token
-                    self._custom_domains = []
-                    try:
-                        cur = conn.execute(
-                            "SELECT domain FROM token_domains WHERE token_id = "
-                            "(SELECT id FROM tokens WHERE token = %s)",
-                            (base_token,),
-                        )
-                        self._custom_domains = [r[0] for r in cur.fetchall()]
-                        cur.close()
-                    except Exception:
-                        pass  # table missing pre-migration — fine
-                    # v2.7.8: multiport — load ALL the user's tokens' custom domains
-                    # so one tunnel can serve every domain/subdomain on the account
-                    if self._port_map:
-                        try:
-                            cur = conn.execute(
-                                "SELECT custom_domain FROM tokens "
-                                "WHERE user_email = %s AND token != %s AND custom_domain IS NOT NULL",
-                                (self._username, base_token),
-                            )
-                            for r in cur.fetchall():
-                                if r[0] and r[0] not in self._custom_domains and r[0] != self._custom_domain:
-                                    self._custom_domains.append(r[0])
-                            cur.close()
-                        except Exception:
-                            pass
-                    conn.close()
                     return True
-            except psycopg.errors.UndefinedColumn:
-                pass  # is_active column doesn't exist yet — fall through
-            except psycopg.errors.UndefinedTable:
-                pass  # tokens table doesn't exist — fall through
-
-            # 2. Fallback: check users table (legacy single-token; no multi-port here)
-            if self._port_map:
-                conn.close()
                 return False
-            try:
-                cur = conn.execute(
-                    "SELECT email, custom_domain, is_active FROM users WHERE tunnel_token = %s",
-                    (base_token,),
-                )
-            except psycopg.errors.UndefinedColumn:
-                cur = conn.execute(
-                    "SELECT email, custom_domain, TRUE FROM users WHERE tunnel_token = %s",
-                    (base_token,),
-                )
-            row = cur.fetchone()
-            cur.close()
-            conn.close()
-            if row:
-                if not row[2]:
-                    logger.warning("SSH auth rejected: account disabled (%s)", row[0])
-                    return False
-                self._username = row[0]
-                self._custom_domain = row[1] or ""
-                self._token = token
-                return True
-            return False
         except Exception as e:
             logger.error("DB error verifying tunnel token: %s", e)
             return False
+
+    @staticmethod
+    def _rollback_if_needed(conn) -> None:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+    @staticmethod
+    def _normalize_address(address: str) -> str:
+        return str(address or "").strip().lower().removeprefix("http://").removeprefix("https://").split("/")[0].split(":")[0]
+
+    def _set_reject_message(self, message: str) -> None:
+        self._reject_message = message
+        self._auth_failed = True
+
+    def _validate_requested_ports_sync(self, conn) -> bool:
+        """Validate TOKEN--ports against the saved multi-port config."""
+        import json
+        self._allowed_addresses = None
+        self._expected_port_bindings = []
+        try:
+            cur = conn.execute(
+                "SELECT config FROM tunnel_configs WHERE user_email = %s AND name = %s",
+                (self._username, f"multiport:{self._token}"),
+            )
+            row = cur.fetchone()
+            cur.close()
+        except Exception:
+            return True
+        if not row:
+            return True
+        cfg = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+        if not cfg or cfg.get("multi_port_enabled") is False:
+            return True
+        ports_cfg = cfg.get("ports") or {}
+        bindings: list[tuple[str, int]] = []
+        for addr, entry in ports_cfg.items():
+            if not isinstance(entry, dict) or entry.get("enabled") is False:
+                continue
+            try:
+                port = int(str(entry.get("port") or "").strip())
+            except ValueError:
+                continue
+            if 1 <= port <= 65535:
+                normalized = self._normalize_address(addr)
+                if normalized:
+                    bindings.append((normalized, port))
+        self._expected_port_bindings = bindings
+        if not bindings:
+            return True
+        if not self._port_map:
+            expected = ", ".join(str(port) for _, port in bindings)
+            self._set_reject_message(
+                "❌ STRICT PORT CHECK: PORT REQUIRED\n"
+                f"This token has saved endpoint ports. Connect with: {self._token}--{expected}"
+            )
+            logger.warning("SSH strict port check rejected %s: port suffix required", self._username)
+            return False
+
+        expected_by_port = {port: addr for addr, port in bindings}
+        missing = [port for port in self._port_map if port not in expected_by_port]
+        if missing:
+            expected = ", ".join(str(port) for _, port in bindings)
+            got = ", ".join(str(port) for port in self._port_map)
+            self._set_reject_message(
+                "❌ PORT MISMATCH ERROR\n"
+                f"Requested port(s): {got}\n"
+                f"Allowed port(s): {expected}"
+            )
+            logger.warning("SSH port mismatch for %s: got %s expected %s", self._username, got, expected)
+            return False
+
+        self._allowed_addresses = [expected_by_port[port] for port in self._port_map]
+        return True
+
+    def _load_cross_token_addresses_sync(self) -> list[str]:
+        """Load custom domains on the user's other tokens."""
+        if not self._username:
+            return []
+        import psycopg
+        addresses: list[str] = []
+        with psycopg.connect(settings.async_dsn, autocommit=True) as conn:
+            cur = conn.execute(
+                "SELECT custom_domain FROM tokens "
+                "WHERE user_email = %s AND token != %s AND custom_domain IS NOT NULL",
+                (self._username, self._token),
+            )
+            addresses.extend(r[0] for r in cur.fetchall() if r[0])
+            cur.close()
+            try:
+                cur = conn.execute(
+                    "SELECT td.domain FROM token_domains td "
+                    "JOIN tokens t ON t.id = td.token_id "
+                    "WHERE t.user_email = %s AND t.token != %s",
+                    (self._username, self._token),
+                )
+                addresses.extend(r[0] for r in cur.fetchall() if r[0])
+                cur.close()
+            except Exception:
+                pass
+        return addresses
+
+    def _apply_allowed_addresses(self) -> None:
+        if not self._allowed_addresses:
+            return
+        allowed = {self._normalize_address(addr) for addr in self._allowed_addresses}
+        current_primary = self._normalize_address(self._custom_domain)
+        current_extras = [
+            domain for domain in self._custom_domains
+            if self._normalize_address(domain) in allowed
+        ]
+        if current_primary not in allowed:
+            selected_primary = next((addr for addr in self._allowed_addresses if addr in allowed), "")
+            self._custom_domain = selected_primary
+            current_extras = [
+                domain for domain in current_extras
+                if self._normalize_address(domain) != self._normalize_address(selected_primary)
+            ]
+        self._custom_domains = current_extras
+
+    def _active_route_lines(self, scheme: str) -> list[str]:
+        if not self._tunnel:
+            return []
+        if self._tunnel.endpoints:
+            lines = []
+            expected_ports = dict(self._expected_port_bindings)
+            for addr in self._tunnel.all_addresses():
+                if addr not in self._tunnel.endpoints:
+                    continue
+                local_port = (
+                    self._tunnel.local_ports.get(addr)
+                    or expected_ports.get(self._normalize_address(addr))
+                    or "?"
+                )
+                lines.append(f"{scheme}://{addr} -> :{local_port}")
+            for addr in sorted(self._tunnel.endpoints):
+                if any(addr == line_addr for line_addr in self._tunnel.all_addresses()):
+                    continue
+                local_port = self._tunnel.local_ports.get(addr, "?")
+                lines.append(f"{scheme}://{addr} -> :{local_port}")
+            return lines
+        url = f"{scheme}://{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"
+        lines = [f"URL: {url}"]
+        if self._custom_domain:
+            lines.append(f"Custom domain: {scheme}://{self._custom_domain}")
+        return lines
+
+    async def _load_cross_token_addresses(self) -> list[str]:
+        return await asyncio.to_thread(self._load_cross_token_addresses_sync)
+
+    async def _free_tunnel_timeout(self, tunnel_id: str) -> None:
+        timeout_minutes = max(0, int(settings.FREE_TUNNEL_TIMEOUT_MINUTES or 0))
+        if timeout_minutes <= 0:
+            return
+        try:
+            await asyncio.sleep(timeout_minutes * 60)
+            if self._tunnel and self._tunnel.tunnel_id == tunnel_id:
+                logger.info("Free tunnel %s timed out after %d minutes", tunnel_id, timeout_minutes)
+                if self._conn:
+                    self._conn.close()
+                await self._cleanup_tunnel()
+        except asyncio.CancelledError:
+            pass
 
     async def _detect_port_and_setup(self) -> None:
         """Wait for asyncssh to create the listener, then find the port
@@ -430,31 +628,9 @@ class MySSHServer(asyncssh.SSHServer):
                         bool(self._tunnel), ports, all_user_addresses, self._username, self._port_map)
             if multi and self._username and len(all_user_addresses) < len(ports):
                 try:
-                    import psycopg
-                    from app.core.config import settings
-                    conn2 = psycopg.connect(settings.async_dsn, autocommit=True)
-                    cur2 = conn2.execute(
-                        "SELECT custom_domain FROM tokens WHERE user_email = %s AND token != %s AND custom_domain IS NOT NULL",
-                        (self._username, self._token),
-                    )
-                    for r in cur2.fetchall():
-                        addr = r[0]
+                    for addr in await self._load_cross_token_addresses():
                         if addr and addr not in all_user_addresses:
                             all_user_addresses.append(addr)
-                    cur2.close()
-                    # Also fetch extra domains from token_domains for all user tokens
-                    cur2 = conn2.execute(
-                        "SELECT td.domain FROM token_domains td "
-                        "JOIN tokens t ON t.id = td.token_id "
-                        "WHERE t.user_email = %s AND t.token != %s",
-                        (self._username, self._token),
-                    )
-                    for r in cur2.fetchall():
-                        addr = r[0]
-                        if addr and addr not in all_user_addresses:
-                            all_user_addresses.append(addr)
-                    cur2.close()
-                    conn2.close()
                 except Exception as e:
                     logger.warning("Could not load cross-token addresses: %s", e)
 
@@ -462,13 +638,27 @@ class MySSHServer(asyncssh.SSHServer):
                 if not self._tunnel:
                     await self._setup_tunnel(port)
                     continue
-                if i < len(all_user_addresses):
-                    addr = all_user_addresses[i]
-                    self._tunnel.endpoints[addr] = port
-                    if i < len(self._port_map):
-                        self._tunnel.local_ports[addr] = self._port_map[i]
-                else:
+                all_user_addresses = list(self._tunnel.all_addresses())
+                bound_addresses = {
+                    self._normalize_address(addr)
+                    for addr in self._tunnel.endpoints
+                }
+                next_addr = next(
+                    (addr for addr in all_user_addresses if self._normalize_address(addr) not in bound_addresses),
+                    None,
+                )
+                if not next_addr:
                     logger.info("Extra listener %d ignored (no address left) for %s", port, self._peer)
+                    continue
+                self._tunnel.endpoints[next_addr] = port
+                expected_ports = dict(self._expected_port_bindings)
+                expected_port = expected_ports.get(self._normalize_address(next_addr))
+                if expected_port:
+                    self._tunnel.local_ports[next_addr] = expected_port
+                elif self._port_map:
+                    addr_index = all_user_addresses.index(next_addr)
+                    if addr_index < len(self._port_map):
+                        self._tunnel.local_ports[next_addr] = self._port_map[addr_index]
             if self._tunnel:
                 logger.info("Multi-port tunnel %s endpoints: %s (local %s)",
                             self._tunnel.subdomain, self._tunnel.endpoints, self._tunnel.local_ports)
@@ -500,6 +690,7 @@ class MySSHServer(asyncssh.SSHServer):
                     logger.debug("token lookup failed: %s", e)
             if not subdomain:
                 subdomain = _generate_subdomain()
+            self._apply_allowed_addresses()
 
             # Collision: regenerate only random subdomains. A FIXED subdomain that
             # is somehow already live means the same token reconnected while its
@@ -543,6 +734,10 @@ class MySSHServer(asyncssh.SSHServer):
                 token=self._token or "",
                 log_callback=self._info_session.write_log if self._info_session else None,
             )
+            if self._allowed_addresses and self._port_map:
+                first_addr = self._allowed_addresses[0]
+                self._tunnel.endpoints[first_addr] = remote_port
+                self._tunnel.local_ports[first_addr] = self._port_map[0]
 
             from app.core.db import get_conn
             async with get_conn() as db:
@@ -566,6 +761,9 @@ class MySSHServer(asyncssh.SSHServer):
 
             await register_tunnel(self._tunnel)
 
+            if (self._plan or "free") != "pro" and not self._timeout_task:
+                self._timeout_task = asyncio.create_task(self._free_tunnel_timeout(tunnel_id))
+
             # TCP mode (v1.0.0): open the public relay for this token's port
             if getattr(self, "_tunnel_mode", "http") == "tcp" and getattr(self, "_tcp_port", None):
                 from app.core.tcp_relay import start_relay
@@ -581,13 +779,8 @@ class MySSHServer(asyncssh.SSHServer):
             # Print to server console
             print(f"\n  ╔══════════════════════════════════════════════════════╗")
             print(f"  ║  tunnel — ACTIVE                                     ║")
-            print(f"  ║  URL:  {url:<46s}║")
-            if custom_url:
-                print(f"  ║  Custom domain: {custom_url:<37s}║")
-            # v1.9.0: per-address endpoints (multi-port)
-            for addr, rport in sorted(self._tunnel.endpoints.items()):
-                lp = self._tunnel.local_ports.get(addr, "?")
-                print(f"  ║  endpoint: {addr:<30s} → local :{lp:<8d}║")
+            for line in self._active_route_lines(scheme):
+                print(f"  ║  {line:<50s}║")
             print(f"  ╚══════════════════════════════════════════════════════╝\n")
 
         except Exception as e:
