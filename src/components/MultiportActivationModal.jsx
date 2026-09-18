@@ -56,7 +56,7 @@ export default function MultiportActivationModal({
           background: 'var(--surface, #ffffff)',
           color: 'var(--text, #1a1a2e)',
           borderRadius: '22px',
-          maxWidth: '540px',
+          maxWidth: '560px',
           width: '100%',
           padding: '2.2rem',
           boxShadow: '0 32px 80px -16px rgba(74, 85, 162, 0.35), 0 0 0 1px rgba(74, 85, 162, 0.15)',
@@ -160,13 +160,13 @@ export default function MultiportActivationModal({
           </div>
         </div>
 
-        {/* Live Visual Traffic Routing Card */}
+        {/* Live Visual Traffic Routing Pipeline Card */}
         <div
           style={{
             background: 'linear-gradient(180deg, var(--surface-1, #f4f5fb) 0%, var(--surface-2, #e8eaf6) 100%)',
-            borderRadius: '14px',
+            borderRadius: '16px',
             border: '1px solid var(--border, rgba(74,85,162,0.15))',
-            padding: '1rem 1.15rem',
+            padding: '1.1rem 1.25rem',
             marginBottom: '1.35rem',
             boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02)',
           }}
@@ -176,7 +176,7 @@ export default function MultiportActivationModal({
               fontSize: '.72rem',
               fontWeight: 700,
               color: 'var(--text-muted, #8b8fa8)',
-              marginBottom: '.65rem',
+              marginBottom: '.75rem',
               textTransform: 'uppercase',
               letterSpacing: '.6px',
               display: 'flex',
@@ -184,102 +184,135 @@ export default function MultiportActivationModal({
               justifyContent: 'space-between',
             }}
           >
-            <span>Live Traffic Routing Preview</span>
-            <span style={{ color: 'var(--green, #2a9d8f)', display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+            <span>Live Traffic Routing Pipeline</span>
+            <span style={{ color: 'var(--green, #2a9d8f)', display: 'inline-flex', alignItems: 'center', gap: '.3rem', fontSize: '.72rem', fontWeight: 700 }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--green, #2a9d8f)', display: 'inline-block' }} />
-              Zero-Restart
+              Zero-Restart Sync
             </span>
           </div>
 
-          {/* Clean 3-column horizontal route pipeline (Never wraps awkwardly) */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '.55rem',
-              width: '100%',
-            }}
-          >
-            {/* Domain Box */}
+          {/* Connected Pipeline Stack */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+            {/* Top Node: Public URL */}
             <div
               style={{
-                flex: 1,
-                minWidth: 0,
                 background: 'var(--surface, #ffffff)',
-                border: '1px solid var(--border, rgba(74,85,162,0.15))',
-                borderRadius: '10px',
-                padding: '.6rem .75rem',
+                border: '1.5px solid var(--border, rgba(74,85,162,0.18))',
+                borderRadius: '12px',
+                padding: '.75rem 1rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '.5rem',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
+                justifyContent: 'space-between',
+                gap: '.75rem',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
               }}
             >
-              <span style={{ fontSize: '1rem', flexShrink: 0 }}>🌐</span>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: '.66rem', color: 'var(--text-muted, #8b8fa8)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '.3px' }}>
-                  Public URL
-                </div>
-                <div
-                  style={{
-                    fontSize: '.84rem',
-                    fontWeight: 700,
-                    color: 'var(--brand, #4a55a2)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                  title={`https://${domain}`}
-                >
-                  https://{domain}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.65rem', minWidth: 0, flex: 1 }}>
+                <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>🌐</span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: '.68rem', color: 'var(--text-muted, #8b8fa8)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.4px' }}>
+                    Public Ingress Domain
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '.92rem',
+                      fontWeight: 700,
+                      color: 'var(--brand, #4a55a2)',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    https://{domain}
+                  </div>
                 </div>
               </div>
+              <span
+                style={{
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  fontSize: '.7rem',
+                  fontWeight: 700,
+                  padding: '.2rem .5rem',
+                  borderRadius: '6px',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                🔒 SSL Active
+              </span>
             </div>
 
-            {/* Pulsing Arrow Indicator */}
+            {/* Connecting Stream Line & Flow Indicator */}
             <div
               style={{
-                width: '30px',
-                height: '30px',
-                borderRadius: '50%',
-                background: 'rgba(42,157,143,0.12)',
-                color: 'var(--green, #2a9d8f)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontWeight: 900,
-                fontSize: '1rem',
-                flexShrink: 0,
-                boxShadow: '0 2px 6px rgba(42,157,143,0.12)',
+                padding: '.35rem 0',
+                position: 'relative',
               }}
             >
-              ➔
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '.4rem',
+                  background: 'var(--surface, #ffffff)',
+                  border: '1px solid rgba(42,157,143,0.3)',
+                  padding: '.15rem .65rem',
+                  borderRadius: '20px',
+                  fontSize: '.72rem',
+                  fontWeight: 700,
+                  color: 'var(--green, #2a9d8f)',
+                  boxShadow: '0 2px 6px rgba(42,157,143,0.1)',
+                  zIndex: 2,
+                }}
+              >
+                <span>⬇</span>
+                <span>Forwards traffic instantly to</span>
+              </div>
             </div>
 
-            {/* Localhost Box */}
+            {/* Bottom Node: Local Target */}
             <div
               style={{
-                flex: '0 0 auto',
-                minWidth: '135px',
                 background: 'var(--surface, #ffffff)',
-                border: '1.5px solid rgba(42,157,143,0.35)',
-                borderRadius: '10px',
-                padding: '.6rem .75rem',
+                border: '1.5px solid rgba(42,157,143,0.4)',
+                borderRadius: '12px',
+                padding: '.75rem 1rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '.5rem',
-                boxShadow: '0 2px 6px rgba(42,157,143,0.08)',
+                justifyContent: 'space-between',
+                gap: '.75rem',
+                boxShadow: '0 3px 8px rgba(42,157,143,0.1)',
               }}
             >
-              <span style={{ fontSize: '1rem', flexShrink: 0 }}>💻</span>
-              <div>
-                <div style={{ fontSize: '.66rem', color: 'var(--text-muted, #8b8fa8)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '.3px' }}>
-                  Target Port
-                </div>
-                <div style={{ fontSize: '.84rem', fontWeight: 800, color: 'var(--text, #1a1a2e)' }}>
-                  localhost:<span style={{ color: 'var(--green, #2a9d8f)', fontWeight: 800 }}>{port || '8080'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.65rem', minWidth: 0, flex: 1 }}>
+                <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>💻</span>
+                <div>
+                  <div style={{ fontSize: '.68rem', color: 'var(--text-muted, #8b8fa8)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.4px' }}>
+                    Local Machine Target
+                  </div>
+                  <div style={{ fontSize: '.95rem', fontWeight: 800, color: 'var(--text, #1a1a2e)' }}>
+                    localhost:<span style={{ color: 'var(--green, #2a9d8f)', fontWeight: 800 }}>{port || '8080'}</span>
+                  </div>
                 </div>
               </div>
+              <span
+                style={{
+                  background: 'rgba(74, 85, 162, 0.08)',
+                  color: 'var(--brand, #4a55a2)',
+                  border: '1px solid rgba(74, 85, 162, 0.2)',
+                  fontSize: '.7rem',
+                  fontWeight: 700,
+                  padding: '.2rem .5rem',
+                  borderRadius: '6px',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                Port :{port || '8080'}
+              </span>
             </div>
           </div>
         </div>
@@ -288,7 +321,7 @@ export default function MultiportActivationModal({
         <div style={{ marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.4rem' }}>
             <label style={{ fontSize: '.84rem', fontWeight: 700, color: 'var(--text, #1a1a2e)' }}>
-              Forward to Local Port on your computer:
+              Target Local Port on your computer:
             </label>
             <span style={{ fontSize: '.74rem', color: 'var(--text-muted, #8b8fa8)' }}>1 – 65535</span>
           </div>
@@ -365,7 +398,7 @@ export default function MultiportActivationModal({
           </div>
 
           <p style={{ fontSize: '.78rem', color: 'var(--text-dim, #5a5d7a)', marginTop: '.55rem', lineHeight: 1.45, margin: '.55rem 0 0 0' }}>
-            💡 Requests to <code style={{ color: 'var(--brand, #4a55a2)', fontWeight: 600 }}>https://{domain}</code> will instantly route to this local port without interrupting your running tunnel.
+            💡 Requests to <code style={{ color: 'var(--brand, #4a55a2)', fontWeight: 600 }}>https://{domain}</code> will instantly forward to this local port without restarting your tunnel session.
           </p>
         </div>
 
@@ -428,7 +461,7 @@ export default function MultiportActivationModal({
               </>
             ) : (
               <>
-                <span>✅</span>
+                <span>🚀</span>
                 <span>Yes, Enable in Multi-Port</span>
               </>
             )}
