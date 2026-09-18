@@ -428,6 +428,19 @@ class MySSHServer(asyncssh.SSHServer):
                                         configured_ports.add(int(info_v["port"]))
                                     except (ValueError, TypeError):
                                         pass
+                            if not self._port_map and mp_cfg.get("multi_port_enabled"):
+                                extracted_ports = []
+                                for addr_k, info_v in ports_dict.items():
+                                    if isinstance(info_v, dict) and "port" in info_v:
+                                        try:
+                                            extracted_ports.append(int(info_v["port"]))
+                                        except (ValueError, TypeError):
+                                            pass
+                                if extracted_ports:
+                                    self._port_map = extracted_ports
+                    except Exception as e:
+                        logger.debug("Failed to read saved multiport config: %s", e)
+
                     has_explicit_ports = bool(self._port_map)
 
                     # Strict mode check:
@@ -452,17 +465,6 @@ class MySSHServer(asyncssh.SSHServer):
                                 }
                                 logger.warning("SSH port mismatch: %s requested %s, expected %s",
                                                self._username, self._port_map, configured_ports)
-
-                    if not self._port_map and mp_cfg.get("multi_port_enabled"):
-                        extracted_ports = []
-                        for addr_k, info_v in ports_dict.items():
-                            if isinstance(info_v, dict) and "port" in info_v:
-                                try:
-                                    extracted_ports.append(int(info_v["port"]))
-                                except (ValueError, TypeError):
-                                    pass
-                        if extracted_ports:
-                            self._port_map = extracted_ports
 
                     # v2.7.8: multiport — load ALL the user's tokens' custom domains
                     # so one tunnel can serve every domain/subdomain on the account
