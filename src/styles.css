@@ -162,7 +162,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--brand); box-shad
 .nav-item:hover { background: var(--surface-1); color: var(--text); text-decoration: none; }
 .nav-item.active { background: var(--brand-light); color: var(--brand); }
 .nav-sep { height: 1px; background: var(--border); margin: .5rem .75rem; }
-.app-main { flex: 1; padding: 1.5rem; max-width: 1200px; min-width: 0; overflow-y: auto; }
+.app-main { flex: 1; padding: 1.5rem 2rem; width: 100%; min-width: 0; overflow-y: auto; }
 /* Hide scrollbar but keep scrolling */
 .app-main::-webkit-scrollbar { display: none; }
 .app-main { -ms-overflow-style: none; scrollbar-width: none; }
