@@ -189,7 +189,7 @@ export default function ConfigureTunnel() {
   const buildCmd = () => {
     if (!info || !tokenSel) return 'Create a token first in Manage Tokens →';
     if (cmdTab === 'cli') {
-      return `iragt connect ${tokenSel}\n\n# Or without installing anything:\nnpx iragt connect ${tokenSel}`;
+      return `iragt connect ${tokenSel}`;
     }
     if (cmdTab === 'curl') {
       return `curl -sSL https://iraglobaltech.com/run | bash -s ${tokenSel}`;
@@ -399,7 +399,81 @@ export default function ConfigureTunnel() {
             <button className={`tab ${cmdTab === 'docker' ? 'active' : ''}`} onClick={() => setCmdTab('docker')}>Docker</button>
           </div>
           <p className="dim" style={{ marginBottom: '.5rem' }}>{PLATFORM_HINTS[platform]}</p>
-          <div className="cmd-box"><pre>{buildCmd()}</pre></div>
+          {cmdTab === 'cli' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.85rem', marginBottom: '1rem' }}>
+              {/* Option 1: Global CLI */}
+              <div
+                style={{
+                  background: 'var(--surface-1, #f8faff)',
+                  border: '1px solid var(--border, rgba(74,85,162,0.15))',
+                  borderRadius: '12px',
+                  padding: '.85rem 1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '.45rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '.4rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '.45rem' }}>
+                    <span style={{ fontSize: '.95rem' }}>📦</span>
+                    <span style={{ fontWeight: 700, fontSize: '.86rem', color: 'var(--text)' }}>Option 1: Global CLI</span>
+                    <span className="badge" style={{ fontSize: '.68rem', padding: '.1rem .4rem' }}>Installed</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    style={{ fontSize: '.76rem', padding: '.25rem .65rem' }}
+                    onClick={() => { copyToClipboard(`iragt connect ${tokenSel}`); toast('iragt connect copied'); }}
+                  >
+                    📋 Copy
+                  </button>
+                </div>
+                <div className="cmd-box" style={{ margin: 0, padding: '.65rem .85rem' }}>
+                  <pre style={{ margin: 0, color: 'var(--brand)', fontWeight: 600 }}>{`iragt connect ${tokenSel}`}</pre>
+                </div>
+                <div className="dim" style={{ fontSize: '.74rem' }}>
+                  Run directly if you have iragt installed globally (<code>npm i -g iragt</code>).
+                </div>
+              </div>
+
+              {/* Option 2: NPX */}
+              <div
+                style={{
+                  background: 'var(--surface-1, #f8faff)',
+                  border: '1px solid var(--border, rgba(74,85,162,0.15))',
+                  borderRadius: '12px',
+                  padding: '.85rem 1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '.45rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '.4rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '.45rem' }}>
+                    <span style={{ fontSize: '.95rem' }}>⚡</span>
+                    <span style={{ fontWeight: 700, fontSize: '.86rem', color: 'var(--text)' }}>Option 2: Without installing anything (NPX)</span>
+                    <span className="badge" style={{ fontSize: '.68rem', padding: '.1rem .4rem', background: 'rgba(42,157,143,0.12)', color: 'var(--green)' }}>Zero-Install</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    style={{ fontSize: '.76rem', padding: '.25rem .65rem' }}
+                    onClick={() => { copyToClipboard(`npx iragt connect ${tokenSel}`); toast('npx iragt connect copied'); }}
+                  >
+                    📋 Copy
+                  </button>
+                </div>
+                <div className="cmd-box" style={{ margin: 0, padding: '.65rem .85rem' }}>
+                  <pre style={{ margin: 0, color: 'var(--brand)', fontWeight: 600 }}>{`npx iragt connect ${tokenSel}`}</pre>
+                </div>
+                <div className="dim" style={{ fontSize: '.74rem' }}>
+                  Runs instantly with Node.js without needing any global installation.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="cmd-box" style={{ marginBottom: '1rem' }}><pre>{buildCmd()}</pre></div>
+          )}
           <div className="tunnel-preview">
             <div style={{ flex: 1, minWidth: 200 }}>
               <strong>{multiAddrs.length > 1 ? 'Your tunnel URLs will be:' : 'Your tunnel URL will be:'}</strong><br />
