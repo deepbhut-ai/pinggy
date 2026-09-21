@@ -862,6 +862,16 @@ async def bulk_delete_tokens(
         if right is None or right == "member":
             skipped += 1
             continue
+
+        # Fetch domains before deleting token to clean up SSL
+        cur = await db.execute("SELECT custom_domain FROM tokens WHERE id = %s", (token_id,))
+        cd_row = await cur.fetchone()
+        await cur.close()
+
+        cur = await db.execute("SELECT domain FROM token_domains WHERE token_id = %s", (token_id,))
+        td_rows = await cur.fetchall()
+        await cur.close()
+
         cur = await db.execute(
             "DELETE FROM tokens WHERE id = %s AND (user_email = %s OR team_id IS NOT NULL) RETURNING token",
             (token_id, user["email"]),
@@ -872,6 +882,19 @@ async def bulk_delete_tokens(
             deleted += 1
             deleted_token_str = str(row[0])
             await _cleanup_user_multiport_configs_after_token_change(db, user["email"], deleted_token=deleted_token_str)
+
+            import asyncio
+            domains_to_clean = []
+            if cd_row and cd_row[0]:
+                domains_to_clean.append(str(cd_row[0]))
+            for r in td_rows:
+                if r[0]:
+                    domains_to_clean.append(str(r[0]))
+            for d in domains_to_clean:
+                try:
+                    asyncio.create_task(deprovision_ssl_for_domain(d))
+                except Exception:
+                    pass
         else:
             skipped += 1
     return {"deleted": deleted, "skipped": skipped}
