@@ -394,6 +394,16 @@ async def create_token(
     )
     row = await cur.fetchone()
     await cur.close()
+
+    # Automatically provision SSL and configure Nginx for custom domain / subdomain
+    if custom_domain:
+        try:
+            import asyncio
+            from app.core.ssl_manager import provision_ssl_for_domain
+            asyncio.create_task(provision_ssl_for_domain(custom_domain, email=user.get("email"), skip_dns_check=True))
+        except Exception:
+            pass
+
     return TokenOut(
         id=str(row[0]),
         token=row[1],
@@ -696,6 +706,90 @@ class BulkDeleteIn(BaseModel):
     ids: list[str] = Field(..., max_length=100)
 
 
+async def _cleanup_user_multiport_configs_after_token_change(
+    db: AsyncConnection,
+    user_email: str,
+    deleted_token: str | None = None,
+):
+    """Prune deleted token configs and clean up removed domains from all user multiport records."""
+    import json as _json
+    from app.core.tunnel_registry import sync_tunnel_multiport_config
+    try:
+        # Delete specific multiport config if token was deleted
+        if deleted_token:
+            await db.execute(
+                "DELETE FROM tunnel_configs WHERE user_email = %s AND name = %s",
+                (user_email, f"multiport:{deleted_token}"),
+            )
+
+        # Get remaining active domains for this user
+        cur = await db.execute(
+            "SELECT token, custom_domain, fixed_subdomain FROM tokens WHERE user_email = %s",
+            (user_email,),
+        )
+        t_rows = await cur.fetchall()
+        await cur.close()
+
+        from app.core.config import settings
+        active_domains = set()
+        active_tokens = set()
+        for tk, cd, fs in t_rows:
+            if tk:
+                active_tokens.add(tk)
+            if cd and cd.strip():
+                active_domains.add(cd.strip().lower())
+            elif fs and fs.strip():
+                active_domains.add(f"{fs.strip().lower()}.{settings.TUNNEL_DOMAIN}")
+
+        cur = await db.execute(
+            "SELECT td.domain FROM token_domains td JOIN tokens t ON t.id = td.token_id WHERE t.user_email = %s",
+            (user_email,),
+        )
+        td_rows = await cur.fetchall()
+        await cur.close()
+        for td in td_rows:
+            if td[0] and td[0].strip():
+                active_domains.add(td[0].strip().lower())
+
+        # Load all multiport entries
+        cur = await db.execute(
+            "SELECT name, config FROM tunnel_configs WHERE user_email = %s AND name LIKE 'multiport:%%'",
+            (user_email,),
+        )
+        cfg_rows = await cur.fetchall()
+        await cur.close()
+
+        clean_ports = {}
+        for name, config_data in cfg_rows:
+            tk_name = name.replace("multiport:", "")
+            if active_tokens and tk_name not in active_tokens:
+                await db.execute("DELETE FROM tunnel_configs WHERE user_email = %s AND name = %s", (user_email, name))
+                continue
+            cfg = _json.loads(config_data) if isinstance(config_data, str) else config_data
+            if isinstance(cfg, dict) and isinstance(cfg.get("ports"), dict):
+                for d_k, d_v in cfg["ports"].items():
+                    if d_k and d_k.strip().lower() in active_domains:
+                        clean_ports[d_k] = d_v
+
+        # Save cleaned ports back to remaining multiport records
+        for act_tk in active_tokens:
+            clean_json = _json.dumps({"multi_port_enabled": True, "ports": clean_ports})
+            await db.execute(
+                """INSERT INTO tunnel_configs (user_email, name, config)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT (user_email, name) DO UPDATE
+                   SET config = EXCLUDED.config""",
+                (user_email, f"multiport:{act_tk}", clean_json),
+            )
+            # Sync active live tunnel
+            try:
+                await sync_tunnel_multiport_config(user_email, act_tk, clean_ports)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 @router.delete("/{token_id}", status_code=status.HTTP_200_OK)
 async def delete_token(
     token_id: str,
@@ -711,9 +805,11 @@ async def delete_token(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Read-only: this token is shared with your team — ask a team admin or the owner to delete it")
 
     # Fetch any domains attached to clean up SSL
-    cur = await db.execute("SELECT custom_domain FROM tokens WHERE id = %s", (token_id,))
+    cur = await db.execute("SELECT custom_domain, user_email FROM tokens WHERE id = %s", (token_id,))
     cd_row = await cur.fetchone()
     await cur.close()
+
+    owner_email = cd_row[1] if cd_row and cd_row[1] else user["email"]
 
     cur = await db.execute("SELECT domain FROM token_domains WHERE token_id = %s", (token_id,))
     td_rows = await cur.fetchall()
@@ -727,6 +823,11 @@ async def delete_token(
     await cur.close()
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
+
+    deleted_token_str = str(row[0]) if row else None
+
+    # Cleanup multiport configs in tunnel_configs
+    await _cleanup_user_multiport_configs_after_token_change(db, owner_email, deleted_token=deleted_token_str)
 
     import asyncio
     domains_to_clean = []
@@ -769,6 +870,8 @@ async def bulk_delete_tokens(
         await cur.close()
         if row:
             deleted += 1
+            deleted_token_str = str(row[0])
+            await _cleanup_user_multiport_configs_after_token_change(db, user["email"], deleted_token=deleted_token_str)
         else:
             skipped += 1
     return {"deleted": deleted, "skipped": skipped}
@@ -781,6 +884,12 @@ async def regenerate_token(
     db: AsyncConnection = Depends(get_db),
 ):
     """Regenerate the token string (old token stops working)."""
+    # Fetch old token string
+    cur = await db.execute("SELECT token FROM tokens WHERE id = %s AND user_email = %s", (token_id, user["email"]))
+    old_row = await cur.fetchone()
+    await cur.close()
+    old_token = old_row[0] if old_row else None
+
     new_token = _generate_token()
     try:
         cur = await db.execute(
@@ -795,6 +904,9 @@ async def regenerate_token(
 
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
+
+    if old_token:
+        await _cleanup_user_multiport_configs_after_token_change(db, user["email"], deleted_token=old_token)
 
     return TokenOut(
         id=str(row[0]),

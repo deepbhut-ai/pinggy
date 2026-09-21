@@ -59,6 +59,10 @@ export default function ManageTokens() {
       return toast('Subdomain can only contain letters and numbers', 'error');
     }
 
+    if (createPortConflict) {
+      return toast(`Port :${createPort} is already in use by ${createPortConflict}`, 'error');
+    }
+
     // Build the full domain that will be used
     const fullDomain = d ? (sub ? `${sub}.${d}` : d) : (sub ? `${sub}.iraglobaltech.com` : '');
 
@@ -246,6 +250,19 @@ export default function ManageTokens() {
     const keyIds = new Set(apiKeys.filter((k) => k.name === apiKeyFilter).map((k) => k.id));
     return tokens.filter((t) => t.created_by_api_key && keyIds.has(t.created_by_api_key));
   }, [tokens, apiKeyFilter, apiKeys]);
+
+  // Check if port entered in create token modal is already in use by another domain/token
+  const createPortConflict = useMemo(() => {
+    const target = String(createPort || '').replace(/^:+/, '').trim();
+    if (!target || !tokens) return null;
+    for (const t of tokens) {
+      const assignedPort = String(t.local_port || '').replace(/^:+/, '').trim();
+      if (assignedPort && assignedPort === target) {
+        return t.custom_domain || (t.fixed_subdomain ? `${t.fixed_subdomain}.iraglobaltech.com` : '') || t.name || t.token?.substring(0, 8);
+      }
+    }
+    return null;
+  }, [createPort, tokens]);
 
   const table = useTableData(filteredTokensForTable, { searchKeys: ['name', 'subdomain', 'fixed_subdomain', 'custom_domain', 'token', 'id'], pageSize: 10 });
 
@@ -460,10 +477,18 @@ export default function ManageTokens() {
               value={createPort}
               onChange={(e) => { setCreatePort(e.target.value); setVerifyResult(null); }}
               placeholder="e.g. 3000"
+              style={createPortConflict ? { borderColor: '#ef4444', boxShadow: '0 0 0 2px rgba(239,68,68,0.15)' } : {}}
             />
-            <div className="dim" style={{ fontSize: '.75rem', marginTop: '.3rem' }}>
-              The local port your service runs on. Saved and reflected in Configure Tunnel automatically.
-            </div>
+            {createPortConflict ? (
+              <div style={{ marginTop: '.4rem', padding: '.45rem .65rem', borderRadius: '6px', background: '#fef2f2', border: '1px solid #ef4444', color: '#b91c1c', fontSize: '.78rem', display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+                <span>❌</span>
+                <span><strong>Port :{createPort} is in use</strong> by <code>{createPortConflict}</code>. Please choose a unique port.</span>
+              </div>
+            ) : (
+              <div className="dim" style={{ fontSize: '.75rem', marginTop: '.3rem' }}>
+                The local port your service runs on. Saved and reflected in Configure Tunnel automatically.
+              </div>
+            )}
           </div>
 
           {/* DNS instructions panel (shown when a custom domain is selected) */}
@@ -522,6 +547,7 @@ export default function ManageTokens() {
       {multiportPrompt && (
         <MultiportActivationModal
           domain={multiportPrompt.domain}
+          token={multiportPrompt.token}
           initialPort={multiportPrompt.port || '8080'}
           onEnable={enableInMultiport}
           onSkip={skipMultiport}

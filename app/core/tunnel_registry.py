@@ -130,10 +130,31 @@ async def get_tunnel_by_custom_domain(custom_domain: str) -> TunnelSession | Non
         for d in getattr(tunnel, "custom_domains", []) or []:
             if str(d).strip().lower() == normalized_domain:
                 return tunnel
-        # v2.7.7: match cross-token addresses added via multiport endpoints
-        for addr in getattr(tunnel, "endpoints", {}) or {}:
-            if str(addr).strip().lower() == normalized_domain:
-                return tunnel
+    # Fallback dynamic match: check if this domain belongs to an active user/token in DB
+    try:
+        from app.core.db import get_conn
+        async with get_conn() as db:
+            cur = await db.execute(
+                "SELECT token, user_email FROM tokens WHERE custom_domain = %s "
+                "UNION "
+                "SELECT t.token, t.user_email FROM token_domains td JOIN tokens t ON t.id = td.token_id WHERE td.domain = %s",
+                (normalized_domain, normalized_domain),
+            )
+            row = await cur.fetchone()
+            await cur.close()
+            if row:
+                tok, email = row[0], row[1]
+                # Find active live tunnel session matching token or user email
+                for tunnel in _tunnels.values():
+                    if (tunnel.token and tunnel.token == tok) or (tunnel.user_email and email and tunnel.user_email.lower() == email.lower()):
+                        if normalized_domain not in tunnel.custom_domains:
+                            tunnel.custom_domains.append(normalized_domain)
+                        if normalized_domain not in tunnel.endpoints:
+                            tunnel.endpoints[normalized_domain] = tunnel.remote_port
+                        return tunnel
+    except Exception:
+        pass
+
     return None
 
 
@@ -262,7 +283,7 @@ def is_subdomain_taken(subdomain: str) -> bool:
 
 
 async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: dict) -> None:
-    """Synchronize multiport enable/pause states for all matching active tunnel sessions."""
+    """Synchronize multiport enable/pause states and bind new endpoints dynamically for all matching active tunnel sessions."""
     async with _lock:
         for tunnel in _tunnels.values():
             match = False
@@ -275,6 +296,19 @@ async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: d
                     norm = addr.replace("https://", "").replace("http://", "").strip().lower().split("/")[0].split(":")[0]
                     if not norm:
                         continue
+
+                    # Dynamically bind new domain to active live tunnel session in memory
+                    if norm not in tunnel.custom_domains:
+                        tunnel.custom_domains.append(norm)
+                    if norm not in tunnel.endpoints:
+                        tunnel.endpoints[norm] = tunnel.remote_port
+                    if isinstance(info, dict) and "port" in info:
+                        try:
+                            tunnel.local_ports[norm] = int(info["port"])
+                        except Exception:
+                            pass
+
+                    # State update & live SSH console notification (identical for modal and dashboard toggles)
                     if isinstance(info, dict) and info.get("enabled") is False:
                         if norm not in tunnel.paused_endpoints:
                             tunnel.paused_endpoints.add(norm)
@@ -284,10 +318,9 @@ async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: d
                                 except Exception:
                                     pass
                     else:
-                        if norm in tunnel.paused_endpoints:
-                            tunnel.paused_endpoints.discard(norm)
-                            if tunnel.log_callback:
-                                try:
-                                    tunnel.log_callback(f"  [dashboard] ▶️  Resumed endpoint: https://{norm}")
-                                except Exception:
-                                    pass
+                        tunnel.paused_endpoints.discard(norm)
+                        if tunnel.log_callback:
+                            try:
+                                tunnel.log_callback(f"  [dashboard] ▶️  Resumed endpoint: https://{norm}")
+                            except Exception:
+                                pass

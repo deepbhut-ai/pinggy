@@ -129,10 +129,13 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
 
                 # Filter by explicitly connected ports on this connection
                 connected_ports = set(getattr(self._server, "_port_map", []) or [])
+                act_doms = getattr(self._server, "_active_user_domains", set()) or set()
 
                 domain_list = []
                 if saved_ports_map:
                     for d_name, d_info in saved_ports_map.items():
+                        if act_doms and d_name.strip().lower() not in act_doms:
+                            continue
                         if isinstance(d_info, dict) and "port" in d_info:
                             try:
                                 p_num = int(d_info["port"])
@@ -145,6 +148,8 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
 
                 for addr in list(tunnel.endpoints.keys()) + list(tunnel.local_ports.keys()) + list(getattr(tunnel, "custom_domains", []) or []):
                     if addr and addr != tunnel.subdomain and addr != f"{tunnel.subdomain}.{settings.TUNNEL_DOMAIN}" and addr not in domain_list:
+                        if act_doms and addr.strip().lower() not in act_doms:
+                            continue
                         lp_val = tunnel.local_ports.get(addr)
                         try:
                             if not connected_ports or (lp_val and int(lp_val) in connected_ports):
@@ -419,6 +424,35 @@ class MySSHServer(asyncssh.SSHServer):
                     except Exception:
                         pass  # table missing pre-migration — fine
 
+                    # Load active valid domains for this user to ensure deleted domains or random fallback subdomains are never served or displayed
+                    active_user_domains = set()
+                    if self._custom_domain and self._custom_domain.strip():
+                        active_user_domains.add(self._custom_domain.strip().lower())
+                    try:
+                        cur_d = conn.execute(
+                            "SELECT custom_domain, fixed_subdomain, token FROM tokens WHERE user_email = %s",
+                            (self._username,),
+                        )
+                        for cd_val, fs_val, tk_val in cur_d.fetchall():
+                            if cd_val and cd_val.strip():
+                                active_user_domains.add(cd_val.strip().lower())
+                            elif fs_val and fs_val.strip():
+                                active_user_domains.add(f"{fs_val.strip().lower()}.{settings.TUNNEL_DOMAIN}")
+                        cur_d.close()
+
+                        cur_td = conn.execute(
+                            "SELECT td.domain FROM token_domains td JOIN tokens t ON t.id = td.token_id WHERE t.user_email = %s",
+                            (self._username,),
+                        )
+                        for r_td in cur_td.fetchall():
+                            if r_td[0] and r_td[0].strip():
+                                active_user_domains.add(r_td[0].strip().lower())
+                        cur_td.close()
+                    except Exception:
+                        pass
+
+                    self._active_user_domains = active_user_domains
+
                     # v3.0.0: load saved multiport config (ports and enabled/paused states)
                     self._saved_multiport = None
                     self._initial_paused_endpoints = set()
@@ -438,10 +472,13 @@ class MySSHServer(asyncssh.SSHServer):
                         cur.close()
                         if mp_row:
                             mp_cfg = _json.loads(mp_row[0]) if isinstance(mp_row[0], str) else mp_row[0]
-                            self._saved_multiport = mp_cfg
+                            clean_ports_dict = {}
                             ports_dict = mp_cfg.get("ports", {})
                             for addr_k, info_v in ports_dict.items():
                                 norm = addr_k.strip().lower().split(":")[0]
+                                if active_user_domains and norm not in active_user_domains:
+                                    continue
+                                clean_ports_dict[addr_k] = info_v
                                 if isinstance(info_v, dict) and info_v.get("enabled") is False:
                                     self._initial_paused_endpoints.add(norm)
                                 if isinstance(info_v, dict) and "port" in info_v:
@@ -449,6 +486,8 @@ class MySSHServer(asyncssh.SSHServer):
                                         configured_ports.add(int(info_v["port"]))
                                     except (ValueError, TypeError):
                                         pass
+                            mp_cfg["ports"] = clean_ports_dict
+                            self._saved_multiport = mp_cfg
                     except Exception as e:
                         logger.debug("Failed to read saved multiport config: %s", e)
 
@@ -479,7 +518,7 @@ class MySSHServer(asyncssh.SSHServer):
                         if extracted_ports:
                             self._port_map = extracted_ports
 
-                    # v2.7.8: multiport — load ALL the user's tokens' custom domains
+                    # v2.7.8: multiport — load ALL the user's active tokens' custom domains
                     # so one tunnel can serve every domain/subdomain on the account
                     if self._port_map or self._saved_multiport:
                         try:
@@ -490,7 +529,8 @@ class MySSHServer(asyncssh.SSHServer):
                             )
                             for r in cur.fetchall():
                                 if r[0] and r[0] not in self._custom_domains and r[0] != self._custom_domain:
-                                    self._custom_domains.append(r[0])
+                                    if not active_user_domains or r[0].strip().lower() in active_user_domains:
+                                        self._custom_domains.append(r[0])
                             cur.close()
                         except Exception:
                             pass
@@ -578,21 +618,22 @@ class MySSHServer(asyncssh.SSHServer):
                 saved_ports_map = self._saved_multiport.get("ports", {})
 
             target_addresses = []
+            act_doms = getattr(self, "_active_user_domains", set()) or set()
             if saved_ports_map:
                 if self._port_map:
                     for req_p in self._port_map:
                         for addr, info_v in saved_ports_map.items():
                             if isinstance(info_v, dict) and str(info_v.get("port", "")).strip() == str(req_p):
-                                if addr not in target_addresses:
+                                if addr not in target_addresses and (not act_doms or addr.strip().lower() in act_doms):
                                     target_addresses.append(addr)
                 for addr in list(saved_ports_map.keys()) + [self._custom_domain] + list(getattr(self, "_custom_domains", []) or []):
-                    if addr and addr not in target_addresses:
+                    if addr and addr not in target_addresses and (not act_doms or addr.strip().lower() in act_doms):
                         target_addresses.append(addr)
             else:
-                if self._custom_domain:
+                if self._custom_domain and (not act_doms or self._custom_domain.strip().lower() in act_doms):
                     target_addresses.append(self._custom_domain)
                 for addr in list(getattr(self, "_custom_domains", []) or []):
-                    if addr and addr not in target_addresses:
+                    if addr and addr not in target_addresses and (not act_doms or addr.strip().lower() in act_doms):
                         target_addresses.append(addr)
 
             if self._username:
@@ -605,7 +646,7 @@ class MySSHServer(asyncssh.SSHServer):
                     )
                     for r in cur2.fetchall():
                         addr = r[0]
-                        if addr and addr not in target_addresses:
+                        if addr and addr not in target_addresses and (not act_doms or addr.strip().lower() in act_doms):
                             target_addresses.append(addr)
                     cur2.close()
                     cur2 = conn2.execute(
@@ -616,7 +657,7 @@ class MySSHServer(asyncssh.SSHServer):
                     )
                     for r in cur2.fetchall():
                         addr = r[0]
-                        if addr and addr not in target_addresses:
+                        if addr and addr not in target_addresses and (not act_doms or addr.strip().lower() in act_doms):
                             target_addresses.append(addr)
                     cur2.close()
                     conn2.close()

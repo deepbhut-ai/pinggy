@@ -32,13 +32,70 @@ class MultiPortConfig(BaseModel):
     ports: dict = Field(default_factory=dict)  # {"address.com": {"enabled": true, "port": "3000"}}
 
 
+async def _get_active_user_domains_and_ports(db: AsyncConnection, user_email: str) -> tuple[set[str], dict[str, str], set[str]]:
+    """Return (set_of_active_domain_names, token_ports_map, active_token_strings)."""
+    import hashlib
+    from app.core.config import settings
+    active_domains = set()
+    token_ports = {}
+    active_tokens = set()
+
+    # Query tokens table
+    cur = await db.execute(
+        "SELECT token, custom_domain, fixed_subdomain, local_port FROM tokens WHERE user_email = %s",
+        (user_email,),
+    )
+    rows = await cur.fetchall()
+    await cur.close()
+
+    for tk, cd, fs, lp in rows:
+        if tk:
+            active_tokens.add(tk)
+        if cd and cd.strip():
+            norm_cd = cd.strip().lower()
+            active_domains.add(norm_cd)
+            if lp:
+                token_ports[norm_cd] = str(lp)
+        elif fs and fs.strip():
+            norm_fs = f"{fs.strip().lower()}.{settings.TUNNEL_DOMAIN}"
+            active_domains.add(norm_fs)
+            if lp:
+                token_ports[norm_fs] = str(lp)
+
+    # Query token_domains table
+    cur = await db.execute(
+        "SELECT td.domain FROM token_domains td JOIN tokens t ON t.id = td.token_id WHERE t.user_email = %s",
+        (user_email,),
+    )
+    td_rows = await cur.fetchall()
+    await cur.close()
+    for td in td_rows:
+        if td[0] and td[0].strip():
+            active_domains.add(td[0].strip().lower())
+
+    # Legacy users table fallback
+    cur = await db.execute(
+        "SELECT tunnel_token, custom_domain FROM users WHERE email = %s",
+        (user_email,),
+    )
+    u_row = await cur.fetchone()
+    await cur.close()
+    if u_row:
+        if u_row[0]:
+            active_tokens.add(u_row[0])
+        if u_row[1] and u_row[1].strip():
+            active_domains.add(u_row[1].strip().lower())
+
+    return active_domains, token_ports, active_tokens
+
+
 @router.put("/multiport")
 async def save_multiport_config(
     body: MultiPortConfig,
     request: Request,
     db: AsyncConnection = Depends(get_db),
 ):
-    """Save multi-port toggle + per-address port settings for a token."""
+    """Save multi-port toggle + per-address port settings for an account, preventing duplicate ports and pruning deleted domains."""
     import json as _json
     from app.core.tunnel_registry import sync_tunnel_multiport_config
     from app.core.deps import get_optional_current_user
@@ -69,27 +126,127 @@ async def save_multiport_config(
     if not user_email:
         raise HTTPException(status_code=401, detail="Authentication required")
 
+    active_domains, token_ports, active_tokens = await _get_active_user_domains_and_ports(db, user_email)
+
+    # 1. Fetch all existing multiport ports for this user from tunnel_configs
+    cur = await db.execute(
+        "SELECT name, config FROM tunnel_configs WHERE user_email = %s AND name LIKE 'multiport:%%'",
+        (user_email,),
+    )
+    rows = await cur.fetchall()
+    await cur.close()
+
+    merged_ports = {}
+    for _, config_data in rows:
+        cfg = _json.loads(config_data) if isinstance(config_data, str) else config_data
+        if isinstance(cfg, dict) and isinstance(cfg.get("ports"), dict):
+            for dom, p_info in cfg["ports"].items():
+                if dom and dom.strip().lower() in active_domains:
+                    merged_ports[dom] = p_info
+
+    # Also merge ports from tokens table for active domains
+    for dom_k, lp_val in token_ports.items():
+        if dom_k not in merged_ports:
+            merged_ports[dom_k] = {"enabled": True, "port": lp_val}
+
+    # 2. Validate port uniqueness: check if any incoming enabled port conflicts with another domain
+    for d, info in body.ports.items():
+        if isinstance(info, dict):
+            p = str(info.get("port") or "").strip().lstrip(":")
+            is_en = info.get("enabled", True) is not False
+            if p and is_en:
+                # Check against other domains in body.ports
+                for d2, info2 in body.ports.items():
+                    if d2.lower() != d.lower():
+                        p2 = str(info2.get("port") or "").strip().lstrip(":") if isinstance(info2, dict) else str(info2 or "").strip().lstrip(":")
+                        is_en2 = info2.get("enabled", True) is not False if isinstance(info2, dict) else True
+                        if p == p2 and is_en2:
+                            raise HTTPException(
+                                status_code=400,
+                                detail=f"Port :{p} is already in use by {d2}",
+                            )
+                # Check against other existing active domains for this user
+                for ex_d, ex_info in merged_ports.items():
+                    if ex_d.lower() != d.lower() and ex_d.lower() not in [k.lower() for k in body.ports.keys()]:
+                        ex_p = str(ex_info.get("port") or "").strip().lstrip(":") if isinstance(ex_info, dict) else str(ex_info or "").strip().lstrip(":")
+                        ex_en = ex_info.get("enabled", True) is not False if isinstance(ex_info, dict) else True
+                        if p == ex_p and ex_en:
+                            raise HTTPException(
+                                status_code=400,
+                                detail=f"Port :{p} is already in use by {ex_d}",
+                            )
+
+    # 3. Merge incoming ports into the full user map (filtered against active domains)
+    for d, info in body.ports.items():
+        if d and (d.strip().lower() in active_domains or not active_domains):
+            merged_ports[d] = info
+
+    # 4. Save to current token config
+    config_json = _json.dumps({
+        "multi_port_enabled": body.multi_port_enabled,
+        "ports": merged_ports,
+    })
+
     cur = await db.execute(
         """INSERT INTO tunnel_configs (user_email, name, config)
            VALUES (%s, %s, %s)
            ON CONFLICT (user_email, name) DO UPDATE
            SET config = EXCLUDED.config
            RETURNING id""",
-        (user_email, f"multiport:{body.token}", _json.dumps({
-            "multi_port_enabled": body.multi_port_enabled,
-            "ports": body.ports,
-        })),
+        (user_email, f"multiport:{body.token}", config_json),
     )
     row = await cur.fetchone()
     await cur.close()
 
-    # Live sync active tunnel session paused/resumed states & notify user terminal
+    # 5. Sync across all active multiport records for this user and delete dead tokens' configs
+    for name, _ in rows:
+        tk_part = name.replace("multiport:", "")
+        if active_tokens and tk_part not in active_tokens:
+            await db.execute(
+                "DELETE FROM tunnel_configs WHERE user_email = %s AND name = %s",
+                (user_email, name),
+            )
+        elif name != f"multiport:{body.token}":
+            await db.execute(
+                "UPDATE tunnel_configs SET config = %s WHERE user_email = %s AND name = %s",
+                (config_json, user_email, name),
+            )
+
+    # 6. Update local_port in tokens table for matching domains
+    for domain_name, p_info in body.ports.items():
+        if isinstance(p_info, dict) and p_info.get("port"):
+            try:
+                p_int = int(str(p_info["port"]).strip().lstrip(":"))
+                await db.execute(
+                    "UPDATE tokens SET local_port = %s WHERE user_email = %s AND (custom_domain = %s OR fixed_subdomain = %s)",
+                    (p_int, user_email, domain_name, domain_name.split(".")[0]),
+                )
+            except ValueError:
+                pass
+
+    # 7. Live sync active tunnel session paused/resumed states & notify user terminal
     try:
-        await sync_tunnel_multiport_config(user_email, body.token, body.ports)
+        await sync_tunnel_multiport_config(user_email, body.token, merged_ports)
     except Exception:
         pass
 
-    return {"saved": True, "id": str(row[0]) if row else ""}
+    # Ensure all multiport domains have active Let's Encrypt SSL and Nginx configs
+    if merged_ports:
+        import asyncio
+        from app.core.ssl_manager import provision_ssl_for_domain, get_ssl_status
+        async def _ensure_multiport_ssl():
+            for addr in merged_ports.keys():
+                norm = addr.replace("https://", "").replace("http://", "").strip().lower().split("/")[0].split(":")[0]
+                if norm and not norm.endswith(".iraglobaltech.com") and norm != "iraglobaltech.com":
+                    try:
+                        stat = await get_ssl_status(norm)
+                        if not stat.get("has_ssl_certificate") or not stat.get("has_nginx_active"):
+                            await provision_ssl_for_domain(norm, email=user_email, skip_dns_check=True)
+                    except Exception:
+                        pass
+        asyncio.create_task(_ensure_multiport_ssl())
+
+    return {"saved": True, "id": str(row[0]) if row else "", "ports": merged_ports}
 
 
 @router.get("/multiport/{token}")
@@ -98,7 +255,7 @@ async def get_multiport_config(
     request: Request,
     db: AsyncConnection = Depends(get_db),
 ):
-    """Load saved multi-port config for a token. Returns empty if not saved yet."""
+    """Load saved multi-port config for an account/token. Automatically prunes deleted domains and dead tokens."""
     import json as _json
     from app.core.deps import get_optional_current_user
 
@@ -127,16 +284,67 @@ async def get_multiport_config(
     if not user_email:
         return {"multi_port_enabled": True, "ports": {}}
 
+    active_domains, token_ports, active_tokens = await _get_active_user_domains_and_ports(db, user_email)
+
+    # 1. Fetch all multiport entries for this user from tunnel_configs
     cur = await db.execute(
-        "SELECT config FROM tunnel_configs WHERE user_email = %s AND name = %s",
-        (user_email, f"multiport:{token}"),
+        "SELECT name, config FROM tunnel_configs WHERE user_email = %s AND name LIKE 'multiport:%%'",
+        (user_email,),
     )
-    row = await cur.fetchone()
+    rows = await cur.fetchall()
     await cur.close()
-    if not row:
-        return {"multi_port_enabled": True, "ports": {}}
-    cfg = _json.loads(row[0]) if isinstance(row[0], str) else row[0]
-    return cfg
+
+    merged_ports = {}
+    multi_port_enabled = True
+    had_stale_data = False
+
+    for name, config_data in rows:
+        tk_part = name.replace("multiport:", "")
+        if active_tokens and tk_part not in active_tokens:
+            had_stale_data = True
+            await db.execute(
+                "DELETE FROM tunnel_configs WHERE user_email = %s AND name = %s",
+                (user_email, name),
+            )
+            continue
+
+        cfg = _json.loads(config_data) if isinstance(config_data, str) else config_data
+        if isinstance(cfg, dict):
+            if name == f"multiport:{token}":
+                multi_port_enabled = cfg.get("multi_port_enabled", True)
+            ports = cfg.get("ports", {})
+            if isinstance(ports, dict):
+                for dom, p_info in ports.items():
+                    if dom:
+                        if dom.strip().lower() in active_domains or not active_domains:
+                            if dom not in merged_ports:
+                                merged_ports[dom] = p_info
+                        else:
+                            had_stale_data = True
+
+    # 2. Also merge domains and local_ports from active tokens table for this user
+    for dom_k, lp_val in token_ports.items():
+        if dom_k not in merged_ports:
+            merged_ports[dom_k] = {"enabled": True, "port": lp_val}
+        elif lp_val and not merged_ports[dom_k].get("port"):
+            merged_ports[dom_k]["port"] = lp_val
+
+    # If stale data was cleaned up, sync the sanitized config back to DB
+    if had_stale_data and active_tokens:
+        clean_json = _json.dumps({
+            "multi_port_enabled": multi_port_enabled,
+            "ports": merged_ports,
+        })
+        for act_tk in active_tokens:
+            await db.execute(
+                """INSERT INTO tunnel_configs (user_email, name, config)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT (user_email, name) DO UPDATE
+                   SET config = EXCLUDED.config""",
+                (user_email, f"multiport:{act_tk}", clean_json),
+            )
+
+    return {"multi_port_enabled": multi_port_enabled, "ports": merged_ports}
 
 
 @router.get("/cli/{token}")
@@ -184,6 +392,8 @@ async def get_cli_tunnel_config(
             raise HTTPException(status_code=403, detail="Account is disabled")
         user_email, custom_domain = row[0], row[1] or ""
 
+    active_domains, token_ports, _ = await _get_active_user_domains_and_ports(db, user_email)
+
     # 2. Fetch saved multiport settings from tunnel_configs
     cur = await db.execute(
         "SELECT config FROM tunnel_configs WHERE user_email = %s AND name = %s",
@@ -197,18 +407,19 @@ async def get_cli_tunnel_config(
         cfg = _json.loads(cfg_row[0]) if isinstance(cfg_row[0], str) else cfg_row[0]
         if cfg.get("multi_port_enabled", True) and cfg.get("ports"):
             for addr, info in cfg.get("ports", {}).items():
-                if isinstance(info, dict):
-                    raw_port = info.get("port")
-                    is_enabled = info.get("enabled", True) is not False
-                    if raw_port and str(raw_port).strip():
-                        try:
-                            ports.append({
-                                "domain": addr,
-                                "local_port": int(str(raw_port).strip()),
-                                "enabled": is_enabled,
-                            })
-                        except ValueError:
-                            pass
+                if addr and addr.strip().lower() in active_domains:
+                    if isinstance(info, dict):
+                        raw_port = info.get("port")
+                        is_enabled = info.get("enabled", True) is not False
+                        if raw_port and str(raw_port).strip():
+                            try:
+                                ports.append({
+                                    "domain": addr,
+                                    "local_port": int(str(raw_port).strip()),
+                                    "enabled": is_enabled,
+                                })
+                            except ValueError:
+                                pass
 
     # 3. If no custom multiport entries configured, build default list
     if not ports:

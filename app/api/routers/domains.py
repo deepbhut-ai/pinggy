@@ -220,6 +220,10 @@ async def delete_and_deprovision_domain(
     deprovision_res = await deprovision_ssl_for_domain(domain)
     await log_audit(db, user["email"], "domain.deprovision_ssl", domain, "")
 
+    # Clean up multiport configs in tunnel_configs
+    from app.api.routers.tokens import _cleanup_user_multiport_configs_after_token_change
+    await _cleanup_user_multiport_configs_after_token_change(db, user["email"])
+
     return {
         "status": "ok",
         "message": f"{domain} removed and SSL configuration cleaned up.",

@@ -276,6 +276,7 @@ export default function Domains() {
       {multiportPrompt && (
         <MultiportActivationModal
           domain={multiportPrompt.domain}
+          token={multiportPrompt.token}
           initialPort={multiportPrompt.port || '8080'}
           onEnable={enableInMultiport}
           onSkip={skipMultiport}

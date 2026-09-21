@@ -1,19 +1,59 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { api } from '../api/client';
 
 export default function MultiportActivationModal({
   domain,
   initialPort = '8080',
+  token = '',
+  existingPorts = null,
   onEnable,
   onSkip,
 }) {
   const [port, setPort] = useState(initialPort);
   const [busy, setBusy] = useState(false);
+  const [portsMap, setPortsMap] = useState(existingPorts || {});
+
+  // Fetch all existing multiport mappings for the account
+  useEffect(() => {
+    if (existingPorts && Object.keys(existingPorts).length > 0) {
+      setPortsMap(existingPorts);
+      return;
+    }
+    const tokenToFetch = token || domain;
+    if (tokenToFetch) {
+      (async () => {
+        try {
+          const res = await api(`/configs/multiport/${encodeURIComponent(tokenToFetch)}`);
+          if (res && res.ports) {
+            setPortsMap(res.ports);
+          }
+        } catch {}
+      })();
+    }
+  }, [token, domain, existingPorts]);
 
   const presets = ['8080', '3000', '8000', '5173', '4000', '5000'];
 
+  // Check if chosen port is already in use by another enabled domain on the account
+  const conflictingDomain = useMemo(() => {
+    const target = String(port || '').replace(/^:+/, '').trim();
+    if (!target || !portsMap) return null;
+    for (const [d, info] of Object.entries(portsMap)) {
+      if (d.toLowerCase() !== String(domain || '').toLowerCase()) {
+        const rawPort = typeof info === 'object' && info ? (info.port ?? '') : (info ?? '');
+        const assignedPort = String(rawPort).replace(/^:+/, '').trim();
+        const isEnabled = typeof info === 'object' && info ? info.enabled !== false : true;
+        if (assignedPort && assignedPort === target && isEnabled) {
+          return d;
+        }
+      }
+    }
+    return null;
+  }, [port, portsMap, domain]);
+
   const handleEnable = async () => {
     const targetPort = (port || '8080').trim();
-    if (!targetPort) return;
+    if (!targetPort || conflictingDomain) return;
     try {
       setBusy(true);
       await onEnable(targetPort);
@@ -354,47 +394,92 @@ export default function MultiportActivationModal({
                 fontSize: '1rem',
                 fontWeight: 700,
                 borderRadius: '10px',
-                border: '1.5px solid var(--border, rgba(74,85,162,0.22))',
+                border: conflictingDomain ? '1.5px solid #ef4444' : '1.5px solid var(--border, rgba(74,85,162,0.22))',
                 background: 'var(--surface, #ffffff)',
                 color: 'var(--text, #1a1a2e)',
                 outline: 'none',
                 transition: 'border-color .15s, box-shadow .15s',
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = 'var(--brand, #4a55a2)';
-                e.target.style.boxShadow = '0 0 0 3px rgba(74,85,162,0.12)';
+                e.target.style.borderColor = conflictingDomain ? '#ef4444' : 'var(--brand, #4a55a2)';
+                e.target.style.boxShadow = conflictingDomain ? '0 0 0 3px rgba(239,68,68,0.15)' : '0 0 0 3px rgba(74,85,162,0.12)';
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = 'var(--border, rgba(74,85,162,0.22))';
+                e.target.style.borderColor = conflictingDomain ? '#ef4444' : 'var(--border, rgba(74,85,162,0.22))';
                 e.target.style.boxShadow = 'none';
               }}
               autoFocus
             />
           </div>
 
+          {/* Port In-Use Error Alert */}
+          {conflictingDomain && (
+            <div
+              style={{
+                marginTop: '.65rem',
+                padding: '.65rem .85rem',
+                borderRadius: '10px',
+                background: '#fef2f2',
+                border: '1.5px solid #ef4444',
+                color: '#b91c1c',
+                fontSize: '.82rem',
+                lineHeight: 1.45,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '.6rem',
+                animation: 'mpFadeIn 0.2s ease',
+              }}
+            >
+              <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>❌</span>
+              <div style={{ flex: 1 }}>
+                <strong style={{ fontWeight: 700 }}>Port :{port} is already in use</strong> by <code style={{ background: '#fee2e2', padding: '.1rem .35rem', borderRadius: '4px', fontWeight: 700, color: '#991b1b' }}>{conflictingDomain}</code>.
+                <div style={{ fontSize: '.76rem', color: '#dc2626', marginTop: '.15rem' }}>
+                  Please select an available, unique port for this domain.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Preset Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginTop: '.6rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginTop: '.65rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '.75rem', color: 'var(--text-dim, #5a5d7a)', marginRight: '.2rem' }}>Quick ports:</span>
-            {presets.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPort(p)}
-                style={{
-                  background: port === p ? 'var(--brand, #4a55a2)' : 'var(--surface-1, #f4f5fb)',
-                  color: port === p ? '#ffffff' : 'var(--text-dim, #5a5d7a)',
-                  border: port === p ? '1px solid var(--brand, #4a55a2)' : '1px solid var(--border, rgba(74,85,162,0.14))',
-                  borderRadius: '6px',
-                  padding: '.2rem .55rem',
-                  fontSize: '.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all .15s ease',
-                }}
-              >
-                :{p}
-              </button>
-            ))}
+            {presets.map((p) => {
+              const usedBy = Object.entries(portsMap || {}).find(
+                ([d, info]) => {
+                  if (d.toLowerCase() === String(domain || '').toLowerCase()) return false;
+                  const rawP = typeof info === 'object' && info ? (info.port ?? '') : (info ?? '');
+                  const aPort = String(rawP).replace(/^:+/, '').trim();
+                  const isEn = typeof info === 'object' && info ? info.enabled !== false : true;
+                  return aPort && aPort === p && isEn;
+                }
+              )?.[0];
+
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPort(p)}
+                  title={usedBy ? `Port :${p} is in use by ${usedBy}` : `Use port :${p}`}
+                  style={{
+                    background: port === p ? (usedBy ? '#ef4444' : 'var(--brand, #4a55a2)') : 'var(--surface-1, #f4f5fb)',
+                    color: port === p ? '#ffffff' : (usedBy ? '#dc2626' : 'var(--text, #1a1a2e)'),
+                    border: port === p ? (usedBy ? '1px solid #ef4444' : '1px solid var(--brand, #4a55a2)') : (usedBy ? '1px dashed rgba(239,68,68,0.45)' : '1px solid var(--border, rgba(74,85,162,0.14))'),
+                    borderRadius: '6px',
+                    padding: '.2rem .55rem',
+                    fontSize: '.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '.3rem',
+                    transition: 'all .15s ease',
+                  }}
+                >
+                  <span>:{p}</span>
+                  {usedBy && <span style={{ fontSize: '.65rem', fontWeight: 800 }}>•</span>}
+                </button>
+              );
+            })}
           </div>
 
           <p style={{ fontSize: '.78rem', color: 'var(--text-dim, #5a5d7a)', marginTop: '.55rem', lineHeight: 1.45, margin: '.55rem 0 0 0' }}>
@@ -426,21 +511,21 @@ export default function MultiportActivationModal({
           <button
             type="button"
             onClick={handleEnable}
-            disabled={busy || !port}
+            disabled={busy || !port || !!conflictingDomain}
             style={{
-              background: 'linear-gradient(135deg, var(--brand, #4a55a2) 0%, #3d468a 100%)',
+              background: conflictingDomain ? 'rgba(239,68,68,0.4)' : 'linear-gradient(135deg, var(--brand, #4a55a2) 0%, #3d468a 100%)',
               color: '#ffffff',
               padding: '.68rem 1.4rem',
               fontSize: '.92rem',
               fontWeight: 700,
               borderRadius: '10px',
               border: 'none',
-              cursor: busy || !port ? 'not-allowed' : 'pointer',
+              cursor: busy || !port || !!conflictingDomain ? 'not-allowed' : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '.5rem',
-              boxShadow: '0 6px 18px rgba(74,85,162,0.32)',
-              opacity: busy || !port ? 0.7 : 1,
+              boxShadow: conflictingDomain ? 'none' : '0 6px 18px rgba(74,85,162,0.32)',
+              opacity: busy || !port || !!conflictingDomain ? 0.6 : 1,
               transition: 'transform .1s, box-shadow .15s, opacity .15s',
             }}
           >
