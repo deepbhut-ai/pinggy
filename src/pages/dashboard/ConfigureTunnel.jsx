@@ -34,6 +34,8 @@ export default function ConfigureTunnel() {
   const [verbose, setVerbose] = useState(false);
   const [qr, setQr] = useState(null);
   const [tokenSearch, setTokenSearch] = useState('');
+  const [subdomainSearch, setSubdomainSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'enabled' | 'paused'
 
   // Group all tokens by their main root domain
   const mainDomains = useMemo(() => {
@@ -157,6 +159,52 @@ export default function ConfigureTunnel() {
       });
     } catch { /* silent */ }
   }, []);
+
+  const totalCount = multiPorts.length;
+  const enabledCount = useMemo(() => multiPorts.filter((m) => m.enabled !== false).length, [multiPorts]);
+  const pausedCount = totalCount - enabledCount;
+
+  const filteredMultiPorts = useMemo(() => {
+    let list = multiPorts;
+    if (statusFilter === 'enabled') {
+      list = list.filter((m) => m.enabled !== false);
+    } else if (statusFilter === 'paused') {
+      list = list.filter((m) => m.enabled === false);
+    }
+    if (!subdomainSearch.trim()) return list;
+    const q = subdomainSearch.trim().toLowerCase();
+    return list.filter((m) =>
+      m.addr.toLowerCase().includes(q) ||
+      (m.port && m.port.toString().includes(q)) ||
+      (m.label && m.label.toLowerCase().includes(q))
+    );
+  }, [multiPorts, statusFilter, subdomainSearch]);
+
+  const updatePortForAddr = (addr, newPort) => {
+    const next = multiPorts.map((m) => (m.addr === addr ? { ...m, port: newPort } : m));
+    setMultiPorts(next);
+    const targetToken = selectedGroup?.primaryToken || tokenSel;
+    saveMultiPortConfig(targetToken, multiPort, next);
+  };
+
+  const toggleEnabledForAddr = (addr) => {
+    const current = multiPorts.find((m) => m.addr === addr);
+    if (!current) return;
+    const newEnabled = current.enabled === false;
+    const next = multiPorts.map((m) => (m.addr === addr ? { ...m, enabled: newEnabled } : m));
+    setMultiPorts(next);
+    const targetToken = selectedGroup?.primaryToken || tokenSel;
+    saveMultiPortConfig(targetToken, multiPort, next);
+    toast(newEnabled ? `▶️ Resumed: ${addr}` : `⏸️ Paused: ${addr}`, 'info');
+  };
+
+  const setAllEnabled = (enabledVal) => {
+    const next = multiPorts.map((m) => ({ ...m, enabled: enabledVal }));
+    setMultiPorts(next);
+    const targetToken = selectedGroup?.primaryToken || tokenSel;
+    saveMultiPortConfig(targetToken, multiPort, next);
+    toast(enabledVal ? '▶️ All subdomains resumed' : '⏸️ All subdomains paused', 'info');
+  };
 
   useEffect(() => {
     if (!selectedGroup) return;
@@ -305,77 +353,187 @@ export default function ConfigureTunnel() {
           </div>
           {multiPort && selectedGroup && (
             <div className="multiport-box">
-              <p className="dim" style={{ fontSize: '.78rem', marginBottom: '.6rem' }}>
-                All subdomains under <strong>{selectedGroup.rootDomain}</strong> — enter a local port for each:
-              </p>
-              {multiPorts.map((m, i) => {
-                const enabled = m.enabled !== false;
-                return (
-                <div key={m.addr} className="multiport-row" style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.4rem', opacity: enabled ? 1 : 0.5 ,flexWrap:'wrap'}}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '.5rem', marginBottom: '.75rem' }}>
+                <div>
+                  <p className="dim" style={{ fontSize: '.82rem', margin: 0 }}>
+                    Subdomains under <strong>{selectedGroup.rootDomain}</strong>:
+                  </p>
+                  <span className="dim" style={{ fontSize: '.72rem' }}>
+                    Showing {filteredMultiPorts.length} of {totalCount} {totalCount === 1 ? 'subdomain' : 'subdomains'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    className="toggle-switch"
-                    role="switch"
-                    aria-checked={enabled}
-                    title={enabled ? 'Enabled — included in tunnel' : 'Disabled — excluded from tunnel'}
-                    onClick={() => {
-                      const next = [...multiPorts];
-                      const newEnabled = !enabled;
-                      next[i] = { ...m, enabled: newEnabled };
-                      setMultiPorts(next);
-                      const targetToken = selectedGroup?.primaryToken || tokenSel;
-                      saveMultiPortConfig(targetToken, multiPort, next);
-                      toast(newEnabled ? `▶️ Resumed: ${m.addr}` : `⏸️ Paused: ${m.addr}`, 'info');
-                    }}
-                    style={{
-                      flex: '0 0 auto',
-                      width: 36,
-                      height: 20,
-                      borderRadius: 10,
-                      border: 'none',
-                      background: enabled ? 'var(--green)' : 'var(--surface-2)',
-                      cursor: 'pointer',
-                      position: 'relative',
-                      transition: 'background .2s',
-                      padding: 0,
-                    }}
+                    className="btn btn-sm"
+                    style={{ fontSize: '.72rem', padding: '.2rem .55rem' }}
+                    onClick={() => setAllEnabled(true)}
+                    title="Enable all subdomains"
                   >
-                    <span style={{
-                      position: 'absolute',
-                      top: 2,
-                      left: enabled ? 18 : 2,
-                      width: 16,
-                      height: 16,
-                      borderRadius: '50%',
-                      background: '#fff',
-                      transition: 'left .2s',
-                      boxShadow: '0 1px 3px rgba(0,0,0,.3)',
-                    }} />
+                    ▶️ Resume All
                   </button>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '.1rem' }}>
-                    <span className="code" style={{ fontSize: '.8rem' }}>{m.addr}</span>
-                    <span className="dim" style={{ fontSize: '.68rem' }}>{m.label}</span>
-                  </div>
-                  <input
-                    type="number"
-                    min="1"
-                    max="65535"
-                    placeholder={`e.g. ${3000 + i * 1000}`}
-                    style={{ width: 130 }}
-                    value={m.port}
-                    disabled={!enabled}
-                    onChange={(e) => {
-                      const next = [...multiPorts];
-                      next[i] = { ...m, port: e.target.value };
-                      setMultiPorts(next);
-                      const targetToken = selectedGroup?.primaryToken || tokenSel;
-                      saveMultiPortConfig(targetToken, multiPort, next);
-                    }}
-                  />
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    style={{ fontSize: '.72rem', padding: '.2rem .55rem' }}
+                    onClick={() => setAllEnabled(false)}
+                    title="Pause all subdomains"
+                  >
+                    ⏸️ Pause All
+                  </button>
                 </div>
-                );
-              })}
-              <p className="dim" style={{ fontSize: '.72rem', marginTop: '.6rem' }}>Pro feature — all your domains and subdomains from one SSH connection. No load on your PC — one tunnel handles everything.</p>
+              </div>
+
+              {/* Search and filter bar */}
+              <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '.75rem' }}>
+                <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
+                  <input
+                    type="text"
+                    value={subdomainSearch}
+                    onChange={(e) => setSubdomainSearch(e.target.value)}
+                    placeholder="🔍 Search by subdomain or port (e.g. whatsmark, 8051)..."
+                    style={{ width: '100%', paddingRight: subdomainSearch ? '2rem' : undefined, fontSize: '.82rem' }}
+                  />
+                  {subdomainSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setSubdomainSearch('')}
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--dim)',
+                        fontSize: '.85rem',
+                      }}
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <div className="tabs" style={{ margin: 0 }}>
+                  <button
+                    type="button"
+                    className={`tab ${statusFilter === 'all' ? 'active' : ''}`}
+                    style={{ fontSize: '.75rem', padding: '.25rem .6rem' }}
+                    onClick={() => setStatusFilter('all')}
+                  >
+                    All ({totalCount})
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab ${statusFilter === 'enabled' ? 'active' : ''}`}
+                    style={{ fontSize: '.75rem', padding: '.25rem .6rem' }}
+                    onClick={() => setStatusFilter('enabled')}
+                  >
+                    Active ({enabledCount})
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab ${statusFilter === 'paused' ? 'active' : ''}`}
+                    style={{ fontSize: '.75rem', padding: '.25rem .6rem' }}
+                    onClick={() => setStatusFilter('paused')}
+                  >
+                    Paused ({pausedCount})
+                  </button>
+                </div>
+              </div>
+
+              {/* Subdomain Rows */}
+              {filteredMultiPorts.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem', maxHeight: '380px', overflowY: 'auto', paddingRight: '.2rem' }}>
+                  {filteredMultiPorts.map((m) => {
+                    const enabled = m.enabled !== false;
+                    return (
+                      <div
+                        key={m.addr}
+                        className="multiport-row"
+                        style={{
+                          display: 'flex',
+                          gap: '.5rem',
+                          alignItems: 'center',
+                          opacity: enabled ? 1 : 0.55,
+                          flexWrap: 'wrap',
+                          background: enabled ? 'var(--surface-1, rgba(255,255,255,0.03))' : 'transparent',
+                          padding: '.45rem .65rem',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border, rgba(255,255,255,0.05))',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="toggle-switch"
+                          role="switch"
+                          aria-checked={enabled}
+                          title={enabled ? 'Enabled — included in tunnel' : 'Disabled — excluded from tunnel'}
+                          onClick={() => toggleEnabledForAddr(m.addr)}
+                          style={{
+                            flex: '0 0 auto',
+                            width: 36,
+                            height: 20,
+                            borderRadius: 10,
+                            border: 'none',
+                            background: enabled ? 'var(--green)' : 'var(--surface-2)',
+                            cursor: 'pointer',
+                            position: 'relative',
+                            transition: 'background .2s',
+                            padding: 0,
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: 2,
+                              left: enabled ? 18 : 2,
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              background: '#fff',
+                              transition: 'left .2s',
+                              boxShadow: '0 1px 3px rgba(0,0,0,.3)',
+                            }}
+                          />
+                        </button>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '.1rem', minWidth: 160 }}>
+                          <span className="code" style={{ fontSize: '.82rem', fontWeight: 600 }}>{m.addr}</span>
+                          <span className="dim" style={{ fontSize: '.68rem' }}>{m.label}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '.3rem' }}>
+                          <span className="dim" style={{ fontSize: '.75rem' }}>Local Port:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="65535"
+                            placeholder="e.g. 8080"
+                            style={{ width: 110, fontSize: '.82rem' }}
+                            value={m.port || ''}
+                            disabled={!enabled}
+                            onChange={(e) => updatePortForAddr(m.addr, e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '1.5rem', background: 'var(--surface-1)', borderRadius: '8px' }}>
+                  <p className="dim" style={{ margin: '0 0 .5rem 0', fontSize: '.82rem' }}>🔍 No subdomains match your search or filter</p>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => { setSubdomainSearch(''); setStatusFilter('all'); }}
+                  >
+                    Clear Filter
+                  </button>
+                </div>
+              )}
+              <p className="dim" style={{ fontSize: '.72rem', marginTop: '.75rem', marginBottom: 0 }}>
+                💡 Pro feature — all your domains and subdomains from one SSH connection. One tunnel handles everything.
+              </p>
             </div>
           )}
         </div>

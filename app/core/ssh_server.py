@@ -125,11 +125,29 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                 seen = set()
                 saved_ports_map = {}
                 if getattr(self._server, "_saved_multiport", None):
-                    saved_ports_map = self._server._saved_multiport.get("ports", {})
+                    saved_ports_map = dict(self._server._saved_multiport.get("ports", {}))
 
                 # Filter by explicitly connected ports on this connection
                 connected_ports = set(getattr(self._server, "_port_map", []) or [])
                 act_doms = getattr(self._server, "_active_user_domains", set()) or set()
+
+                if getattr(self._server, "_username", None):
+                    try:
+                        import psycopg
+                        conn_b = psycopg.connect(settings.async_dsn, autocommit=True)
+                        cur_b = conn_b.execute(
+                            "SELECT custom_domain, fixed_subdomain, local_port FROM tokens WHERE user_email = %s AND local_port IS NOT NULL",
+                            (self._server._username,),
+                        )
+                        for cd_v, fs_v, lp_v in cur_b.fetchall():
+                            target_d = cd_v if cd_v and cd_v.strip() else (f"{fs_v.strip().lower()}.{settings.TUNNEL_DOMAIN}" if fs_v and fs_v.strip() else None)
+                            if target_d and target_d not in saved_ports_map:
+                                if not act_doms or target_d.strip().lower() in act_doms:
+                                    saved_ports_map[target_d] = {"enabled": True, "port": str(lp_v)}
+                        cur_b.close()
+                        conn_b.close()
+                    except Exception:
+                        pass
 
                 domain_list = []
                 if saved_ports_map:
@@ -615,58 +633,69 @@ class MySSHServer(asyncssh.SSHServer):
 
             saved_ports_map = {}
             if getattr(self, "_saved_multiport", None):
-                saved_ports_map = self._saved_multiport.get("ports", {})
+                saved_ports_map = dict(self._saved_multiport.get("ports", {}))
 
-            target_addresses = []
             act_doms = getattr(self, "_active_user_domains", set()) or set()
-            if saved_ports_map:
-                if self._port_map:
-                    for req_p in self._port_map:
-                        for addr, info_v in saved_ports_map.items():
-                            if isinstance(info_v, dict) and str(info_v.get("port", "")).strip() == str(req_p):
-                                if addr not in target_addresses and (not act_doms or addr.strip().lower() in act_doms):
-                                    target_addresses.append(addr)
-                for addr in list(saved_ports_map.keys()) + [self._custom_domain] + list(getattr(self, "_custom_domains", []) or []):
-                    if addr and addr not in target_addresses and (not act_doms or addr.strip().lower() in act_doms):
-                        target_addresses.append(addr)
-            else:
-                if self._custom_domain and (not act_doms or self._custom_domain.strip().lower() in act_doms):
-                    target_addresses.append(self._custom_domain)
-                for addr in list(getattr(self, "_custom_domains", []) or []):
-                    if addr and addr not in target_addresses and (not act_doms or addr.strip().lower() in act_doms):
-                        target_addresses.append(addr)
 
+            # Merge tokens table local_port mappings as default/fallback
             if self._username:
                 try:
                     import psycopg
-                    conn2 = psycopg.connect(settings.async_dsn, autocommit=True)
-                    cur2 = conn2.execute(
-                        "SELECT custom_domain FROM tokens WHERE user_email = %s AND token != %s AND custom_domain IS NOT NULL",
-                        (self._username, self._token),
+                    conn_ports = psycopg.connect(settings.async_dsn, autocommit=True)
+                    cur_p = conn_ports.execute(
+                        "SELECT custom_domain, fixed_subdomain, local_port FROM tokens WHERE user_email = %s AND local_port IS NOT NULL",
+                        (self._username,),
                     )
-                    for r in cur2.fetchall():
-                        addr = r[0]
-                        if addr and addr not in target_addresses and (not act_doms or addr.strip().lower() in act_doms):
-                            target_addresses.append(addr)
-                    cur2.close()
-                    cur2 = conn2.execute(
-                        "SELECT td.domain FROM token_domains td "
-                        "JOIN tokens t ON t.id = td.token_id "
-                        "WHERE t.user_email = %s AND t.token != %s",
-                        (self._username, self._token),
-                    )
-                    for r in cur2.fetchall():
-                        addr = r[0]
-                        if addr and addr not in target_addresses and (not act_doms or addr.strip().lower() in act_doms):
-                            target_addresses.append(addr)
-                    cur2.close()
-                    conn2.close()
+                    for cd_val, fs_val, lp_val in cur_p.fetchall():
+                        target_d = cd_val if cd_val and cd_val.strip() else (f"{fs_val.strip().lower()}.{settings.TUNNEL_DOMAIN}" if fs_val and fs_val.strip() else None)
+                        if target_d and target_d not in saved_ports_map:
+                            if not act_doms or target_d.strip().lower() in act_doms:
+                                saved_ports_map[target_d] = {"enabled": True, "port": str(lp_val)}
+                    cur_p.close()
+                    conn_ports.close()
                 except Exception as e:
-                    logger.warning("Could not load cross-token addresses: %s", e)
+                    logger.debug("Failed loading token ports fallback: %s", e)
 
+            # Map listener ports to domains strictly by matching local port numbers
+            mapped_listeners = set()
+            mapped_domains = set()
+
+            # 1. Exact port match: map listener i (corresponding to self._port_map[i]) to all domains configured with that port
+            if self._port_map:
+                for i, req_p in enumerate(self._port_map):
+                    if i >= len(all_listener_ports):
+                        break
+                    port = all_listener_ports[i]
+                    req_p_str = str(req_p).strip()
+                    matched_for_this_listener = False
+                    for addr, info_v in saved_ports_map.items():
+                        if act_doms and addr.strip().lower() not in act_doms:
+                            continue
+                        cfg_p = str(info_v.get("port", "")).strip() if isinstance(info_v, dict) else str(info_v).strip()
+                        if cfg_p == req_p_str:
+                            self._tunnel.endpoints[addr] = port
+                            self._tunnel.local_ports[addr] = req_p
+                            mapped_domains.add(addr)
+                            matched_for_this_listener = True
+                    if matched_for_this_listener:
+                        mapped_listeners.add(i)
+
+            # 2. Build target addresses list for any remaining unmapped domains
+            remaining_addresses = []
+            if self._custom_domain and self._custom_domain not in mapped_domains and (not act_doms or self._custom_domain.strip().lower() in act_doms):
+                remaining_addresses.append(self._custom_domain)
+            for addr in list(getattr(self, "_custom_domains", []) or []) + list(saved_ports_map.keys()):
+                if addr and addr not in mapped_domains and addr not in remaining_addresses and (not act_doms or addr.strip().lower() in act_doms):
+                    remaining_addresses.append(addr)
+
+            # 3. Assign any remaining listeners to remaining domains
+            rem_idx = 0
             for i, port in enumerate(all_listener_ports):
-                if i < len(target_addresses):
-                    addr = target_addresses[i]
+                if i in mapped_listeners:
+                    continue
+                if rem_idx < len(remaining_addresses):
+                    addr = remaining_addresses[rem_idx]
+                    rem_idx += 1
                     self._tunnel.endpoints[addr] = port
                     lp = 0
                     if self._port_map and i < len(self._port_map):
@@ -678,20 +707,24 @@ class MySSHServer(asyncssh.SSHServer):
                             pass
                     if lp:
                         self._tunnel.local_ports[addr] = lp
-                    if i == 0:
-                        self._tunnel.remote_port = port
-                        self._tunnel.endpoints[self._tunnel.subdomain] = port
-                        self._tunnel.endpoints[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = port
-                        if lp:
-                            self._tunnel.local_port = lp
-                            self._tunnel.local_ports[self._tunnel.subdomain] = lp
-                            self._tunnel.local_ports[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = lp
+                    mapped_domains.add(addr)
+                    mapped_listeners.add(i)
                 else:
                     logger.info("Extra listener %d mapped as fallback for %s", port, self._peer)
 
+            # 4. Ensure primary tunnel subdomain has remote_port and local_port set
+            primary_port = all_listener_ports[0]
+            self._tunnel.remote_port = primary_port
             if self._tunnel.subdomain not in self._tunnel.endpoints:
-                self._tunnel.endpoints[self._tunnel.subdomain] = all_listener_ports[0]
-                self._tunnel.endpoints[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = all_listener_ports[0]
+                self._tunnel.endpoints[self._tunnel.subdomain] = primary_port
+                self._tunnel.endpoints[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = primary_port
+
+            if self._port_map:
+                primary_lp = self._port_map[0]
+                self._tunnel.local_port = primary_lp
+                if self._tunnel.subdomain not in self._tunnel.local_ports:
+                    self._tunnel.local_ports[self._tunnel.subdomain] = primary_lp
+                    self._tunnel.local_ports[f"{self._tunnel.subdomain}.{settings.TUNNEL_DOMAIN}"] = primary_lp
 
             logger.info("Multi-port tunnel %s endpoints: %s (local %s)",
                         self._tunnel.subdomain, self._tunnel.endpoints, self._tunnel.local_ports)
