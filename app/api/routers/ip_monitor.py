@@ -17,11 +17,14 @@ from app.core.redis import (
     get_redis,
     list_blocked_ips,
     list_tracked_ips,
+    list_whitelisted_ips,
     lookup_geo,
     redis_available,
     set_monitor_config_overrides,
     store_geo,
     unblock_ip,
+    unwhitelist_ip,
+    whitelist_ip,
 )
 
 router = APIRouter(prefix="/ip-monitor", tags=["ip-monitor"])
@@ -34,6 +37,15 @@ class BlockRequest(BaseModel):
 
 
 class UnblockRequest(BaseModel):
+    ip: str
+
+
+class WhitelistRequest(BaseModel):
+    ip: str
+    reason: str = "manual"
+
+
+class UnwhitelistRequest(BaseModel):
     ip: str
 
 
@@ -116,6 +128,47 @@ async def list_blocked(admin: dict = Depends(get_admin_user)):
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Redis not connected")
     blocked = await list_blocked_ips()
     return {"blocked": blocked, "count": len(blocked)}
+
+
+@router.get("/whitelisted")
+async def list_whitelisted(admin: dict = Depends(get_admin_user)):
+    """List all whitelisted IPs."""
+    if not redis_available():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Redis not connected")
+    whitelisted = await list_whitelisted_ips()
+    return {"whitelisted": whitelisted, "count": len(whitelisted)}
+
+
+@router.post("/whitelist")
+async def whitelist_ip_endpoint(
+    payload: WhitelistRequest,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Whitelist an IP address."""
+    if not redis_available():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Redis not connected")
+    success = await whitelist_ip(payload.ip.strip(), reason=payload.reason.strip(), added_by=admin["email"])
+    if not success:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to whitelist IP")
+    await log_audit(db, admin["email"], "ip.whitelist", payload.ip, f"reason={payload.reason}")
+    return {"detail": f"IP {payload.ip} added to whitelist"}
+
+
+@router.post("/unwhitelist")
+async def unwhitelist_ip_endpoint(
+    payload: UnwhitelistRequest,
+    admin: dict = Depends(get_admin_user),
+    db: AsyncConnection = Depends(get_db),
+):
+    """Remove an IP from the whitelist."""
+    if not redis_available():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Redis not connected")
+    success = await unwhitelist_ip(payload.ip.strip())
+    if not success:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to unwhitelist IP")
+    await log_audit(db, admin["email"], "ip.unwhitelist", payload.ip, "manual remove")
+    return {"detail": f"IP {payload.ip} removed from whitelist"}
 
 
 @router.post("/geo/{ip}")

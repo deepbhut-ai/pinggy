@@ -167,8 +167,11 @@ async def record_request(
         # Set TTL on the main key (24h of inactivity → expire)
         await r.expire(key, 86400)
 
-        # Check if IP should be auto-blocked (respects the runtime on/off toggle)
-        if mon_cfg["auto_block_enabled"] and window_count >= mon_cfg["block_threshold"]:
+        # Check if IP is whitelisted (whitelisted IPs are NEVER auto-blocked)
+        if await is_whitelisted(ip):
+            pass
+        elif mon_cfg["auto_block_enabled"] and window_count >= mon_cfg["block_threshold"]:
+            # Check if IP should be auto-blocked (respects the runtime on/off toggle)
             await block_ip(ip, reason="auto_rate_limit", duration=mon_cfg["block_duration_seconds"])
 
         # Return summary
@@ -181,10 +184,84 @@ async def record_request(
         return None
 
 
+async def whitelist_ip(ip: str, reason: str = "manual", added_by: str = "") -> bool:
+    """Add an IP to the global whitelist (exempt from auto-blocking and rate limiting)."""
+    r = get_redis()
+    if r is None:
+        return False
+    try:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        await r.hset(
+            "whitelist:ips",
+            ip,
+            json.dumps({"reason": reason, "added_at": now_iso, "added_by": added_by}),
+        )
+        await r.set(f"whitelisted:{ip}", "1")
+        # If it was blocked, automatically unblock it
+        await unblock_ip(ip)
+        logger.info("IP whitelisted: %s (reason=%s, added_by=%s)", ip, reason, added_by)
+        return True
+    except Exception as e:
+        logger.debug("Redis whitelist_ip error: %s", e)
+        return False
+
+
+async def unwhitelist_ip(ip: str) -> bool:
+    """Remove an IP from the global whitelist."""
+    r = get_redis()
+    if r is None:
+        return False
+    try:
+        await r.hdel("whitelist:ips", ip)
+        await r.delete(f"whitelisted:{ip}")
+        logger.info("IP unwhitelisted: %s", ip)
+        return True
+    except Exception as e:
+        logger.debug("Redis unwhitelist_ip error: %s", e)
+        return False
+
+
+async def is_whitelisted(ip: str) -> bool:
+    """Check if an IP is currently whitelisted."""
+    r = get_redis()
+    if r is None:
+        return False
+    try:
+        return await r.exists(f"whitelisted:{ip}") > 0
+    except Exception:
+        return False
+
+
+async def list_whitelisted_ips() -> list[dict[str, Any]]:
+    """List all whitelisted IPs."""
+    r = get_redis()
+    if r is None:
+        return []
+    try:
+        whitelist = await r.hgetall("whitelist:ips")
+        result = []
+        for ip, raw in whitelist.items():
+            try:
+                info = json.loads(raw)
+            except Exception:
+                info = {"reason": "manual", "added_at": "", "added_by": ""}
+            result.append({"ip": ip, **info})
+        # Sort by added_at descending
+        result.sort(key=lambda x: x.get("added_at", ""), reverse=True)
+        return result
+    except Exception as e:
+        logger.debug("Redis list_whitelisted_ips error: %s", e)
+        return []
+
+
 async def block_ip(ip: str, reason: str = "manual", duration: int = 3600) -> bool:
     """Block an IP for a given duration (seconds)."""
     r = get_redis()
     if r is None:
+        return False
+    # Never block a whitelisted IP
+    if await is_whitelisted(ip):
+        logger.info("Skipping block on whitelisted IP: %s", ip)
         return False
     try:
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -218,6 +295,8 @@ async def is_blocked(ip: str) -> bool:
     if r is None:
         return False
     try:
+        if await is_whitelisted(ip):
+            return False
         return await r.exists(f"blocked:{ip}") > 0
     except Exception:
         return False
@@ -369,6 +448,9 @@ async def get_monitor_stats() -> dict[str, Any]:
         # Count blocked IPs
         blocklist = await r.hlen("blocklist:ips")
 
+        # Count whitelisted IPs
+        whitelist = await r.hlen("whitelist:ips")
+
         # Top countries
         countries: dict[str, int] = {}
         async for key in r.scan_iter(match="ip:*", count=200):
@@ -383,6 +465,7 @@ async def get_monitor_stats() -> dict[str, Any]:
             "enabled": True,
             "tracked_ips": tracked,
             "blocked_ips": blocklist,
+            "whitelisted_ips": whitelist,
             "top_countries": top_countries,
         }
     except Exception as e:
