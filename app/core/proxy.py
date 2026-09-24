@@ -17,6 +17,7 @@ from starlette.responses import Response
 
 from app.core.config import settings
 from app.core.tunnel_registry import (
+    format_tunnel_time,
     get_tunnel,
     get_tunnel_by_custom_domain,
     increment_request_count,
@@ -260,13 +261,13 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             if denied is not None:
                 # count blocked requests too
                 await increment_request_count(subdomain, 0)
-                log_to_tunnel(subdomain, f"  [{datetime.now().strftime('%H:%M:%S')}] {request.method:<6s} {request.url.path or '/':<30s} → {denied.status_code}  (blocked: security)")
+                log_to_tunnel(subdomain, f"  [{format_tunnel_time(tunnel)}] {request.method:<6s} {request.url.path or '/':<30s} → {denied.status_code}  (blocked: security)")
                 return denied
 
         # Check if the specific endpoint (or whole tunnel) is paused at runtime (v3.0.0)
         if tunnel.is_endpoint_paused(matched_addr) or tunnel.is_endpoint_paused(host):
             await increment_request_count(subdomain, 0)
-            log_to_tunnel(subdomain, f"  [{datetime.now().strftime('%H:%M:%S')}] {request.method:<6s} {request.url.path or '/':<30s} → 503 (paused)")
+            log_to_tunnel(subdomain, f"  [{format_tunnel_time(tunnel)}] {request.method:<6s} {request.url.path or '/':<30s} → 503 (paused)")
             return Response(
                 content="""<!DOCTYPE html>
 <html>
@@ -348,7 +349,7 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
 
             # Log to user's SSH terminal
             elapsed_ms = int((time.monotonic() - req_start) * 1000)
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            timestamp = format_tunnel_time(tunnel)
             status = resp.status_code
             log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {req_path:<30s} → {status}  ({elapsed_ms}ms)")
 
@@ -400,7 +401,7 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             return response
 
         except httpx.ConnectError:
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            timestamp = format_tunnel_time(tunnel)
             log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {request.url.path or '/':<30s} → 502 (refused)")
             return Response(
                 content="<h1>Tunnel connection refused</h1>"
@@ -410,7 +411,7 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                 media_type="text/html",
             )
         except httpx.ReadTimeout:
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            timestamp = format_tunnel_time(tunnel)
             log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {request.url.path or '/':<30s} → 504 (timeout)")
             return Response(
                 content="<h1>Tunnel request timed out</h1>",
@@ -418,7 +419,7 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                 media_type="text/html",
             )
         except Exception as e:
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            timestamp = format_tunnel_time(tunnel)
             log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {request.url.path or '/':<30s} → ERR ({e})")
             logger.error("Proxy error for %s: %s", subdomain, e)
             return Response(
@@ -597,7 +598,7 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
             except Exception:
                 pass
             await increment_request_count(subdomain, 64)
-            log_to_tunnel(subdomain, f"  [{datetime.now().strftime('%H:%M:%S')}] WS     {path}  closed")
+            log_to_tunnel(subdomain, f"  [{format_tunnel_time(tunnel)}] WS     {path}  closed")
     except Exception as e:
         logger.exception("WS tunnel error %s: %s", subdomain, e)
         try:

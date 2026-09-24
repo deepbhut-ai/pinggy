@@ -14,8 +14,30 @@ API_BASE = os.environ.get("IRAGT_API_HOST", "https://iraglobaltech.com")
 VERSION = "1.0.3"
 
 
+def get_local_tz_name() -> str:
+    try:
+        import datetime
+        tz = datetime.datetime.now().astimezone().tzinfo
+        if tz:
+            tz_str = str(tz)
+            if tz_str:
+                return tz_str
+    except Exception:
+        pass
+    try:
+        if hasattr(time, "tzname") and time.tzname:
+            return time.tzname[0]
+    except Exception:
+        pass
+    return ""
+
+
 def fetch_config(token: str) -> dict:
+    tz = get_local_tz_name()
     api_url = f"{API_BASE}/api/v1/configs/cli/{token}"
+    if tz:
+        import urllib.parse
+        api_url += f"?tz={urllib.parse.quote(tz)}"
     req = urllib.request.Request(
         api_url,
         headers={"User-Agent": f"iragt-python-cli/{VERSION}"}

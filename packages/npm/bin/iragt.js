@@ -47,7 +47,12 @@ const tokenDisplay = token.length > 8 ? `${token.substring(0, 8)}...` : token;
 
 function fetchConfig(t) {
   return new Promise((resolve, reject) => {
-    const apiUrl = `${API_BASE}/api/v1/configs/cli/${encodeURIComponent(t)}`;
+    let tzParam = '';
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz) tzParam = `?tz=${encodeURIComponent(tz)}`;
+    } catch (e) {}
+    const apiUrl = `${API_BASE}/api/v1/configs/cli/${encodeURIComponent(t)}${tzParam}`;
     https.get(apiUrl, (res) => {
       let rawData = '';
       res.on('data', (chunk) => { rawData += chunk; });

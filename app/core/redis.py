@@ -354,6 +354,7 @@ async def lookup_geo(ip: str) -> dict[str, str] | None:
                     "isp": data.get("isp", ""),
                     "lat": str(data.get("lat", "")),
                     "lon": str(data.get("lon", "")),
+                    "timezone": data.get("timezone", ""),
                 }
     except Exception as e:
         logger.debug("Geo lookup failed for %s: %s", ip, e)
@@ -367,17 +368,56 @@ async def store_geo(ip: str, geo: dict[str, str]) -> None:
         return
     try:
         key = _ip_key(ip)
-        await r.hset(key, mapping={
+        mapping = {
             "country": geo.get("country", ""),
             "country_code": geo.get("country_code", ""),
             "city": geo.get("city", ""),
             "isp": geo.get("isp", ""),
             "lat": geo.get("lat", ""),
             "lon": geo.get("lon", ""),
-        })
+        }
+        if geo.get("timezone"):
+            mapping["timezone"] = geo["timezone"]
+        await r.hset(key, mapping=mapping)
         await r.expire(key, 86400)
     except Exception as e:
         logger.debug("Redis store_geo error: %s", e)
+
+
+async def resolve_client_timezone(token: str = "", username: str = "", peer: str = "") -> str:
+    """Resolve user/client IANA timezone from Redis cache or peer IP Geolocation."""
+    r: Any = get_redis()
+    if not r:
+        return ""
+    try:
+        if token:
+            tz_val = await r.get(f"usertz:{token}")
+            if tz_val:
+                return tz_val.decode() if isinstance(tz_val, bytes) else str(tz_val)
+        if username:
+            tz_val = await r.get(f"usertz:{username}")
+            if tz_val:
+                return tz_val.decode() if isinstance(tz_val, bytes) else str(tz_val)
+        if peer and peer != "unknown":
+            peer_ip = peer.rsplit(":", 1)[0].strip("[]")
+            import ipaddress
+            try:
+                ip_obj = ipaddress.ip_address(peer_ip)
+                is_public = not (ip_obj.is_loopback or ip_obj.is_private or ip_obj.is_reserved or ip_obj.is_link_local)
+            except Exception:
+                is_public = False
+
+            if is_public:
+                geo_tz = await r.hget(f"ip:{peer_ip}", "timezone")
+                if geo_tz:
+                    return geo_tz.decode() if isinstance(geo_tz, bytes) else str(geo_tz)
+                geo_data = await lookup_geo(peer_ip)
+                if geo_data and geo_data.get("timezone"):
+                    await store_geo(peer_ip, geo_data)
+                    return geo_data["timezone"]
+    except Exception as e:
+        logger.debug("Failed to resolve client timezone: %s", e)
+    return ""
 
 
 async def list_tracked_ips(limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:

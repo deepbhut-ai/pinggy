@@ -35,6 +35,7 @@ class TunnelSession:
     bytes_transferred: int = 0
     bytes_sent: int = 0      # responses out of the local service (v1.2.0)
     bytes_received: int = 0  # requests into the local service (v1.2.0)
+    user_timezone: str = ""   # IANA timezone (e.g. Asia/Kolkata, America/New_York)
     # Reference to the asyncssh SSHServerConnection for cleanup
     ssh_conn: Any = None
     # Callback to send log lines to the user's SSH terminal (live request log)
@@ -268,6 +269,28 @@ async def increment_request_count(subdomain: str, bytes_count: int = 0, sent: in
             pass  # stats write-through is best-effort
 
 
+def format_tunnel_time(tunnel_or_subdomain: "TunnelSession | str | None" = None, fmt: str = "%H:%M:%S") -> str:
+    """Format timestamp according to user's local timezone if known, else server local."""
+    import zoneinfo
+    now_utc = datetime.now(timezone.utc)
+    tz_str = ""
+    if isinstance(tunnel_or_subdomain, str):
+        t = _tunnels.get(tunnel_or_subdomain)
+        if t:
+            tz_str = getattr(t, "user_timezone", "")
+    elif tunnel_or_subdomain:
+        tz_str = getattr(tunnel_or_subdomain, "user_timezone", "")
+
+    if tz_str:
+        try:
+            tz = zoneinfo.ZoneInfo(tz_str)
+            return now_utc.astimezone(tz).strftime(fmt)
+        except Exception:
+            pass
+    # Fallback to server local time
+    return datetime.now().strftime(fmt)
+
+
 def log_to_tunnel(subdomain: str, message: str) -> None:
     """Send a log line to the tunnel's SSH terminal (if connected)."""
     tunnel = _tunnels.get(subdomain)
@@ -282,7 +305,7 @@ def is_subdomain_taken(subdomain: str) -> bool:
     return subdomain in _tunnels
 
 
-async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: dict) -> None:
+async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: dict, tz: str | None = None) -> None:
     """Synchronize multiport enable/pause states and bind new endpoints dynamically for all matching active tunnel sessions."""
     async with _lock:
         for tunnel in _tunnels.values():
@@ -292,6 +315,8 @@ async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: d
             elif tunnel.user_email and user_email and tunnel.user_email.lower() == user_email.lower():
                 match = True
             if match:
+                if tz and tz.strip():
+                    tunnel.user_timezone = tz.strip()
                 # Determine active local ports forwarded by this specific tunnel session
                 active_tunnel_ports = set()
                 if tunnel.local_port:
@@ -344,12 +369,13 @@ async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: d
                         tunnel.local_ports[norm] = target_port
 
                     # State update & live SSH console notification (only log when state actually changes)
+                    time_prefix = format_tunnel_time(tunnel)
                     if isinstance(info, dict) and info.get("enabled") is False:
                         if norm not in tunnel.paused_endpoints:
                             tunnel.paused_endpoints.add(norm)
                             if tunnel.log_callback:
                                 try:
-                                    tunnel.log_callback(f"  [dashboard] ⏸️  Paused endpoint: https://{norm}")
+                                    tunnel.log_callback(f"  [{time_prefix}] [dashboard] ⏸️  Paused endpoint: https://{norm}")
                                 except Exception:
                                     pass
                     else:
@@ -357,6 +383,6 @@ async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: d
                             tunnel.paused_endpoints.discard(norm)
                             if tunnel.log_callback:
                                 try:
-                                    tunnel.log_callback(f"  [dashboard] ▶️  Resumed endpoint: https://{norm}")
+                                    tunnel.log_callback(f"  [{time_prefix}] [dashboard] ▶️  Resumed endpoint: https://{norm}")
                                 except Exception:
                                     pass

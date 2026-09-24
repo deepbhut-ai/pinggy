@@ -30,6 +30,7 @@ class MultiPortConfig(BaseModel):
     token: str
     multi_port_enabled: bool = True
     ports: dict = Field(default_factory=dict)  # {"address.com": {"enabled": true, "port": "3000"}}
+    tz: str | None = None
 
 
 async def _get_active_user_domains_and_ports(db: AsyncConnection, user_email: str) -> tuple[set[str], dict[str, str], set[str]]:
@@ -226,7 +227,16 @@ async def save_multiport_config(
 
     # 7. Live sync active tunnel session paused/resumed states & notify user terminal
     try:
-        await sync_tunnel_multiport_config(user_email, body.token, merged_ports)
+        if body.tz and body.tz.strip():
+            from app.core.redis import get_redis
+            r = get_redis()
+            if r:
+                clean_tz = body.tz.strip()[:64]
+                if body.token:
+                    await r.set(f"usertz:{body.token}", clean_tz, ex=7 * 86400)
+                if user_email:
+                    await r.set(f"usertz:{user_email}", clean_tz, ex=7 * 86400)
+        await sync_tunnel_multiport_config(user_email, body.token, merged_ports, tz=body.tz)
     except Exception:
         pass
 
@@ -350,11 +360,21 @@ async def get_multiport_config(
 @router.get("/cli/{token}")
 async def get_cli_tunnel_config(
     token: str,
+    tz: str | None = None,
     db: AsyncConnection = Depends(get_db),
 ):
     """Fetch saved multiport and domain mappings for a token to power zero-flag CLI connections."""
     import json as _json
     from app.core.config import settings
+
+    if tz and tz.strip():
+        try:
+            from app.core.redis import get_redis
+            r = get_redis()
+            if r:
+                await r.set(f"usertz:{token}", tz.strip()[:64], ex=7 * 86400)
+        except Exception:
+            pass
 
     # 1. Lookup token in tokens table
     user_email = None
@@ -378,7 +398,6 @@ async def get_cli_tunnel_config(
     except Exception:
         pass
 
-    # Fallback to users table (legacy single-token)
     if not user_email:
         cur = await db.execute(
             "SELECT email, custom_domain, is_active FROM users WHERE tunnel_token = %s",
@@ -391,6 +410,15 @@ async def get_cli_tunnel_config(
         if not row[2]:
             raise HTTPException(status_code=403, detail="Account is disabled")
         user_email, custom_domain = row[0], row[1] or ""
+
+    if tz and tz.strip() and user_email:
+        try:
+            from app.core.redis import get_redis
+            r = get_redis()
+            if r:
+                await r.set(f"usertz:{user_email}", tz.strip()[:64], ex=7 * 86400)
+        except Exception:
+            pass
 
     active_domains, token_ports, _ = await _get_active_user_domains_and_ports(db, user_email)
 

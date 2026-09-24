@@ -201,6 +201,10 @@ class TunnelInfoSession(asyncssh.SSHServerSession):
                     row_str = f"  🌐 {primary_url} -> :{sub_lp}{sub_p}"
                     lines.append(f"  ║ {row_str:<72s} ║")
 
+                if tunnel.user_timezone:
+                    tz_row = f"  🕒 Timezone: {tunnel.user_timezone}"
+                    lines.append(f"  ║ {tz_row:<72s} ║")
+
                 lines += [
                     "  ╚══════════════════════════════════════════════════════════════════════════╝",
                     "",
@@ -787,6 +791,18 @@ class MySSHServer(asyncssh.SSHServer):
 
             paused_endpoints = set(getattr(self, "_initial_paused_endpoints", set()) or set())
 
+            # Resolve user's timezone for client-clock timestamps
+            user_tz = ""
+            try:
+                from app.core.redis import resolve_client_timezone
+                user_tz = await resolve_client_timezone(
+                    token=self._token or "",
+                    username=self._username or "",
+                    peer=self._peer or "",
+                )
+            except Exception as e:
+                logger.debug("Failed to resolve user timezone for tunnel %s: %s", subdomain, e)
+
             self._tunnel = TunnelSession(
                 tunnel_id=tunnel_id,
                 subdomain=subdomain,
@@ -800,6 +816,7 @@ class MySSHServer(asyncssh.SSHServer):
                 custom_domains=list(getattr(self, "_custom_domains", []) or []),
                 paused_endpoints=paused_endpoints,
                 token=self._token or "",
+                user_timezone=user_tz,
                 log_callback=self.write_log,
             )
 
