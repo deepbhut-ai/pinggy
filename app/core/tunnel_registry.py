@@ -292,23 +292,58 @@ async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: d
             elif tunnel.user_email and user_email and tunnel.user_email.lower() == user_email.lower():
                 match = True
             if match:
+                # Determine active local ports forwarded by this specific tunnel session
+                active_tunnel_ports = set()
+                if tunnel.local_port:
+                    active_tunnel_ports.add(tunnel.local_port)
+                for lp in tunnel.local_ports.values():
+                    if lp:
+                        try:
+                            active_tunnel_ports.add(int(lp))
+                        except (ValueError, TypeError):
+                            pass
+
                 for addr, info in (ports_map or {}).items():
                     norm = addr.replace("https://", "").replace("http://", "").strip().lower().split("/")[0].split(":")[0]
                     if not norm:
                         continue
 
+                    target_port = None
+                    if isinstance(info, dict) and "port" in info:
+                        try:
+                            target_port = int(str(info["port"]).strip())
+                        except (ValueError, TypeError):
+                            pass
+
+                    # Check if this domain belongs to this specific tunnel session
+                    belongs_to_tunnel = False
+                    if norm == tunnel.subdomain.lower() or norm == f"{tunnel.subdomain.lower()}.{_domain.lower()}":
+                        belongs_to_tunnel = True
+                    elif tunnel.custom_domain and norm == tunnel.custom_domain.strip().lower():
+                        belongs_to_tunnel = True
+                    elif norm in [d.strip().lower() for d in (tunnel.custom_domains or [])]:
+                        belongs_to_tunnel = True
+                    elif norm in tunnel.endpoints:
+                        belongs_to_tunnel = True
+                    elif target_port is not None and active_tunnel_ports and target_port in active_tunnel_ports:
+                        belongs_to_tunnel = True
+                    elif not active_tunnel_ports and not tunnel.local_ports:
+                        # Fallback for generic untracked sessions
+                        belongs_to_tunnel = True
+
+                    # If this domain does not belong to this tunnel session, do not alter endpoints or send messages
+                    if not belongs_to_tunnel:
+                        continue
+
                     # Dynamically bind new domain to active live tunnel session in memory
-                    if norm not in tunnel.custom_domains:
+                    if norm not in tunnel.custom_domains and norm != tunnel.subdomain and norm != f"{tunnel.subdomain}.{_domain}":
                         tunnel.custom_domains.append(norm)
                     if norm not in tunnel.endpoints:
                         tunnel.endpoints[norm] = tunnel.remote_port
-                    if isinstance(info, dict) and "port" in info:
-                        try:
-                            tunnel.local_ports[norm] = int(info["port"])
-                        except Exception:
-                            pass
+                    if target_port is not None:
+                        tunnel.local_ports[norm] = target_port
 
-                    # State update & live SSH console notification (identical for modal and dashboard toggles)
+                    # State update & live SSH console notification (only log when state actually changes)
                     if isinstance(info, dict) and info.get("enabled") is False:
                         if norm not in tunnel.paused_endpoints:
                             tunnel.paused_endpoints.add(norm)
@@ -318,9 +353,10 @@ async def sync_tunnel_multiport_config(user_email: str, token: str, ports_map: d
                                 except Exception:
                                     pass
                     else:
-                        tunnel.paused_endpoints.discard(norm)
-                        if tunnel.log_callback:
-                            try:
-                                tunnel.log_callback(f"  [dashboard] ▶️  Resumed endpoint: https://{norm}")
-                            except Exception:
-                                pass
+                        if norm in tunnel.paused_endpoints:
+                            tunnel.paused_endpoints.discard(norm)
+                            if tunnel.log_callback:
+                                try:
+                                    tunnel.log_callback(f"  [dashboard] ▶️  Resumed endpoint: https://{norm}")
+                                except Exception:
+                                    pass
