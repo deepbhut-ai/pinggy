@@ -603,6 +603,7 @@ class MySSHServer(asyncssh.SSHServer):
             if getattr(self, "_port_mismatch_error", None):
                 return
             # Poll for listeners
+            expected_count = len(self._port_map) if self._port_map else 1
             all_listener_ports: list[int] = []
             for _attempt in range(50):
                 if not self._conn:
@@ -611,7 +612,7 @@ class MySSHServer(asyncssh.SSHServer):
                     port for (host, port), listener in (getattr(self._conn, "_local_listeners", {}) or {}).items()
                     if listener
                 ]
-                if all_listener_ports:
+                if len(all_listener_ports) >= expected_count:
                     break
                 await asyncio.sleep(0.1)
 

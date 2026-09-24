@@ -122,24 +122,29 @@ async def get_tunnel(subdomain: str) -> TunnelSession | None:
 
 
 async def get_tunnel_by_custom_domain(custom_domain: str) -> TunnelSession | None:
-    """Find the active tunnel assigned to a custom domain."""
+    """Find the active tunnel assigned to a custom domain or multiport address."""
     normalized_domain = custom_domain.strip().lower().split(":")[0]  # strip :port
+    sub_part = normalized_domain.split(".")[0]
     for tunnel in _tunnels.values():
-        if tunnel.custom_domain.strip().lower().split(":")[0] == normalized_domain:
+        if tunnel.custom_domain and tunnel.custom_domain.strip().lower().split(":")[0] == normalized_domain:
             return tunnel
         # v1.4.0: match extra domains attached to the token
         for d in getattr(tunnel, "custom_domains", []) or []:
             if str(d).strip().lower() == normalized_domain:
                 return tunnel
+        # match multiport endpoints
+        if normalized_domain in tunnel.endpoints or sub_part in tunnel.endpoints:
+            return tunnel
+
     # Fallback dynamic match: check if this domain belongs to an active user/token in DB
     try:
         from app.core.db import get_conn
         async with get_conn() as db:
             cur = await db.execute(
-                "SELECT token, user_email FROM tokens WHERE custom_domain = %s "
+                "SELECT token, user_email FROM tokens WHERE custom_domain = %s OR fixed_subdomain = %s "
                 "UNION "
                 "SELECT t.token, t.user_email FROM token_domains td JOIN tokens t ON t.id = td.token_id WHERE td.domain = %s",
-                (normalized_domain, normalized_domain),
+                (normalized_domain, sub_part, normalized_domain),
             )
             row = await cur.fetchone()
             await cur.close()
