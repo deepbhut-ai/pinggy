@@ -74,7 +74,16 @@ class TunnelSession:
     def endpoint_port(self, address: str) -> int:
         """v1.9.0: remote port serving this address (falls back to the default)."""
         try:
-            return self.endpoints.get(address.strip().lower().split(":")[0], self.remote_port)
+            norm = address.strip().lower().split(":")[0]
+            if norm in self.endpoints:
+                return self.endpoints[norm]
+            sub_part = norm.split(".")[0]
+            if sub_part in self.endpoints:
+                return self.endpoints[sub_part]
+            full_sub = f"{norm}.{_domain}"
+            if full_sub in self.endpoints:
+                return self.endpoints[full_sub]
+            return self.remote_port
         except Exception:
             return self.remote_port
 
@@ -118,7 +127,17 @@ async def remove_tunnel(subdomain: str) -> TunnelSession | None:
 
 
 async def get_tunnel(subdomain: str) -> TunnelSession | None:
-    return _tunnels.get(subdomain)
+    t = _tunnels.get(subdomain)
+    if t:
+        return t
+    norm = subdomain.strip().lower()
+    for tunnel in _tunnels.values():
+        if norm in tunnel.endpoints or f"{norm}.{_domain}" in tunnel.endpoints:
+            return tunnel
+        for d in getattr(tunnel, "custom_domains", []) or []:
+            if str(d).strip().lower() == norm:
+                return tunnel
+    return None
 
 
 async def get_tunnel_by_custom_domain(custom_domain: str) -> TunnelSession | None:

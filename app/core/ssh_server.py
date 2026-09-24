@@ -679,7 +679,9 @@ class MySSHServer(asyncssh.SSHServer):
                         cfg_p = str(info_v.get("port", "")).strip() if isinstance(info_v, dict) else str(info_v).strip()
                         if cfg_p == req_p_str:
                             self._tunnel.endpoints[addr] = port
+                            self._tunnel.endpoints[addr.split(".")[0]] = port
                             self._tunnel.local_ports[addr] = req_p
+                            self._tunnel.local_ports[addr.split(".")[0]] = req_p
                             mapped_domains.add(addr)
                             matched_for_this_listener = True
                     if matched_for_this_listener:

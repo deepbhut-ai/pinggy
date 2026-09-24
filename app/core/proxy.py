@@ -240,7 +240,7 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
         # Look up generated tunnel subdomains first, then custom domains.
         # SSH assigns a random subdomain, so it cannot be derived from the token.
         tunnel = await get_tunnel(subdomain)
-        matched_addr = subdomain  # v1.9.0: which address the request came in on
+        matched_addr = host.strip().lower().split(":")[0] if host else subdomain  # v1.9.0: which address the request came in on
         if not tunnel:
             tunnel = await get_tunnel_by_custom_domain(host)
             if tunnel:
