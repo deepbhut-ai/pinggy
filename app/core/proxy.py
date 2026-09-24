@@ -100,7 +100,12 @@ def _client_ip(request: Request) -> str:
     xff = request.headers.get("X-Forwarded-For")
     if xff:
         return xff.split(",")[0].strip()
-    return request.client.host if request.client else "0.0.0.0"
+    if request.client:
+        if hasattr(request.client, "host"):
+            return request.client.host
+        if isinstance(request.client, (tuple, list)) and len(request.client) > 0:
+            return str(request.client[0])
+    return "0.0.0.0"
 
 
 def _ip_allowed(client_ip: str, whitelist: str) -> bool:
@@ -130,8 +135,9 @@ def _check_security(request: Request, sec: dict, scheme: str):
     import base64
     import hmac as _hmac
 
-    # HTTPS-only
-    if sec.get("https_only") and scheme != "https" and request.headers.get("x-forwarded-proto") != "https":
+    # HTTPS / WSS check
+    proto = str(request.headers.get("x-forwarded-proto") or "").lower()
+    if sec.get("https_only") and scheme not in ("https", "wss") and proto not in ("https", "wss"):
         return Response(
             content="<h1>403 — HTTPS required</h1><p>This tunnel only accepts HTTPS requests.</p>",
             status_code=403, media_type="text/html",
@@ -433,9 +439,18 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
 
     host = ""
     for k, v in scope.get("headers", []):
-        if k.decode().lower() == "host":
-            host = v.decode().split(":")[0]
+        if k.decode().lower() == "x-forwarded-host":
+            host = v.decode().split(",")[0].strip().split(":")[0]
             break
+    if not host:
+        for k, v in reversed(scope.get("headers", [])):
+            if k.decode().lower() == "host":
+                cand = v.decode().split(":")[0]
+                if cand and cand not in ("127.0.0.1", "localhost", "0.0.0.0"):
+                    host = cand
+                    break
+                if not host:
+                    host = cand
     subdomain = _extract_subdomain(host)
     if not subdomain:
         await send({"type": "websocket.close", "code": 1008})
@@ -464,20 +479,35 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
     headers = {k.decode(): v.decode() for k, v in scope.get("headers", [])}
 
     class _FakeReq:
-        def __init__(self, h):
+        def __init__(self, h, client):
             self.headers = h
+            self.client = client
+
     if sec:
-        denied = _check_security(_FakeReq(headers), sec, "ws")
+        ws_scheme = "wss" if headers.get("x-forwarded-proto") == "https" or scope.get("scheme") == "wss" else "ws"
+        denied = _check_security(_FakeReq(headers, scope.get("client")), sec, ws_scheme)
         if denied is not None:
             await send({"type": "websocket.close", "code": 1008})
             return
 
     try:
+        # Extract subprotocols from client handshake if requested
+        subprotocols = []
+        raw_sub = headers.get("sec-websocket-protocol")
+        if raw_sub:
+            subprotocols = [s.strip() for s in raw_sub.split(",") if s.strip()]
+
+        _ws_exclude = {
+            "host", "connection", "upgrade", "sec-websocket-key",
+            "sec-websocket-version", "sec-websocket-extensions",
+            "sec-websocket-protocol", "sec-websocket-accept",
+        }
+        fwd_headers = {k: v for k, v in headers.items() if k.lower() not in _ws_exclude}
+
         async with websockets.connect(
             uri,
-            additional_headers={k: v for k, v in headers.items()
-                                 if k.lower() not in ("host", "connection", "upgrade", "sec-websocket-key",
-                                                      "sec-websocket-version", "sec-websocket-extensions")},
+            additional_headers=fwd_headers,
+            subprotocols=subprotocols or None,
             max_size=10 * 1024 * 1024,
             ping_interval=None,
             ping_timeout=None,
@@ -493,8 +523,8 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
             # upstream's duplicates causes "invalid Upgrade header" errors.
             _ws_hop_by_hop = {"upgrade", "connection", "sec-websocket-accept",
                               "sec-websocket-key", "sec-websocket-version",
-                              "sec-websocket-extensions", "transfer-encoding",
-                              "content-length"}
+                              "sec-websocket-extensions", "sec-websocket-protocol",
+                              "transfer-encoding", "content-length", "date", "server"}
             ws_resp_headers = []
             rh = getattr(upstream, "response", None)
             if rh is not None:
@@ -508,7 +538,13 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
                         for k, v in hdrs.items():
                             if k.lower() not in _ws_hop_by_hop:
                                 ws_resp_headers.append((k.encode(), v.encode()))
-            await send({"type": "websocket.accept", "headers": ws_resp_headers})
+
+            accept_payload = {"type": "websocket.accept"}
+            if getattr(upstream, "subprotocol", None):
+                accept_payload["subprotocol"] = str(upstream.subprotocol)
+            if ws_resp_headers:
+                accept_payload["headers"] = ws_resp_headers
+            await send(accept_payload)
 
             client_done = False
             upstream_done = False
@@ -563,7 +599,7 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
             await increment_request_count(subdomain, 64)
             log_to_tunnel(subdomain, f"  [{datetime.now().strftime('%H:%M:%S')}] WS     {path}  closed")
     except Exception as e:
-        logger.info("WS tunnel error %s: %s", subdomain, e)
+        logger.exception("WS tunnel error %s: %s", subdomain, e)
         try:
             await send({"type": "websocket.close", "code": 1011})
         except Exception:
