@@ -90,6 +90,10 @@ class Settings(BaseSettings):
     SSL_ADMIN_EMAIL: str = "support@callingagents.in"
     SSL_ENABLED: bool = True
 
+    # ---- Cloudflare DNS Automation ----
+    CLOUDFLARE_API_TOKEN: str = ""
+    CLOUDFLARE_ZONE_ID: str = ""
+
     @property
     def async_dsn(self) -> str:
         """psycopg3 async connection string (no +psycopg scheme)."""

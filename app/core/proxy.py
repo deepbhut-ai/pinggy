@@ -244,7 +244,6 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
         if not tunnel:
             tunnel = await get_tunnel_by_custom_domain(host)
             if tunnel:
-                subdomain = tunnel.subdomain
                 matched_addr = host.strip().lower().split(":")[0]
         if not tunnel:
             return Response(
@@ -253,6 +252,9 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                 status_code=502,
                 media_type="text/html",
             )
+
+        # Normalize subdomain to canonical tunnel subdomain for logging and counters
+        subdomain = tunnel.subdomain
 
         # ---- Token-level security options (v0.8.0) — all OFF by default ----
         sec = await _get_token_security(tunnel)
@@ -401,6 +403,8 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
             return response
 
         except httpx.ConnectError:
+            req_len = len(body) if body else 0
+            await increment_request_count(subdomain, req_len, sent=0, received=req_len)
             timestamp = format_tunnel_time(tunnel)
             log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {request.url.path or '/':<30s} → 502 (refused)")
             return Response(
@@ -411,6 +415,8 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                 media_type="text/html",
             )
         except httpx.ReadTimeout:
+            req_len = len(body) if body else 0
+            await increment_request_count(subdomain, req_len, sent=0, received=req_len)
             timestamp = format_tunnel_time(tunnel)
             log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {request.url.path or '/':<30s} → 504 (timeout)")
             return Response(
@@ -419,6 +425,8 @@ class TunnelProxyMiddleware(BaseHTTPMiddleware):
                 media_type="text/html",
             )
         except Exception as e:
+            req_len = len(body) if body else 0
+            await increment_request_count(subdomain, req_len, sent=0, received=req_len)
             timestamp = format_tunnel_time(tunnel)
             log_to_tunnel(subdomain, f"  [{timestamp}] {request.method:<6s} {request.url.path or '/':<30s} → ERR ({e})")
             logger.error("Proxy error for %s: %s", subdomain, e)
@@ -463,6 +471,8 @@ async def tunnel_websocket(scope, receive, send, rest: str = ""):
     if not tunnel:
         await send({"type": "websocket.close", "code": 1014})
         return
+
+    subdomain = tunnel.subdomain
 
     if tunnel.is_endpoint_paused(host) or tunnel.is_endpoint_paused(subdomain):
         await send({"type": "websocket.close", "code": 1013})  # 1013: Try Again Later

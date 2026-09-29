@@ -6,12 +6,15 @@ import { SearchBar, Pagination } from '../../components/TableControls';
 import { formatBytes, copyToClipboard } from '../../utils';
 
 // Admin Users — list, search, edit, enable/disable, quick Pro, view detail.
-// APIs: GET /users, GET /tunnels/history, GET/PUT/DELETE /users/{id}
+// APIs: GET /users, GET /tunnels, GET /tunnels/history, GET/PUT/DELETE /users/{id}
 
 export default function AdminUsers() {
   const toast = useToast();
   const [users, setUsers] = useState([]);
+  const [activeTunnels, setActiveTunnels] = useState([]);
   const [tunnels, setTunnels] = useState([]);
+  const [userHistory, setUserHistory] = useState([]);
+  const [userHistoryLoading, setUserHistoryLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState(null);      // selected user (view)
@@ -22,23 +25,54 @@ export default function AdminUsers() {
 
   const load = useCallback(async () => {
     try {
-      const [u, t] = await Promise.all([
-        api('/users'),
-        api('/tunnels/history?limit=500'),
+      const [u, act, t] = await Promise.all([
+        api('/users?limit=200'),
+        api('/tunnels').catch(() => []),
+        api('/tunnels/history?limit=500').catch(() => []),
       ]);
-      setUsers(u); setTunnels(t);
+      setUsers(u || []);
+      setActiveTunnels(act || []);
+      setTunnels(t || []);
     } catch (e) { toast(e.message, 'error'); }
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
 
-  const statsFor = (email) => {
-    const mine = tunnels.filter((t) => t.user_email === email);
+  // Load specific user history when detail view is opened
+  useEffect(() => {
+    if (!detail) {
+      setUserHistory([]);
+      return;
+    }
+    const u = users.find((x) => x.id === detail);
+    if (u?.email) {
+      setUserHistoryLoading(true);
+      api(`/tunnels/history?user_email=${encodeURIComponent(u.email)}&limit=200`)
+        .then((hist) => setUserHistory(hist || []))
+        .catch(() => {})
+        .finally(() => setUserHistoryLoading(false));
+    }
+  }, [detail, users]);
+
+  const statsFor = (u) => {
+    if (!u) return { active: 0, requests: 0, data: 0, total: 0 };
+    const emailNorm = (u.email || '').toLowerCase();
+    const live = activeTunnels.filter(
+      (t) => (t.user_email || '').toLowerCase() === emailNorm && (t.status === 'active' || t.status === 'connected')
+    );
+    const activeCount = live.length;
+    const historyMine = tunnels.filter((t) => (t.user_email || '').toLowerCase() === emailNorm);
+    const liveReq = live.reduce((s, t) => s + (t.request_count || 0), 0);
+    const liveData = live.reduce((s, t) => s + (t.bytes_transferred || 0), 0);
+    const totalRequests = Math.max(u.total_requests || 0, liveReq);
+    const totalData = Math.max(u.total_bytes || 0, liveData);
+    const totalTunnels = Math.max(u.total_tunnels || 0, historyMine.length, activeCount);
+
     return {
-      active: mine.filter((t) => t.status === 'connected').length,
-      requests: mine.reduce((s, t) => s + (t.request_count || 0), 0),
-      data: mine.reduce((s, t) => s + (t.bytes_transferred || 0), 0),
-      total: mine.length,
+      active: activeCount,
+      requests: totalRequests,
+      data: totalData,
+      total: totalTunnels,
     };
   };
 
@@ -118,10 +152,26 @@ export default function AdminUsers() {
 
   const stopTunnel = async (subdomain) => {
     try {
-      await api(`/tunnels/${subdomain}/stop`, 'POST');
+      await api(`/tunnels/${subdomain}`, 'DELETE');
       toast(`Tunnel ${subdomain} stopped`);
       load();
-    } catch (e) { toast(e.message, 'error'); }
+      if (detail) {
+        const u = users.find((x) => x.id === detail);
+        if (u?.email) {
+          api(`/tunnels/history?user_email=${encodeURIComponent(u.email)}&limit=200`)
+            .then((hist) => setUserHistory(hist || []))
+            .catch(() => {});
+        }
+      }
+    } catch (e) {
+      try {
+        await api(`/tunnels/${subdomain}/stop`, 'POST');
+        toast(`Tunnel ${subdomain} stopped`);
+        load();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    }
   };
 
   const loginAs = async (u) => {
@@ -142,9 +192,14 @@ export default function AdminUsers() {
 
   // ---- Detail view ----
   if (detail) {
-    const u = users.find((x) => x.id === detail) || detail;
-    const st = statsFor(u.email);
-    const myTunnels = tunnels.filter((t) => t.user_email === u.email);
+    const u = users.find((x) => x.id === detail) || { email: '', id: detail };
+    const st = statsFor(u);
+    const emailNorm = (u.email || '').toLowerCase();
+    const liveForUser = activeTunnels.filter(
+      (t) => (t.user_email || '').toLowerCase() === emailNorm && (t.status === 'active' || t.status === 'connected')
+    );
+    const historyList = userHistory.length > 0 ? userHistory : tunnels.filter((t) => (t.user_email || '').toLowerCase() === emailNorm);
+
     return (
       <>
         <div className="page-toolbar">
@@ -162,23 +217,23 @@ export default function AdminUsers() {
           <div className="stat-card"><div className="label">Total Data</div><div className="value">{formatBytes(st.data)}</div></div>
         </div>
 
-        {/* Active tunnels — shown only when there are connected tunnels */}
-        {myTunnels.filter((t) => t.status === 'connected').length > 0 && (
+        {/* Active tunnels — shown when there are connected / active tunnels */}
+        {liveForUser.length > 0 && (
           <div className="card" style={{ borderColor: 'rgba(41,169,127,.3)' }}>
             <div className="card-header">
-              <h2>🟢 Active Tunnels ({myTunnels.filter((t) => t.status === 'connected').length})</h2>
+              <h2>🟢 Active Tunnels ({liveForUser.length})</h2>
             </div>
             <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
               <table>
                 <thead><tr><th>Subdomain</th><th>URL</th><th>Port</th><th>Requests</th><th>Data</th><th>Status</th><th></th></tr></thead>
                 <tbody>
-                  {myTunnels.filter((t) => t.status === 'connected').map((t, i) => (
-                    <tr key={i} style={{ background: 'rgba(41,169,127,.05)' }}>
+                  {liveForUser.map((t, i) => (
+                    <tr key={t.tunnel_id || t.subdomain || i} style={{ background: 'rgba(41,169,127,.05)' }}>
                       <td className="code">{t.subdomain}</td>
-                      <td><a href={`https://${t.subdomain}.iraglobaltech.com`} target="_blank" rel="noreferrer" className="code">https://{t.subdomain}.iraglobaltech.com</a></td>
+                      <td><a href={t.url || `https://${t.subdomain}.iraglobaltech.com`} target="_blank" rel="noreferrer" className="code">{t.url || `https://${t.subdomain}.iraglobaltech.com`}</a></td>
                       <td>{t.remote_port}</td>
-                      <td>{t.request_count}</td>
-                      <td>{formatBytes(t.bytes_transferred)}</td>
+                      <td>{t.request_count || 0}</td>
+                      <td>{formatBytes(t.bytes_transferred || 0)}</td>
                       <td><span className="badge badge-green">Connected</span></td>
                       <td>
                         <button className="btn btn-sm btn-danger" onClick={() => userAction(`Stop tunnel ${t.subdomain}`, () => stopTunnel(t.subdomain))}>Stop</button>
@@ -242,13 +297,13 @@ export default function AdminUsers() {
 
         <div className="card">
           <div className="card-header">
-            <h2>🔗 Their tunnels ({myTunnels.length})</h2>
+            <h2>🔗 Their tunnels ({st.total || historyList.length})</h2>
             <SearchBar value={detailSearch} onChange={setDetailSearch} placeholder="Search subdomain, status…" />
           </div>
           <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
             {(() => {
               const dq = detailSearch.trim().toLowerCase();
-              const dFiltered = dq ? myTunnels.filter((t) => (t.subdomain || '').toLowerCase().includes(dq) || (t.status || '').toLowerCase().includes(dq)) : myTunnels;
+              const dFiltered = dq ? historyList.filter((t) => (t.subdomain || '').toLowerCase().includes(dq) || (t.status || '').toLowerCase().includes(dq)) : historyList;
               const dTotalPages = Math.max(1, Math.ceil(dFiltered.length / 10));
               const dSafePage = Math.min(detailTunPage, dTotalPages);
               const dPaged = dFiltered.slice((dSafePage - 1) * 10, dSafePage * 10);
@@ -257,23 +312,26 @@ export default function AdminUsers() {
             <table>
               <thead><tr><th>#</th><th>Subdomain</th><th>Port</th><th>Requests</th><th>Data</th><th>Status</th><th>Created</th><th></th></tr></thead>
               <tbody>
-                {dPaged.map((t, i) => (
-                  <tr key={i}>
-                    <td>{(dSafePage - 1) * 10 + i + 1}</td>
-                    <td className="code">{t.subdomain}</td>
-                    <td>{t.remote_port}</td>
-                    <td>{t.request_count}</td>
-                    <td>{formatBytes(t.bytes_transferred)}</td>
-                    <td><span className={`badge ${t.status === 'connected' ? 'badge-green' : ''}`}>{t.status}</span></td>
-                    <td className="dim">{String(t.created_at || '').substring(0, 16)}</td>
-                    <td>
-                      {t.status === 'connected' && (
-                        <button className="btn btn-sm btn-danger" onClick={() => userAction(`Stop tunnel ${t.subdomain}`, () => stopTunnel(t.subdomain))}>Stop</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {!dPaged.length && <tr><td colSpan="8" className="empty">No tunnels found.</td></tr>}
+                {dPaged.map((t, i) => {
+                  const isAlive = t.status === 'active' || t.status === 'connected';
+                  return (
+                    <tr key={t.tunnel_id || t.subdomain || i}>
+                      <td>{(dSafePage - 1) * 10 + i + 1}</td>
+                      <td className="code">{t.subdomain}</td>
+                      <td>{t.remote_port}</td>
+                      <td>{t.request_count || 0}</td>
+                      <td>{formatBytes(t.bytes_transferred || 0)}</td>
+                      <td><span className={`badge ${isAlive ? 'badge-green' : ''}`}>{t.status}</span></td>
+                      <td className="dim">{String(t.created_at || '').substring(0, 16)}</td>
+                      <td>
+                        {isAlive && (
+                          <button className="btn btn-sm btn-danger" onClick={() => userAction(`Stop tunnel ${t.subdomain}`, () => stopTunnel(t.subdomain))}>Stop</button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {!dPaged.length && <tr><td colSpan="8" className="empty">{userHistoryLoading ? 'Loading tunnels…' : 'No tunnels found.'}</td></tr>}
               </tbody>
             </table>
             <Pagination page={dSafePage} totalPages={dTotalPages} setPage={setDetailTunPage} total={dFiltered.length} pageSize={10} />
@@ -330,7 +388,8 @@ export default function AdminUsers() {
             <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Plan</th><th>Seats</th><th>Status</th><th>Active</th><th>Requests</th><th>Data</th><th></th></tr></thead>
             <tbody>
               {paged.map((u) => {
-                const st = statsFor(u.email);
+                const st = statsFor(u);
+                const isOnline = u.is_active && st.active > 0;
                 return (
                   <tr key={u.id}>
                     <td><a href="#" onClick={(e) => { e.preventDefault(); setDetail(u.id); }}>{u.email}</a></td>
@@ -338,8 +397,18 @@ export default function AdminUsers() {
                     <td><span className={`badge ${u.role === 'admin' ? 'badge-green' : ''}`}>{u.role}</span></td>
                     <td><span className={`badge ${u.plan === 'pro' ? 'badge-blue' : ''}`}>{u.plan}</span></td>
                     <td>{u.seats}</td>
-                    <td>{u.is_active ? (st.active ? <span style={{ color: 'var(--green)' }}>● Online</span> : <span className="dim">● Offline</span>) : <span style={{ color: 'var(--red)' }}>● Disabled</span>}</td>
-                    <td>{st.active}</td>
+                    <td>
+                      {u.is_active ? (
+                        isOnline ? (
+                          <span style={{ color: 'var(--green)', fontWeight: 600 }}>● Online</span>
+                        ) : (
+                          <span className="dim">● Offline</span>
+                        )
+                      ) : (
+                        <span style={{ color: 'var(--red)' }}>● Disabled</span>
+                      )}
+                    </td>
+                    <td><strong style={{ color: st.active > 0 ? 'var(--green)' : undefined }}>{st.active}</strong></td>
                     <td>{st.requests.toLocaleString()}</td>
                     <td>{formatBytes(st.data)}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>

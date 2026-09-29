@@ -309,9 +309,11 @@ class MySSHServer(asyncssh.SSHServer):
             from app.core.db import get_conn
             async with get_conn() as db:
                 cur = await db.execute(
-                    "UPDATE tunnels SET status = 'disconnected', closed_at = now() "
+                    "UPDATE tunnels SET status = 'disconnected', closed_at = now(), "
+                    "request_count = %s, bytes_transferred = %s, bytes_sent = %s, bytes_received = %s "
                     "WHERE tunnel_id = %s",
-                    (tunnel.tunnel_id,),
+                    (tunnel.request_count, tunnel.bytes_transferred,
+                     tunnel.bytes_sent, tunnel.bytes_received, tunnel.tunnel_id),
                 )
                 await cur.close()
                 # Tunnel-stopped notification email (Job 6) — best-effort

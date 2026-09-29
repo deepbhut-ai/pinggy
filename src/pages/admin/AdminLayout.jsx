@@ -13,6 +13,7 @@ const ADMIN_NAV = [
   { to: 'add-user', label: '➕ Add User' },
   { to: 'tokens', label: '🔑 All Tokens' },
   { to: 'tunnels', label: '🔗 All Tunnels' },
+  { to: 'regions', label: '🌍 Edge Regions' },
   { sep: true },
   { to: 'payments', label: '💳 Payments' },
   { to: 'invoices', label: '🧾 Invoices' },

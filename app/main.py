@@ -14,6 +14,7 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.core.db import close_pool, init_pool
 from app.api.routers.admin import router as admin_router
+from app.api.routers.edge_controller import router as edge_router
 from app.core.ip_monitor import IPMonitorMiddleware
 from app.core.rate_limit import RateLimitMiddleware
 from app.core.proxy import TunnelProxyMiddleware
@@ -146,6 +147,7 @@ app.router.routes.append(WebSocketRoute("/{rest:path}", _ws_entry))
 
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(admin_router)  # /admin, /dashboard, / (landing page)
+app.include_router(edge_router)   # /edge/setup.sh, /edge/daemon.py, /api/v1/edge/*
 
 
 from starlette.responses import PlainTextResponse
@@ -156,23 +158,25 @@ async def get_runner_script():
     """Universal bash script for 1-line zero-flag tunneling."""
     script = r"""#!/usr/bin/env bash
 # IRAGT Universal One-Line Tunnel Runner
-# Usage: curl -sSL https://iraglobaltech.com/run | bash -s YOUR_TOKEN
+# Usage: curl -sSL https://iraglobaltech.com/run | bash -s YOUR_TOKEN [REGION]
 
 set -e
 
 TOKEN="$1"
+REGION="${2:-in}"
+
 if [ -z "$TOKEN" ]; then
   echo ""
   echo "❌ Error: Missing tunnel token."
-  echo "Usage: curl -sSL https://iraglobaltech.com/run | bash -s <YOUR_TOKEN>"
+  echo "Usage: curl -sSL https://iraglobaltech.com/run | bash -s <YOUR_TOKEN> [REGION]"
   echo ""
   exit 1
 fi
 
-echo "🚀 Fetching IRAGT tunnel configuration for token: ${TOKEN:0:8}..."
+echo "🚀 Fetching IRAGT tunnel configuration for token: ${TOKEN:0:8} (Region: ${REGION^^})..."
 
 API_HOST="${IRAGT_API_HOST:-https://iraglobaltech.com}"
-CONFIG=$(curl -sSL "${API_HOST}/api/v1/configs/cli/${TOKEN}")
+CONFIG=$(curl -sSL "${API_HOST}/api/v1/configs/cli/${TOKEN}?region=${REGION}")
 
 if echo "$CONFIG" | grep -q '"detail"'; then
   ERR_MSG=$(echo "$CONFIG" | grep -o '"detail":"[^"]*' | cut -d'"' -f4)

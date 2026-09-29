@@ -1,30 +1,37 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useToast } from '../../components/Toast';
 import { formatBytes } from '../../utils';
 
-// Admin Dashboard — stats, insights, recent tunnels, system info.
+// Admin Dashboard — stats, insights, recent tunnels, system info, edge regions.
 // APIs: GET /users, GET /tunnels/history, GET /payments/admin/stats,
-//       GET /tunnels/info, GET /analytics/overview?days=N
+//       GET /tunnels/info, GET /admin/regions, GET /analytics/overview?days=N
 
 export default function AdminDashboard() {
   const toast = useToast();
   const [users, setUsers] = useState([]);
   const [tunnels, setTunnels] = useState([]);
+  const [tunnelStats, setTunnelStats] = useState(null);
+  const [activeTunnels, setActiveTunnels] = useState([]);
   const [payStats, setPayStats] = useState(null);
   const [sysInfo, setSysInfo] = useState(null);
+  const [regions, setRegions] = useState([]);
   const [insights, setInsights] = useState(null);
   const [insightsDays, setInsightsDays] = useState(30);
 
   const load = useCallback(async () => {
     try {
-      const [u, t, ps, si] = await Promise.all([
-        api('/users'),
-        api('/tunnels/history?limit=500'),
+      const [u, t, ts, act, ps, si, regs] = await Promise.all([
+        api('/users?limit=200'),
+        api('/tunnels/history?limit=500').catch(() => []),
+        api('/tunnels/stats').catch(() => null),
+        api('/tunnels').catch(() => []),
         api('/payments/admin/stats').catch(() => null),
         api('/tunnels/info').catch(() => null),
+        api('/admin/regions').catch(() => []),
       ]);
-      setUsers(u); setTunnels(t); setPayStats(ps); setSysInfo(si);
+      setUsers(u || []); setTunnels(t || []); setTunnelStats(ts); setActiveTunnels(act || []); setPayStats(ps); setSysInfo(si); setRegions(regs || []);
     } catch (e) { toast(e.message, 'error'); }
   }, [toast]);
 
@@ -38,11 +45,12 @@ export default function AdminDashboard() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadInsights(insightsDays); }, [insightsDays, loadInsights]);
 
-  const activeNow = tunnels.filter((t) => t.status === 'connected').length;
-  const totalRequests = tunnels.reduce((s, t) => s + (t.request_count || 0), 0);
-  const totalData = tunnels.reduce((s, t) => s + (t.bytes_transferred || 0), 0);
+  const activeNow = tunnelStats?.active_tunnels ?? (activeTunnels.length || tunnels.filter((t) => t.status === 'active' || t.status === 'connected').length);
+  const totalTunnelsCount = tunnelStats?.total_tunnels ?? tunnels.length;
+  const totalRequests = tunnelStats?.total_requests ?? tunnels.reduce((s, t) => s + (t.request_count || 0), 0);
+  const totalData = tunnelStats?.total_bytes_transferred ?? tunnels.reduce((s, t) => s + (t.bytes_transferred || 0), 0);
   const revenueEntries = payStats?.revenue ? Object.entries(payStats.revenue) : [];
-  const recent = tunnels.slice(-10).reverse();
+  const recent = tunnels.slice(0, 10);
   const sum = insights?.summary || {};
 
   return (
@@ -53,14 +61,15 @@ export default function AdminDashboard() {
       {/* Stat cards */}
       <div className="stat-grid">
         <div className="stat-card"><div className="label">Total Users</div><div className="value">{users.length}</div></div>
-        <div className="stat-card"><div className="label">Active Tunnels</div><div className="value">{activeNow}</div></div>
-        <div className="stat-card"><div className="label">Total Tunnels</div><div className="value">{tunnels.length}</div></div>
+        <div className="stat-card"><div className="label">Active Tunnels</div><div className="value" style={{ color: activeNow ? 'var(--green)' : undefined }}>{activeNow}</div></div>
+        <div className="stat-card"><div className="label">Total Tunnels</div><div className="value">{totalTunnelsCount.toLocaleString()}</div></div>
         <div className="stat-card"><div className="label">Total Requests</div><div className="value">{totalRequests.toLocaleString()}</div></div>
         <div className="stat-card"><div className="label">Data Transfer</div><div className="value">{formatBytes(totalData)}</div></div>
         {revenueEntries.map(([cur, amt]) => (
           <div className="stat-card" key={cur}><div className="label">Revenue ({cur})</div><div className="value">{Number(amt).toLocaleString()}</div></div>
         ))}
         <div className="stat-card"><div className="label">Total Payments</div><div className="value">{payStats?.total_payments ?? '—'}</div></div>
+        <div className="stat-card"><div className="label">Edge Regions</div><div className="value">{regions.filter(r => r.is_active && !r.is_maintenance).length || (regions.length ? 0 : 1)} <span style={{ fontSize: '0.85rem', color: 'var(--dim)' }}>/ {regions.length || 1}</span></div></div>
       </div>
 
       {/* Insights */}
@@ -102,13 +111,58 @@ export default function AdminDashboard() {
                   <td className="code">{t.subdomain}</td>
                   <td>{t.user_email}</td>
                   <td className="code" style={{ fontSize: '.75rem' }}>https://{t.subdomain}.iraglobaltech.com</td>
-                  <td><span className={`badge ${t.status === 'connected' ? 'badge-green' : ''}`}>{t.status}</span></td>
+                  <td><span className={`badge ${t.status === 'active' || t.status === 'connected' ? 'badge-green' : ''}`}>{t.status}</span></td>
                   <td>{t.request_count}</td>
                   <td>{formatBytes(t.bytes_transferred)}</td>
                   <td className="dim">{String(t.created_at || '').substring(0, 16)}</td>
                 </tr>
               ))}
               {!recent.length && <tr><td colSpan="7" className="empty">No tunnel activity yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Edge Regions Overview */}
+      <div className="card">
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2>🌍 Edge Regions ({regions.length})</h2>
+          <Link to="/dashboard/admin/regions" className="btn btn-sm btn-ghost">Manage Nodes →</Link>
+        </div>
+        <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Region</th>
+                <th>Host</th>
+                <th>Status</th>
+                <th>Active Tunnels</th>
+                <th>Capacity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {regions.map((r) => (
+                <tr key={r.code}>
+                  <td><strong>{r.flag} {r.name}</strong> <span className="dim">({r.code})</span></td>
+                  <td className="code">{r.ssh_host}:{r.ssh_port}</td>
+                  <td>
+                    {r.is_maintenance ? (
+                      <span className="badge badge-amber">Maintenance</span>
+                    ) : r.is_active ? (
+                      <span className="badge badge-green">Operational</span>
+                    ) : (
+                      <span className="badge">Disabled</span>
+                    )}
+                  </td>
+                  <td>{r.active_tunnels || 0}</td>
+                  <td>{Math.min(100, Math.round(((r.active_tunnels || 0) / (r.max_capacity || 1000)) * 100))}%</td>
+                </tr>
+              ))}
+              {!regions.length && (
+                <tr>
+                  <td colSpan="5" className="empty">No edge nodes registered yet.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

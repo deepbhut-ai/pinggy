@@ -28,7 +28,7 @@ from app.core.ssl_manager import (
 async def list_users(
     admin: dict = Depends(get_admin_user),
     db: AsyncConnection = Depends(get_db),
-    limit: int = 50,
+    limit: int = 200,
     offset: int = 0,
 ):
     cur = await db.execute(
@@ -37,7 +37,58 @@ async def list_users(
     )
     rows = await cur.fetchall()
     await cur.close()
-    return [UserOut(id=str(r[0]), email=r[1], full_name=r[2], role=r[3], tunnel_token=r[4], custom_domain=r[5], plan=r[6], seats=int(r[7] or 1), plan_expires_at=r[8].isoformat() if r[8] else None, is_active=r[9]) for r in rows]
+
+    # Aggregate historical tunnel stats per user
+    cur = await db.execute(
+        """
+        SELECT 
+            LOWER(user_email) AS email_norm,
+            COUNT(*) AS total_tunnels,
+            COALESCE(SUM(request_count), 0) AS total_requests,
+            COALESCE(SUM(bytes_transferred), 0) AS total_bytes
+        FROM tunnels
+        WHERE user_email IS NOT NULL AND user_email != ''
+        GROUP BY LOWER(user_email)
+        """
+    )
+    st_rows = await cur.fetchall()
+    await cur.close()
+    stats_map = {r[0]: (int(r[1]), int(r[2]), int(r[3])) for r in st_rows}
+
+    from app.core.tunnel_registry import list_tunnels
+    live_tunnels = await list_tunnels()
+
+    out = []
+    for r in rows:
+        email_str = r[1] or ""
+        email_norm = email_str.lower()
+        live_for_user = [t for t in live_tunnels if t.user_email and t.user_email.lower() == email_norm and t.is_alive]
+        active_count = len(live_for_user)
+        db_tun, db_req, db_bytes = stats_map.get(email_norm, (0, 0, 0))
+        live_req = sum(getattr(t, "request_count", 0) for t in live_for_user)
+        live_bytes = sum(getattr(t, "bytes_transferred", 0) for t in live_for_user)
+        total_tun = max(db_tun, active_count)
+        total_req = max(db_req, live_req)
+        total_b = max(db_bytes, live_bytes)
+        out.append(
+            UserOut(
+                id=str(r[0]),
+                email=r[1],
+                full_name=r[2],
+                role=r[3],
+                tunnel_token=r[4],
+                custom_domain=r[5],
+                plan=r[6],
+                seats=int(r[7] or 1),
+                plan_expires_at=r[8].isoformat() if r[8] else None,
+                is_active=r[9],
+                active_tunnels=active_count,
+                total_tunnels=total_tun,
+                total_requests=total_req,
+                total_bytes=total_b,
+            )
+        )
+    return out
 
 
 @router.get("/me", response_model=UserOut)
@@ -74,7 +125,45 @@ async def get_user(
     await cur.close()
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
-    return UserOut(id=str(row[0]), email=row[1], full_name=row[2], role=row[3], tunnel_token=row[4], custom_domain=row[5], plan=row[6], seats=int(row[7] or 1), plan_expires_at=row[8].isoformat() if row[8] else None, is_active=row[9])
+
+    email_norm = (row[1] or "").lower()
+    cur = await db.execute(
+        "SELECT COUNT(*), COALESCE(SUM(request_count), 0), COALESCE(SUM(bytes_transferred), 0) "
+        "FROM tunnels WHERE LOWER(user_email) = %s",
+        (email_norm,),
+    )
+    st_row = await cur.fetchone()
+    await cur.close()
+    db_tun = int(st_row[0]) if st_row else 0
+    db_req = int(st_row[1]) if st_row else 0
+    db_bytes = int(st_row[2]) if st_row else 0
+
+    from app.core.tunnel_registry import list_tunnels
+    live_tunnels = await list_tunnels()
+    live_for_user = [t for t in live_tunnels if t.user_email and t.user_email.lower() == email_norm and t.is_alive]
+    active_count = len(live_for_user)
+    live_req = sum(getattr(t, "request_count", 0) for t in live_for_user)
+    live_bytes = sum(getattr(t, "bytes_transferred", 0) for t in live_for_user)
+    total_tun = max(db_tun, active_count)
+    total_req = max(db_req, live_req)
+    total_b = max(db_bytes, live_bytes)
+
+    return UserOut(
+        id=str(row[0]),
+        email=row[1],
+        full_name=row[2],
+        role=row[3],
+        tunnel_token=row[4],
+        custom_domain=row[5],
+        plan=row[6],
+        seats=int(row[7] or 1),
+        plan_expires_at=row[8].isoformat() if row[8] else None,
+        is_active=row[9],
+        active_tunnels=active_count,
+        total_tunnels=total_tun,
+        total_requests=total_req,
+        total_bytes=total_b,
+    )
 
 
 @router.put("/{user_id}", response_model=UserOut)

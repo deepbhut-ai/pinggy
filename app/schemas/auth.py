@@ -25,6 +25,10 @@ class UserOut(BaseModel):
     plan_expires_at: str | None = None
     seats: int = 1
     is_active: bool = True
+    active_tunnels: int = 0
+    total_tunnels: int = 0
+    total_requests: int = 0
+    total_bytes: int = 0
 
 
 class Token(BaseModel):

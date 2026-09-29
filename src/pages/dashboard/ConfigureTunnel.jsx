@@ -36,6 +36,10 @@ export default function ConfigureTunnel() {
   const [tokenSearch, setTokenSearch] = useState('');
   const [subdomainSearch, setSubdomainSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'enabled' | 'paused'
+  const [regions, setRegions] = useState([
+    { code: 'in', name: 'Asia South (India)', flag: '🇮🇳', ssh_host: 'ssh.iraglobaltech.com', ssh_port: 2222 },
+  ]);
+  const [selectedRegion, setSelectedRegion] = useState('in');
 
   // Group all tokens by their main root domain
   const mainDomains = useMemo(() => {
@@ -98,12 +102,16 @@ export default function ConfigureTunnel() {
 
   const load = useCallback(async () => {
     try {
-      const [infoD, tokensD] = await Promise.all([
+      const [infoD, tokensD, regionsD] = await Promise.all([
         api('/tunnels/info'),
         api('/tokens'),
+        api('/regions').catch(() => [
+          { code: 'in', name: 'Asia South (India)', flag: '🇮🇳', ssh_host: 'ssh.iraglobaltech.com', ssh_port: 2222 },
+        ]),
       ]);
       setInfo(infoD);
       setTokens(tokensD);
+      if (regionsD && regionsD.length) setRegions(regionsD);
     } catch (e) { toast(e.message, 'error'); }
   }, [toast]);
 
@@ -224,35 +232,36 @@ export default function ConfigureTunnel() {
 
   const fallbackPort = (selToken?.local_port || '8080').toString();
   const port = fallbackPort;
-  const portList = multiPort ? multiPorts.filter((m) => m.enabled !== false && m.port.trim()).map((m) => m.port.trim()) : null;
-  const sshPort = info?.ssh_port || 2222;
+  const activeRegionObj = regions.find((r) => r.code === selectedRegion) || regions[0];
+  const activeSshHost = activeRegionObj?.ssh_host || 'ssh.iraglobaltech.com';
+  const activeSshPort = activeRegionObj?.ssh_port || (info?.ssh_port || 2222);
 
   const buildDocker = () => {
     const multi = multiPort && portList?.length;
     const R = multi ? portList.map((p) => `-R0:127.0.0.1:${p}`).join(' ') : `-R0:127.0.0.1:${port}`;
     const user = multi ? `${tokenSel}--${portList.join(',')}` : tokenSel;
-    return `docker run --rm -i alpine/openssh-client ssh \\\n  -p ${sshPort} ${R} \\\n  -o StrictHostKeyChecking=no ${keepAlive ? '-o ServerAliveInterval=30 ' : ''}\\\n  ${user}@ssh.iraglobaltech.com`;
+    return `docker run --rm -i alpine/openssh-client ssh \\\n  -p ${activeSshPort} ${R} \\\n  -o StrictHostKeyChecking=no ${keepAlive ? '-o ServerAliveInterval=30 ' : ''}\\\n  ${user}@${activeSshHost}`;
   };
 
   const buildCmd = () => {
     if (!info || !tokenSel) return 'Create a token first in Manage Tokens →';
     if (cmdTab === 'cli') {
-      return `iragt connect ${tokenSel}`;
+      return `iragt connect ${tokenSel}${selectedRegion !== 'in' ? ` --region ${selectedRegion}` : ''}`;
     }
     if (cmdTab === 'curl') {
-      return `curl -sSL https://iraglobaltech.com/run | bash -s ${tokenSel}`;
+      return `curl -sSL https://iraglobaltech.com/run | bash -s ${tokenSel}${selectedRegion !== 'in' ? ` ${selectedRegion}` : ''}`;
     }
     if (cmdTab === 'docker') return buildDocker();
     const multi = multiPort && portList?.length;
     let ssh = 'ssh';
     if (verbose) ssh += ' -v';
-    ssh += ` -p ${sshPort}`;
+    ssh += ` -p ${activeSshPort}`;
     if (multi) portList.forEach((p) => { ssh += ` -R0:127.0.0.1:${p}`; });
     else ssh += ` -R0:127.0.0.1:${port}`;
     if (keepAlive) ssh += ' -o ServerAliveInterval=30';
     if (!strictHost) ssh += ' -o StrictHostKeyChecking=no';
     const user = multi ? `${tokenSel}--${portList.join(',')}` : tokenSel;
-    ssh += ` ${user}@ssh.iraglobaltech.com`;
+    ssh += ` ${user}@${activeSshHost}`;
 
     // Wrap in auto-reconnect loop if enabled — works when copy-pasted directly
     if (autoReconnect) {
@@ -550,6 +559,37 @@ export default function ConfigureTunnel() {
           </div>
         </div>
         <div className="card-body">
+          {/* Server Region Selector — direct clickable flag pills, no dropdown to open! */}
+          <div style={{ display: 'flex', gap: '.4rem', alignItems: 'center', marginBottom: '.85rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '.76rem', color: 'var(--dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+              🌍 Edge Region:
+            </span>
+            {regions.map((reg) => (
+              <button
+                key={reg.code}
+                type="button"
+                className={`btn btn-sm ${selectedRegion === reg.code ? '' : 'btn-ghost'}`}
+                style={{
+                  padding: '.25rem .55rem',
+                  fontSize: '.8rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '.35rem',
+                  borderRadius: 6,
+                  border: selectedRegion === reg.code ? '1px solid var(--brand, #60a5fa)' : '1px solid var(--border, rgba(255,255,255,0.08))',
+                  background: selectedRegion === reg.code ? 'rgba(96, 165, 250, 0.15)' : 'transparent',
+                }}
+                onClick={() => setSelectedRegion(reg.code)}
+                title={`Switch connection to ${reg.name}`}
+              >
+                <span style={{ fontSize: '1.05rem', lineHeight: 1 }}>{reg.flag}</span>
+                <span style={{ fontWeight: selectedRegion === reg.code ? 600 : 400 }}>
+                  {reg.name.split('(')[0].trim()}
+                </span>
+              </button>
+            ))}
+          </div>
+
           <div className="tabs" style={{ marginBottom: '.75rem' }}>
             <button className={`tab ${cmdTab === 'cli' ? 'active' : ''}`} onClick={() => setCmdTab('cli')}>🚀 CLI (iragt)</button>
             <button className={`tab ${cmdTab === 'curl' ? 'active' : ''}`} onClick={() => setCmdTab('curl')}>⚡ cURL / Bash</button>
@@ -581,13 +621,13 @@ export default function ConfigureTunnel() {
                     type="button"
                     className="btn btn-sm"
                     style={{ fontSize: '.76rem', padding: '.25rem .65rem' }}
-                    onClick={() => { copyToClipboard(`iragt connect ${tokenSel}`); toast('iragt connect copied'); }}
+                    onClick={() => { copyToClipboard(`iragt connect ${tokenSel}${selectedRegion !== 'in' ? ` --region ${selectedRegion}` : ''}`); toast('iragt connect copied'); }}
                   >
                     📋 Copy
                   </button>
                 </div>
                 <div className="cmd-box" style={{ margin: 0, padding: '.65rem .85rem' }}>
-                  <pre style={{ margin: 0, color: 'var(--brand)', fontWeight: 600 }}>{`iragt connect ${tokenSel}`}</pre>
+                  <pre style={{ margin: 0, color: 'var(--brand)', fontWeight: 600 }}>{`iragt connect ${tokenSel}${selectedRegion !== 'in' ? ` --region ${selectedRegion}` : ''}`}</pre>
                 </div>
                 <div className="dim" style={{ fontSize: '.74rem' }}>
                   Run directly if you have iragt installed globally (<code>npm i -g iragt</code>).
@@ -616,13 +656,13 @@ export default function ConfigureTunnel() {
                     type="button"
                     className="btn btn-sm"
                     style={{ fontSize: '.76rem', padding: '.25rem .65rem' }}
-                    onClick={() => { copyToClipboard(`npx iragt connect ${tokenSel}`); toast('npx iragt connect copied'); }}
+                    onClick={() => { copyToClipboard(`npx iragt connect ${tokenSel}${selectedRegion !== 'in' ? ` --region ${selectedRegion}` : ''}`); toast('npx iragt connect copied'); }}
                   >
                     📋 Copy
                   </button>
                 </div>
                 <div className="cmd-box" style={{ margin: 0, padding: '.65rem .85rem' }}>
-                  <pre style={{ margin: 0, color: 'var(--brand)', fontWeight: 600 }}>{`npx iragt connect ${tokenSel}`}</pre>
+                  <pre style={{ margin: 0, color: 'var(--brand)', fontWeight: 600 }}>{`npx iragt connect ${tokenSel}${selectedRegion !== 'in' ? ` --region ${selectedRegion}` : ''}`}</pre>
                 </div>
                 <div className="dim" style={{ fontSize: '.74rem' }}>
                   Runs instantly with Node.js without needing any global installation.

@@ -273,7 +273,13 @@ async def increment_request_count(subdomain: str, bytes_count: int = 0, sent: in
     break the proxied request — swallowed.
     """
     tunnel = _tunnels.get(subdomain)
+    if not tunnel:
+        tunnel = await get_tunnel(subdomain)
+        if not tunnel:
+            tunnel = await get_tunnel_by_custom_domain(subdomain)
+
     if tunnel:
+        canonical_subdomain = tunnel.subdomain
         tunnel.request_count += 1
         tunnel.bytes_transferred += bytes_count
         tunnel.bytes_sent += sent
@@ -286,7 +292,7 @@ async def increment_request_count(subdomain: str, bytes_count: int = 0, sent: in
                     "bytes_sent = %s, bytes_received = %s "
                     "WHERE subdomain = %s AND status = 'active'",
                     (tunnel.request_count, tunnel.bytes_transferred,
-                     tunnel.bytes_sent, tunnel.bytes_received, subdomain),
+                     tunnel.bytes_sent, tunnel.bytes_received, canonical_subdomain),
                 )
                 await cur.close()
         except Exception:
@@ -300,6 +306,18 @@ def format_tunnel_time(tunnel_or_subdomain: "TunnelSession | str | None" = None,
     tz_str = ""
     if isinstance(tunnel_or_subdomain, str):
         t = _tunnels.get(tunnel_or_subdomain)
+        if not t:
+            norm = tunnel_or_subdomain.strip().lower()
+            for cand in _tunnels.values():
+                if norm in cand.endpoints or f"{norm}.{_domain}" in cand.endpoints:
+                    t = cand
+                    break
+                for d in getattr(cand, "custom_domains", []) or []:
+                    if str(d).strip().lower() == norm:
+                        t = cand
+                        break
+                if t:
+                    break
         if t:
             tz_str = getattr(t, "user_timezone", "")
     elif tunnel_or_subdomain:
@@ -318,6 +336,18 @@ def format_tunnel_time(tunnel_or_subdomain: "TunnelSession | str | None" = None,
 def log_to_tunnel(subdomain: str, message: str) -> None:
     """Send a log line to the tunnel's SSH terminal (if connected)."""
     tunnel = _tunnels.get(subdomain)
+    if not tunnel:
+        norm = subdomain.strip().lower()
+        for t in _tunnels.values():
+            if norm in t.endpoints or f"{norm}.{_domain}" in t.endpoints:
+                tunnel = t
+                break
+            for d in getattr(t, "custom_domains", []) or []:
+                if str(d).strip().lower() == norm:
+                    tunnel = t
+                    break
+            if tunnel:
+                break
     if tunnel and tunnel.log_callback:
         try:
             tunnel.log_callback(message)

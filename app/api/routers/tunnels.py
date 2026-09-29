@@ -97,7 +97,8 @@ async def my_tunnels(
     """List active tunnels for the current user (by email/username).
     Available to any logged-in user — sees only their own tunnels."""
     all_tunnels = await list_tunnels()
-    my = [t for t in all_tunnels if t.user_email == user["email"]]
+    user_email_norm = (user["email"] or "").lower()
+    my = [t for t in all_tunnels if t.user_email and t.user_email.lower() == user_email_norm]
     return [
         TunnelOut(
             tunnel_id=t.tunnel_id,
@@ -156,15 +157,23 @@ async def tunnel_history(
     admin: dict = Depends(get_admin_user),
     db: AsyncConnection = Depends(get_db),
     limit: int = 50,
+    user_email: str | None = None,
 ):
     """List tunnel history from DB (including closed tunnels)."""
-    cur = await db.execute(
+    query = (
         "SELECT tunnel_id, subdomain, remote_port, local_port, protocol, "
         "user_email, ssh_peer, status, request_count, bytes_transferred, "
         "bytes_sent, bytes_received, created_at "
-        "FROM tunnels ORDER BY created_at DESC LIMIT %s",
-        (limit,),
+        "FROM tunnels "
     )
+    params = []
+    if user_email:
+        query += "WHERE LOWER(user_email) = LOWER(%s) "
+        params.append(user_email.strip())
+    query += "ORDER BY created_at DESC LIMIT %s"
+    params.append(limit)
+
+    cur = await db.execute(query, tuple(params))
     rows = await cur.fetchall()
     await cur.close()
     return [
@@ -177,9 +186,9 @@ async def tunnel_history(
             protocol=r[4],
             user_email=r[5] or "",
             ssh_peer=r[6] or "",
-            status=r[7],
-            request_count=r[8],
-            bytes_transferred=r[9],
+            status=r[7] or "disconnected",
+            request_count=r[8] or 0,
+            bytes_transferred=r[9] or 0,
             bytes_sent=r[10] or 0,
             bytes_received=r[11] or 0,
             created_at=r[12].isoformat() if r[12] else "",
@@ -196,19 +205,21 @@ async def stop_tunnel(
 ):
     """Force-stop a tunnel by subdomain (admin only)."""
     tunnel = await remove_tunnel(subdomain)
-    if not tunnel:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tunnel not found")
+    if tunnel and tunnel.ssh_conn:
+        try:
+            tunnel.ssh_conn.close()
+        except Exception:
+            pass
 
-    # Close the SSH connection
-    if tunnel.ssh_conn:
-        tunnel.ssh_conn.close()
-
-    # Update DB
     cur = await db.execute(
-        "UPDATE tunnels SET status = 'disconnected', closed_at = now() WHERE subdomain = %s",
+        "UPDATE tunnels SET status = 'disconnected', closed_at = now() WHERE subdomain = %s AND status = 'active'",
         (subdomain,),
     )
+    updated = cur.rowcount
     await cur.close()
+
+    if not tunnel and updated == 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tunnel not found or already stopped")
 
     return {"message": f"Tunnel {subdomain} stopped"}
 
@@ -219,25 +230,31 @@ async def user_stop_tunnel(
     user: dict = Depends(get_current_user),
     db: AsyncConnection = Depends(get_db),
 ):
-    """Stop your own tunnel by subdomain (any logged-in user)."""
+    """Stop your own tunnel by subdomain (any logged-in user, or admin)."""
+    is_admin = user.get("role") == "admin"
     tunnel = await remove_tunnel(subdomain)
-    if not tunnel:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tunnel not found")
 
-    # Verify ownership
-    if tunnel.user_email != user["email"]:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "You can only stop your own tunnels")
+    if tunnel:
+        if not is_admin and (not tunnel.user_email or tunnel.user_email.lower() != user["email"].lower()):
+            from app.core.tunnel_registry import register_tunnel
+            await register_tunnel(tunnel)
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "You can only stop your own tunnels")
 
-    # Close the SSH connection
-    if tunnel.ssh_conn:
-        tunnel.ssh_conn.close()
+        if tunnel.ssh_conn:
+            try:
+                tunnel.ssh_conn.close()
+            except Exception:
+                pass
 
-    # Update DB
     cur = await db.execute(
-        "UPDATE tunnels SET status = 'disconnected', closed_at = now() WHERE subdomain = %s",
+        "UPDATE tunnels SET status = 'disconnected', closed_at = now() WHERE subdomain = %s AND status = 'active'",
         (subdomain,),
     )
+    updated = cur.rowcount
     await cur.close()
+
+    if not tunnel and updated == 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tunnel not found or already stopped")
 
     return {"message": f"Tunnel {subdomain} stopped"}
 

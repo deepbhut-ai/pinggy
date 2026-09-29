@@ -361,6 +361,7 @@ async def get_multiport_config(
 async def get_cli_tunnel_config(
     token: str,
     tz: str | None = None,
+    region: str | None = None,
     db: AsyncConnection = Depends(get_db),
 ):
     """Fetch saved multiport and domain mappings for a token to power zero-flag CLI connections."""
@@ -469,12 +470,29 @@ async def get_cli_tunnel_config(
                 pass
 
     ssh_host = f"ssh.{settings.TUNNEL_DOMAIN}" if not settings.TUNNEL_DOMAIN.startswith("ssh.") else settings.TUNNEL_DOMAIN
+    ssh_port = settings.SSH_PORT
+
+    if region and region.strip().lower() not in ("in", "default"):
+        reg_code = region.strip().lower()
+        try:
+            cur = await db.execute(
+                "SELECT ssh_host, ssh_port FROM regions WHERE code = %s AND is_active = TRUE",
+                (reg_code,),
+            )
+            reg_row = await cur.fetchone()
+            await cur.close()
+            if reg_row:
+                ssh_host = reg_row[0]
+                ssh_port = reg_row[1] or 2222
+        except Exception:
+            pass
 
     return {
         "status": "success",
         "token": token,
+        "region": region or "in",
         "ssh_host": ssh_host,
-        "ssh_port": settings.SSH_PORT,
+        "ssh_port": ssh_port,
         "ports": ports,
     }
 
